@@ -1,7 +1,9 @@
 const stateEl = {
   service: document.getElementById("service"),
   runtime: document.getElementById("runtime"),
+  webRuntime: document.getElementById("webRuntime"),
   bridge: document.getElementById("bridge"),
+  hub: document.getElementById("hub"),
   reports: document.getElementById("reports"),
   autostart: document.getElementById("autostart"),
   log: document.getElementById("log"),
@@ -21,8 +23,12 @@ function setBridgeState(payload) {
   const running = payload?.bridge?.running === true;
   stateEl.service.textContent = payload?.serviceName ?? "sitepulse-companion-bridge";
   stateEl.runtime.textContent = payload?.qaRuntimeDir ?? "n/a";
+  stateEl.webRuntime.textContent = payload?.webRuntimeDir ?? "n/a";
   stateEl.bridge.textContent = running
     ? `${payload.bridge.host}:${payload.bridge.port} (${payload.bridge.service})`
+    : "offline";
+  stateEl.hub.textContent = payload?.hub?.running
+    ? `${payload.hub.host}:${payload.hub.port}`
     : "offline";
   stateEl.reports.textContent = payload?.reportsDir ?? "n/a";
   stateEl.autostart.textContent = payload?.launchOnLogin ? "ativado" : "desativado";

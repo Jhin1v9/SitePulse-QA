@@ -3,14 +3,14 @@
 Projeto independente com:
 - app web (Next.js) para operar auditoria e ler relatorios
 - auditor CLI (`qa`) com Playwright para varrer qualquer URL
-- companion Windows (`companion`) para rodar auditoria local completa sem depender do codigo-fonte no navegador
+- programa desktop Windows (`companion`) com Hub embutido, bridge local e runtime proprio
 
 Nao depende de outro projeto para funcionar.
 
 ## Estrutura
 - `app/`: interface web SitePulse Hub
 - `qa/`: motor de auditoria (CMD + relatorios + prompt pack)
-- `companion/`: app Windows com localhost bridge e runtime local
+- `companion/`: app desktop Windows com Hub local, bridge e runtime empacotado
 - `public/`: recursos web do app instalavel (PWA)
 
 ## Rodar local
@@ -23,25 +23,32 @@ npm run dev
 Abrir:
 - `http://localhost:3000/?autologin=1`
 
-## Companion Windows
+## SitePulse Desktop
 Objetivo:
 - entregar a camada com permissao local que o browser nao tem
-- subir o bridge em `127.0.0.1:47891`
-- executar o motor `qa` localmente via Playwright real
+- abrir o SitePulse Hub dentro do proprio programa
+- subir o bridge local em `127.0.0.1:47891`
+- subir o Hub local em `127.0.0.1:47892`
+- executar o motor `qa` localmente via Playwright real, sem depender do browser aberto
 
 Comandos:
 ```bash
 npm run companion:install
+npm run desktop:smoke
 npm run companion:smoke
+npm --prefix companion run pack:dir
 npm run companion:build:win
+npm run desktop:build:win
 ```
 
 Resultado do build Windows:
-- `companion/dist/SitePulse-Companion-1.0.0-Setup.exe`
+- `companion/dist/SitePulse-Desktop-1.0.0-Setup.exe`
+- executavel direto: `companion/dist/win-unpacked/SitePulse Desktop.exe`
 
 Observacao:
-- o companion e a ponte entre o Hub web e a auditoria local completa
-- este e o passo correto antes de transformar o produto inteiro em desktop app
+- o antigo companion virou a base do `SitePulse Desktop`
+- o programa desktop agora embute o Hub e o runtime local
+- o site web continua existindo para uso no browser e para deploy no Vercel
 
 ## Usar no browser e como app
 - Browser normal: abra a URL do projeto e rode auditorias no painel.
@@ -53,16 +60,21 @@ Observacao:
 
 ## Auditoria completa via browser
 Fluxo preferido:
-1. instale/abra o `SitePulse Companion`
-2. deixe o bridge local online
-3. no SitePulse Hub, clique em `Checar Companion local`
-4. clique em `Auditar completo (Companion local)`
+1. instale/abra o `SitePulse Desktop`
+2. o programa sobe o Hub e o bridge local automaticamente
+3. use o Hub dentro do proprio desktop app
+4. opcionalmente, use o Hub web para conversar com o bridge local
 
 Fluxo alternativo para desenvolvimento:
 1. rode `npm run audit:bridge`
 2. use o mesmo Hub web para disparar a auditoria
 
 O bridge roda em `http://127.0.0.1:47891` e permite que a interface web dispare o mesmo motor do CMD com retorno de relatorio completo.
+
+## Validacao do desktop
+- smoke dev: `npm run desktop:smoke`
+- empacotar apenas pasta executavel: `npm --prefix companion run pack:dir`
+- smoke do empacotado em ambiente automatizado: definir `SITEPULSE_DESKTOP_SMOKE=1` e executar `SitePulse Desktop.exe`
 
 ## Auditoria via CMD
 ```bash
@@ -85,6 +97,6 @@ Relatorios ficam em:
 ## Observacao importante
 No Vercel, o app web funciona como central de comando e leitura de relatorios.
 A execucao Playwright completa (cliques/layout em browser real) pode ser feita:
-- via `SitePulse Companion` local
+- via `SitePulse Desktop` local
 - via CMD local tradicional
 - ou via `Bridge local` manual acionado pela interface web em ambiente de desenvolvimento

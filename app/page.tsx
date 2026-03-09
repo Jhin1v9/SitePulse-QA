@@ -199,6 +199,11 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type DesktopCompanionApi = {
+  getState?: () => Promise<unknown>;
+  openReports?: () => Promise<{ ok: boolean; error?: string }>;
+};
+
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
 const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
@@ -271,6 +276,12 @@ function auditScopeHelp(scope: AuditScope) {
     return "Analisa botoes, secoes, runtime e requests. SEO fica ignorado nesta rodada.";
   }
   return "Analisa SEO, botoes, secoes, requests e comportamento.";
+}
+
+function getDesktopCompanionApi(): DesktopCompanionApi | null {
+  if (typeof window === "undefined") return null;
+  const maybe = (window as Window & typeof globalThis & { sitePulseCompanion?: DesktopCompanionApi }).sitePulseCompanion;
+  return maybe ?? null;
 }
 
 function normalizeIssue(raw: unknown, index: number): IssueModel {
@@ -1196,6 +1207,7 @@ function PageContent() {
   const searchParams = useSearchParams();
   const autoLogin = searchParams.get("autologin") === "1";
   const selfAudit = searchParams.get("selfaudit") === "1";
+  const desktopMode = searchParams.get("desktop") === "1";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [logged, setLogged] = useState(true);
@@ -1230,6 +1242,7 @@ function PageContent() {
   const [seoWatchLoading, setSeoWatchLoading] = useState(false);
   const [seoWatch, setSeoWatch] = useState<SeoWatchResponse | null>(null);
   const [seoWatchError, setSeoWatchError] = useState("");
+  const [desktopApiAvailable, setDesktopApiAvailable] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoginAppliedRef = useRef(false);
@@ -1292,6 +1305,10 @@ function PageContent() {
   }
 
   async function installApp() {
+    if (desktopMode) {
+      pushLog("[desktop] voce ja esta usando o programa desktop real.");
+      return;
+    }
     if (pwaInstalled) {
       pushLog("[pwa] app ja esta no modo instalado.");
       return;
@@ -1315,6 +1332,20 @@ function PageContent() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "install_prompt_failed";
       pushLog(`[pwa] falha ao abrir instalacao: ${message}`);
+    }
+  }
+
+  async function openDesktopReports() {
+    const api = getDesktopCompanionApi();
+    if (!api?.openReports) {
+      pushLog("[desktop] API local de relatorios indisponivel.");
+      return;
+    }
+    const result = await api.openReports();
+    if (result.ok) {
+      pushLog("[desktop] pasta de relatorios aberta.");
+    } else {
+      pushLog(`[desktop] falha ao abrir relatorios: ${result.error ?? "unknown"}`);
     }
   }
 
@@ -1875,12 +1906,27 @@ function PageContent() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    const api = getDesktopCompanionApi();
+    setDesktopApiAvailable(Boolean(api));
+    if (desktopMode && api) {
+      pushLog("[desktop] programa desktop local detectado.");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [desktopMode]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
 
     const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
     const getStandaloneMode = () =>
       window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true;
 
-    setPwaInstalled(getStandaloneMode());
+    setPwaInstalled(desktopMode ? true : getStandaloneMode());
+
+    if (desktopMode) {
+      setPwaReady(false);
+      return;
+    }
 
     const onBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
@@ -1990,7 +2036,7 @@ function PageContent() {
         navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       }
     };
-  }, []);
+  }, [desktopMode]);
 
   if (!showDashboard) {
     return (
@@ -2067,10 +2113,17 @@ function PageContent() {
               <span className={running ? "dot" : "dot ok"} />
               {running ? "auditoria em andamento" : "pronto"}
             </span>
-            <button type="button" className={`chip chip-action ${pwaInstalled ? "active" : ""}`} onClick={() => void installApp()}>
-              <span className={pwaInstalled || pwaReady ? "dot ok" : "dot"} />
-              {pwaInstalled ? "app instalado" : pwaReady ? "instalar app" : "modo app"}
-            </button>
+            {desktopMode ? (
+              <span className="chip">
+                <span className="dot ok" />
+                desktop app
+              </span>
+            ) : (
+              <button type="button" className={`chip chip-action ${pwaInstalled ? "active" : ""}`} onClick={() => void installApp()}>
+                <span className={pwaInstalled || pwaReady ? "dot ok" : "dot"} />
+                {pwaInstalled ? "app instalado" : pwaReady ? "instalar app" : "modo app"}
+              </button>
+            )}
           </div>
         </header>
 
@@ -2193,7 +2246,9 @@ function PageContent() {
                 "Rodar via CMD (janela)" abre no Windows local. Em deploy remoto (ex.: Vercel), use o comando recomendado.
               </p>
               <p className="small muted" style={{ margin: "4px 0 0" }}>
-                {LOCAL_COMPANION_HINT}
+                {desktopMode
+                  ? "Voce esta no SitePulse Desktop. O Hub roda dentro do programa e o bridge local e iniciado automaticamente."
+                  : LOCAL_COMPANION_HINT}
               </p>
               <p className="small muted" style={{ margin: "4px 0 0" }}>
                 Fallback de desenvolvimento: <code>{LOCAL_BRIDGE_START_COMMAND}</code>.
@@ -2209,6 +2264,11 @@ function PageContent() {
                 <button type="button" className="btn-secondary" onClick={() => void checkSeoUpdates()} disabled={seoWatchLoading}>
                   {seoWatchLoading ? "Checando docs SEO..." : "Procurar atualizacoes SEO"}
                 </button>
+                {desktopApiAvailable ? (
+                  <button type="button" className="btn-secondary" onClick={() => void openDesktopReports()}>
+                    Abrir relatorios locais
+                  </button>
+                ) : null}
               </div>
               <p className="small muted" style={{ margin: "4px 0 0" }}>
                 {seoWatch

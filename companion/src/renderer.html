@@ -3,20 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SitePulse Companion</title>
+    <title>SitePulse Desktop Diagnostics</title>
     <link rel="stylesheet" href="./renderer.css" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div class="brand">
-          <h1>SitePulse Companion</h1>
-          <p>Camada local do Windows para auditoria completa, bridge, logs e relatorios.</p>
+          <h1>SitePulse Desktop</h1>
+          <p>Diagnostico local do app desktop: Hub embutido, bridge, logs e relatorios.</p>
         </div>
         <div class="badge-row">
-          <span class="badge">Windows local</span>
+          <span class="badge">Hub embutido</span>
           <span class="badge">Playwright real</span>
-          <span class="badge">Bridge localhost</span>
+          <span class="badge">Desktop app</span>
         </div>
       </header>
 
@@ -36,8 +36,16 @@
                 <strong class="ok" id="bridge">carregando...</strong>
               </div>
               <div class="status-row">
+                <span class="muted">Hub local</span>
+                <strong class="ok" id="hub">carregando...</strong>
+              </div>
+              <div class="status-row">
                 <span class="muted">Runtime QA</span>
                 <strong class="mono" id="runtime">carregando...</strong>
+              </div>
+              <div class="status-row">
+                <span class="muted">Runtime Hub</span>
+                <strong class="mono" id="webRuntime">carregando...</strong>
               </div>
               <div class="status-row">
                 <span class="muted">Relatorios</span>
@@ -54,7 +62,7 @@
               <button id="stopBridge" class="secondary" type="button">Parar bridge</button>
             </div>
             <div class="btn-row">
-              <button id="openHub" class="secondary" type="button">Abrir Hub</button>
+              <button id="openHub" class="secondary" type="button">Abrir Hub desktop</button>
               <button id="openReports" class="secondary" type="button">Abrir relatorios</button>
               <button id="copyBridgeUrl" type="button">Copiar URL do bridge</button>
             </div>
@@ -66,7 +74,7 @@
 
             <div class="box">
               <p class="muted" style="margin: 0;">
-                Fluxo recomendado: iniciar o companion, confirmar bridge online e depois rodar a auditoria completa pelo SitePulse Hub.
+                Fluxo recomendado: abrir o app desktop, deixar bridge e Hub locais online e rodar a auditoria completa no proprio programa.
               </p>
             </div>
           </div>

@@ -1,14 +1,15 @@
 {
-  "name": "sitepulse-companion",
+  "name": "sitepulse-desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "Windows companion app for SitePulse local audits and localhost bridge control.",
+  "description": "Desktop app for SitePulse with built-in Hub, local audits and localhost bridge control.",
   "author": "SitePulse",
   "type": "module",
   "main": "src/main.cjs",
   "scripts": {
     "sync:runtime": "node scripts/sync-runtime.mjs",
-    "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
+    "sync:runtime:fast": "node scripts/sync-runtime.mjs --skip-web-build",
+    "dev": "npm run sync:runtime:fast && node scripts/run-electron.mjs .",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
     "build:win": "npm run sync:runtime && electron-builder --win nsis"
@@ -22,14 +23,26 @@
     "electron-builder": "26.8.1"
   },
   "build": {
-    "appId": "com.sitepulse.companion",
-    "productName": "SitePulse Companion",
+    "appId": "com.sitepulse.desktop",
+    "productName": "SitePulse Desktop",
     "directories": {
       "output": "dist"
     },
     "files": [
-      "src/**/*",
-      "runtime-source/**/*",
+      {
+        "from": "src",
+        "to": "src",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "runtime-source",
+        "to": "runtime-source",
+        "filter": [
+          "**/*"
+        ]
+      },
       "package.json"
     ],
     "extraMetadata": {
@@ -45,7 +58,7 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "SitePulse-Companion-${version}-Setup.${ext}"
+      "artifactName": "SitePulse-Desktop-${version}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
