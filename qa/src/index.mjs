@@ -3787,6 +3787,12 @@ function isLikelyStaticAssetRequest(requestUrl, resourceType) {
     return true;
   }
   const pathname = pathFromUrl(requestUrl);
+  if (pathname.includes("/_next/static/") || pathname.includes("/static/chunks/")) {
+    return true;
+  }
+  if (lowerType === "script" && pathname.includes("/_next/") && pathname.endsWith(".js")) {
+    return true;
+  }
   if (pathname.includes("/assets/images/")) {
     return true;
   }
