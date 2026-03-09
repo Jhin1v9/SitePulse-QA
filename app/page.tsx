@@ -935,7 +935,6 @@ function PageContent() {
     setLoginError("");
     setLogged(true);
     void checkHealth();
-    void checkLocalBridge(true);
   }
 
   async function copyText(text: string, label: string) {
@@ -1160,15 +1159,9 @@ function PageContent() {
     autoLoginAppliedRef.current = true;
     setLogged(true);
     void checkHealth();
-    void checkLocalBridge(true);
     pushLog("[auth] autologin enabled by query param");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLogin]);
-
-  useEffect(() => {
-    void checkLocalBridge(true);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1277,7 +1270,7 @@ function PageContent() {
       <div className="orb orb-b" />
 
       <section className="wrap">
-        <header className="topbar reveal">
+        <header className="topbar reveal" data-audit-ignore="true">
           <div className="brand">
             <div className="brand-mark">SP</div>
             <div>
@@ -1310,7 +1303,7 @@ function PageContent() {
           </div>
         </header>
 
-        <section className="dashboard">
+        <section className="dashboard" data-audit-ignore="true">
           <article className="card reveal d2">
             <header className="card-head">
               <h2 className="card-title">Painel</h2>

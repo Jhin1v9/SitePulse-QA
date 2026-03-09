@@ -3075,6 +3075,7 @@ function extractButtonLabels(page, baseOrigin) {
     );
     const actions = all
       .filter((el) => isVisible(el))
+      .filter((el) => !el.closest('[data-audit-ignore="true"]'))
       .filter((el) => {
         const tag = (el.tagName || "").toLowerCase();
         if (tag === "a") return hasInternalHref(el.getAttribute("href"));
