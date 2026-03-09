@@ -1,5 +1,5 @@
 ﻿<!doctype html>
-<html lang="pt-BR">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -12,9 +12,9 @@
         <div class="titlebar-brand drag-region">
           <div class="brand-mark">SP</div>
           <div class="brand-copy">
-            <p class="eyebrow">sitepulse studio</p>
-            <h1>Precision Audit Workstation</h1>
-            <p>Desktop-native QA, SEO and runtime diagnostics for serious product teams.</p>
+            <p class="eyebrow">sitepulse systems</p>
+            <h1>SitePulse Studio</h1>
+            <p>Precision audit software for teams that care about failures before customers do.</p>
           </div>
         </div>
 
@@ -25,264 +25,404 @@
         </div>
 
         <div class="window-controls no-drag">
-          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimizar">&minus;</button>
-          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximizar">&#9633;</button>
-          <button id="winClose" class="window-btn danger" type="button" aria-label="Fechar">&#10005;</button>
+          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimize">&minus;</button>
+          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximize">&#9633;</button>
+          <button id="winClose" class="window-btn danger" type="button" aria-label="Close">&#10005;</button>
         </div>
       </header>
 
       <main class="shell-grid">
-        <aside class="side-column">
+        <aside class="nav-column">
           <section class="panel brand-panel">
-            <p class="eyebrow">brand frame</p>
-            <h2>The control room, not the website.</h2>
+            <p class="eyebrow">product stance</p>
+            <h2>Control room for digital quality.</h2>
             <p class="muted">
-              This shell exists to operate the engine, collect evidence and guide fixes without pretending to be a browser page.
+              This program is designed to run operations, detect risk, store evidence and guide fixes with the engine close to the metal.
             </p>
           </section>
 
-          <section class="panel engine-panel">
+          <nav class="panel nav-panel">
+            <p class="eyebrow">navigation</p>
+            <div class="nav-stack">
+              <button class="nav-btn active" data-view="overview" type="button">
+                <span class="nav-title">Overview</span>
+                <span class="nav-desc">Mission control, setup and live metrics</span>
+              </button>
+              <button class="nav-btn" data-view="findings" type="button">
+                <span class="nav-title">Findings</span>
+                <span class="nav-desc">Issue board, signals and route problems</span>
+              </button>
+              <button class="nav-btn" data-view="reports" type="button">
+                <span class="nav-title">Reports</span>
+                <span class="nav-desc">Replay command, prompt pack and run history</span>
+              </button>
+              <button class="nav-btn" data-view="settings" type="button">
+                <span class="nav-title">Settings</span>
+                <span class="nav-desc">Engine controls, startup and runtime paths</span>
+              </button>
+            </div>
+          </nav>
+
+          <section class="panel quick-panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">local engine</p>
-                <h3>Runtime status</h3>
+                <p class="eyebrow">one-click actions</p>
+                <h3>Fast operations</h3>
               </div>
             </div>
-
-            <div class="mini-grid">
-              <article class="stat-tile">
-                <span class="tile-label">Service</span>
-                <strong id="serviceName">SitePulse Studio</strong>
-              </article>
-              <article class="stat-tile">
-                <span class="tile-label">Bridge</span>
-                <strong id="bridgeStatus">offline</strong>
-              </article>
-              <article class="stat-tile">
-                <span class="tile-label">Audit</span>
-                <strong id="auditStatus">idle</strong>
-              </article>
-              <article class="stat-tile">
-                <span class="tile-label">Version</span>
-                <strong id="versionText">1.0.0</strong>
-              </article>
-            </div>
-
-            <label class="toggle-row">
-              <input id="launchOnLogin" type="checkbox" />
-              <span>Open SitePulse Studio when Windows starts.</span>
-            </label>
-
             <div class="action-row stack">
-              <button id="startBridge" class="primary" type="button">Start engine</button>
-              <button id="stopBridge" class="secondary" type="button">Stop engine</button>
-            </div>
-          </section>
-
-          <section class="panel artifact-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">artifacts</p>
-                <h3>Evidence vault</h3>
-              </div>
-            </div>
-
-            <div class="info-list">
-              <div class="info-row">
-                <span class="info-label">QA runtime</span>
-                <code id="runtimePath">loading...</code>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Reports</span>
-                <code id="reportsPath">loading...</code>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Bridge URL</span>
-                <code id="bridgeAddress">loading...</code>
-              </div>
-            </div>
-
-            <div class="action-row stack">
+              <button id="quickAuditButton" class="primary" type="button">Run quick audit</button>
+              <button id="deepAuditButton" class="secondary" type="button">Run deep audit</button>
               <button id="openReports" type="button">Open report vault</button>
               <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
             </div>
           </section>
         </aside>
 
-        <section class="center-column">
-          <section class="panel hero-panel">
-            <div>
-              <p class="eyebrow">mission control</p>
-              <h2>Audit a real product, not just a page screenshot.</h2>
-              <p class="muted">
-                Route load, runtime breakage, button intent, network failures, visual order and SEO are handled as one quality system.
-              </p>
-            </div>
-            <div class="hero-badges">
-              <span class="badge">runtime aware</span>
-              <span class="badge">evidence driven</span>
-              <span class="badge">fix oriented</span>
-            </div>
-          </section>
-
-          <section class="panel control-panel">
-            <div class="panel-head split-head">
+        <section class="main-column">
+          <section class="view-panel active" data-view-panel="overview">
+            <section class="panel hero-panel">
               <div>
-                <p class="eyebrow">audit setup</p>
-                <h3>Execution profile</h3>
+                <p class="eyebrow">mission control</p>
+                <h2>Audit a real product, not just a front page.</h2>
+                <p class="muted">
+                  Route load, runtime breakage, button intent, network failures, visual order and SEO are treated as one operational system.
+                </p>
               </div>
-              <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
-            </div>
+              <div class="hero-badges">
+                <span class="badge">runtime aware</span>
+                <span class="badge">evidence driven</span>
+                <span class="badge">fix oriented</span>
+              </div>
+            </section>
 
-            <label class="field-block">
-              <span class="field-label">Target URL</span>
-              <input id="targetUrl" class="text-input" type="url" placeholder="https://example.com" />
-            </label>
-
-            <div class="controls-grid">
-              <section class="control-group">
-                <span class="field-label">Device mode</span>
-                <div class="segment" id="modeSegment">
-                  <button type="button" data-mode="desktop" class="segment-btn active">Desktop</button>
-                  <button type="button" data-mode="mobile" class="segment-btn">Mobile</button>
+            <section class="panel control-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">audit setup</p>
+                  <h3>Execution profile</h3>
                 </div>
-              </section>
+                <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
+              </div>
 
-              <section class="control-group">
-                <span class="field-label">Audit focus</span>
-                <div class="segment segment-3" id="scopeSegment">
-                  <button type="button" data-scope="full" class="segment-btn active">Full stack</button>
-                  <button type="button" data-scope="seo" class="segment-btn">SEO only</button>
-                  <button type="button" data-scope="experience" class="segment-btn">UX only</button>
+              <label class="field-block">
+                <span class="field-label">Target URL</span>
+                <input id="targetUrl" class="text-input" type="url" placeholder="https://example.com" />
+              </label>
+
+              <div class="controls-grid">
+                <section class="control-group">
+                  <span class="field-label">Device mode</span>
+                  <div class="segment" id="modeSegment">
+                    <button type="button" data-mode="desktop" class="segment-btn active">Desktop</button>
+                    <button type="button" data-mode="mobile" class="segment-btn">Mobile</button>
+                  </div>
+                </section>
+
+                <section class="control-group">
+                  <span class="field-label">Audit focus</span>
+                  <div class="segment segment-3" id="scopeSegment">
+                    <button type="button" data-scope="full" class="segment-btn active">Full stack</button>
+                    <button type="button" data-scope="seo" class="segment-btn">SEO only</button>
+                    <button type="button" data-scope="experience" class="segment-btn">UX only</button>
+                  </div>
+                </section>
+
+                <section class="control-group">
+                  <span class="field-label">Sweep depth</span>
+                  <div class="segment" id="depthSegment">
+                    <button type="button" data-depth="signal" class="segment-btn active">Signal sweep</button>
+                    <button type="button" data-depth="deep" class="segment-btn">Deep crawl</button>
+                  </div>
+                </section>
+              </div>
+
+              <div class="toggle-grid">
+                <label class="toggle-row compact">
+                  <input id="noServer" type="checkbox" checked />
+                  <span>External URL mode (--no-server)</span>
+                </label>
+                <label class="toggle-row compact">
+                  <input id="headed" type="checkbox" />
+                  <span>Show browser while the engine works</span>
+                </label>
+                <label class="toggle-row compact">
+                  <input id="elevated" type="checkbox" />
+                  <span>Request admin when opening CMD</span>
+                </label>
+              </div>
+
+              <div class="action-row">
+                <button id="runAudit" class="primary xl" type="button">Run native audit</button>
+                <button id="runCmd" class="secondary xl" type="button">Open full CMD flow</button>
+                <button id="copyReplayCommand" type="button">Copy replay command</button>
+                <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
+              </div>
+            </section>
+
+            <section class="metrics-grid">
+              <article class="metric-card">
+                <span class="metric-label">Routes checked</span>
+                <strong id="routesMetric">0</strong>
+              </article>
+              <article class="metric-card">
+                <span class="metric-label">Actions mapped</span>
+                <strong id="actionsMetric">0</strong>
+              </article>
+              <article class="metric-card danger">
+                <span class="metric-label">Open issues</span>
+                <strong id="issuesMetric">0</strong>
+              </article>
+              <article class="metric-card ok">
+                <span class="metric-label">SEO score</span>
+                <strong id="seoMetric">0</strong>
+              </article>
+              <article class="metric-card warn">
+                <span class="metric-label">Risk score</span>
+                <strong id="riskMetric">0</strong>
+              </article>
+            </section>
+
+            <section class="analysis-grid">
+              <article class="panel signals-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">micro signals</p>
+                    <h3>Detection lanes</h3>
+                  </div>
                 </div>
-              </section>
-
-              <section class="control-group">
-                <span class="field-label">Sweep depth</span>
-                <div class="segment" id="depthSegment">
-                  <button type="button" data-depth="signal" class="segment-btn active">Signal sweep</button>
-                  <button type="button" data-depth="deep" class="segment-btn">Deep crawl</button>
+                <div class="signal-grid">
+                  <div class="signal-item"><span>Route load</span><strong id="routeSignal">0</strong></div>
+                  <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
+                  <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
+                  <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
+                  <div class="signal-item"><span>Visual order</span><strong id="visualSignal">0</strong></div>
+                  <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
                 </div>
-              </section>
-            </div>
+              </article>
 
-            <div class="toggle-grid">
-              <label class="toggle-row compact">
-                <input id="noServer" type="checkbox" checked />
-                <span>External URL mode (--no-server)</span>
-              </label>
-              <label class="toggle-row compact">
-                <input id="headed" type="checkbox" />
-                <span>Show browser while the engine works</span>
-              </label>
-              <label class="toggle-row compact">
-                <input id="elevated" type="checkbox" />
-                <span>Request admin when opening CMD</span>
-              </label>
-            </div>
-
-            <div class="action-row">
-              <button id="runAudit" class="primary xl" type="button">Run native audit</button>
-              <button id="runCmd" class="secondary xl" type="button">Open full CMD flow</button>
-              <button id="copyReplayCommand" type="button">Copy replay command</button>
-              <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
-            </div>
+              <article class="panel steps-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">operator guide</p>
+                    <h3>Next actions</h3>
+                  </div>
+                </div>
+                <ol id="stepsList" class="steps-list">
+                  <li>Run an audit to generate the first operating brief.</li>
+                </ol>
+              </article>
+            </section>
           </section>
 
-          <section class="metrics-grid">
-            <article class="metric-card">
-              <span class="metric-label">Routes checked</span>
-              <strong id="routesMetric">0</strong>
-            </article>
-            <article class="metric-card">
-              <span class="metric-label">Actions mapped</span>
-              <strong id="actionsMetric">0</strong>
-            </article>
-            <article class="metric-card danger">
-              <span class="metric-label">Open issues</span>
-              <strong id="issuesMetric">0</strong>
-            </article>
-            <article class="metric-card ok">
-              <span class="metric-label">SEO score</span>
-              <strong id="seoMetric">0</strong>
-            </article>
-            <article class="metric-card warn">
-              <span class="metric-label">Risk score</span>
-              <strong id="riskMetric">0</strong>
-            </article>
-          </section>
+          <section class="view-panel" data-view-panel="findings">
+            <section class="panel findings-toolbar">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">findings cockpit</p>
+                  <h3>Priority issues</h3>
+                </div>
+                <div class="pill-row" id="issueMetaPills"></div>
+              </div>
 
-          <section class="analysis-grid">
-            <article class="panel signals-panel">
+              <div class="filters-row">
+                <div class="segment segment-4" id="severityFilterSegment">
+                  <button type="button" data-issue-filter="all" class="segment-btn active">All</button>
+                  <button type="button" data-issue-filter="high" class="segment-btn">High</button>
+                  <button type="button" data-issue-filter="medium" class="segment-btn">Medium</button>
+                  <button type="button" data-issue-filter="low" class="segment-btn">Low</button>
+                </div>
+                <div class="headline-status" id="findingsHeadline">Use this board to drive the fix sequence.</div>
+              </div>
+            </section>
+
+            <section class="panel issue-distribution-panel">
               <div class="panel-head">
                 <div>
-                  <p class="eyebrow">micro signals</p>
-                  <h3>Detection lanes</h3>
+                  <p class="eyebrow">coverage map</p>
+                  <h3>Issue distribution</h3>
                 </div>
               </div>
-              <div class="signal-grid">
-                <div class="signal-item"><span>Route load</span><strong id="routeSignal">0</strong></div>
-                <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
-                <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
-                <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
-                <div class="signal-item"><span>Visual order</span><strong id="visualSignal">0</strong></div>
-                <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
+              <div id="issueGroupGrid" class="group-grid">
+                <article class="empty-state">No findings loaded yet.</article>
               </div>
-            </article>
+            </section>
 
-            <article class="panel steps-panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">operator guide</p>
-                  <h3>Next actions</h3>
-                </div>
+            <section class="panel issues-panel findings-board-panel">
+              <div id="issuesList" class="issues-list">
+                <article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>
               </div>
-              <ol id="stepsList" class="steps-list">
-                <li>Run an audit to generate the first operating brief.</li>
-              </ol>
-            </article>
+            </section>
           </section>
 
-          <section class="panel issues-panel">
-            <div class="panel-head split-head">
-              <div>
-                <p class="eyebrow">issue board</p>
-                <h3>Priority issues</h3>
+          <section class="view-panel" data-view-panel="reports">
+            <section class="panel reports-summary-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">report room</p>
+                  <h3>Evidence, replay and prompt pack</h3>
+                </div>
+                <div class="headline-status" id="reportsHeadline">Each run leaves a replayable evidence trail.</div>
               </div>
-              <div class="pill-row" id="issueMetaPills"></div>
-            </div>
-            <div id="issuesList" class="issues-list">
-              <article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>
-            </div>
+
+              <div class="report-grid">
+                <article class="info-card">
+                  <span class="info-label">Target</span>
+                  <code id="currentTarget">none</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Mode</span>
+                  <code id="currentMode">desktop</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Scope</span>
+                  <code id="currentScope">full</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Depth</span>
+                  <code id="currentDepth">signal sweep</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Duration</span>
+                  <code id="currentDuration">0s</code>
+                </article>
+                <article class="info-card wide">
+                  <span class="info-label">Replay command</span>
+                  <code id="currentCommand">Run an audit to generate a replay command.</code>
+                </article>
+              </div>
+            </section>
+
+            <section class="dual-grid">
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">prompt pack</p>
+                    <h3>Fix direction</h3>
+                  </div>
+                  <button id="copyQuickPromptSecondary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="quickPromptBox">Run an audit to generate a professional fix prompt.</div>
+              </article>
+
+              <article class="panel history-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">run history</p>
+                    <h3>Recent snapshots</h3>
+                  </div>
+                  <button id="clearHistory" class="ghost" type="button">Clear history</button>
+                </div>
+                <div id="historyList" class="history-list">
+                  <article class="empty-state">No stored run snapshots yet.</article>
+                </div>
+              </article>
+            </section>
+          </section>
+
+          <section class="view-panel" data-view-panel="settings">
+            <section class="panel settings-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">system controls</p>
+                  <h3>Desktop engine configuration</h3>
+                </div>
+                <button id="revealOnboarding" class="ghost" type="button">Show onboarding</button>
+              </div>
+
+              <div class="settings-grid">
+                <article class="setting-card">
+                  <span class="info-label">Service</span>
+                  <strong id="serviceName">SitePulse Studio</strong>
+                </article>
+                <article class="setting-card">
+                  <span class="info-label">Bridge</span>
+                  <strong id="bridgeStatus">offline</strong>
+                </article>
+                <article class="setting-card">
+                  <span class="info-label">Audit state</span>
+                  <strong id="auditStatus">idle</strong>
+                </article>
+                <article class="setting-card">
+                  <span class="info-label">Version</span>
+                  <strong id="versionText">1.0.0</strong>
+                </article>
+              </div>
+
+              <label class="toggle-row settings-toggle">
+                <input id="launchOnLogin" type="checkbox" />
+                <span>Open SitePulse Studio when Windows starts.</span>
+              </label>
+
+              <div class="dual-grid">
+                <article class="panel nested-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">runtime</p>
+                      <h3>Local artifact paths</h3>
+                    </div>
+                  </div>
+                  <div class="info-list compact-list">
+                    <div class="info-row">
+                      <span class="info-label">QA runtime</span>
+                      <code id="runtimePath">loading...</code>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Reports</span>
+                      <code id="reportsPath">loading...</code>
+                    </div>
+                    <div class="info-row">
+                      <span class="info-label">Bridge URL</span>
+                      <code id="bridgeAddress">loading...</code>
+                    </div>
+                  </div>
+                </article>
+
+                <article class="panel nested-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">engine actions</p>
+                      <h3>Operational controls</h3>
+                    </div>
+                  </div>
+                  <div class="action-row stack">
+                    <button id="startBridge" class="primary" type="button">Start engine</button>
+                    <button id="stopBridge" class="secondary" type="button">Stop engine</button>
+                    <button id="openReportsSecondary" type="button">Open report vault</button>
+                    <button id="copyBridgeUrlSecondary" type="button">Copy bridge URL</button>
+                  </div>
+                </article>
+              </div>
+            </section>
           </section>
         </section>
 
-        <aside class="right-column">
-          <section class="panel run-panel">
+        <aside class="context-column">
+          <section class="panel brief-panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">run state</p>
-                <h3>Current execution</h3>
+                <p class="eyebrow">executive brief</p>
+                <h3>Current mission</h3>
               </div>
             </div>
-            <div class="info-list">
-              <div class="info-row"><span class="info-label">Target</span><code id="currentTarget">none</code></div>
-              <div class="info-row"><span class="info-label">Mode</span><code id="currentMode">desktop</code></div>
-              <div class="info-row"><span class="info-label">Scope</span><code id="currentScope">full</code></div>
-              <div class="info-row"><span class="info-label">Depth</span><code id="currentDepth">signal sweep</code></div>
-              <div class="info-row"><span class="info-label">Duration</span><code id="currentDuration">0s</code></div>
-              <div class="info-row multiline"><span class="info-label">Replay</span><code id="currentCommand">Run an audit to generate a replay command.</code></div>
+            <div id="missionBrief" class="brief-copy">
+              SitePulse Studio is ready. Define a target and start the first audit run.
             </div>
           </section>
 
-          <section class="panel seo-panel">
+          <section class="panel profile-panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">prompt pack</p>
-                <h3>Fix direction</h3>
+                <p class="eyebrow">platform DNA</p>
+                <h3>Why this product exists</h3>
               </div>
             </div>
-            <div class="prompt-box" id="quickPromptBox">Run an audit to generate a professional fix prompt.</div>
+            <ul class="dna-list">
+              <li>Detect runtime, visual and SEO regressions in one run.</li>
+              <li>Translate technical failure into action for operators and developers.</li>
+              <li>Preserve evidence, replay commands and issue history for every pass.</li>
+              <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
+            </ul>
           </section>
 
           <section class="panel log-panel">
@@ -297,6 +437,34 @@
           </section>
         </aside>
       </main>
+    </div>
+
+    <div id="onboardingOverlay" class="onboarding-overlay hidden">
+      <div class="onboarding-card">
+        <p class="eyebrow">welcome to sitepulse studio</p>
+        <h2>Professional software starts with a professional operating loop.</h2>
+        <p class="muted">
+          This program is built to scan real products, expose failure signals, preserve evidence and guide the fix sequence without reducing the work to vague dashboards.
+        </p>
+        <div class="onboarding-grid">
+          <article>
+            <h3>1. Configure target</h3>
+            <p>Choose desktop or mobile, full stack or SEO-only, then define how deep the run should go.</p>
+          </article>
+          <article>
+            <h3>2. Run engine</h3>
+            <p>Use the native engine for evidence and keep CMD available when a full manual replay is needed.</p>
+          </article>
+          <article>
+            <h3>3. Fix by priority</h3>
+            <p>Use the findings board, replay command and prompt pack to eliminate high-impact failures first.</p>
+          </article>
+        </div>
+        <div class="action-row">
+          <button id="dismissOnboarding" class="primary" type="button">Enter studio</button>
+          <button id="startTourAudit" class="secondary" type="button">Preset first audit</button>
+        </div>
+      </div>
     </div>
 
     <script src="./renderer.js"></script>

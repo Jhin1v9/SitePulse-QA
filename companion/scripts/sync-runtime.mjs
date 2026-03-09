@@ -20,18 +20,26 @@ const qaFilesToCopy = [
   "package-lock.json",
   "audit.default.json",
   "audit.default.mobile.json",
-  "audit.sitepulse-hub.json",
-  "audit.sitepulse-hub.mobile.json",
   "README.md",
 ];
 
+async function removePathSafe(targetPath) {
+  await fs.rm(targetPath, {
+    recursive: true,
+    force: true,
+    maxRetries: 12,
+    retryDelay: 250,
+  });
+}
+
 async function syncQaRuntime() {
-  await fs.rm(targetQaDir, { recursive: true, force: true });
+  await removePathSafe(targetQaDir);
   await fs.mkdir(targetQaDir, { recursive: true });
 
   for (const entry of qaFilesToCopy) {
     const from = path.join(sourceQaDir, entry);
     const to = path.join(targetQaDir, entry);
+    await removePathSafe(to);
     await fs.cp(from, to, { recursive: true, force: true });
   }
 
@@ -46,7 +54,7 @@ async function syncQaRuntime() {
 }
 
 async function cleanupLegacyWebRuntime() {
-  await fs.rm(targetLegacyWebDir, { recursive: true, force: true });
+  await removePathSafe(targetLegacyWebDir);
 }
 
 async function main() {

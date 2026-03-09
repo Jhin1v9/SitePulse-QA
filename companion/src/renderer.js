@@ -1,18 +1,24 @@
-﻿const LAST_REPORT_KEY = "sitepulse-studio:last-report-v1";
-const LAST_PROFILE_KEY = "sitepulse-studio:last-profile-v1";
+const STORAGE_KEYS = {
+  lastReport: "sitepulse-studio:last-report-v1",
+  lastProfile: "sitepulse-studio:last-profile-v1",
+  runHistory: "sitepulse-studio:run-history-v1",
+  onboarding: "sitepulse-studio:onboarding-v1",
+};
 
 const ISSUE_GROUP = {
   ROUTE_LOAD_FAIL: "Route load failure",
   BTN_CLICK_ERROR: "Action failed",
-  BTN_NO_EFFECT: "No effect detected",
+  BTN_NO_EFFECT: "No visible effect",
   HTTP_4XX: "Client request failure",
-  HTTP_5XX: "Server failure",
+  HTTP_5XX: "Server request failure",
   NET_REQUEST_FAILED: "Network failure",
   JS_RUNTIME_ERROR: "Runtime JavaScript failure",
   CONSOLE_ERROR: "Console error",
   VISUAL_SECTION_ORDER_INVALID: "Visual order mismatch",
   VISUAL_SECTION_MISSING: "Missing section",
 };
+
+const DEFAULT_TARGET = "https://example.com";
 
 const stateEl = {
   serviceName: document.getElementById("serviceName"),
@@ -26,11 +32,18 @@ const stateEl = {
   startBridge: document.getElementById("startBridge"),
   stopBridge: document.getElementById("stopBridge"),
   openReports: document.getElementById("openReports"),
+  openReportsSecondary: document.getElementById("openReportsSecondary"),
   copyBridgeUrl: document.getElementById("copyBridgeUrl"),
+  copyBridgeUrlSecondary: document.getElementById("copyBridgeUrlSecondary"),
+  quickAuditButton: document.getElementById("quickAuditButton"),
+  deepAuditButton: document.getElementById("deepAuditButton"),
   targetUrl: document.getElementById("targetUrl"),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
   scopeButtons: Array.from(document.querySelectorAll("[data-scope]")),
   depthButtons: Array.from(document.querySelectorAll("[data-depth]")),
+  severityFilterButtons: Array.from(document.querySelectorAll("[data-issue-filter]")),
+  navButtons: Array.from(document.querySelectorAll("[data-view]")),
+  viewPanels: Array.from(document.querySelectorAll("[data-view-panel]")),
   noServer: document.getElementById("noServer"),
   headed: document.getElementById("headed"),
   elevated: document.getElementById("elevated"),
@@ -38,7 +51,10 @@ const stateEl = {
   runCmd: document.getElementById("runCmd"),
   copyReplayCommand: document.getElementById("copyReplayCommand"),
   copyQuickPrompt: document.getElementById("copyQuickPrompt"),
+  copyQuickPromptSecondary: document.getElementById("copyQuickPromptSecondary"),
   headlineStatus: document.getElementById("headlineStatus"),
+  findingsHeadline: document.getElementById("findingsHeadline"),
+  reportsHeadline: document.getElementById("reportsHeadline"),
   bridgeChip: document.getElementById("bridgeChip"),
   auditChip: document.getElementById("auditChip"),
   buildChip: document.getElementById("buildChip"),
@@ -55,6 +71,7 @@ const stateEl = {
   seoSignal: document.getElementById("seoSignal"),
   stepsList: document.getElementById("stepsList"),
   issuesList: document.getElementById("issuesList"),
+  issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
   currentTarget: document.getElementById("currentTarget"),
   currentMode: document.getElementById("currentMode"),
@@ -63,35 +80,42 @@ const stateEl = {
   currentDuration: document.getElementById("currentDuration"),
   currentCommand: document.getElementById("currentCommand"),
   quickPromptBox: document.getElementById("quickPromptBox"),
+  historyList: document.getElementById("historyList"),
+  clearHistory: document.getElementById("clearHistory"),
+  missionBrief: document.getElementById("missionBrief"),
   clearLog: document.getElementById("clearLog"),
   logOutput: document.getElementById("logOutput"),
   winMinimize: document.getElementById("winMinimize"),
   winMaximize: document.getElementById("winMaximize"),
   winClose: document.getElementById("winClose"),
+  onboardingOverlay: document.getElementById("onboardingOverlay"),
+  dismissOnboarding: document.getElementById("dismissOnboarding"),
+  startTourAudit: document.getElementById("startTourAudit"),
+  revealOnboarding: document.getElementById("revealOnboarding"),
 };
 
-let currentState = null;
-let currentReport = null;
-let currentMode = "desktop";
-let currentScope = "full";
-let currentDepth = "signal";
-let localLogs = ["[studio] waiting for engine telemetry"];
+const uiState = {
+  companionState: null,
+  report: null,
+  logs: ["[studio] waiting for engine telemetry"],
+  mode: "desktop",
+  scope: "full",
+  depth: "signal",
+  activeView: "overview",
+  issueFilter: "all",
+  history: loadHistory(),
+  onboardingDismissed: loadOnboardingState(),
+};
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function parseSeverity(value, fallbackCode = "") {
-  if (value === "high" || value === "medium" || value === "low") return value;
-  if (["HTTP_5XX", "JS_RUNTIME_ERROR", "VISUAL_SECTION_ORDER_INVALID"].includes(fallbackCode)) return "high";
-  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED"].includes(fallbackCode)) return "medium";
-  return "low";
-}
-
-function normalizeScope(value) {
-  if (value === "seo" || value === "experience" || value === "full") return value;
-  return "full";
+function formatLocalDate(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleString();
 }
 
 function formatDuration(durationMs) {
@@ -101,12 +125,50 @@ function formatDuration(durationMs) {
   if (seconds < 60) return `${seconds}s`;
   const minutes = Math.floor(seconds / 60);
   const remain = seconds % 60;
-  return `${minutes}m ${remain}s`;
+  if (minutes < 60) return `${minutes}m ${remain}s`;
+  const hours = Math.floor(minutes / 60);
+  const minutesRemain = minutes % 60;
+  return `${hours}h ${minutesRemain}m`;
 }
 
 function shortPath(value) {
   const text = String(value || "n/a");
   return text.length > 84 ? `...${text.slice(-81)}` : text;
+}
+
+function normalizeScope(value) {
+  if (value === "seo" || value === "experience" || value === "full") return value;
+  return "full";
+}
+
+function normalizeMode(value) {
+  return value === "mobile" ? "mobile" : "desktop";
+}
+
+function normalizeDepth(value) {
+  return value === "deep" ? "deep" : "signal";
+}
+
+function parseSeverity(value, code = "") {
+  if (value === "high" || value === "medium" || value === "low") return value;
+  if (["HTTP_5XX", "JS_RUNTIME_ERROR", "VISUAL_SECTION_ORDER_INVALID", "ROUTE_LOAD_FAIL"].includes(code)) return "high";
+  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING"].includes(code)) return "medium";
+  return "low";
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function severityRank(severity) {
+  if (severity === "high") return 3;
+  if (severity === "medium") return 2;
+  return 1;
 }
 
 function scoreFromIssues(issues) {
@@ -120,298 +182,386 @@ function countByCode(issues, codeList) {
   return issues.filter((issue) => codeList.includes(issue.code)).length;
 }
 
-function setChip(el, text, tone = "default") {
-  el.textContent = text;
-  el.classList.remove("ok", "warn", "bad");
-  if (tone === "ok") el.classList.add("ok");
-  if (tone === "warn") el.classList.add("warn");
-  if (tone === "bad") el.classList.add("bad");
+function setChip(element, text, tone = "default") {
+  if (!element) return;
+  element.textContent = text;
+  element.classList.remove("ok", "warn", "bad");
+  if (tone === "ok") element.classList.add("ok");
+  if (tone === "warn") element.classList.add("warn");
+  if (tone === "bad") element.classList.add("bad");
 }
 
-function renderLogs() {
-  stateEl.logOutput.textContent = localLogs.join("\n");
-}
-
-function appendLog(line) {
-  localLogs = [line, ...localLogs].slice(0, 500);
-  renderLogs();
-}
-
-function replaceLogs(lines) {
-  localLogs = Array.isArray(lines) && lines.length ? [...lines] : ["[studio] waiting for engine telemetry"];
-  renderLogs();
-}
-
-function persistProfile() {
-  const payload = {
-    targetUrl: stateEl.targetUrl.value.trim(),
-    mode: currentMode,
-    scope: currentScope,
-    depth: currentDepth,
-    noServer: stateEl.noServer.checked,
-    headed: stateEl.headed.checked,
-    elevated: stateEl.elevated.checked,
-  };
-  localStorage.setItem(LAST_PROFILE_KEY, JSON.stringify(payload));
-}
-
-function restoreProfile() {
+function readStorage(key, fallback) {
   try {
-    const raw = localStorage.getItem(LAST_PROFILE_KEY);
-    if (!raw) {
-      stateEl.targetUrl.value = "https://example.com";
-      return;
-    }
-    const payload = JSON.parse(raw);
-    stateEl.targetUrl.value = String(payload.targetUrl || "https://example.com");
-    currentMode = payload.mode === "mobile" ? "mobile" : "desktop";
-    currentScope = normalizeScope(payload.scope);
-    currentDepth = payload.depth === "deep" ? "deep" : "signal";
-    stateEl.noServer.checked = payload.noServer !== false;
-    stateEl.headed.checked = payload.headed === true;
-    stateEl.elevated.checked = payload.elevated === true;
-  } catch {
-    stateEl.targetUrl.value = "https://example.com";
-  }
-}
-
-function persistReport(raw) {
-  localStorage.setItem(LAST_REPORT_KEY, JSON.stringify(raw));
-}
-
-function restoreReport() {
-  try {
-    const raw = localStorage.getItem(LAST_REPORT_KEY);
-    if (!raw) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return fallback;
     return JSON.parse(raw);
   } catch {
-    return null;
+    return fallback;
   }
+}
+
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+function loadHistory() {
+  const history = readStorage(STORAGE_KEYS.runHistory, []);
+  if (!Array.isArray(history)) return [];
+  return history.filter((item) => item && typeof item === "object" && item.report);
+}
+
+function persistHistory() {
+  writeStorage(STORAGE_KEYS.runHistory, uiState.history.slice(0, 12));
+}
+
+function loadOnboardingState() {
+  return readStorage(STORAGE_KEYS.onboarding, false) === true;
+}
+
+function persistOnboardingState(value) {
+  uiState.onboardingDismissed = value === true;
+  writeStorage(STORAGE_KEYS.onboarding, uiState.onboardingDismissed);
+}
+
+function deriveGeneratedAt(meta = {}) {
+  return meta.generatedAt || meta.finishedAt || meta.startedAt || new Date().toISOString();
+}
+
+function normalizeDiagnosis(diagnosis = {}) {
+  return {
+    title: String(diagnosis.title || ""),
+    category: String(diagnosis.category || ""),
+    laymanExplanation: String(diagnosis.laymanExplanation || ""),
+    technicalExplanation: String(diagnosis.technicalExplanation || ""),
+    probableCauses: Array.isArray(diagnosis.probableCauses) ? diagnosis.probableCauses.map((item) => String(item)).filter(Boolean) : [],
+    technicalChecks: Array.isArray(diagnosis.technicalChecks) ? diagnosis.technicalChecks.map((item) => String(item)).filter(Boolean) : [],
+    recommendedActions: Array.isArray(diagnosis.recommendedActions) ? diagnosis.recommendedActions.map((item) => String(item)).filter(Boolean) : [],
+    commandHints: Array.isArray(diagnosis.commandHints) ? diagnosis.commandHints.map((item) => String(item)).filter(Boolean) : [],
+    likelyAreas: Array.isArray(diagnosis.likelyAreas) ? diagnosis.likelyAreas.map((item) => String(item)).filter(Boolean) : [],
+  };
+}
+
+function normalizeIssue(item, index) {
+  const issue = item && typeof item === "object" ? item : {};
+  const code = String(issue.code || "UNKNOWN");
+  return {
+    id: String(issue.id || `issue-${index + 1}`),
+    code,
+    severity: parseSeverity(issue.severity, code),
+    route: String(issue.route || "/"),
+    action: String(issue.action || ""),
+    detail: String(issue.detail || "No detail provided."),
+    recommendedResolution: String(issue.recommendedResolution || "Review the root cause and validate with a fresh run."),
+    group: ISSUE_GROUP[code] || "Other issue",
+    assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
+    diagnosis: normalizeDiagnosis(issue.diagnosis && typeof issue.diagnosis === "object" ? issue.diagnosis : {}),
+  };
+}
+
+function normalizeAction(item, index) {
+  const action = item && typeof item === "object" ? item : {};
+  return {
+    id: String(action.id || `action-${index + 1}`),
+    route: String(action.route || "/"),
+    label: String(action.label || "Unnamed action"),
+    kind: String(action.kind || ""),
+    href: String(action.href || ""),
+    expectedFunction: String(action.expectedFunction || ""),
+    expectedTechnical: String(action.expectedTechnical || ""),
+    expectedForUser: String(action.expectedForUser || ""),
+    status: String(action.status || ""),
+    statusLabel: String(action.statusLabel || ""),
+    actualFunction: String(action.actualFunction || ""),
+    detail: String(action.detail || ""),
+    area: String(action.area || ""),
+    signals: Array.isArray(action.signals) ? action.signals.map((signal) => String(signal)) : [],
+  };
+}
+
+function normalizeRoute(item, index) {
+  const route = item && typeof item === "object" ? item : {};
+  return {
+    id: String(route.route || `route-${index + 1}`),
+    route: String(route.route || "/"),
+    loadOk: route.loadOk !== false,
+    buttonsDiscovered: toNumber(route.buttonsDiscovered, 0),
+    buttonsClicked: toNumber(route.buttonsClicked, 0),
+  };
+}
+
+function summarizeAssistantGuide(guide = {}) {
+  return {
+    status: String(guide.status || ""),
+    issueCount: toNumber(guide.issueCount, 0),
+    immediateSteps: Array.isArray(guide.immediateSteps) ? guide.immediateSteps.map((item) => String(item)).filter(Boolean) : [],
+    replayCommand: String(guide.replayCommand || ""),
+    quickStartPrompt: String(guide.quickStartPrompt || ""),
+    routePriority: Array.isArray(guide.routePriority) ? guide.routePriority.map((item) => ({
+      route: String(item.route || "/"),
+      totalIssues: toNumber(item.totalIssues, 0),
+      high: toNumber(item.high, 0),
+      medium: toNumber(item.medium, 0),
+      low: toNumber(item.low, 0),
+    })) : [],
+  };
 }
 
 function normalizeReport(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const meta = source.meta && typeof source.meta === "object" ? source.meta : {};
   const summary = source.summary && typeof source.summary === "object" ? source.summary : {};
-  const guide = source.assistantGuide && typeof source.assistantGuide === "object" ? source.assistantGuide : {};
   const seo = source.seo && typeof source.seo === "object" ? source.seo : {};
-  const issuesRaw = Array.isArray(source.issues) ? source.issues : [];
-  const issues = issuesRaw.map((item, index) => {
-    const issue = item && typeof item === "object" ? item : {};
-    const code = String(issue.code || "UNKNOWN");
-    const severity = parseSeverity(issue.severity, code);
-    return {
-      id: String(issue.id || `issue-${index + 1}`),
-      code,
-      severity,
-      route: String(issue.route || "/"),
-      action: String(issue.action || ""),
-      detail: String(issue.detail || "No detail provided."),
-      recommendedResolution: String(issue.recommendedResolution || "Review the root cause and validate with a new run."),
-      group: ISSUE_GROUP[code] || "Other issue",
-      assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
-    };
-  });
-  const actionSweep = Array.isArray(source.actionSweep) ? source.actionSweep : [];
+  const issues = Array.isArray(source.issues) ? source.issues.map(normalizeIssue) : [];
+  const actions = Array.isArray(source.actionSweep) ? source.actionSweep.slice(0, 160).map(normalizeAction) : [];
+  const routes = Array.isArray(source.routeSweep) ? source.routeSweep.slice(0, 120).map(normalizeRoute) : [];
+  const assistantGuide = summarizeAssistantGuide(source.assistantGuide && typeof source.assistantGuide === "object" ? source.assistantGuide : {});
+  const generatedAt = deriveGeneratedAt(meta);
+  const startedAt = String(meta.startedAt || "");
+  const finishedAt = String(meta.finishedAt || generatedAt);
+  const durationMs = startedAt && finishedAt ? Math.max(0, new Date(finishedAt).getTime() - new Date(startedAt).getTime()) : 0;
 
   return {
     meta: {
-      baseUrl: String(meta.baseUrl || "https://example.com"),
-      generatedAt: String(meta.generatedAt || meta.finishedAt || new Date().toISOString()),
-      auditScope: normalizeScope(summary.auditScope || meta.auditScope || currentScope),
+      baseUrl: String(meta.baseUrl || DEFAULT_TARGET),
+      generatedAt,
+      startedAt,
+      finishedAt,
+      replayCommand: String(meta.replayCommand || assistantGuide.replayCommand || ""),
     },
     summary: {
-      routesChecked: toNumber(summary.routesChecked, 0),
-      buttonsChecked: toNumber(summary.buttonsChecked, 0),
+      auditScope: normalizeScope(summary.auditScope || meta.auditScope || "full"),
+      routesChecked: toNumber(summary.routesChecked, routes.length),
+      buttonsChecked: toNumber(summary.buttonsChecked, actions.length),
       totalIssues: toNumber(summary.totalIssues, issues.length),
+      actionsMapped: toNumber(summary.actionsMapped, actions.length || summary.buttonsChecked),
       visualSectionOrderInvalid: toNumber(summary.visualSectionOrderInvalid, 0),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
       consoleErrors: toNumber(summary.consoleErrors, 0),
-      actionsMapped: toNumber(summary.actionsMapped, actionSweep.length || toNumber(summary.buttonsChecked, 0)),
-      seoScore: toNumber(summary.seoScore, toNumber(seo.overallScore, 0)),
+      seoScore: toNumber(summary.seoScore, seo.overallScore),
       seoCriticalIssues: toNumber(summary.seoCriticalIssues, 0),
+      seoTotalIssues: toNumber(summary.seoTotalIssues, 0),
+      seoPagesAnalyzed: toNumber(summary.seoPagesAnalyzed, seo.pagesAnalyzed),
+      durationMs,
     },
-    assistantGuide: {
-      replayCommand: String(guide.replayCommand || "Run an audit to generate the replay command."),
-      immediateSteps: Array.isArray(guide.immediateSteps) ? guide.immediateSteps.map((item) => String(item)) : [],
-      quickStartPrompt: String(guide.quickStartPrompt || "Run an audit to generate the professional fix prompt."),
-    },
+    assistantGuide,
     seo: {
       overallScore: toNumber(seo.overallScore, 0),
-      topRecommendations: Array.isArray(seo.topRecommendations) ? seo.topRecommendations.map((item) => String(item)) : [],
+      topRecommendations: Array.isArray(seo.topRecommendations) ? seo.topRecommendations.map((item) => String(item)).filter(Boolean) : [],
     },
-    issues,
+    issues: issues.sort((left, right) => severityRank(right.severity) - severityRank(left.severity)),
+    actions,
+    routes,
   };
 }
 
-function setActiveButton(buttons, activeValue, fieldName) {
+function createReportSnapshot(report) {
+  return {
+    report,
+    stamp: report.meta.generatedAt,
+    baseUrl: report.meta.baseUrl,
+    issueCount: report.summary.totalIssues,
+    seoScore: report.summary.seoScore,
+    scope: report.summary.auditScope,
+    risk: scoreFromIssues(report.issues),
+    topIssue: report.issues[0]
+      ? {
+          code: report.issues[0].code,
+          severity: report.issues[0].severity,
+          route: report.issues[0].route,
+          action: report.issues[0].action,
+          detail: report.issues[0].detail,
+        }
+      : null,
+  };
+}
+
+function persistProfile() {
+  writeStorage(STORAGE_KEYS.lastProfile, {
+    targetUrl: stateEl.targetUrl.value.trim(),
+    mode: uiState.mode,
+    scope: uiState.scope,
+    depth: uiState.depth,
+    noServer: stateEl.noServer.checked,
+    headed: stateEl.headed.checked,
+    elevated: stateEl.elevated.checked,
+  });
+}
+
+function restoreProfile() {
+  const payload = readStorage(STORAGE_KEYS.lastProfile, null);
+  if (!payload) {
+    stateEl.targetUrl.value = DEFAULT_TARGET;
+    return;
+  }
+
+  stateEl.targetUrl.value = String(payload.targetUrl || DEFAULT_TARGET);
+  uiState.mode = normalizeMode(payload.mode);
+  uiState.scope = normalizeScope(payload.scope);
+  uiState.depth = normalizeDepth(payload.depth);
+  stateEl.noServer.checked = payload.noServer !== false;
+  stateEl.headed.checked = payload.headed === true;
+  stateEl.elevated.checked = payload.elevated === true;
+}
+
+function persistLastReport(report) {
+  writeStorage(STORAGE_KEYS.lastReport, createCompactStoredReport(report));
+}
+
+function restoreLastReport() {
+  const report = readStorage(STORAGE_KEYS.lastReport, null);
+  if (!report || typeof report !== "object") return null;
+  if (Array.isArray(report.actions) && Array.isArray(report.routes) && report.meta && report.summary) {
+    return report;
+  }
+  return normalizeReport(report);
+}
+
+function currentDepthLabel() {
+  return uiState.depth === "deep" ? "deep crawl" : "signal sweep";
+}
+
+function updateSegmentButtons(buttons, fieldName, activeValue) {
   buttons.forEach((button) => {
     button.classList.toggle("active", button.dataset[fieldName] === activeValue);
   });
 }
 
-function currentDepthLabel() {
-  return currentDepth === "deep" ? "deep crawl" : "signal sweep";
+function switchView(viewName) {
+  uiState.activeView = viewName;
+  stateEl.navButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.view === viewName);
+  });
+  stateEl.viewPanels.forEach((panel) => {
+    panel.classList.toggle("active", panel.dataset.viewPanel === viewName);
+  });
+}
+
+function renderOnboarding() {
+  stateEl.onboardingOverlay.classList.toggle("hidden", uiState.onboardingDismissed);
+}
+
+function renderLogs() {
+  stateEl.logOutput.textContent = uiState.logs.join("\n");
+}
+
+function appendLog(line) {
+  uiState.logs = [line, ...uiState.logs].slice(0, 500);
+  renderLogs();
+}
+
+function replaceLogs(lines) {
+  uiState.logs = Array.isArray(lines) && lines.length ? [...lines] : ["[studio] waiting for engine telemetry"];
+  renderLogs();
 }
 
 function collectRunInput(forceFullAudit = null) {
   persistProfile();
   return {
     baseUrl: stateEl.targetUrl.value.trim(),
-    mode: currentMode,
-    scope: currentScope,
+    mode: uiState.mode,
+    scope: uiState.scope,
     noServer: stateEl.noServer.checked,
     headed: stateEl.headed.checked,
-    fullAudit: forceFullAudit === null ? currentDepth === "deep" : forceFullAudit,
+    fullAudit: forceFullAudit === null ? uiState.depth === "deep" : forceFullAudit,
     elevated: stateEl.elevated.checked,
   };
 }
 
-function updateStaticSelections() {
-  setActiveButton(stateEl.modeButtons, currentMode, "mode");
-  setActiveButton(stateEl.scopeButtons, currentScope, "scope");
-  setActiveButton(stateEl.depthButtons, currentDepth, "depth");
-  stateEl.currentMode.textContent = currentMode;
-  stateEl.currentScope.textContent = currentScope;
+function createCompactStoredReport(report, limits = {}) {
+  const issueLimit = toNumber(limits.issueLimit, 180);
+  const actionLimit = toNumber(limits.actionLimit, 120);
+  const routeLimit = toNumber(limits.routeLimit, 80);
+  return {
+    meta: report.meta,
+    summary: report.summary,
+    assistantGuide: report.assistantGuide,
+    seo: report.seo,
+    issues: report.issues.slice(0, issueLimit),
+    actions: report.actions.slice(0, actionLimit),
+    routes: report.routes.slice(0, routeLimit),
+  };
+}
+
+function findActionContext(report, issue) {
+  if (!report || !issue.action) return null;
+  return (
+    report.actions.find((action) => action.route === issue.route && action.label === issue.action) ||
+    report.actions.find((action) => action.label === issue.action) ||
+    null
+  );
+}
+
+function getSeverityCounts(issues) {
+  return {
+    high: issues.filter((issue) => issue.severity === "high").length,
+    medium: issues.filter((issue) => issue.severity === "medium").length,
+    low: issues.filter((issue) => issue.severity === "low").length,
+  };
+}
+
+function getFilteredIssues(report) {
+  if (!report) return [];
+  if (uiState.issueFilter === "all") return report.issues;
+  return report.issues.filter((issue) => issue.severity === uiState.issueFilter);
+}
+
+function renderStaticSelections() {
+  updateSegmentButtons(stateEl.modeButtons, "mode", uiState.mode);
+  updateSegmentButtons(stateEl.scopeButtons, "scope", uiState.scope);
+  updateSegmentButtons(stateEl.depthButtons, "depth", uiState.depth);
+  updateSegmentButtons(stateEl.severityFilterButtons, "issueFilter", uiState.issueFilter);
+  stateEl.currentMode.textContent = uiState.mode;
+  stateEl.currentScope.textContent = uiState.scope;
   stateEl.currentDepth.textContent = currentDepthLabel();
 }
 
-function renderAuditState(audit = {}) {
-  const status = String(audit.status || "idle");
-  stateEl.auditStatus.textContent = status;
-  stateEl.currentTarget.textContent = audit.baseUrl || "none";
-  stateEl.currentMode.textContent = audit.mode || currentMode;
-  stateEl.currentScope.textContent = audit.scope || currentScope;
-  stateEl.currentDepth.textContent = currentDepthLabel();
-  stateEl.currentDuration.textContent = formatDuration(audit.durationMs);
-  stateEl.currentCommand.textContent = audit.lastCommand || "Run an audit to generate a replay command.";
+function renderMissionBrief() {
+  const bridgeRunning = uiState.companionState?.bridge?.running === true;
+  const audit = uiState.companionState?.audit || {};
 
-  const busy = audit.running === true;
-  stateEl.runAudit.disabled = busy;
-  stateEl.runCmd.disabled = busy;
-  stateEl.startBridge.disabled = busy || currentState?.bridge?.running === true;
-  stateEl.stopBridge.disabled = busy || currentState?.bridge?.running !== true;
-  stateEl.runAudit.textContent = busy ? "Audit running..." : "Run native audit";
-
-  if (busy) {
-    setChip(stateEl.auditChip, "audit running", "warn");
-    stateEl.headlineStatus.textContent = `Engine is auditing ${audit.baseUrl || "the selected target"}. Logs and evidence are streaming live.`;
+  if (!bridgeRunning) {
+    stateEl.missionBrief.textContent = "The local engine is offline. Start the engine before relying on the board.";
     return;
   }
 
-  if (status === "failed") {
-    setChip(stateEl.auditChip, "audit failed", "bad");
-    stateEl.headlineStatus.textContent = audit.lastError || "The engine failed to complete the run.";
+  if (audit.running === true) {
+    stateEl.missionBrief.textContent = `Audit running against ${audit.baseUrl || "the selected target"}. Follow the live log while the engine builds evidence.`;
     return;
   }
 
-  if (status === "issues") {
-    setChip(stateEl.auditChip, "issues detected", "warn");
-    stateEl.headlineStatus.textContent = "The audit completed and detected issues worth fixing before the next validation run.";
+  if (!uiState.report) {
+    stateEl.missionBrief.textContent = "SitePulse Studio is ready. Define a target and start the first audit run.";
     return;
   }
 
-  if (status === "clean") {
-    setChip(stateEl.auditChip, "clean run", "ok");
-    stateEl.headlineStatus.textContent = "The latest run completed clean. Keep this as your baseline and monitor regressions.";
+  const topIssue = uiState.report.issues[0];
+  if (!topIssue) {
+    stateEl.missionBrief.textContent = `Latest run finished clean for ${uiState.report.meta.baseUrl}. Treat this as a baseline and re-run after every structural change.`;
     return;
   }
 
-  setChip(stateEl.auditChip, "audit idle", "default");
-  stateEl.headlineStatus.textContent = "Ready to run a new audit.";
+  const route = topIssue.route === "/" ? "home route" : topIssue.route;
+  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. Resolve high-impact failures before the next validation pass.`;
 }
 
-function renderCompanionState(payload) {
-  currentState = payload;
-  stateEl.serviceName.textContent = payload?.serviceName || "SitePulse Studio";
-  stateEl.versionText.textContent = payload?.version || "1.0.0";
-  stateEl.runtimePath.textContent = shortPath(payload?.qaRuntimeDir);
-  stateEl.reportsPath.textContent = shortPath(payload?.reportsDir);
-  stateEl.bridgeAddress.textContent = `${payload?.bridge?.host || "127.0.0.1"}:${payload?.bridge?.port || "47891"}`;
-  stateEl.launchOnLogin.checked = payload?.launchOnLogin === true;
-
-  const bridgeRunning = payload?.bridge?.running === true;
-  stateEl.bridgeStatus.textContent = bridgeRunning ? `${payload.bridge.host}:${payload.bridge.port}` : "offline";
-  setChip(stateEl.bridgeChip, bridgeRunning ? "engine online" : "engine offline", bridgeRunning ? "ok" : "bad");
-  setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
-
-  replaceLogs(payload?.logs);
-  renderAuditState(payload?.audit || {});
-}
-
-function renderSteps(report) {
-  const steps = [
-    ...(report?.assistantGuide?.immediateSteps || []),
-    ...(report?.seo?.topRecommendations || []),
-  ].filter(Boolean).slice(0, 6);
-
-  if (!steps.length) {
-    stateEl.stepsList.innerHTML = "<li>Run an audit to generate the first operating brief.</li>";
-    return;
-  }
-
-  stateEl.stepsList.innerHTML = steps.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function renderIssueMeta(report) {
+function renderMetrics(report) {
   if (!report) {
-    stateEl.issueMetaPills.innerHTML = "";
+    stateEl.routesMetric.textContent = "0";
+    stateEl.actionsMetric.textContent = "0";
+    stateEl.issuesMetric.textContent = "0";
+    stateEl.seoMetric.textContent = "0";
+    stateEl.riskMetric.textContent = "0";
     return;
   }
 
-  const issues = report.issues;
-  const high = issues.filter((item) => item.severity === "high").length;
-  const medium = issues.filter((item) => item.severity === "medium").length;
-  const low = issues.filter((item) => item.severity === "low").length;
-  stateEl.issueMetaPills.innerHTML = [
-    `<span class="pill bad">high ${high}</span>`,
-    `<span class="pill warn">medium ${medium}</span>`,
-    `<span class="pill">low ${low}</span>`,
-  ].join("");
-}
-
-function renderIssues(report) {
-  if (!report || !report.issues.length) {
-    stateEl.issuesList.innerHTML = '<article class="empty-state">No issues in the latest report. The board is clean.</article>';
-    renderIssueMeta(report);
-    return;
-  }
-
-  renderIssueMeta(report);
-  const topIssues = report.issues.slice(0, 10);
-  stateEl.issuesList.innerHTML = topIssues
-    .map((issue) => {
-      const checks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
-      const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
-      return `
-        <article class="issue-card">
-          <div class="issue-top">
-            <div>
-              <p class="issue-title">${escapeHtml(issue.group)}</p>
-              <div class="issue-route">${escapeHtml(issue.route)}${issue.action ? ` -> ${escapeHtml(issue.action)}` : ""}</div>
-            </div>
-            <div class="issue-meta">
-              ${priority}
-              <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
-              <span class="pill">${escapeHtml(issue.code)}</span>
-            </div>
-          </div>
-          <p class="issue-detail">${escapeHtml(issue.detail)}</p>
-          <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
-          ${checks.length ? `<p class="issue-checks"><strong>First checks:</strong> ${escapeHtml(checks.join(" | "))}</p>` : ""}
-        </article>
-      `;
-    })
-    .join("");
+  stateEl.routesMetric.textContent = String(report.summary.routesChecked || 0);
+  stateEl.actionsMetric.textContent = String(report.summary.actionsMapped || report.summary.buttonsChecked || 0);
+  stateEl.issuesMetric.textContent = String(report.summary.totalIssues || 0);
+  stateEl.seoMetric.textContent = String(report.summary.seoScore || 0);
+  stateEl.riskMetric.textContent = String(scoreFromIssues(report.issues));
 }
 
 function renderSignals(report) {
@@ -434,42 +584,272 @@ function renderSignals(report) {
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
 }
 
-function renderMetrics(report) {
-  if (!report) {
-    stateEl.routesMetric.textContent = "0";
-    stateEl.actionsMetric.textContent = "0";
-    stateEl.issuesMetric.textContent = "0";
-    stateEl.seoMetric.textContent = "0";
-    stateEl.riskMetric.textContent = "0";
+function renderSteps(report) {
+  const steps = report
+    ? [
+        ...(report.assistantGuide.immediateSteps || []),
+        ...(report.seo.topRecommendations || []),
+      ].filter(Boolean).slice(0, 6)
+    : [];
+
+  if (!steps.length) {
+    stateEl.stepsList.innerHTML = "<li>Run an audit to generate the first operating brief.</li>";
     return;
   }
 
-  stateEl.routesMetric.textContent = String(report.summary.routesChecked || 0);
-  stateEl.actionsMetric.textContent = String(report.summary.actionsMapped || report.summary.buttonsChecked || 0);
-  stateEl.issuesMetric.textContent = String(report.summary.totalIssues || 0);
-  stateEl.seoMetric.textContent = String(report.summary.seoScore || 0);
-  stateEl.riskMetric.textContent = String(scoreFromIssues(report.issues));
+  stateEl.stepsList.innerHTML = steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
+}
+
+function renderIssueMeta(report, filteredIssues) {
+  if (!report) {
+    stateEl.issueMetaPills.innerHTML = "";
+    stateEl.findingsHeadline.textContent = "Use this board to drive the fix sequence.";
+    return;
+  }
+
+  const counts = getSeverityCounts(report.issues);
+  const filteredCount = filteredIssues.length;
+  const seoCritical = report.summary.seoCriticalIssues || 0;
+  stateEl.issueMetaPills.innerHTML = [
+    `<span class="pill bad">high ${counts.high}</span>`,
+    `<span class="pill warn">medium ${counts.medium}</span>`,
+    `<span class="pill">low ${counts.low}</span>`,
+    `<span class="pill ok">seo critical ${seoCritical}</span>`,
+    `<span class="pill">showing ${filteredCount}</span>`,
+  ].join("");
+
+  const lead = filteredIssues[0];
+  if (!lead) {
+    stateEl.findingsHeadline.textContent = "No issues for the active filter. Either the report is clean or this severity band is empty.";
+    return;
+  }
+
+  stateEl.findingsHeadline.textContent = `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Fix this band before moving down.`;
+}
+
+function renderIssueGroups(report, filteredIssues) {
+  if (!report || !filteredIssues.length) {
+    stateEl.issueGroupGrid.innerHTML = '<article class="empty-state">No findings loaded yet.</article>';
+    return;
+  }
+
+  const groups = new Map();
+  filteredIssues.forEach((issue) => {
+    if (!groups.has(issue.group)) {
+      groups.set(issue.group, { total: 0, high: 0, medium: 0, low: 0 });
+    }
+    const bucket = groups.get(issue.group);
+    bucket.total += 1;
+    bucket[issue.severity] += 1;
+  });
+
+  stateEl.issueGroupGrid.innerHTML = [...groups.entries()]
+    .sort((left, right) => right[1].total - left[1].total)
+    .slice(0, 8)
+    .map(([group, bucket]) => `
+      <article class="group-item">
+        <div>
+          <div class="nav-title">${escapeHtml(group)}</div>
+          <div class="history-meta">high ${bucket.high} | medium ${bucket.medium} | low ${bucket.low}</div>
+        </div>
+        <strong>${bucket.total}</strong>
+      </article>
+    `)
+    .join("");
+}
+
+function buildIssueCard(issue, actionContext) {
+  const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
+  const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
+  const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
+  const actualDid = actionContext?.actualFunction || issue.detail;
+  const whyItMatters = issue.diagnosis.laymanExplanation || issue.diagnosis.technicalExplanation || "This issue can reduce trust, break navigation or hide failures from operators.";
+  const technicalLead = issue.diagnosis.technicalChecks[0] || issue.diagnosis.likelyAreas[0] || "";
+  const commands = issue.diagnosis.commandHints.slice(0, 2);
+
+  return `
+    <article class="issue-card">
+      <div class="issue-top">
+        <div>
+          <p class="issue-title">${escapeHtml(issue.group)}</p>
+          <div class="issue-route">${escapeHtml(issue.route)}${issue.action ? ` -> ${escapeHtml(issue.action)}` : ""}</div>
+        </div>
+        <div class="issue-meta">
+          ${priority}
+          <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
+          <span class="pill">${escapeHtml(issue.code)}</span>
+        </div>
+      </div>
+      <p class="issue-detail"><strong>Should do:</strong> ${escapeHtml(shouldDo)}</p>
+      <p class="issue-detail"><strong>Actually did:</strong> ${escapeHtml(actualDid)}</p>
+      <p class="issue-detail"><strong>Why it matters:</strong> ${escapeHtml(whyItMatters)}</p>
+      <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
+      ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
+      ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
+      ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
+    </article>
+  `;
+}
+
+function renderIssues(report) {
+  if (!report) {
+    stateEl.issuesList.innerHTML = '<article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>';
+    renderIssueMeta(null, []);
+    renderIssueGroups(null, []);
+    return;
+  }
+
+  const filteredIssues = getFilteredIssues(report);
+  renderIssueMeta(report, filteredIssues);
+  renderIssueGroups(report, filteredIssues);
+
+  if (!filteredIssues.length) {
+    stateEl.issuesList.innerHTML = '<article class="empty-state">No issues for the active filter.</article>';
+    return;
+  }
+
+  stateEl.issuesList.innerHTML = filteredIssues
+    .slice(0, 18)
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue)))
+    .join("");
 }
 
 function renderPrompt(report) {
-  stateEl.quickPromptBox.textContent = report?.assistantGuide?.quickStartPrompt || "Run an audit to generate the professional fix prompt.";
+  stateEl.quickPromptBox.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
 }
 
-function renderReport(report) {
-  currentReport = report;
+function renderReportSummary(report) {
+  if (!report) {
+    stateEl.currentTarget.textContent = "none";
+    stateEl.currentMode.textContent = uiState.mode;
+    stateEl.currentScope.textContent = uiState.scope;
+    stateEl.currentDepth.textContent = currentDepthLabel();
+    stateEl.currentDuration.textContent = "0s";
+    stateEl.currentCommand.textContent = "Run an audit to generate a replay command.";
+    stateEl.reportsHeadline.textContent = "Each run leaves a replayable evidence trail.";
+    return;
+  }
+
+  const audit = uiState.companionState?.audit || {};
+  stateEl.currentTarget.textContent = report.meta.baseUrl;
+  stateEl.currentMode.textContent = audit.mode || uiState.mode;
+  stateEl.currentScope.textContent = report.summary.auditScope || audit.scope || uiState.scope;
+  stateEl.currentDepth.textContent = currentDepthLabel();
+  stateEl.currentDuration.textContent = formatDuration(audit.durationMs || report.summary.durationMs || 0);
+  stateEl.currentCommand.textContent = audit.lastCommand || report.meta.replayCommand || report.assistantGuide.replayCommand || "Run an audit to generate a replay command.";
+  stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)}`;
+}
+
+function renderHistory() {
+  if (!uiState.history.length) {
+    stateEl.historyList.innerHTML = '<article class="empty-state">No stored run snapshots yet.</article>';
+    return;
+  }
+
+  stateEl.historyList.innerHTML = uiState.history
+    .map((item, index) => {
+      const topIssue = item.topIssue;
+      return `
+        <article class="history-item">
+          <div class="issue-top">
+            <div>
+              <p class="issue-title">${escapeHtml(item.baseUrl)}</p>
+              <div class="history-meta">${escapeHtml(formatLocalDate(item.stamp))} | scope ${escapeHtml(item.scope)} | risk ${escapeHtml(String(item.risk))}</div>
+            </div>
+            <div class="issue-meta">
+              <span class="pill">${escapeHtml(`${item.issueCount} issues`)}</span>
+              <span class="pill ok">${escapeHtml(`SEO ${item.seoScore}`)}</span>
+            </div>
+          </div>
+          <p class="history-copy">${topIssue ? escapeHtml(`${topIssue.code}${topIssue.action ? ` | ${topIssue.action}` : ""} | ${topIssue.detail}`) : "Clean run snapshot."}</p>
+          <button type="button" data-history-index="${index}">Load snapshot</button>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function pushHistory(report) {
+  const snapshot = createReportSnapshot(createCompactStoredReport(report, { issueLimit: 40, actionLimit: 30, routeLimit: 20 }));
+  uiState.history = [snapshot, ...uiState.history.filter((item) => item.stamp !== snapshot.stamp)].slice(0, 12);
+  persistHistory();
+  renderHistory();
+}
+
+function renderAuditState(audit = {}) {
+  const status = String(audit.status || "idle");
+  const busy = audit.running === true;
+
+  stateEl.auditStatus.textContent = status;
+  stateEl.runAudit.disabled = busy;
+  stateEl.runCmd.disabled = busy;
+  stateEl.quickAuditButton.disabled = busy;
+  stateEl.deepAuditButton.disabled = busy;
+  stateEl.startBridge.disabled = busy || uiState.companionState?.bridge?.running === true;
+  stateEl.stopBridge.disabled = busy || uiState.companionState?.bridge?.running !== true;
+  stateEl.runAudit.textContent = busy ? "Audit running..." : "Run native audit";
+
+  if (busy) {
+    setChip(stateEl.auditChip, "audit running", "warn");
+    stateEl.headlineStatus.textContent = `Engine is auditing ${audit.baseUrl || "the selected target"}. Evidence is being collected now.`;
+    return;
+  }
+
+  if (status === "failed") {
+    setChip(stateEl.auditChip, "audit failed", "bad");
+    stateEl.headlineStatus.textContent = audit.lastError || "The engine failed to complete the run.";
+    return;
+  }
+
+  if (status === "issues") {
+    setChip(stateEl.auditChip, "issues detected", "warn");
+    stateEl.headlineStatus.textContent = "The audit completed with findings. Use the board to remove high-risk failures first.";
+    return;
+  }
+
+  if (status === "clean") {
+    setChip(stateEl.auditChip, "clean run", "ok");
+    stateEl.headlineStatus.textContent = "The latest run completed clean. Keep this as the regression baseline.";
+    return;
+  }
+
+  setChip(stateEl.auditChip, "audit idle", "default");
+  stateEl.headlineStatus.textContent = "Ready to run a new audit.";
+}
+
+function renderCompanionState(payload) {
+  uiState.companionState = payload;
+  stateEl.serviceName.textContent = payload?.serviceName || "SitePulse Studio";
+  stateEl.versionText.textContent = payload?.version || "1.0.0";
+  stateEl.runtimePath.textContent = shortPath(payload?.qaRuntimeDir);
+  stateEl.reportsPath.textContent = shortPath(payload?.reportsDir);
+  stateEl.bridgeAddress.textContent = payload?.bridge ? `http://${payload.bridge.host}:${payload.bridge.port}` : "loading...";
+  stateEl.launchOnLogin.checked = payload?.launchOnLogin === true;
+
+  const bridgeRunning = payload?.bridge?.running === true;
+  stateEl.bridgeStatus.textContent = bridgeRunning ? `${payload.bridge.host}:${payload.bridge.port}` : "offline";
+  setChip(stateEl.bridgeChip, bridgeRunning ? "engine online" : "engine offline", bridgeRunning ? "ok" : "bad");
+  setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
+
+  replaceLogs(payload?.logs);
+  renderAuditState(payload?.audit || {});
+  renderMissionBrief();
+  renderReportSummary(uiState.report);
+}
+
+function renderAllReportState(report) {
+  uiState.report = report;
   renderMetrics(report);
   renderSignals(report);
   renderSteps(report);
   renderIssues(report);
   renderPrompt(report);
+  renderReportSummary(report);
+  renderMissionBrief();
 }
 
-function syncSelectionButtons() {
-  updateStaticSelections();
-}
-
-async function copyText(text, successMessage) {
-  const payload = String(text || "").trim();
+async function copyText(value, successMessage) {
+  const payload = String(value || "").trim();
   if (!payload) {
     appendLog("[studio] nothing to copy yet.");
     return;
@@ -478,7 +858,12 @@ async function copyText(text, successMessage) {
   appendLog(successMessage);
 }
 
-async function runAudit() {
+async function handleAuditRun(forceDepth = null) {
+  if (forceDepth) {
+    uiState.depth = forceDepth;
+    renderStaticSelections();
+  }
+
   const input = collectRunInput();
   if (!input.baseUrl) {
     stateEl.headlineStatus.textContent = "Target URL is required before the engine can start.";
@@ -487,18 +872,21 @@ async function runAudit() {
 
   const payload = await window.sitePulseCompanion.runAudit(input);
   if (!payload?.ok || !payload?.report) {
-    stateEl.headlineStatus.textContent = payload?.detail || payload?.error || "The audit failed before producing a report.";
-    appendLog(`[studio] audit failed: ${payload?.detail || payload?.error || "unknown"}`);
+    const detail = payload?.detail || payload?.error || "audit_failed";
+    appendLog(`[studio] audit failed: ${detail}`);
+    stateEl.headlineStatus.textContent = detail;
     return;
   }
 
   const report = normalizeReport(payload.report);
-  persistReport(payload.report);
-  renderReport(report);
-  stateEl.currentCommand.textContent = payload.command || report.assistantGuide.replayCommand;
+  persistLastReport(report);
+  pushHistory(report);
+  renderAllReportState(report);
+  stateEl.currentCommand.textContent = payload.command || report.meta.replayCommand || report.assistantGuide.replayCommand;
   if (payload.usedFallback === true) {
     appendLog("[studio] run completed with fallback mode active.");
   }
+  switchView(report.summary.totalIssues > 0 ? "findings" : "reports");
 }
 
 async function openCmdWindow() {
@@ -507,6 +895,7 @@ async function openCmdWindow() {
     stateEl.headlineStatus.textContent = "Target URL is required before opening the CMD flow.";
     return;
   }
+
   const payload = await window.sitePulseCompanion.openCmdWindow(input);
   if (payload?.ok) {
     appendLog(`[studio] ${payload.message || "cmd flow requested."}`);
@@ -517,122 +906,180 @@ async function openCmdWindow() {
     return;
   }
 
-  stateEl.headlineStatus.textContent = payload?.detail || payload?.error || "The CMD flow could not be opened.";
+  const detail = payload?.detail || payload?.error || "cmd_launch_failed";
+  appendLog(`[studio] cmd flow failed: ${detail}`);
+  stateEl.headlineStatus.textContent = detail;
 }
 
-stateEl.modeButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentMode = button.dataset.mode === "mobile" ? "mobile" : "desktop";
-    syncSelectionButtons();
-    persistProfile();
-  });
-});
-
-stateEl.scopeButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentScope = normalizeScope(button.dataset.scope);
-    syncSelectionButtons();
-    persistProfile();
-  });
-});
-
-stateEl.depthButtons.forEach((button) => {
-  button.addEventListener("click", () => {
-    currentDepth = button.dataset.depth === "deep" ? "deep" : "signal";
-    syncSelectionButtons();
-    persistProfile();
-  });
-});
-
-[stateEl.targetUrl, stateEl.noServer, stateEl.headed, stateEl.elevated].forEach((node) => {
-  node.addEventListener("input", () => persistProfile());
-  node.addEventListener("change", () => persistProfile());
-});
-
-stateEl.runAudit.addEventListener("click", async () => {
-  await runAudit();
-});
-
-stateEl.runCmd.addEventListener("click", async () => {
-  await openCmdWindow();
-});
-
-stateEl.startBridge.addEventListener("click", async () => {
-  const result = await window.sitePulseCompanion.startBridge();
-  appendLog(result.ok ? "[studio] engine started." : `[studio] engine start failed: ${result.detail || result.error || "unknown"}`);
-});
-
-stateEl.stopBridge.addEventListener("click", async () => {
-  const result = await window.sitePulseCompanion.stopBridge();
-  appendLog(result.ok ? "[studio] engine stopped." : `[studio] engine stop failed: ${result.detail || result.error || "unknown"}`);
-});
-
-stateEl.openReports.addEventListener("click", async () => {
+async function openReportsVault() {
   const result = await window.sitePulseCompanion.openReports();
   appendLog(result.ok ? "[studio] report vault opened." : `[studio] could not open report vault: ${result.error || "unknown"}`);
-});
+}
 
-stateEl.copyBridgeUrl.addEventListener("click", async () => {
+async function copyBridgeUrl() {
   const result = await window.sitePulseCompanion.copyBridgeUrl();
   appendLog(result.ok ? "[studio] bridge URL copied." : `[studio] could not copy bridge URL: ${result.error || "unknown"}`);
-});
+}
 
-stateEl.copyReplayCommand.addEventListener("click", async () => {
-  await copyText(stateEl.currentCommand.textContent, "[studio] replay command copied.");
-});
+function applyPresetFirstAudit() {
+  uiState.mode = "desktop";
+  uiState.scope = "full";
+  uiState.depth = "signal";
+  stateEl.targetUrl.value = stateEl.targetUrl.value.trim() || DEFAULT_TARGET;
+  stateEl.noServer.checked = true;
+  stateEl.headed.checked = false;
+  stateEl.elevated.checked = false;
+  persistProfile();
+  renderStaticSelections();
+  persistOnboardingState(true);
+  renderOnboarding();
+  switchView("overview");
+}
 
-stateEl.copyQuickPrompt.addEventListener("click", async () => {
-  await copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.");
-});
+function bindSelectionEvents() {
+  stateEl.modeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.mode = normalizeMode(button.dataset.mode);
+      renderStaticSelections();
+      persistProfile();
+    });
+  });
 
-stateEl.launchOnLogin.addEventListener("change", async () => {
-  const result = await window.sitePulseCompanion.setLaunchOnLogin(stateEl.launchOnLogin.checked);
-  appendLog(result.ok ? `[studio] open on login ${result.enabled ? "enabled" : "disabled"}.` : `[studio] launch on login failed: ${result.error || "unknown"}`);
-});
+  stateEl.scopeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.scope = normalizeScope(button.dataset.scope);
+      renderStaticSelections();
+      persistProfile();
+    });
+  });
 
-stateEl.clearLog.addEventListener("click", () => {
-  localLogs = ["[studio] local log cleared"];
-  renderLogs();
-});
+  stateEl.depthButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.depth = normalizeDepth(button.dataset.depth);
+      renderStaticSelections();
+      persistProfile();
+    });
+  });
 
-stateEl.winMinimize.addEventListener("click", async () => {
-  await window.sitePulseCompanion.minimizeWindow();
-});
+  stateEl.severityFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.issueFilter = button.dataset.issueFilter || "all";
+      renderStaticSelections();
+      renderIssues(uiState.report);
+    });
+  });
 
-stateEl.winMaximize.addEventListener("click", async () => {
-  const payload = await window.sitePulseCompanion.toggleMaximizeWindow();
-  if (!payload?.ok) return;
-  const glyph = payload.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
-  stateEl.winMaximize.textContent = glyph;
-});
+  stateEl.navButtons.forEach((button) => {
+    button.addEventListener("click", () => switchView(button.dataset.view || "overview"));
+  });
+}
 
-stateEl.winClose.addEventListener("click", async () => {
-  await window.sitePulseCompanion.closeWindow();
-});
+function bindPersistenceEvents() {
+  [stateEl.targetUrl, stateEl.noServer, stateEl.headed, stateEl.elevated].forEach((node) => {
+    node.addEventListener("input", persistProfile);
+    node.addEventListener("change", persistProfile);
+  });
+}
 
-window.sitePulseCompanion.onLog((line) => {
-  appendLog(line);
-});
+function bindButtons() {
+  stateEl.runAudit.addEventListener("click", async () => handleAuditRun());
+  stateEl.quickAuditButton.addEventListener("click", async () => handleAuditRun("signal"));
+  stateEl.deepAuditButton.addEventListener("click", async () => handleAuditRun("deep"));
+  stateEl.runCmd.addEventListener("click", openCmdWindow);
+  stateEl.startBridge.addEventListener("click", async () => {
+    const result = await window.sitePulseCompanion.startBridge();
+    appendLog(result.ok ? "[studio] engine started." : `[studio] engine start failed: ${result.detail || result.error || "unknown"}`);
+  });
+  stateEl.stopBridge.addEventListener("click", async () => {
+    const result = await window.sitePulseCompanion.stopBridge();
+    appendLog(result.ok ? "[studio] engine stopped." : `[studio] engine stop failed: ${result.detail || result.error || "unknown"}`);
+  });
+  stateEl.openReports.addEventListener("click", openReportsVault);
+  stateEl.openReportsSecondary.addEventListener("click", openReportsVault);
+  stateEl.copyBridgeUrl.addEventListener("click", copyBridgeUrl);
+  stateEl.copyBridgeUrlSecondary.addEventListener("click", copyBridgeUrl);
+  stateEl.copyReplayCommand.addEventListener("click", async () => copyText(stateEl.currentCommand.textContent, "[studio] replay command copied."));
+  stateEl.copyQuickPrompt.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
+  stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
+  stateEl.clearLog.addEventListener("click", () => {
+    uiState.logs = ["[studio] local log cleared"];
+    renderLogs();
+  });
+  stateEl.clearHistory.addEventListener("click", () => {
+    uiState.history = [];
+    persistHistory();
+    renderHistory();
+  });
+  stateEl.revealOnboarding.addEventListener("click", () => {
+    persistOnboardingState(false);
+    renderOnboarding();
+  });
+  stateEl.dismissOnboarding.addEventListener("click", () => {
+    persistOnboardingState(true);
+    renderOnboarding();
+  });
+  stateEl.startTourAudit.addEventListener("click", applyPresetFirstAudit);
+  stateEl.launchOnLogin.addEventListener("change", async () => {
+    const result = await window.sitePulseCompanion.setLaunchOnLogin(stateEl.launchOnLogin.checked);
+    appendLog(result.ok ? `[studio] open on login ${result.enabled ? "enabled" : "disabled"}.` : `[studio] launch on login failed: ${result.error || "unknown"}`);
+  });
+  stateEl.winMinimize.addEventListener("click", async () => {
+    await window.sitePulseCompanion.minimizeWindow();
+  });
+  stateEl.winMaximize.addEventListener("click", async () => {
+    const payload = await window.sitePulseCompanion.toggleMaximizeWindow();
+    if (!payload?.ok) return;
+    stateEl.winMaximize.textContent = payload.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
+  });
+  stateEl.winClose.addEventListener("click", async () => {
+    await window.sitePulseCompanion.closeWindow();
+  });
+  stateEl.historyList.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const index = target.dataset.historyIndex;
+    if (index === undefined) return;
+    const snapshot = uiState.history[Number(index)];
+    if (!snapshot?.report) return;
+    renderAllReportState(snapshot.report);
+    switchView("reports");
+    appendLog(`[studio] loaded snapshot ${snapshot.baseUrl} from history.`);
+  });
+}
 
-window.sitePulseCompanion.onState((payload) => {
-  renderCompanionState(payload);
-});
+function bindRuntimeEvents() {
+  window.sitePulseCompanion.onLog((line) => {
+    appendLog(line);
+  });
 
-window.sitePulseCompanion.onWindowState((payload) => {
-  const glyph = payload?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
-  stateEl.winMaximize.textContent = glyph;
-});
+  window.sitePulseCompanion.onState((payload) => {
+    renderCompanionState(payload);
+  });
+
+  window.sitePulseCompanion.onWindowState((payload) => {
+    stateEl.winMaximize.textContent = payload?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
+  });
+}
 
 async function bootstrap() {
   restoreProfile();
-  syncSelectionButtons();
+  renderStaticSelections();
+  renderOnboarding();
 
-  const savedReport = restoreReport();
+  const savedReport = restoreLastReport();
   if (savedReport) {
-    renderReport(normalizeReport(savedReport));
+    renderAllReportState(savedReport);
   } else {
-    renderReport(null);
+    renderAllReportState(null);
   }
+  renderHistory();
+  renderLogs();
+  switchView("overview");
+
+  bindSelectionEvents();
+  bindPersistenceEvents();
+  bindButtons();
+  bindRuntimeEvents();
 
   const [payload, windowState] = await Promise.all([
     window.sitePulseCompanion.getState(),
@@ -640,8 +1087,7 @@ async function bootstrap() {
   ]);
 
   renderCompanionState(payload);
-  const glyph = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
-  stateEl.winMaximize.textContent = glyph;
+  stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
 }
 
 bootstrap().catch((error) => {

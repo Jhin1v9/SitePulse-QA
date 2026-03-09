@@ -1,102 +1,67 @@
-﻿# SitePulse Standalone
+# SitePulse Studio
 
-Projeto independente com:
-- app web (Next.js) para operar auditoria e ler relatorios
-- auditor CLI (`qa`) com Playwright para varrer qualquer URL
-- programa desktop Windows (`companion`) com Hub embutido, bridge local e runtime proprio
+SitePulse Studio is now a desktop-first product.
 
-Nao depende de outro projeto para funcionar.
+This repository contains:
+- `companion/`: the Windows desktop application shell
+- `qa/`: the audit engine, bridge, CLI flows and report generation
+- `docs/`: architecture, packaging and product notes
 
-## Estrutura
-- `app/`: interface web SitePulse Hub
-- `qa/`: motor de auditoria (CMD + relatorios + prompt pack)
-- `companion/`: app desktop Windows com Hub local, bridge e runtime empacotado
-- `public/`: recursos web do app instalavel (PWA)
+The old Next.js control panel has been removed. The product is no longer organized around a web app.
 
-## Rodar local
+## Product direction
+- native desktop shell
+- local audit engine with Playwright
+- bridge for controlled local execution
+- evidence-first reports, prompts and replay commands
+- positioning aimed at a serious commercial software product
+
+## Local setup
 ```bash
-cd SitePulse-QA
 npm install
-npm run dev
-```
-
-Abrir:
-- `http://localhost:3000/?autologin=1`
-
-## SitePulse Desktop
-Objetivo:
-- entregar a camada com permissao local que o browser nao tem
-- abrir o SitePulse Hub dentro do proprio programa
-- subir o bridge local em `127.0.0.1:47891`
-- subir o Hub local em `127.0.0.1:47892`
-- executar o motor `qa` localmente via Playwright real, sem depender do browser aberto
-
-Comandos:
-```bash
 npm run companion:install
-npm run desktop:smoke
-npm run companion:smoke
-npm --prefix companion run pack:dir
-npm run companion:build:win
-npm run desktop:build:win
 ```
 
-Resultado do build Windows:
-- `companion/dist/SitePulse-Desktop-1.0.0-Setup.exe`
-- executavel direto: `companion/dist/win-unpacked/SitePulse Desktop.exe`
+## Main commands
+```bash
+npm run desktop:dev
+npm run desktop:smoke
+npm run desktop:build:win
+npm run desktop:build:win:staging
+```
 
-Observacao:
-- o antigo companion virou a base do `SitePulse Desktop`
-- o programa desktop agora embute o Hub e o runtime local
-- o site web continua existindo para uso no browser e para deploy no Vercel
-
-## Usar no browser e como app
-- Browser normal: abra a URL do projeto e rode auditorias no painel.
-- App instalavel (PWA): use o botao `modo app` no topo.
-- Quando o navegador liberar instalacao, o botao muda para `instalar app`.
-- Se o navegador nao liberar prompt automatico, use menu do navegador:
-  - Chrome/Edge: `Instalar app`
-  - iOS Safari: `Compartilhar > Adicionar a Tela de Inicio`
-
-## Auditoria completa via browser
-Fluxo preferido:
-1. instale/abra o `SitePulse Desktop`
-2. o programa sobe o Hub e o bridge local automaticamente
-3. use o Hub dentro do proprio desktop app
-4. opcionalmente, use o Hub web para conversar com o bridge local
-
-Fluxo alternativo para desenvolvimento:
-1. rode `npm run audit:bridge`
-2. use o mesmo Hub web para disparar a auditoria
-
-O bridge roda em `http://127.0.0.1:47891` e permite que a interface web dispare o mesmo motor do CMD com retorno de relatorio completo.
-
-## Validacao do desktop
-- smoke dev: `npm run desktop:smoke`
-- empacotar apenas pasta executavel: `npm --prefix companion run pack:dir`
-- smoke do empacotado em ambiente automatizado: definir `SITEPULSE_DESKTOP_SMOKE=1` e executar `SitePulse Desktop.exe`
-
-## Auditoria via CMD
+## Audit engine commands
 ```bash
 npm run audit:cmd
 npm run audit:cmd:mobile
-npm run audit:self
-npm run audit:self:mobile
+npm run audit:wizard
+npm run audit:wizard:mobile
+npm run audit:bridge
 ```
 
-Relatorios ficam em:
-- `qa/reports`
+## Output
+Default Windows artifacts:
+- `companion/dist/SitePulse-Studio-1.0.0-Setup.exe`
+- `companion/dist/win-unpacked/SitePulse Studio.exe`
 
-## Deploy no Vercel
-1. Importe o repositorio no Vercel.
-2. Framework: `Next.js`.
-3. Build Command: `npm run build`.
-4. Output: padrao do Next.js.
-5. Deploy.
+Staging build output:
+- `companion/dist-v3/`
 
-## Observacao importante
-No Vercel, o app web funciona como central de comando e leitura de relatorios.
-A execucao Playwright completa (cliques/layout em browser real) pode ser feita:
-- via `SitePulse Desktop` local
-- via CMD local tradicional
-- ou via `Bridge local` manual acionado pela interface web em ambiente de desenvolvimento
+## Current architecture
+- the desktop shell talks directly to the local bridge
+- the bridge runs the QA engine
+- the renderer stores compact report snapshots locally
+- the desktop UI is now responsible for overview, findings, reports and settings
+
+## Validation
+Core validation path:
+```bash
+node --check companion/src/main.cjs
+node --check companion/src/preload.cjs
+node --check companion/src/renderer.js
+npm run desktop:smoke
+```
+
+## Notes
+- if `companion/dist` is locked by a running executable, use `npm run desktop:build:win:staging`
+- `companion/runtime-source` is generated input for the packaged desktop app

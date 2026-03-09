@@ -5,13 +5,10 @@
   "scripts": {
     "qa:bootstrap": "npm --prefix qa install --omit=dev && npm --prefix qa exec playwright install chromium",
     "postinstall": "npm run qa:bootstrap",
-    "dev": "next dev",
-    "build": "npm run qa:bootstrap && next build",
-    "start": "next start",
-    "typecheck": "tsc --noEmit",
     "desktop:dev": "npm --prefix companion run dev",
     "desktop:smoke": "npm --prefix companion run smoke",
     "desktop:build:win": "npm --prefix companion run build:win",
+    "desktop:build:win:staging": "npm --prefix companion run sync:runtime && cd companion && npx electron-builder --win nsis --config.directories.output=dist-v3",
     "companion:install": "npm --prefix companion install",
     "companion:dev": "npm --prefix companion run dev",
     "companion:smoke": "npm --prefix companion run smoke",
@@ -19,21 +16,8 @@
     "qa:install": "npm --prefix qa install",
     "audit:cmd": "npm --prefix qa run audit:cmd",
     "audit:cmd:mobile": "npm --prefix qa run audit:cmd:mobile",
-    "audit:hub": "npm --prefix qa run audit:hub",
-    "audit:hub:mobile": "npm --prefix qa run audit:hub:mobile",
-    "audit:bridge": "npm --prefix qa run audit:bridge",
-    "audit:self": "npm --prefix qa run audit:self",
-    "audit:self:mobile": "npm --prefix qa run audit:self:mobile"
-  },
-  "dependencies": {
-    "next": "14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@types/node": "^20.12.12",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "typescript": "^5.4.5"
+    "audit:wizard": "npm --prefix qa run audit:hub",
+    "audit:wizard:mobile": "npm --prefix qa run audit:hub:mobile",
+    "audit:bridge": "npm --prefix qa run audit:bridge"
   }
 }

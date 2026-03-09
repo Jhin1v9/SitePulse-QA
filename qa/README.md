@@ -38,7 +38,7 @@ Eventos live:
    - `npm run audit:hub` (wizard guiado em CMD com resumo final inteligente)
    - `npm run audit:cmd` (terminal com progresso/eventos em tempo real)
    - `npm run audit:cmd:mobile` (igual acima em mobile)
-   - `npm run audit:bridge` (bridge localhost para disparar auditoria completa via app web)
+   - `npm run audit:bridge` (bridge localhost para disparar auditoria completa via SitePulse Studio)
 
 Ou use:
 - `run-audit.cmd`
@@ -48,8 +48,8 @@ Ou use:
 - `run-audit-bridge.cmd`
 - `run-audit-url.cmd <BASE_URL>`
 
-## Bridge local (web -> CMD completo)
-Quando o Hub estiver hospedado (ex.: Vercel), rode no seu PC:
+## Bridge local (desktop -> CMD completo)
+Quando quiser acionar o motor local a partir do desktop shell ou de outra camada controlada, rode no seu PC:
 ```bash
 npm run audit:bridge
 ```

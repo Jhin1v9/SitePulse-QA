@@ -8,8 +8,6 @@
     "audit:headed": "node src/index.mjs --config audit.default.json --headed",
     "audit:fresh": "node src/index.mjs --config audit.default.json --fresh",
     "audit:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh",
-    "audit:self": "node src/index.mjs --config audit.sitepulse-hub.json --fresh",
-    "audit:self:mobile": "node src/index.mjs --config audit.sitepulse-hub.mobile.json --fresh",
     "audit:auto": "node src/run-until-done.mjs --config audit.default.json",
     "audit:hub": "node src/cmd-hub.mjs",
     "audit:hub:mobile": "node src/cmd-hub.mjs --mode mobile --non-interactive",

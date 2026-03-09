@@ -129,12 +129,40 @@ function resolveBundledQaDir() {
   return app.isPackaged ? packaged : dev;
 }
 
+async function copyDirectoryEntries(sourceDir, targetDir) {
+  await fs.mkdir(targetDir, { recursive: true });
+  const entries = await fs.readdir(sourceDir);
+  for (const entry of entries) {
+    await fs.cp(path.join(sourceDir, entry), path.join(targetDir, entry), {
+      recursive: true,
+      force: true,
+    });
+  }
+}
+
 async function ensureQaRuntime() {
   const sourceDir = resolveBundledQaDir();
   const targetDir = path.join(app.getPath("userData"), "qa-runtime");
-  await fs.rm(targetDir, { recursive: true, force: true });
+  await fs.rm(targetDir, {
+    recursive: true,
+    force: true,
+    maxRetries: 12,
+    retryDelay: 250,
+  });
   await fs.mkdir(targetDir, { recursive: true });
-  await fs.cp(sourceDir, targetDir, { recursive: true, force: true });
+  const entries = await fs.readdir(sourceDir);
+  for (const entry of entries) {
+    const from = path.join(sourceDir, entry);
+    const to = path.join(targetDir, entry);
+    if (entry === "node_modules") {
+      await copyDirectoryEntries(from, to);
+      continue;
+    }
+    await fs.cp(from, to, {
+      recursive: true,
+      force: true,
+    });
+  }
   qaRuntimeDir = targetDir;
   reportsDir = path.join(targetDir, "reports");
   await fs.mkdir(reportsDir, { recursive: true });
