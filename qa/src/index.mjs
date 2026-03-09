@@ -1647,7 +1647,7 @@ function normalizeConfig(config, configDir) {
       ? Math.max(1, Number(config.maxDiscoveredRoutes))
       : 40,
     maxActionsPerRoute: Number.isFinite(Number(config.maxActionsPerRoute))
-      ? Math.max(1, Number(config.maxActionsPerRoute))
+      ? Math.max(0, Number(config.maxActionsPerRoute))
       : 200,
     maxActionRoutes: Number.isFinite(Number(config.maxActionRoutes))
       ? Math.max(0, Number(config.maxActionRoutes))
@@ -3171,8 +3171,8 @@ async function run() {
     if (maxRunMs <= 0 || maxRunMs > 55000) {
       maxRunMs = 55000;
     }
-    cfg.maxActionsPerRoute = Math.min(cfg.maxActionsPerRoute, 20);
-    cfg.maxActionRoutes = cfg.maxActionRoutes > 0 ? Math.min(cfg.maxActionRoutes, 1) : 1;
+    cfg.maxActionsPerRoute = 0;
+    cfg.maxActionRoutes = 0;
   }
 
   if (args.fresh) {
@@ -3429,7 +3429,7 @@ async function run() {
       const labels =
         cfg.maxActionsPerRoute > 0
           ? discoveredLabels.slice(0, Math.min(discoveredLabels.length, cfg.maxActionsPerRoute))
-          : discoveredLabels;
+          : [];
       routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, discoveredLabels.length);
 
       const shouldAuditActions = cfg.maxActionRoutes <= 0 || routeIndex < cfg.maxActionRoutes;
