@@ -17,6 +17,7 @@
     "audit:cmd:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh --live-log --human-log"
   },
   "dependencies": {
+    "@sparticuz/chromium": "138.0.2",
     "playwright": "^1.53.2"
   }
 }

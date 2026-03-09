@@ -10,6 +10,13 @@ const EXIT_OK = 0;
 const EXIT_FAIL = 1;
 const EXIT_PARTIAL = 2;
 const CHECKPOINT_VERSION = 1;
+const SERVERLESS_ENV_KEYS = [
+  "VERCEL",
+  "AWS_LAMBDA_FUNCTION_VERSION",
+  "AWS_EXECUTION_ENV",
+  "LAMBDA_TASK_ROOT",
+  "SITEPULSE_FORCE_SERVERLESS_CHROMIUM",
+];
 
 const CODE = {
   ROUTE_LOAD_FAIL: "ROUTE_LOAD_FAIL",
@@ -2584,6 +2591,60 @@ function shouldPauseByTime(runStartedAt, maxRunMs) {
   return maxRunMs > 0 && Date.now() - runStartedAt >= maxRunMs;
 }
 
+function hasTruthyEnv(key) {
+  const value = process.env[key];
+  if (value == null) return false;
+  const normalized = String(value).trim().toLowerCase();
+  return normalized !== "" && normalized !== "0" && normalized !== "false" && normalized !== "off";
+}
+
+function isServerlessRuntime() {
+  return SERVERLESS_ENV_KEYS.some((key) => hasTruthyEnv(key));
+}
+
+async function resolveChromiumLaunchPlan(args) {
+  const defaultPlan = {
+    engine: "playwright",
+    options: {
+      headless: !args.headed,
+    },
+  };
+
+  if (!isServerlessRuntime()) {
+    return defaultPlan;
+  }
+
+  let chromiumPack;
+  try {
+    const chromiumModule = await import("@sparticuz/chromium");
+    chromiumPack = chromiumModule.default ?? chromiumModule;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`serverless_chromium_dependency_missing: ${message}`);
+  }
+
+  let executablePath = "";
+  try {
+    executablePath = await chromiumPack.executablePath();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`serverless_chromium_path_error: ${message}`);
+  }
+
+  if (!executablePath) {
+    throw new Error("serverless_chromium_path_error: empty_executable_path");
+  }
+
+  return {
+    engine: "sparticuz",
+    options: {
+      headless: true,
+      executablePath,
+      args: Array.isArray(chromiumPack.args) ? chromiumPack.args : [],
+    },
+  };
+}
+
 function finalizeReport(report, paused) {
   report.issues = dedupeIssues(report.issues);
   report.issues = report.issues.map((issue) => hydrateIssue(issue));
@@ -2676,7 +2737,12 @@ async function run() {
       detail: `baseUrl=${cfg.baseUrl} routes=${cfg.routes.length}`,
     });
 
-    browser = await chromium.launch({ headless: !args.headed });
+    const launchPlan = await resolveChromiumLaunchPlan(args);
+    emitLiveEvent(args, "runner_engine", {
+      action: "engine_select",
+      detail: `engine=${launchPlan.engine} headed=${args.headed ? "requested" : "no"}`,
+    });
+    browser = await chromium.launch(launchPlan.options);
     const context = await browser.newContext({ viewport: { width: cfg.viewportWidth, height: cfg.viewportHeight } });
     const page = await context.newPage();
 
