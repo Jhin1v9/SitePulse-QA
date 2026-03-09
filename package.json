@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "postinstall": "npm --prefix qa install --omit=dev && npm --prefix qa exec playwright install chromium",
+    "qa:bootstrap": "npm --prefix qa install --omit=dev && npm --prefix qa exec playwright install chromium",
+    "postinstall": "npm run qa:bootstrap",
     "dev": "next dev",
-    "build": "next build",
+    "build": "npm run qa:bootstrap && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "qa:install": "npm --prefix qa install",
