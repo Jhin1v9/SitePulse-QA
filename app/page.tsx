@@ -2058,6 +2058,11 @@ function PageContent() {
                     <details>
                       <summary>Mostrar detalhe tecnico</summary>
                       <div className="code-box mono">{auditNotice.technical}</div>
+                      <div className="btn-row" style={{ marginTop: 8 }}>
+                        <button type="button" onClick={() => void copyText(auditNotice.technical ?? "", "detalhe tecnico copied")}>
+                          Copiar detalhe tecnico
+                        </button>
+                      </div>
                     </details>
                   ) : null}
                 </section>
@@ -2175,6 +2180,11 @@ function PageContent() {
                             Comandos uteis
                           </p>
                           <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
+                          <div className="btn-row" style={{ marginTop: 8 }}>
+                            <button type="button" onClick={() => void copyText(issue.assistantHint.commandHints?.join("\n") ?? "", "issue commands copied")}>
+                              Copiar comandos
+                            </button>
+                          </div>
                         </div>
                       ) : null}
                     </article>
@@ -2255,6 +2265,11 @@ function PageContent() {
                   Comando para repetir auditoria
                 </p>
                 <div className="code-box mono">{report?.assistantGuide.replayCommand ?? "No replay command available."}</div>
+                <div className="btn-row" style={{ marginTop: 8 }}>
+                  <button type="button" onClick={() => void copyText(report?.assistantGuide.replayCommand ?? "", "replay command copied")}>
+                    Copiar replay
+                  </button>
+                </div>
               </div>
 
               <div className="btn-row">

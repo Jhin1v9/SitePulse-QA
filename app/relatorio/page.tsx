@@ -646,6 +646,38 @@ function buildSeoPrompt(report: ReportModel) {
   ].join("\n");
 }
 
+function CopyableCodeBox({
+  text,
+  label,
+}: {
+  text: string;
+  label: string;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    if (!text.trim()) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch {
+      setCopied(false);
+    }
+  }
+
+  return (
+    <>
+      <div className="code-box mono">{text}</div>
+      <div className="btn-row" style={{ marginTop: 8 }}>
+        <button type="button" onClick={() => void handleCopy()}>
+          {copied ? `${label} copiado` : `Copiar ${label}`}
+        </button>
+      </div>
+    </>
+  );
+}
+
 function ReportPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("foco");
@@ -657,7 +689,6 @@ function ReportPageContent() {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [actionSearch, setActionSearch] = useState("");
   const [actionStatusFilter, setActionStatusFilter] = useState("all");
-  const [seoPromptCopied, setSeoPromptCopied] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(LAST_REPORT_STORAGE_KEY);
@@ -736,17 +767,6 @@ function ReportPageContent() {
     if (!report || !showSeoAnalysis) return [];
     return report.seo.issues.slice(0, 6);
   }, [report, showSeoAnalysis]);
-
-  async function copySeoPrompt() {
-    if (!seoFixPrompt) return;
-    try {
-      await navigator.clipboard.writeText(seoFixPrompt);
-      setSeoPromptCopied(true);
-      setTimeout(() => setSeoPromptCopied(false), 1800);
-    } catch {
-      setSeoPromptCopied(false);
-    }
-  }
 
   if (!report) {
     return (
@@ -1106,14 +1126,14 @@ function ReportPageContent() {
                             <p className="small muted">Linha do erro detectada: Nao detectada automaticamente no stack.</p>
                           )}
                           <p className="small muted">Linha possivelmente errada:</p>
-                          <div className="code-box mono">{devLine.wrongLine}</div>
+                          <CopyableCodeBox text={devLine.wrongLine} label="linha errada" />
                           <p className="small muted" style={{ marginTop: 8 }}>Linha sugerida para trocar manualmente:</p>
-                          <div className="code-box mono">{devLine.correctLine}</div>
+                          <CopyableCodeBox text={devLine.correctLine} label="linha sugerida" />
                           <p className="small muted">Por que essa troca: {devLine.why}</p>
                           {issue.recommendedPrompt ? (
                             <>
                               <p className="small muted" style={{ marginTop: 8 }}>Prompt de correcao sugerido:</p>
-                              <div className="code-box mono">{issue.recommendedPrompt}</div>
+                              <CopyableCodeBox text={issue.recommendedPrompt} label="prompt de correcao" />
                             </>
                           ) : null}
                           {issue.assistantHint.firstChecks?.length ? (
@@ -1124,7 +1144,7 @@ function ReportPageContent() {
                             </ul>
                           ) : null}
                           {issue.assistantHint.commandHints?.length ? (
-                            <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
+                            <CopyableCodeBox text={issue.assistantHint.commandHints.join("\n")} label="comandos uteis" />
                           ) : null}
                         </div>
                       ) : null}
@@ -1187,12 +1207,7 @@ function ReportPageContent() {
             {seoFixPrompt ? (
               <div className="assistant-block">
                 <p className="small muted" style={{ marginTop: 0 }}>Prompt recomendado para corrigir SEO</p>
-                <div className="code-box mono">{seoFixPrompt}</div>
-                <div className="btn-row" style={{ marginTop: 8 }}>
-                  <button type="button" onClick={() => void copySeoPrompt()}>
-                    {seoPromptCopied ? "Prompt SEO copiado" : "Copiar prompt SEO"}
-                  </button>
-                </div>
+                <CopyableCodeBox text={seoFixPrompt} label="prompt SEO" />
               </div>
             ) : null}
 
@@ -1258,7 +1273,7 @@ function ReportPageContent() {
               <h2 className="card-title">JSON tecnico bruto</h2>
             </header>
             <div className="card-body">
-              <div className="code-box mono">{rawText || "Sem JSON bruto carregado."}</div>
+              <CopyableCodeBox text={rawText || "Sem JSON bruto carregado."} label="JSON tecnico" />
             </div>
           </article>
         ) : null}
