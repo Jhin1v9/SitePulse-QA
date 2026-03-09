@@ -29,6 +29,17 @@ Abrir:
   - Chrome/Edge: `Instalar app`
   - iOS Safari: `Compartilhar > Adicionar a Tela de Inicio`
 
+## Auditoria completa via browser (Bridge local)
+Para executar auditoria completa (Playwright real) a partir do app web hospedado:
+1. No seu Windows local, rode:
+```bash
+npm run audit:bridge
+```
+2. No SitePulse Hub, clique em `Checar Bridge local`.
+3. Clique em `Auditar completo (Bridge local)`.
+
+O bridge roda em `http://127.0.0.1:47891` e permite que a interface web dispare o mesmo motor do CMD com retorno de relatorio completo.
+
 ## Auditoria via CMD
 ```bash
 npm run audit:cmd
@@ -49,4 +60,6 @@ Relatorios ficam em:
 
 ## Observacao importante
 No Vercel, o app web funciona como central de comando e leitura de relatorios.
-A execucao Playwright completa (cliques/layout em browser real) continua recomendada em maquina local via CMD.
+A execucao Playwright completa (cliques/layout em browser real) pode ser feita:
+- via CMD local tradicional
+- ou via `Bridge local` acionado pela interface web

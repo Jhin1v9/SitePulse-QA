@@ -129,6 +129,14 @@ type CmdLaunchResponse = {
   error?: string;
 };
 
+type LocalBridgeHealthResponse = {
+  ok: boolean;
+  running?: boolean;
+  runningTarget?: string | null;
+  runningMode?: Mode | null;
+  timestamp?: string;
+};
+
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
@@ -137,6 +145,8 @@ type InstallPromptEvent = Event & {
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
 const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
+const LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:47891";
+const LOCAL_BRIDGE_START_COMMAND = "npm run audit:bridge";
 const DEMO_USERS = [
   { username: "admin", password: "admin123" },
   { username: "mobile", password: "mobile123" },
@@ -392,6 +402,12 @@ function mapHealthChip(health: "idle" | "ok" | "bad") {
   return { label: "API nao verificada", className: "dot" };
 }
 
+function mapBridgeChip(status: "idle" | "ok" | "bad") {
+  if (status === "ok") return { label: "Bridge local ON", className: "dot ok" };
+  if (status === "bad") return { label: "Bridge local OFF", className: "dot bad" };
+  return { label: "Bridge local nao checado", className: "dot" };
+}
+
 function persistLastReport(raw: unknown) {
   try {
     localStorage.setItem(LAST_REPORT_STORAGE_KEY, JSON.stringify(raw));
@@ -433,6 +449,32 @@ function classifyAuditNotice(input: {
         "A URL informada nao esta no formato correto.",
       recommendation:
         "Digite a URL completa com protocolo, por exemplo: https://seusite.com.",
+      technical,
+    };
+  }
+
+  if (code === "local_bridge_unreachable") {
+    return {
+      level: "warn",
+      code,
+      title: "Bridge local indisponivel",
+      userMessage:
+        "A auditoria completa via browser precisa do Bridge local ativo na sua maquina.",
+      recommendation:
+        `Abra um CMD na pasta do projeto e rode: ${LOCAL_BRIDGE_START_COMMAND}.`,
+      technical,
+    };
+  }
+
+  if (code === "bridge_busy") {
+    return {
+      level: "info",
+      code,
+      title: "Bridge local ocupado",
+      userMessage:
+        "Ja existe uma auditoria completa em execucao no seu computador.",
+      recommendation:
+        "Aguarde a rodada atual terminar e execute novamente.",
       technical,
     };
   }
@@ -620,6 +662,7 @@ function PageContent() {
   const [report, setReport] = useState<ReportModel | null>(null);
   const [reportRaw, setReportRaw] = useState<unknown>(null);
   const [health, setHealth] = useState<"idle" | "ok" | "bad">("idle");
+  const [localBridgeHealth, setLocalBridgeHealth] = useState<"idle" | "ok" | "bad">("idle");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [search, setSearch] = useState("");
   const [jsonPaste, setJsonPaste] = useState("");
@@ -656,6 +699,7 @@ function PageContent() {
 
   const riskScore = useMemo(() => scoreFromIssues(report?.issues ?? []), [report]);
   const healthChip = mapHealthChip(health);
+  const bridgeChip = mapBridgeChip(localBridgeHealth);
 
   function openReportPage(focus?: "routes" | "actions" | "issues" | "risk" | "seo") {
     const params = new URLSearchParams();
@@ -711,6 +755,177 @@ function PageContent() {
     }
   }
 
+  async function checkLocalBridge(silent = false) {
+    try {
+      const res = await fetch(`${LOCAL_BRIDGE_BASE_URL}/health`, { cache: "no-store" });
+      if (!res.ok) {
+        setLocalBridgeHealth("bad");
+        if (!silent) pushLog("[bridge] check failed");
+        return false;
+      }
+      const payload = (await res.json()) as LocalBridgeHealthResponse;
+      if (!payload.ok) {
+        setLocalBridgeHealth("bad");
+        if (!silent) pushLog("[bridge] respondeu com erro.");
+        return false;
+      }
+      setLocalBridgeHealth("ok");
+      if (!silent) {
+        pushLog(payload.running ? "[bridge] ativo (auditoria em andamento)." : "[bridge] ativo e pronto.");
+      }
+      return true;
+    } catch {
+      setLocalBridgeHealth("bad");
+      if (!silent) {
+        pushLog("[bridge] offline. Inicie com: npm run audit:bridge");
+      }
+      return false;
+    }
+  }
+
+  async function runPlanViaLocalBridge() {
+    if (!targetUrl.trim()) return;
+    setRunning(true);
+    setProgress(0);
+    setReport(null);
+    setReportRaw(null);
+    setAuditNotice(null);
+    setLogs([]);
+    pushLog("[run-local] iniciando auditoria completa via bridge local...");
+
+    const bridgeReady = await checkLocalBridge(true);
+    if (!bridgeReady) {
+      const notice = classifyAuditNotice({
+        error: "local_bridge_unreachable",
+        detail: `Bridge URL: ${LOCAL_BRIDGE_BASE_URL}`,
+        targetUrl: targetUrl.trim(),
+      });
+      setAuditNotice(notice);
+      pushLog(`[run-local] ${notice.title}`);
+      pushLog(`[run-local] acao recomendada: ${notice.recommendation}`);
+      setProgress(0);
+      setRunning(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`${LOCAL_BRIDGE_BASE_URL}/run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: targetUrl.trim(),
+          mode,
+          noServer,
+          headed,
+          fullAudit: true,
+        }),
+      });
+      const payload = (await res.json()) as RunPlanResponse;
+      if (!res.ok || !payload.ok) {
+        const notice = classifyAuditNotice({
+          error: payload.error ?? "run_plan_failed",
+          detail: payload.detail,
+          usedFallback: payload.usedFallback,
+          targetUrl: targetUrl.trim(),
+        });
+        setAuditNotice(notice);
+        pushLog(`[run-local] failed: ${notice.title}`);
+        pushLog(`[run-local] traducao: ${notice.userMessage}`);
+        pushLog(`[run-local] acao recomendada: ${notice.recommendation}`);
+        if (notice.technical) pushLog(`[run-local] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
+        setProgress(0);
+        return;
+      }
+
+      setProgress(82);
+      for (const step of payload.steps ?? []) {
+        pushLog(`[run-local/step] ${step}`);
+      }
+
+      if (payload.usedFallback) {
+        const notice = classifyAuditNotice({
+          error: payload.error,
+          detail: payload.detail,
+          usedFallback: true,
+          targetUrl: targetUrl.trim(),
+        });
+        setAuditNotice(notice);
+        pushLog("[run-local] aviso: fallback HTTP detectado.");
+      }
+      if (payload.detail) pushLog(`[run-local] detalhe tecnico: ${payload.detail.slice(0, 220)}`);
+
+      if (payload.report) {
+        applyReport(payload.report, "local_bridge_full_audit");
+        const totalIssues = Number((payload.report as { summary?: { totalIssues?: number } })?.summary?.totalIssues ?? 0);
+        if (Number.isFinite(totalIssues) && totalIssues > 0) {
+          pushLog(`[run-local] concluida com ${totalIssues} problema(s).`);
+        } else {
+          pushLog("[run-local] concluida sem problemas detectados.");
+        }
+      } else {
+        pushLog("[run-local] finalizou sem report. Rode via CMD direto para diagnostico.");
+      }
+      setProgress(100);
+      pushLog("[run-local] finalizada.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "run_plan_failed";
+      const notice = classifyAuditNotice({
+        error: "run_plan_failed",
+        detail: message,
+        targetUrl: targetUrl.trim(),
+      });
+      setAuditNotice(notice);
+      pushLog(`[run-local] failed: ${notice.title}`);
+      pushLog(`[run-local] traducao: ${notice.userMessage}`);
+      pushLog(`[run-local] acao recomendada: ${notice.recommendation}`);
+      if (notice.technical) pushLog(`[run-local] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
+      setProgress(0);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function tryOpenCmdViaLocalBridge() {
+    const bridgeReady = await checkLocalBridge(true);
+    if (!bridgeReady) {
+      const notice = classifyAuditNotice({
+        error: "local_bridge_unreachable",
+        detail: `Bridge URL: ${LOCAL_BRIDGE_BASE_URL}`,
+        targetUrl: targetUrl.trim(),
+      });
+      setAuditNotice(notice);
+      pushLog(`[cmd] ${notice.title}`);
+      pushLog(`[cmd] ${notice.recommendation}`);
+      return false;
+    }
+
+    const res = await fetch(`${LOCAL_BRIDGE_BASE_URL}/open-cmd`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        baseUrl: targetUrl.trim(),
+        mode,
+        noServer,
+        headed,
+        fullAudit: cmdFullAudit,
+        elevated: cmdElevated,
+      }),
+    });
+    const payload = (await res.json()) as CmdLaunchResponse;
+    if (!res.ok || !payload.ok) {
+      const detail = payload.detail ?? payload.error ?? "cmd_open_failed";
+      pushLog(`[cmd] falha pelo bridge local: ${detail}`);
+      if (payload.recommendedCommand) pushLog(`[cmd] comando recomendado: ${payload.recommendedCommand}`);
+      return false;
+    }
+
+    setAuditNotice(null);
+    pushLog(`[cmd] ${payload.message ?? "janela CMD aberta via bridge local."}`);
+    if (payload.recommendedCommand) pushLog(`[cmd] comando recomendado: ${payload.recommendedCommand}`);
+    if (payload.recommendation) pushLog(`[cmd] recomendacao: ${payload.recommendation}`);
+    return true;
+  }
+
   function validateLogin() {
     const valid = DEMO_USERS.some((u) => u.username === username && u.password === password);
     if (!valid) {
@@ -720,6 +935,7 @@ function PageContent() {
     setLoginError("");
     setLogged(true);
     void checkHealth();
+    void checkLocalBridge(true);
   }
 
   async function copyText(text: string, label: string) {
@@ -865,6 +1081,11 @@ function PageContent() {
       });
       const payload = (await res.json()) as CmdLaunchResponse;
       if (!res.ok || !payload.ok) {
+        if (payload.error === "unsupported_platform") {
+          pushLog("[cmd] ambiente remoto nao pode abrir CMD. Tentando bridge local...");
+          const opened = await tryOpenCmdViaLocalBridge();
+          if (opened) return;
+        }
         throw new Error(payload.detail ?? payload.error ?? "cmd_open_failed");
       }
       pushLog(`[cmd] ${payload.message ?? "janela CMD aberta."}`);
@@ -876,7 +1097,15 @@ function PageContent() {
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown_error";
-      pushLog(`[cmd] falha ao abrir CMD: ${message}`);
+      pushLog(`[cmd] falha ao abrir CMD pela API: ${message}`);
+      pushLog("[cmd] tentando bridge local...");
+      try {
+        const opened = await tryOpenCmdViaLocalBridge();
+        if (!opened) pushLog("[cmd] bridge local tambem falhou.");
+      } catch (bridgeError) {
+        const bridgeMessage = bridgeError instanceof Error ? bridgeError.message : "bridge_cmd_open_failed";
+        pushLog(`[cmd] falha final: ${bridgeMessage}`);
+      }
     } finally {
       setOpeningCmd(false);
     }
@@ -931,9 +1160,15 @@ function PageContent() {
     autoLoginAppliedRef.current = true;
     setLogged(true);
     void checkHealth();
+    void checkLocalBridge(true);
     pushLog("[auth] autologin enabled by query param");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLogin]);
+
+  useEffect(() => {
+    void checkLocalBridge(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1057,6 +1292,10 @@ function PageContent() {
               {healthChip.label}
             </span>
             <span className="chip">
+              <span className={bridgeChip.className} />
+              {bridgeChip.label}
+            </span>
+            <span className="chip">
               <span className="dot ok" />
               mode: {mode}
             </span>
@@ -1131,6 +1370,14 @@ function PageContent() {
                   {running ? "Auditando..." : "Auditar URL agora"}
                 </button>
                 <button
+                  className="btn-primary"
+                  type="button"
+                  disabled={running || openingCmd || selfAudit}
+                  onClick={runPlanViaLocalBridge}
+                >
+                  {running ? "Auditando..." : "Auditar completo (Bridge local)"}
+                </button>
+                <button
                   className="btn-secondary"
                   type="button"
                   disabled={running || openingCmd || selfAudit}
@@ -1141,9 +1388,15 @@ function PageContent() {
                 <button className="btn-secondary" type="button" onClick={checkHealth}>
                   Checar API
                 </button>
+                <button className="btn-secondary" type="button" onClick={() => void checkLocalBridge()}>
+                  Checar Bridge local
+                </button>
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 "Rodar via CMD (janela)" abre no Windows local. Em deploy remoto (ex.: Vercel), use o comando recomendado.
+              </p>
+              <p className="small muted" style={{ margin: "4px 0 0" }}>
+                Para auditoria completa via browser em qualquer deploy: inicie o bridge local com <code>{LOCAL_BRIDGE_START_COMMAND}</code>.
               </p>
 
               <div className="btn-row">
@@ -1333,6 +1586,18 @@ function PageContent() {
               <h2 className="card-title">CMD + Guia</h2>
             </header>
             <div className="card-body">
+              <div>
+                <p className="small muted" style={{ margin: "0 0 6px" }}>
+                  Inicializar bridge local (obrigatorio para auditoria completa no browser)
+                </p>
+                <div className="code-box mono">{LOCAL_BRIDGE_START_COMMAND}</div>
+                <div className="btn-row" style={{ marginTop: 8 }}>
+                  <button className="btn-secondary" type="button" onClick={() => void copyText(LOCAL_BRIDGE_START_COMMAND, "bridge start command copied")}>
+                    Copiar comando do bridge
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
                   Comando guiado

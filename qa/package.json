@@ -14,7 +14,8 @@
     "audit:hub": "node src/cmd-hub.mjs",
     "audit:hub:mobile": "node src/cmd-hub.mjs --mode mobile --non-interactive",
     "audit:cmd": "node src/index.mjs --config audit.default.json --fresh --live-log --human-log",
-    "audit:cmd:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh --live-log --human-log"
+    "audit:cmd:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh --live-log --human-log",
+    "audit:bridge": "node src/local-bridge.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "138.0.2",

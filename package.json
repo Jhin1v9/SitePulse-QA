@@ -14,6 +14,7 @@
     "audit:cmd:mobile": "npm --prefix qa run audit:cmd:mobile",
     "audit:hub": "npm --prefix qa run audit:hub",
     "audit:hub:mobile": "npm --prefix qa run audit:hub:mobile",
+    "audit:bridge": "npm --prefix qa run audit:bridge",
     "audit:self": "npm --prefix qa run audit:self",
     "audit:self:mobile": "npm --prefix qa run audit:self:mobile"
   },

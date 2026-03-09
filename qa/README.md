@@ -38,13 +38,26 @@ Eventos live:
    - `npm run audit:hub` (wizard guiado em CMD com resumo final inteligente)
    - `npm run audit:cmd` (terminal com progresso/eventos em tempo real)
    - `npm run audit:cmd:mobile` (igual acima em mobile)
+   - `npm run audit:bridge` (bridge localhost para disparar auditoria completa via app web)
 
 Ou use:
 - `run-audit.cmd`
 - `run-audit-auto.cmd`
 - `run-audit-live.cmd`
 - `run-audit-hub.cmd`
+- `run-audit-bridge.cmd`
 - `run-audit-url.cmd <BASE_URL>`
+
+## Bridge local (web -> CMD completo)
+Quando o Hub estiver hospedado (ex.: Vercel), rode no seu PC:
+```bash
+npm run audit:bridge
+```
+
+Endpoints do bridge:
+- `GET /health`
+- `POST /run` (auditoria completa e retorno do report)
+- `POST /open-cmd` (abre janela CMD local, com opcao admin/UAC)
 
 ## Configs
 - `audit.default.json` (desktop)
