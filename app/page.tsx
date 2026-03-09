@@ -615,6 +615,9 @@ function PageContent() {
       });
       const payload = (await res.json()) as RunPlanResponse;
       if (!res.ok || !payload.ok) {
+        if (payload.report) {
+          applyReport(payload.report, "api_error_report");
+        }
         const notice = classifyAuditNotice({
           error: payload.error,
           detail: payload.detail,
@@ -625,6 +628,9 @@ function PageContent() {
         pushLog(`[run] failed: ${notice.title}`);
         pushLog(`[run] traducao: ${notice.userMessage}`);
         pushLog(`[run] acao recomendada: ${notice.recommendation}`);
+        if (payload.report) {
+          pushLog("[run] relatorio parcial aplicado mesmo com erro HTTP.");
+        }
         if (notice.technical) {
           pushLog(`[run] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
         }

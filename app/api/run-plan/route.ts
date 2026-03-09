@@ -317,6 +317,10 @@ async function runAudit(baseUrl: string, mode: Mode) {
   const command = `npm --prefix qa run audit:cmd -- --config "${config}" --base-url "${baseUrl}" --no-server`;
   const startedAt = nowIso();
   const startedMs = Date.now();
+  const runtimeEnv = {
+    ...process.env,
+    PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? "0",
+  };
 
   const qaDir = path.resolve(process.cwd(), "qa");
   const args = [
@@ -334,6 +338,7 @@ async function runAudit(baseUrl: string, mode: Mode) {
   let spawnError = "";
   const child = spawn(process.execPath, args, {
     cwd: qaDir,
+    env: runtimeEnv,
     windowsHide: true,
     stdio: ["ignore", "pipe", "pipe"],
   });
