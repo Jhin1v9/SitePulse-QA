@@ -2,6 +2,7 @@
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
@@ -1464,6 +1465,7 @@ function normalizeConfig(config, configDir) {
   const checkpointFile =
     toAbsoluteMaybe(config.checkpointFile, configDir) ||
     path.resolve(reportDir, "sitepulse-checkpoint.json");
+  const writablePaths = resolveWritableReportPaths(reportDir, checkpointFile);
 
   return {
     name: String(config.name ?? "site-audit"),
@@ -1478,8 +1480,8 @@ function normalizeConfig(config, configDir) {
     viewportHeight: Number.isFinite(Number(config.viewportHeight)) ? Math.max(320, Number(config.viewportHeight)) : 864,
     requireButtonEffect: config.requireButtonEffect !== false,
     allowedNoEffectButtonContains: (config.allowedNoEffectButtonContains ?? []).map((item) => String(item).toLowerCase()),
-    reportDir,
-    checkpointFile,
+    reportDir: writablePaths.reportDir,
+    checkpointFile: writablePaths.checkpointFile,
     checkpointEveryClicks: Number(config.checkpointEveryClicks ?? 20),
     maxRunMs: Number(config.maxRunMs ?? 0),
     scrollEffectMinPx: Number.isFinite(Number(config.scrollEffectMinPx))
@@ -2600,6 +2602,24 @@ function hasTruthyEnv(key) {
 
 function isServerlessRuntime() {
   return SERVERLESS_ENV_KEYS.some((key) => hasTruthyEnv(key));
+}
+
+function resolveWritableReportPaths(reportDir, checkpointFile) {
+  if (!isServerlessRuntime()) {
+    return {
+      reportDir,
+      checkpointFile,
+    };
+  }
+
+  const tmpBase = path.join(os.tmpdir(), "sitepulse-qa");
+  const reportName = path.basename(reportDir || "reports");
+  const checkpointName = path.basename(checkpointFile || "sitepulse-checkpoint.json");
+
+  return {
+    reportDir: path.join(tmpBase, reportName || "reports"),
+    checkpointFile: path.join(tmpBase, checkpointName || "sitepulse-checkpoint.json"),
+  };
 }
 
 async function resolveChromiumLaunchPlan(args) {
