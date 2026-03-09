@@ -216,6 +216,38 @@ code {
   gap: 14px;
 }
 
+.embedded-shell-v2 .noise,
+.embedded-shell-v2 .orb {
+  display: none;
+}
+
+.wrap-shell-v2,
+.embedded-shell-v2 .report-wrap {
+  width: 100%;
+  max-width: none;
+  padding: 0;
+}
+
+.topbar-shell-v2 {
+  display: none;
+}
+
+.embedded-shell-v2 .card {
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    rgba(8, 12, 21, 0.9);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+}
+
+.embedded-shell-v2 .card-body {
+  padding: 16px;
+}
+
+.embedded-shell-v2 .dashboard {
+  grid-template-columns: 320px minmax(0, 1fr) 340px;
+}
+
 .brand {
   display: flex;
   align-items: flex-start;

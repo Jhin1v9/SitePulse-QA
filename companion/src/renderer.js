@@ -35,7 +35,7 @@ const stateEl = {
 
 let currentState = null;
 let currentRoute = "/";
-let localLogs = ["[desktop-shell] pronto"];
+let localLogs = ["[desktop-v2] pronto"];
 
 function shortPath(value) {
   const text = value || "n/a";
@@ -60,7 +60,7 @@ function appendLog(line) {
 }
 
 function replaceLogs(lines) {
-  localLogs = Array.isArray(lines) && lines.length ? [...lines] : ["[desktop-shell] pronto"];
+  localLogs = Array.isArray(lines) && lines.length ? [...lines] : ["[desktop-v2] pronto"];
   renderLogs();
 }
 
@@ -71,6 +71,7 @@ function buildWorkspaceUrl(route = "/") {
   url.pathname = route;
   url.searchParams.set("autologin", "1");
   url.searchParams.set("desktop", "1");
+  url.searchParams.set("shell", "v2");
   return url.toString();
 }
 
@@ -104,18 +105,18 @@ function setOverlayState(payload) {
 
   if (hubRunning) {
     stateEl.overlay.classList.add("hidden");
-    stateEl.workspaceTitle.textContent = currentRoute === "/relatorio" ? "Relatorio detalhado embutido" : "Hub local embutido";
+    stateEl.workspaceTitle.textContent = currentRoute === "/relatorio" ? "Reports" : "Audit Control";
     stateEl.workspaceSubtitle.textContent = bridgeRunning
-      ? "Hub e motor local online. O programa está pronto para auditoria completa."
-      : "Hub online, mas o motor local está parado. Reative o bridge para auditorias completas.";
+      ? "Workspace local pronto para auditoria completa, leitura de report e operacao continua."
+      : "Workspace online, mas o motor local esta parado. Reative o bridge para rodar auditorias completas.";
     return;
   }
 
   stateEl.overlay.classList.remove("hidden");
   stateEl.overlayTitle.textContent = bridgeRunning ? "Hub local indisponivel" : "Motor e Hub locais offline";
   stateEl.overlayText.textContent = bridgeRunning
-    ? "O bridge está ativo, mas o workspace do Hub não respondeu. Tente recarregar o workspace."
-    : "O shell está online, mas a camada local do programa ainda não subiu completamente.";
+    ? "O bridge esta ativo, mas o workspace do Hub nao respondeu. Tente recarregar o workspace."
+    : "O shell esta online, mas a camada local do programa ainda nao subiu completamente.";
   stateEl.workspaceTitle.textContent = "Workspace aguardando Hub";
   stateEl.workspaceSubtitle.textContent = "Assim que o Hub local subir, ele aparece aqui dentro sem abrir navegador externo.";
 }
@@ -136,12 +137,8 @@ function setBridgeState(payload) {
   stateEl.runtime.textContent = shortPath(payload?.qaRuntimeDir);
   stateEl.webRuntime.textContent = shortPath(payload?.webRuntimeDir);
   stateEl.reports.textContent = shortPath(payload?.reportsDir);
-  stateEl.bridge.textContent = bridgeRunning
-    ? `${payload.bridge.host}:${payload.bridge.port}`
-    : "offline";
-  stateEl.hub.textContent = hubRunning
-    ? `${payload.hub.host}:${payload.hub.port}`
-    : "offline";
+  stateEl.bridge.textContent = bridgeRunning ? `${payload.bridge.host}:${payload.bridge.port}` : "offline";
+  stateEl.hub.textContent = hubRunning ? `${payload.hub.host}:${payload.hub.port}` : "offline";
   stateEl.autostart.textContent = payload?.launchOnLogin ? "ativado" : "desativado";
   stateEl.loginToggle.checked = !!payload?.launchOnLogin;
   stateEl.startBtn.disabled = bridgeRunning;
@@ -149,7 +146,7 @@ function setBridgeState(payload) {
 
   setMetaChip(stateEl.bridgeChip, bridgeRunning ? "bridge online" : "bridge offline", bridgeRunning ? "ok" : "warn");
   setMetaChip(stateEl.hubChip, hubRunning ? "hub online" : "hub offline", hubRunning ? "ok" : "warn");
-  setMetaChip(stateEl.modeChip, "workspace desktop", "ok");
+  setMetaChip(stateEl.modeChip, "desktop shell v2", "ok");
 
   replaceLogs(payload?.logs);
   setOverlayState(payload);
@@ -241,7 +238,7 @@ stateEl.loginToggle.addEventListener("change", async () => {
 });
 
 stateEl.clearLogBtn.addEventListener("click", () => {
-  localLogs = ["[desktop-shell] log limpo localmente"];
+  localLogs = ["[desktop-v2] log limpo localmente"];
   renderLogs();
 });
 
@@ -295,5 +292,5 @@ async function bootstrap() {
 }
 
 bootstrap().catch((error) => {
-  appendLog(`[desktop-shell] falha ao carregar estado inicial: ${error?.message || error}`);
+  appendLog(`[desktop-v2] falha ao carregar estado inicial: ${error?.message || error}`);
 });

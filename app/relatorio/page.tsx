@@ -698,6 +698,7 @@ function ReportPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("foco");
   const desktopMode = searchParams.get("desktop") === "1";
+  const desktopShellV2 = searchParams.get("shell") === "v2";
   const [report, setReport] = useState<ReportModel | null>(null);
   const [rawText, setRawText] = useState("");
   const [showDev, setShowDev] = useState(false);
@@ -812,12 +813,12 @@ function ReportPageContent() {
   }
 
   return (
-    <main className={`page-shell ${desktopMode ? "embedded-mode" : ""}`}>
+    <main className={`page-shell ${desktopMode ? "embedded-mode" : ""} ${desktopShellV2 ? "embedded-shell-v2" : ""}`}>
       <div className="noise" />
       <div className="orb orb-a" />
       <div className="orb orb-b" />
-      <section className={`report-wrap ${desktopMode ? "wrap-embedded" : ""}`}>
-        <header className={`topbar topbar-hero reveal ${desktopMode ? "topbar-embedded" : ""}`}>
+      <section className={`report-wrap ${desktopMode ? "wrap-embedded" : ""} ${desktopShellV2 ? "wrap-shell-v2" : ""}`}>
+        <header className={`topbar topbar-hero reveal ${desktopMode ? "topbar-embedded" : ""} ${desktopShellV2 ? "topbar-shell-v2" : ""}`}>
           <div className="brand">
             <div className="brand-mark">SP</div>
             <div className="brand-copy">

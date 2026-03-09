@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SitePulse Desktop</title>
+    <title>SitePulse Desktop V2</title>
     <link rel="stylesheet" href="./renderer.css" />
   </head>
   <body>
@@ -12,59 +12,68 @@
         <div class="windowbar-drag">
           <div class="app-mark">SP</div>
           <div class="windowbar-copy">
-            <p class="windowbar-eyebrow">desktop quality operations suite</p>
-            <h1>SitePulse Desktop</h1>
-            <p>Auditoria real, runtime local, workspace embutido e controle tecnico em uma interface de programa.</p>
+            <p class="windowbar-eyebrow">sitepulse desktop v2</p>
+            <h1>SitePulse</h1>
+            <p>Desktop audit workstation for runtime, SEO, reports and local execution.</p>
           </div>
         </div>
 
         <div class="windowbar-meta">
           <span class="meta-chip" id="bridgeChip">bridge offline</span>
           <span class="meta-chip" id="hubChip">hub offline</span>
-          <span class="meta-chip ok" id="modeChip">workspace desktop</span>
+          <span class="meta-chip ok" id="modeChip">desktop shell</span>
         </div>
 
         <div class="window-controls no-drag">
-          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimizar">—</button>
-          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximizar">□</button>
-          <button id="winClose" class="window-btn danger" type="button" aria-label="Fechar">✕</button>
+          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimizar">&minus;</button>
+          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximizar">&#9633;</button>
+          <button id="winClose" class="window-btn danger" type="button" aria-label="Fechar">&#10005;</button>
         </div>
       </header>
 
       <main class="desktop-grid">
         <aside class="sidebar">
-          <section class="surface hero-panel">
-            <p class="panel-kicker">controle local</p>
-            <h2>Programa pronto para operar</h2>
+          <section class="surface sidebar-panel sidebar-hero">
+            <p class="panel-kicker">workstation</p>
+            <h2>Programa desktop de verdade</h2>
             <p class="muted">
-              O shell desktop segura runtime, bridge, reports e workspace do Hub sem depender do navegador externo.
+              O objetivo aqui nao e parecer site instalado. O shell controla runtime, reports e workspace como aplicativo.
             </p>
+          </section>
+
+          <section class="surface sidebar-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">navegacao</p>
+                <h3>Areas do programa</h3>
+              </div>
+            </div>
 
             <div class="nav-stack">
               <button class="nav-item active" data-route="/" type="button">
-                <span class="nav-title">Command Center</span>
-                <span class="nav-desc">Painel principal do Hub embutido</span>
+                <span class="nav-title">Audit Control</span>
+                <span class="nav-desc">Painel principal de execucao</span>
               </button>
               <button class="nav-item" data-route="/relatorio" type="button">
-                <span class="nav-title">Detailed Report</span>
-                <span class="nav-desc">Relatorio tecnico e executivo</span>
+                <span class="nav-title">Reports</span>
+                <span class="nav-desc">Relatorio detalhado e leitura tecnica</span>
               </button>
               <button class="nav-item" id="openReportsNav" type="button">
                 <span class="nav-title">Report Vault</span>
-                <span class="nav-desc">Abrir pasta local de relatórios</span>
+                <span class="nav-desc">Abrir pasta local dos reports</span>
               </button>
               <button class="nav-item" id="reloadWorkspaceNav" type="button">
                 <span class="nav-title">Reload Workspace</span>
-                <span class="nav-desc">Revalidar Hub local e recarregar o frame</span>
+                <span class="nav-desc">Revalidar Hub local e recarregar</span>
               </button>
             </div>
           </section>
 
-          <section class="surface status-panel">
+          <section class="surface sidebar-panel">
             <div class="panel-head">
               <div>
-                <p class="panel-kicker">status do motor</p>
-                <h3>Core local</h3>
+                <p class="panel-kicker">local core</p>
+                <h3>Motor local</h3>
               </div>
             </div>
 
@@ -78,7 +87,7 @@
                 <strong id="bridge">carregando...</strong>
               </div>
               <div class="status-card">
-                <span class="status-label">Hub local</span>
+                <span class="status-label">Hub</span>
                 <strong id="hub">carregando...</strong>
               </div>
               <div class="status-card">
@@ -89,7 +98,7 @@
 
             <label class="toggle">
               <input id="launchOnLogin" type="checkbox" />
-              Iniciar automaticamente com o Windows
+              Iniciar com o Windows
             </label>
 
             <div class="action-row">
@@ -100,11 +109,11 @@
         </aside>
 
         <section class="workspace">
-          <section class="workspace-top surface">
+          <section class="surface workspace-header">
             <div>
               <p class="panel-kicker">workspace</p>
-              <h2 id="workspaceTitle">Hub local embutido</h2>
-              <p class="muted" id="workspaceSubtitle">Preparando runtime e conectando o programa ao workspace interno.</p>
+              <h2 id="workspaceTitle">Audit Control</h2>
+              <p class="muted" id="workspaceSubtitle">Workspace local embutido sem browser externo e sem chrome de site duplicado.</p>
             </div>
 
             <div class="action-row compact">
@@ -114,61 +123,63 @@
             </div>
           </section>
 
-          <section class="workspace-stage surface">
+          <section class="surface workspace-stage">
             <div id="workspaceOverlay" class="workspace-overlay">
               <div class="overlay-card">
                 <p class="panel-kicker">workspace status</p>
-                <h3 id="overlayTitle">Iniciando SitePulse Desktop</h3>
+                <h3 id="overlayTitle">Iniciando workspace local</h3>
                 <p id="overlayText" class="muted">
-                  O shell do programa está aguardando o Hub local ficar disponível para montar a área principal.
+                  O shell v2 esta aguardando o Hub local ficar disponivel para montar a area principal do programa.
                 </p>
                 <div class="action-row">
                   <button id="recoverWorkspace" class="primary" type="button">Tentar novamente</button>
-                  <button id="openReportWorkspace" class="secondary" type="button">Abrir relatorio</button>
+                  <button id="openReportWorkspace" class="secondary" type="button">Abrir reports</button>
                 </div>
               </div>
             </div>
 
-            <iframe id="hubFrame" title="SitePulse Hub Workspace" src="about:blank"></iframe>
+            <iframe id="hubFrame" title="SitePulse Workspace" src="about:blank"></iframe>
+          </section>
+
+          <section class="surface bottom-dock">
+            <div class="dock-grid">
+              <div class="dock-card">
+                <div class="panel-head compact-head">
+                  <div>
+                    <p class="panel-kicker">runtime</p>
+                    <h3>Infra local</h3>
+                  </div>
+                </div>
+
+                <div class="detail-list">
+                  <div class="detail-item">
+                    <span class="detail-label">Runtime QA</span>
+                    <code class="mono" id="runtime">carregando...</code>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Runtime Hub</span>
+                    <code class="mono" id="webRuntime">carregando...</code>
+                  </div>
+                  <div class="detail-item">
+                    <span class="detail-label">Relatorios</span>
+                    <code class="mono" id="reports">carregando...</code>
+                  </div>
+                </div>
+              </div>
+
+              <div class="dock-card dock-log-card">
+                <div class="panel-head compact-head">
+                  <div>
+                    <p class="panel-kicker">activity</p>
+                    <h3>Operacao ao vivo</h3>
+                  </div>
+                  <button id="clearLog" class="ghost" type="button">limpar</button>
+                </div>
+                <div id="log" class="log mono">[desktop-v2] pronto</div>
+              </div>
+            </div>
           </section>
         </section>
-
-        <aside class="inspector">
-          <section class="surface details-panel">
-            <div class="panel-head">
-              <div>
-                <p class="panel-kicker">runtime details</p>
-                <h3>Infra local</h3>
-              </div>
-            </div>
-
-            <div class="detail-list">
-              <div class="detail-item">
-                <span class="detail-label">Runtime QA</span>
-                <code class="mono" id="runtime">carregando...</code>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Runtime Hub</span>
-                <code class="mono" id="webRuntime">carregando...</code>
-              </div>
-              <div class="detail-item">
-                <span class="detail-label">Relatorios</span>
-                <code class="mono" id="reports">carregando...</code>
-              </div>
-            </div>
-          </section>
-
-          <section class="surface log-panel">
-            <div class="panel-head">
-              <div>
-                <p class="panel-kicker">activity feed</p>
-                <h3>Operacao ao vivo</h3>
-              </div>
-              <button id="clearLog" class="ghost" type="button">limpar</button>
-            </div>
-            <div id="log" class="log mono">[desktop-shell] pronto</div>
-          </section>
-        </aside>
       </main>
     </div>
 

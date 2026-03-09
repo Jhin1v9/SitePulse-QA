@@ -1234,6 +1234,7 @@ function PageContent() {
   const autoLogin = searchParams.get("autologin") === "1";
   const selfAudit = searchParams.get("selfaudit") === "1";
   const desktopMode = searchParams.get("desktop") === "1";
+  const desktopShellV2 = searchParams.get("shell") === "v2";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [logged, setLogged] = useState(true);
@@ -2118,13 +2119,13 @@ function PageContent() {
   }
 
   return (
-    <main className={`page-shell ${desktopMode ? "embedded-mode" : ""}`}>
+    <main className={`page-shell ${desktopMode ? "embedded-mode" : ""} ${desktopShellV2 ? "embedded-shell-v2" : ""}`}>
       <div className="noise" />
       <div className="orb orb-a" />
       <div className="orb orb-b" />
 
-      <section className={`wrap ${desktopMode ? "wrap-embedded" : ""}`}>
-        <header className={`topbar topbar-hero reveal ${desktopMode ? "topbar-embedded" : ""}`} data-audit-ignore="true">
+      <section className={`wrap ${desktopMode ? "wrap-embedded" : ""} ${desktopShellV2 ? "wrap-shell-v2" : ""}`}>
+        <header className={`topbar topbar-hero reveal ${desktopMode ? "topbar-embedded" : ""} ${desktopShellV2 ? "topbar-shell-v2" : ""}`} data-audit-ignore="true">
           <div className="brand">
             <div className="brand-mark">SP</div>
             <div className="brand-copy">

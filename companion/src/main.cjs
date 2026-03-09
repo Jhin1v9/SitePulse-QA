@@ -12,7 +12,7 @@ const BRIDGE_HOST = "127.0.0.1";
 const BRIDGE_PORT = Number(process.env.SITEPULSE_BRIDGE_PORT || (IS_SMOKE_MODE ? "47991" : "47891"));
 const HUB_HOST = "127.0.0.1";
 const HUB_PORT = Number(process.env.SITEPULSE_HUB_PORT || (IS_SMOKE_MODE ? "47992" : "47892"));
-const HUB_QUERY = "?autologin=1&desktop=1";
+const HUB_QUERY = "?autologin=1&desktop=1&shell=v2";
 const BOOTSTRAP_TRACE_FILE = process.env.APPDATA
   ? path.join(process.env.APPDATA, "sitepulse-desktop", "bootstrap.log")
   : path.join(process.cwd(), "sitepulse-desktop-bootstrap.log");
