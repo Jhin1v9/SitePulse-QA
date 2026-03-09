@@ -1,27 +1,27 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SitePulse Desktop V2</title>
+    <title>SitePulse Studio</title>
     <link rel="stylesheet" href="./renderer.css" />
   </head>
   <body>
-    <div class="desktop-shell">
-      <header class="windowbar">
-        <div class="windowbar-drag">
-          <div class="app-mark">SP</div>
-          <div class="windowbar-copy">
-            <p class="windowbar-eyebrow">sitepulse desktop v2</p>
-            <h1>SitePulse</h1>
-            <p>Desktop audit workstation for runtime, SEO, reports and local execution.</p>
+    <div class="studio-shell">
+      <header class="titlebar">
+        <div class="titlebar-brand drag-region">
+          <div class="brand-mark">SP</div>
+          <div class="brand-copy">
+            <p class="eyebrow">sitepulse studio</p>
+            <h1>Precision Audit Workstation</h1>
+            <p>Desktop-native QA, SEO and runtime diagnostics for serious product teams.</p>
           </div>
         </div>
 
-        <div class="windowbar-meta">
-          <span class="meta-chip" id="bridgeChip">bridge offline</span>
-          <span class="meta-chip" id="hubChip">hub offline</span>
-          <span class="meta-chip ok" id="modeChip">desktop shell</span>
+        <div class="titlebar-status">
+          <span class="status-chip" id="bridgeChip">engine offline</span>
+          <span class="status-chip" id="auditChip">audit idle</span>
+          <span class="status-chip ok" id="buildChip">studio build</span>
         </div>
 
         <div class="window-controls no-drag">
@@ -31,158 +31,274 @@
         </div>
       </header>
 
-      <main class="desktop-grid">
-        <aside class="sidebar">
-          <section class="surface sidebar-panel sidebar-hero">
-            <p class="panel-kicker">workstation</p>
-            <h2>Programa desktop de verdade</h2>
+      <main class="shell-grid">
+        <aside class="side-column">
+          <section class="panel brand-panel">
+            <p class="eyebrow">brand frame</p>
+            <h2>The control room, not the website.</h2>
             <p class="muted">
-              O objetivo aqui nao e parecer site instalado. O shell controla runtime, reports e workspace como aplicativo.
+              This shell exists to operate the engine, collect evidence and guide fixes without pretending to be a browser page.
             </p>
           </section>
 
-          <section class="surface sidebar-panel">
+          <section class="panel engine-panel">
             <div class="panel-head">
               <div>
-                <p class="panel-kicker">navegacao</p>
-                <h3>Areas do programa</h3>
+                <p class="eyebrow">local engine</p>
+                <h3>Runtime status</h3>
               </div>
             </div>
 
-            <div class="nav-stack">
-              <button class="nav-item active" data-route="/" type="button">
-                <span class="nav-title">Audit Control</span>
-                <span class="nav-desc">Painel principal de execucao</span>
-              </button>
-              <button class="nav-item" data-route="/relatorio" type="button">
-                <span class="nav-title">Reports</span>
-                <span class="nav-desc">Relatorio detalhado e leitura tecnica</span>
-              </button>
-              <button class="nav-item" id="openReportsNav" type="button">
-                <span class="nav-title">Report Vault</span>
-                <span class="nav-desc">Abrir pasta local dos reports</span>
-              </button>
-              <button class="nav-item" id="reloadWorkspaceNav" type="button">
-                <span class="nav-title">Reload Workspace</span>
-                <span class="nav-desc">Revalidar Hub local e recarregar</span>
-              </button>
+            <div class="mini-grid">
+              <article class="stat-tile">
+                <span class="tile-label">Service</span>
+                <strong id="serviceName">SitePulse Studio</strong>
+              </article>
+              <article class="stat-tile">
+                <span class="tile-label">Bridge</span>
+                <strong id="bridgeStatus">offline</strong>
+              </article>
+              <article class="stat-tile">
+                <span class="tile-label">Audit</span>
+                <strong id="auditStatus">idle</strong>
+              </article>
+              <article class="stat-tile">
+                <span class="tile-label">Version</span>
+                <strong id="versionText">1.0.0</strong>
+              </article>
+            </div>
+
+            <label class="toggle-row">
+              <input id="launchOnLogin" type="checkbox" />
+              <span>Open SitePulse Studio when Windows starts.</span>
+            </label>
+
+            <div class="action-row stack">
+              <button id="startBridge" class="primary" type="button">Start engine</button>
+              <button id="stopBridge" class="secondary" type="button">Stop engine</button>
             </div>
           </section>
 
-          <section class="surface sidebar-panel">
+          <section class="panel artifact-panel">
             <div class="panel-head">
               <div>
-                <p class="panel-kicker">local core</p>
-                <h3>Motor local</h3>
+                <p class="eyebrow">artifacts</p>
+                <h3>Evidence vault</h3>
               </div>
             </div>
 
-            <div class="status-grid">
-              <div class="status-card">
-                <span class="status-label">Servico</span>
-                <strong id="service">carregando...</strong>
+            <div class="info-list">
+              <div class="info-row">
+                <span class="info-label">QA runtime</span>
+                <code id="runtimePath">loading...</code>
               </div>
-              <div class="status-card">
-                <span class="status-label">Bridge</span>
-                <strong id="bridge">carregando...</strong>
+              <div class="info-row">
+                <span class="info-label">Reports</span>
+                <code id="reportsPath">loading...</code>
               </div>
-              <div class="status-card">
-                <span class="status-label">Hub</span>
-                <strong id="hub">carregando...</strong>
-              </div>
-              <div class="status-card">
-                <span class="status-label">Autostart</span>
-                <strong id="autostart">carregando...</strong>
+              <div class="info-row">
+                <span class="info-label">Bridge URL</span>
+                <code id="bridgeAddress">loading...</code>
               </div>
             </div>
 
-            <label class="toggle">
-              <input id="launchOnLogin" type="checkbox" />
-              Iniciar com o Windows
-            </label>
-
-            <div class="action-row">
-              <button id="startBridge" class="primary" type="button">Ativar motor</button>
-              <button id="stopBridge" class="secondary" type="button">Parar motor</button>
+            <div class="action-row stack">
+              <button id="openReports" type="button">Open report vault</button>
+              <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
             </div>
           </section>
         </aside>
 
-        <section class="workspace">
-          <section class="surface workspace-header">
+        <section class="center-column">
+          <section class="panel hero-panel">
             <div>
-              <p class="panel-kicker">workspace</p>
-              <h2 id="workspaceTitle">Audit Control</h2>
-              <p class="muted" id="workspaceSubtitle">Workspace local embutido sem browser externo e sem chrome de site duplicado.</p>
+              <p class="eyebrow">mission control</p>
+              <h2>Audit a real product, not just a page screenshot.</h2>
+              <p class="muted">
+                Route load, runtime breakage, button intent, network failures, visual order and SEO are handled as one quality system.
+              </p>
             </div>
-
-            <div class="action-row compact">
-              <button id="refreshHub" class="secondary" type="button">Atualizar workspace</button>
-              <button id="copyBridgeUrl" type="button">Copiar bridge</button>
-              <button id="openReports" type="button">Abrir reports</button>
+            <div class="hero-badges">
+              <span class="badge">runtime aware</span>
+              <span class="badge">evidence driven</span>
+              <span class="badge">fix oriented</span>
             </div>
           </section>
 
-          <section class="surface workspace-stage">
-            <div id="workspaceOverlay" class="workspace-overlay">
-              <div class="overlay-card">
-                <p class="panel-kicker">workspace status</p>
-                <h3 id="overlayTitle">Iniciando workspace local</h3>
-                <p id="overlayText" class="muted">
-                  O shell v2 esta aguardando o Hub local ficar disponivel para montar a area principal do programa.
-                </p>
-                <div class="action-row">
-                  <button id="recoverWorkspace" class="primary" type="button">Tentar novamente</button>
-                  <button id="openReportWorkspace" class="secondary" type="button">Abrir reports</button>
-                </div>
+          <section class="panel control-panel">
+            <div class="panel-head split-head">
+              <div>
+                <p class="eyebrow">audit setup</p>
+                <h3>Execution profile</h3>
               </div>
+              <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
             </div>
 
-            <iframe id="hubFrame" title="SitePulse Workspace" src="about:blank"></iframe>
+            <label class="field-block">
+              <span class="field-label">Target URL</span>
+              <input id="targetUrl" class="text-input" type="url" placeholder="https://example.com" />
+            </label>
+
+            <div class="controls-grid">
+              <section class="control-group">
+                <span class="field-label">Device mode</span>
+                <div class="segment" id="modeSegment">
+                  <button type="button" data-mode="desktop" class="segment-btn active">Desktop</button>
+                  <button type="button" data-mode="mobile" class="segment-btn">Mobile</button>
+                </div>
+              </section>
+
+              <section class="control-group">
+                <span class="field-label">Audit focus</span>
+                <div class="segment segment-3" id="scopeSegment">
+                  <button type="button" data-scope="full" class="segment-btn active">Full stack</button>
+                  <button type="button" data-scope="seo" class="segment-btn">SEO only</button>
+                  <button type="button" data-scope="experience" class="segment-btn">UX only</button>
+                </div>
+              </section>
+
+              <section class="control-group">
+                <span class="field-label">Sweep depth</span>
+                <div class="segment" id="depthSegment">
+                  <button type="button" data-depth="signal" class="segment-btn active">Signal sweep</button>
+                  <button type="button" data-depth="deep" class="segment-btn">Deep crawl</button>
+                </div>
+              </section>
+            </div>
+
+            <div class="toggle-grid">
+              <label class="toggle-row compact">
+                <input id="noServer" type="checkbox" checked />
+                <span>External URL mode (--no-server)</span>
+              </label>
+              <label class="toggle-row compact">
+                <input id="headed" type="checkbox" />
+                <span>Show browser while the engine works</span>
+              </label>
+              <label class="toggle-row compact">
+                <input id="elevated" type="checkbox" />
+                <span>Request admin when opening CMD</span>
+              </label>
+            </div>
+
+            <div class="action-row">
+              <button id="runAudit" class="primary xl" type="button">Run native audit</button>
+              <button id="runCmd" class="secondary xl" type="button">Open full CMD flow</button>
+              <button id="copyReplayCommand" type="button">Copy replay command</button>
+              <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
+            </div>
           </section>
 
-          <section class="surface bottom-dock">
-            <div class="dock-grid">
-              <div class="dock-card">
-                <div class="panel-head compact-head">
-                  <div>
-                    <p class="panel-kicker">runtime</p>
-                    <h3>Infra local</h3>
-                  </div>
-                </div>
+          <section class="metrics-grid">
+            <article class="metric-card">
+              <span class="metric-label">Routes checked</span>
+              <strong id="routesMetric">0</strong>
+            </article>
+            <article class="metric-card">
+              <span class="metric-label">Actions mapped</span>
+              <strong id="actionsMetric">0</strong>
+            </article>
+            <article class="metric-card danger">
+              <span class="metric-label">Open issues</span>
+              <strong id="issuesMetric">0</strong>
+            </article>
+            <article class="metric-card ok">
+              <span class="metric-label">SEO score</span>
+              <strong id="seoMetric">0</strong>
+            </article>
+            <article class="metric-card warn">
+              <span class="metric-label">Risk score</span>
+              <strong id="riskMetric">0</strong>
+            </article>
+          </section>
 
-                <div class="detail-list">
-                  <div class="detail-item">
-                    <span class="detail-label">Runtime QA</span>
-                    <code class="mono" id="runtime">carregando...</code>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Runtime Hub</span>
-                    <code class="mono" id="webRuntime">carregando...</code>
-                  </div>
-                  <div class="detail-item">
-                    <span class="detail-label">Relatorios</span>
-                    <code class="mono" id="reports">carregando...</code>
-                  </div>
+          <section class="analysis-grid">
+            <article class="panel signals-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">micro signals</p>
+                  <h3>Detection lanes</h3>
                 </div>
               </div>
-
-              <div class="dock-card dock-log-card">
-                <div class="panel-head compact-head">
-                  <div>
-                    <p class="panel-kicker">activity</p>
-                    <h3>Operacao ao vivo</h3>
-                  </div>
-                  <button id="clearLog" class="ghost" type="button">limpar</button>
-                </div>
-                <div id="log" class="log mono">[desktop-v2] pronto</div>
+              <div class="signal-grid">
+                <div class="signal-item"><span>Route load</span><strong id="routeSignal">0</strong></div>
+                <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
+                <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
+                <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
+                <div class="signal-item"><span>Visual order</span><strong id="visualSignal">0</strong></div>
+                <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
               </div>
+            </article>
+
+            <article class="panel steps-panel">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">operator guide</p>
+                  <h3>Next actions</h3>
+                </div>
+              </div>
+              <ol id="stepsList" class="steps-list">
+                <li>Run an audit to generate the first operating brief.</li>
+              </ol>
+            </article>
+          </section>
+
+          <section class="panel issues-panel">
+            <div class="panel-head split-head">
+              <div>
+                <p class="eyebrow">issue board</p>
+                <h3>Priority issues</h3>
+              </div>
+              <div class="pill-row" id="issueMetaPills"></div>
+            </div>
+            <div id="issuesList" class="issues-list">
+              <article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>
             </div>
           </section>
         </section>
+
+        <aside class="right-column">
+          <section class="panel run-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">run state</p>
+                <h3>Current execution</h3>
+              </div>
+            </div>
+            <div class="info-list">
+              <div class="info-row"><span class="info-label">Target</span><code id="currentTarget">none</code></div>
+              <div class="info-row"><span class="info-label">Mode</span><code id="currentMode">desktop</code></div>
+              <div class="info-row"><span class="info-label">Scope</span><code id="currentScope">full</code></div>
+              <div class="info-row"><span class="info-label">Depth</span><code id="currentDepth">signal sweep</code></div>
+              <div class="info-row"><span class="info-label">Duration</span><code id="currentDuration">0s</code></div>
+              <div class="info-row multiline"><span class="info-label">Replay</span><code id="currentCommand">Run an audit to generate a replay command.</code></div>
+            </div>
+          </section>
+
+          <section class="panel seo-panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">prompt pack</p>
+                <h3>Fix direction</h3>
+              </div>
+            </div>
+            <div class="prompt-box" id="quickPromptBox">Run an audit to generate a professional fix prompt.</div>
+          </section>
+
+          <section class="panel log-panel">
+            <div class="panel-head split-head">
+              <div>
+                <p class="eyebrow">activity feed</p>
+                <h3>Live engine log</h3>
+              </div>
+              <button id="clearLog" class="ghost" type="button">Clear</button>
+            </div>
+            <div id="logOutput" class="log-view">[studio] waiting for engine telemetry</div>
+          </section>
+        </aside>
       </main>
     </div>
 
     <script src="./renderer.js"></script>
   </body>
-  </html>
+</html>

@@ -2,14 +2,14 @@
   "name": "sitepulse-desktop",
   "version": "1.0.0",
   "private": true,
-  "description": "Desktop app for SitePulse with built-in Hub, local audits and localhost bridge control.",
+  "description": "Desktop-native audit workstation for SitePulse with local runtime, reports and command execution.",
   "author": "SitePulse",
   "type": "module",
   "main": "src/main.cjs",
   "scripts": {
     "sync:runtime": "node scripts/sync-runtime.mjs",
-    "sync:runtime:fast": "node scripts/sync-runtime.mjs --skip-web-build",
-    "dev": "npm run sync:runtime:fast && node scripts/run-electron.mjs .",
+    "sync:runtime:fast": "node scripts/sync-runtime.mjs",
+    "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
     "build:win": "npm run sync:runtime && electron-builder --win nsis"
@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.sitepulse.desktop",
-    "productName": "SitePulse Desktop",
+    "productName": "SitePulse Studio",
     "directories": {
       "output": "dist"
     },
@@ -58,7 +58,7 @@
       "target": [
         "nsis"
       ],
-      "artifactName": "SitePulse-Desktop-${version}-Setup.${ext}"
+      "artifactName": "SitePulse-Studio-${version}-Setup.${ext}"
     },
     "nsis": {
       "oneClick": false,
