@@ -3917,8 +3917,10 @@ async function run() {
     if (maxRunMs <= 0 || maxRunMs > 55000) {
       maxRunMs = 55000;
     }
-    cfg.maxActionsPerRoute = 0;
-    cfg.maxActionRoutes = 0;
+    cfg.maxActionsPerRoute = Math.min(Math.max(1, cfg.maxActionsPerRoute), 6);
+    cfg.maxActionRoutes = cfg.maxActionRoutes > 0 ? Math.min(cfg.maxActionRoutes, 1) : 1;
+    cfg.clickWaitMs = Math.min(cfg.clickWaitMs, 250);
+    cfg.buttonClickTimeoutMs = Math.min(cfg.buttonClickTimeoutMs, 2200);
   }
 
   if (args.fresh) {
