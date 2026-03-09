@@ -269,7 +269,7 @@ function PageContent() {
   const selfAudit = searchParams.get("selfaudit") === "1";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [logged, setLogged] = useState(false);
+  const [logged, setLogged] = useState(true);
   const [loginError, setLoginError] = useState("");
 
   const [mode, setMode] = useState<Mode>("desktop");
