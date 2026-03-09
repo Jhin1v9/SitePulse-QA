@@ -121,6 +121,10 @@ type CmdLaunchResponse = {
   mode?: Mode;
   message?: string;
   command?: string;
+  recommendation?: string;
+  recommendedCommand?: string;
+  fullAudit?: boolean;
+  elevated?: boolean;
   detail?: string;
   error?: string;
 };
@@ -609,6 +613,8 @@ function PageContent() {
 
   const [running, setRunning] = useState(false);
   const [openingCmd, setOpeningCmd] = useState(false);
+  const [cmdFullAudit, setCmdFullAudit] = useState(true);
+  const [cmdElevated, setCmdElevated] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>(["[hub] ready"]);
   const [report, setReport] = useState<ReportModel | null>(null);
@@ -853,6 +859,8 @@ function PageContent() {
           mode,
           noServer,
           headed,
+          fullAudit: cmdFullAudit,
+          elevated: cmdElevated,
         }),
       });
       const payload = (await res.json()) as CmdLaunchResponse;
@@ -860,6 +868,12 @@ function PageContent() {
         throw new Error(payload.detail ?? payload.error ?? "cmd_open_failed");
       }
       pushLog(`[cmd] ${payload.message ?? "janela CMD aberta."}`);
+      if (payload.recommendedCommand) {
+        pushLog(`[cmd] comando recomendado: ${payload.recommendedCommand}`);
+      }
+      if (payload.recommendation) {
+        pushLog(`[cmd] recomendacao: ${payload.recommendation}`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown_error";
       pushLog(`[cmd] falha ao abrir CMD: ${message}`);
@@ -1098,6 +1112,14 @@ function PageContent() {
                 <input type="checkbox" checked={headed} onChange={(e) => setHeaded(e.target.checked)} />
                 Abrir navegador visivel
               </label>
+              <label className="checkbox">
+                <input type="checkbox" checked={cmdFullAudit} onChange={(e) => setCmdFullAudit(e.target.checked)} />
+                CMD completo ate finalizar (igual auditoria total)
+              </label>
+              <label className="checkbox">
+                <input type="checkbox" checked={cmdElevated} onChange={(e) => setCmdElevated(e.target.checked)} />
+                Executar como administrador (UAC)
+              </label>
 
               <div className="btn-row">
                 <button
@@ -1121,7 +1143,7 @@ function PageContent() {
                 </button>
               </div>
               <p className="small muted" style={{ margin: 0 }}>
-                "Rodar via CMD (janela)" funciona em Windows local.
+                "Rodar via CMD (janela)" abre no Windows local. Em deploy remoto (ex.: Vercel), use o comando recomendado.
               </p>
 
               <div className="btn-row">

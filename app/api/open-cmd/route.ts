@@ -11,12 +11,18 @@ function safeQuoted(value: string) {
   return value.replace(/"/g, '""');
 }
 
+function singleQuotedPowerShell(value: string) {
+  return value.replace(/'/g, "''");
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const baseUrl = String(body?.baseUrl ?? "").trim();
   const mode: Mode = body?.mode === "mobile" ? "mobile" : "desktop";
   const noServer = body?.noServer !== false;
   const headed = body?.headed === true;
+  const fullAudit = body?.fullAudit !== false;
+  const elevated = body?.elevated === true;
   const dryRun = body?.dryRun === true;
 
   if (!baseUrl) {
@@ -34,11 +40,28 @@ export async function POST(req: NextRequest) {
   }
 
   if (process.platform !== "win32") {
+    const configForCommand = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
+    const recommendedCommand = [
+      "npm --prefix qa run audit:cmd --",
+      `--config "${configForCommand}"`,
+      "--fresh",
+      "--live-log",
+      "--human-log",
+      `--base-url "${safeQuoted(baseUrl)}"`,
+      noServer ? "--no-server" : "",
+      headed ? "--headed" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
     return NextResponse.json(
       {
         ok: false,
         error: "unsupported_platform",
-        detail: "Abrir janela de CMD automatico funciona apenas em Windows local.",
+        detail:
+          "Abrir janela de CMD automatico funciona apenas quando o app esta rodando localmente no Windows.",
+        recommendation:
+          "Rode o SitePulse local no Windows e use o botao de CMD, ou execute manualmente o comando recomendado.",
+        recommendedCommand,
       },
       { status: 400 }
     );
@@ -47,34 +70,61 @@ export async function POST(req: NextRequest) {
   const qaDir = path.resolve(process.cwd(), "qa");
   const config = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
 
+  const runnerEntry = fullAudit ? "src\\run-until-done.mjs" : "src\\index.mjs";
   const cmdParts = [
     `cd /d "${safeQuoted(qaDir)}"`,
-    `node src\\index.mjs --config "${config}" --fresh --live-log --human-log --base-url "${safeQuoted(baseUrl)}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`,
+    `node ${runnerEntry} --config "${config}" --fresh --live-log --human-log --base-url "${safeQuoted(baseUrl)}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`,
   ];
   const runner = cmdParts.join(" && ");
   const startCommand = `start "SitePulse QA" cmd /k "${safeQuoted(runner)}"`;
+  const recommendedCommand = `cd /d "${qaDir}" && node ${runnerEntry.replace(/\\/g, "/")} --config "${config}" --fresh --live-log --human-log --base-url "${baseUrl}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`;
+
+  let launchPreview = startCommand;
+  if (elevated) {
+    const argList = `/k "${safeQuoted(runner)}"`;
+    launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'"`;
+  }
 
   if (dryRun) {
     return NextResponse.json({
       ok: true,
       message: "Dry run: comando de CMD gerado com sucesso.",
       mode,
-      command: startCommand,
+      command: launchPreview,
+      fullAudit,
+      elevated,
+      recommendedCommand,
       dryRun: true,
     });
   }
 
-  const child = spawn("cmd.exe", ["/c", startCommand], {
-    detached: true,
-    stdio: "ignore",
-    windowsHide: false,
-  });
+  let child;
+  if (elevated) {
+    const argList = `/k "${safeQuoted(runner)}"`;
+    const psScript = `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'`;
+    child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: false,
+    });
+  } else {
+    child = spawn("cmd.exe", ["/c", startCommand], {
+      detached: true,
+      stdio: "ignore",
+      windowsHide: false,
+    });
+  }
   child.unref();
 
   return NextResponse.json({
     ok: true,
-    message: "Janela do CMD aberta com a auditoria configurada.",
+    message: elevated
+      ? "Solicitacao de CMD admin enviada (UAC). Confirme a permissao para iniciar auditoria completa."
+      : "Janela do CMD aberta com a auditoria configurada.",
     mode,
-    command: startCommand,
+    fullAudit,
+    elevated,
+    command: launchPreview,
+    recommendedCommand,
   });
 }
