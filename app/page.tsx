@@ -57,6 +57,7 @@ type RunPlanResponse = {
   durationMs?: number;
   steps: string[];
   report?: unknown;
+  usedFallback?: boolean;
   detail?: string;
   error?: string;
 };
@@ -387,12 +388,21 @@ function PageContent() {
         }),
       });
       const payload = (await res.json()) as RunPlanResponse;
-      if (!res.ok || !payload.ok) throw new Error(payload.error ?? "run_plan_failed");
+      if (!res.ok || !payload.ok) {
+        const reason = [payload.error, payload.detail].filter(Boolean).join(": ");
+        throw new Error(reason || "run_plan_failed");
+      }
 
       setProgress(75);
       const steps = payload.steps ?? [];
       for (const step of steps) {
         pushLog(`[step] ${step}`);
+      }
+      if (payload.usedFallback) {
+        pushLog("[run] fallback ativo no servidor (auditoria HTTP). Para auditoria completa, rode via CMD local.");
+      }
+      if (payload.detail) {
+        pushLog(`[run] detalhe tecnico: ${payload.detail.slice(0, 220)}`);
       }
 
       if (payload.report) {
