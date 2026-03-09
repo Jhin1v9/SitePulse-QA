@@ -1,6 +1,6 @@
 import path from "node:path";
-import { spawn } from "node:child_process";
 import { NextRequest, NextResponse } from "next/server";
+import { makePowerShellLaunchScript, runPowerShellLaunch } from "../../../qa/shared/windows-cmd-launch.js";
 
 type Mode = "desktop" | "mobile";
 type AuditScope = "full" | "seo" | "experience";
@@ -12,10 +12,6 @@ function safeQuoted(value: string) {
   return value.replace(/"/g, '""');
 }
 
-function singleQuotedPowerShell(value: string) {
-  return value.replace(/'/g, "''");
-}
-
 function normalizeAuditScope(value: unknown): AuditScope {
   const raw = String(value ?? "").trim().toLowerCase();
   if (raw === "seo") return "seo";
@@ -23,64 +19,6 @@ function normalizeAuditScope(value: unknown): AuditScope {
     return "experience";
   }
   return "full";
-}
-
-function makePowerShellLaunchScript(argList: string, elevated: boolean) {
-  const base = elevated
-    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`
-    : `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`;
-
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    "try {",
-    `  ${base}`,
-    "  Write-Output 'SITEPULSE_CMD_OK'",
-    "  exit 0",
-    "} catch {",
-    "  $message = $_.Exception.Message",
-    "  if (-not $message) { $message = $_.ToString() }",
-    "  Write-Error $message",
-    "  exit 1",
-    "}",
-  ].join("; ");
-}
-
-async function runPowerShellLaunch(psScript: string) {
-  return await new Promise<{ ok: boolean; detail: string }>((resolve) => {
-    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
-      windowsHide: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (chunk) => {
-      stdout += String(chunk);
-    });
-
-    child.stderr.on("data", (chunk) => {
-      stderr += String(chunk);
-    });
-
-    child.on("error", (error) => {
-      resolve({
-        ok: false,
-        detail: error instanceof Error ? error.message : String(error || "cmd_launch_failed"),
-      });
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve({ ok: true, detail: stdout.trim() });
-        return;
-      }
-      resolve({
-        ok: false,
-        detail: (stderr || stdout || `powershell_exit_${code ?? "unknown"}`).trim(),
-      });
-    });
-  });
 }
 
 export async function POST(req: NextRequest) {

@@ -3,6 +3,12 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
+import {
+  makePowerShellLaunchScript,
+  runPowerShellLaunch,
+  stripAnsi,
+  trimText,
+} from "../shared/windows-cmd-launch.js";
 
 function nowIso() {
   return new Date().toISOString();
@@ -12,16 +18,6 @@ function safeQuoted(value) {
   return String(value).replace(/"/g, '""');
 }
 
-function singleQuotedPowerShell(value) {
-  return String(value).replace(/'/g, "''");
-}
-
-function trimText(value, maxLen = 1500) {
-  const cleaned = String(value || "").replace(/\s+/g, " ").trim();
-  if (cleaned.length <= maxLen) return cleaned;
-  return `${cleaned.slice(0, maxLen)}...`;
-}
-
 function normalizeAuditScope(value) {
   const raw = String(value ?? "").trim().toLowerCase();
   if (raw === "seo") return "seo";
@@ -29,10 +25,6 @@ function normalizeAuditScope(value) {
     return "experience";
   }
   return "full";
-}
-
-function stripAnsi(value) {
-  return String(value || "").replace(/\u001b\[[0-9;]*m/g, "");
 }
 
 function parseJsonTail(stdout) {
@@ -174,62 +166,6 @@ function makeCommandParts(input, options) {
 
 function createLogger(logger) {
   return typeof logger === "function" ? logger : () => {};
-}
-
-function makePowerShellLaunchScript(argList, elevated) {
-  const base = elevated
-    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`
-    : `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`;
-
-  return [
-    "$ErrorActionPreference = 'Stop'",
-    "try {",
-    `  ${base}`,
-    "  Write-Output 'SITEPULSE_CMD_OK'",
-    "  exit 0",
-    "} catch {",
-    "  $message = $_.Exception.Message",
-    "  if (-not $message) { $message = $_.ToString() }",
-    "  Write-Error $message",
-    "  exit 1",
-    "}",
-  ].join("; ");
-}
-
-async function runPowerShellLaunch(psScript) {
-  return await new Promise((resolve) => {
-    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
-      windowsHide: false,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-
-    let stdout = "";
-    let stderr = "";
-
-    child.stdout.on("data", (chunk) => {
-      stdout += String(chunk);
-    });
-
-    child.stderr.on("data", (chunk) => {
-      stderr += String(chunk);
-    });
-
-    child.on("error", (error) => {
-      resolve({
-        ok: false,
-        detail: trimText(error instanceof Error ? error.message : String(error || "cmd_launch_failed"), 600),
-      });
-    });
-
-    child.on("close", (code) => {
-      if (code === 0) {
-        resolve({ ok: true, detail: trimText(stripAnsi(stdout), 600) });
-        return;
-      }
-      const detail = trimText(stripAnsi(stderr || stdout || `powershell_exit_${code ?? "unknown"}`), 900);
-      resolve({ ok: false, detail });
-    });
-  });
 }
 
 export async function startLocalBridgeServer(userOptions = {}) {

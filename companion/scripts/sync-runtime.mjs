@@ -19,6 +19,7 @@ const targetWebDir = path.join(companionDir, "runtime-source", "web");
 
 const qaFilesToCopy = [
   "src",
+  "shared",
   "node_modules",
   "package.json",
   "package-lock.json",
