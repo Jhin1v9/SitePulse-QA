@@ -176,6 +176,62 @@ function createLogger(logger) {
   return typeof logger === "function" ? logger : () => {};
 }
 
+function makePowerShellLaunchScript(argList, elevated) {
+  const base = elevated
+    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`
+    : `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`;
+
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    `  ${base}`,
+    "  Write-Output 'SITEPULSE_CMD_OK'",
+    "  exit 0",
+    "} catch {",
+    "  $message = $_.Exception.Message",
+    "  if (-not $message) { $message = $_.ToString() }",
+    "  Write-Error $message",
+    "  exit 1",
+    "}",
+  ].join("; ");
+}
+
+async function runPowerShellLaunch(psScript) {
+  return await new Promise((resolve) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
+      windowsHide: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("error", (error) => {
+      resolve({
+        ok: false,
+        detail: trimText(error instanceof Error ? error.message : String(error || "cmd_launch_failed"), 600),
+      });
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ ok: true, detail: trimText(stripAnsi(stdout), 600) });
+        return;
+      }
+      const detail = trimText(stripAnsi(stderr || stdout || `powershell_exit_${code ?? "unknown"}`), 900);
+      resolve({ ok: false, detail });
+    });
+  });
+}
+
 export async function startLocalBridgeServer(userOptions = {}) {
   const options = {
     host: userOptions.host || process.env.SITEPULSE_BRIDGE_HOST || "127.0.0.1",
@@ -283,7 +339,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
     };
   }
 
-  function openCmdWindow(input) {
+  async function openCmdWindow(input) {
     if (process.platform !== "win32") {
       const command = makeCommandParts(input, options);
       return {
@@ -296,40 +352,42 @@ export async function startLocalBridgeServer(userOptions = {}) {
 
     const command = makeCommandParts(input, options);
     const argList = `/k "cd /d \\"${safeQuoted(options.qaDir)}\\" && ${safeQuoted(command.shellRunner)}"`;
-    const nonElevatedPsScript = `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}'`;
+    const psScript = makePowerShellLaunchScript(argList, input.elevated === true);
+    const launchResult = await runPowerShellLaunch(psScript);
 
-    if (input.elevated === true) {
-      const psScript = `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'`;
-      const elevatedChild = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
-        detached: true,
-        stdio: "ignore",
-        windowsHide: false,
-      });
-      elevatedChild.unref();
+    if (!launchResult.ok) {
       return {
-        ok: true,
-        message: "Solicitacao de CMD admin enviada (UAC). Confirme para iniciar.",
+        ok: false,
+        error: input.elevated === true ? "uac_request_failed" : "cmd_launch_failed",
+        detail:
+          input.elevated === true
+            ? `O Windows nao confirmou a elevacao do CMD. Detalhe: ${launchResult.detail}`
+            : `O Windows nao conseguiu abrir a janela de CMD. Detalhe: ${launchResult.detail}`,
         mode: command.mode,
-        command: psScript,
         recommendedCommand: command.recommendedCommand,
-        elevated: true,
+        recommendation:
+          input.elevated === true
+            ? "Clique novamente e aceite o UAC. Se continuar sem abrir nada, desmarque 'Executar como administrador (UAC)' ou rode o comando manualmente em um CMD admin."
+            : "Tente novamente ou execute o comando recomendado manualmente em um CMD local.",
+        elevated: input.elevated === true,
         fullAudit: input.fullAudit !== false,
       };
     }
 
-    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", nonElevatedPsScript], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
-    });
-    child.unref();
     return {
       ok: true,
-      message: "Janela CMD aberta com a auditoria configurada.",
+      message:
+        input.elevated === true
+          ? "Pedido de permissao do Windows confirmado. A janela de CMD admin foi solicitada."
+          : "Janela CMD aberta com a auditoria configurada.",
       mode: command.mode,
-      command: nonElevatedPsScript,
+      command: psScript,
       recommendedCommand: command.recommendedCommand,
-      elevated: false,
+      recommendation:
+        input.elevated === true
+          ? "Se a janela nao vier para frente, procure o prompt UAC atras de outras janelas ou na barra de tarefas."
+          : undefined,
+      elevated: input.elevated === true,
       fullAudit: input.fullAudit !== false,
     };
   }
@@ -432,7 +490,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
       return;
     }
 
-    const payload = openCmdWindow({
+    const payload = await openCmdWindow({
       baseUrl,
       mode: body.mode === "mobile" ? "mobile" : "desktop",
       scope: normalizeAuditScope(body.scope),

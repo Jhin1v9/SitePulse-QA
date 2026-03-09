@@ -25,6 +25,64 @@ function normalizeAuditScope(value: unknown): AuditScope {
   return "full";
 }
 
+function makePowerShellLaunchScript(argList: string, elevated: boolean) {
+  const base = elevated
+    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`
+    : `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`;
+
+  return [
+    "$ErrorActionPreference = 'Stop'",
+    "try {",
+    `  ${base}`,
+    "  Write-Output 'SITEPULSE_CMD_OK'",
+    "  exit 0",
+    "} catch {",
+    "  $message = $_.Exception.Message",
+    "  if (-not $message) { $message = $_.ToString() }",
+    "  Write-Error $message",
+    "  exit 1",
+    "}",
+  ].join("; ");
+}
+
+async function runPowerShellLaunch(psScript: string) {
+  return await new Promise<{ ok: boolean; detail: string }>((resolve) => {
+    const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
+      windowsHide: false,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+
+    child.on("error", (error) => {
+      resolve({
+        ok: false,
+        detail: error instanceof Error ? error.message : String(error || "cmd_launch_failed"),
+      });
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        resolve({ ok: true, detail: stdout.trim() });
+        return;
+      }
+      resolve({
+        ok: false,
+        detail: (stderr || stdout || `powershell_exit_${code ?? "unknown"}`).trim(),
+      });
+    });
+  });
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const baseUrl = String(body?.baseUrl ?? "").trim();
@@ -89,13 +147,10 @@ export async function POST(req: NextRequest) {
   ];
   const runner = cmdParts.join(" && ");
   const argList = `/k "${safeQuoted(runner)}"`;
-  const nonElevatedPsScript = `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}'`;
   const recommendedCommand = `cd /d "${qaDir}" && node ${runnerEntry.replace(/\\/g, "/")} --config "${config}" --fresh --live-log --human-log --scope "${scope}" --base-url "${baseUrl}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`;
+  const psScript = makePowerShellLaunchScript(argList, elevated);
 
-  let launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${nonElevatedPsScript}"`;
-  if (elevated) {
-    launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'"`;
-  }
+  const launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/"/g, '\\"')}"`;
 
   if (dryRun) {
     return NextResponse.json({
@@ -111,27 +166,31 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  let child;
-  if (elevated) {
-    const psScript = `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'`;
-    child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
-    });
-  } else {
-    child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", nonElevatedPsScript], {
-      detached: true,
-      stdio: "ignore",
-      windowsHide: false,
-    });
+  const launchResult = await runPowerShellLaunch(psScript);
+  if (!launchResult.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error: elevated ? "uac_request_failed" : "cmd_launch_failed",
+        detail: elevated
+          ? `O Windows nao confirmou a elevacao do CMD. Detalhe: ${launchResult.detail}`
+          : `O Windows nao conseguiu abrir a janela de CMD. Detalhe: ${launchResult.detail}`,
+        recommendation: elevated
+          ? "Clique novamente e aceite o UAC. Se continuar sem abrir nada, desmarque 'Executar como administrador (UAC)' ou rode o comando manualmente em um CMD admin."
+          : "Tente novamente ou execute o comando recomendado manualmente em um CMD local.",
+        recommendedCommand,
+        elevated,
+        fullAudit,
+        scope,
+      },
+      { status: 400 }
+    );
   }
-  child.unref();
 
   return NextResponse.json({
     ok: true,
     message: elevated
-      ? "Solicitacao de CMD admin enviada (UAC). Confirme a permissao para iniciar auditoria completa."
+      ? "Pedido de permissao do Windows confirmado. A janela de CMD admin foi solicitada."
       : "Janela do CMD aberta com a auditoria configurada.",
     mode,
     fullAudit,

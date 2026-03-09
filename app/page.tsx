@@ -1043,6 +1043,32 @@ function classifyAuditNotice(input: {
     };
   }
 
+  if (code === "uac_request_failed" || signal.includes("uac_request_failed")) {
+    return {
+      level: "warn",
+      code: "uac_request_failed",
+      title: "Permissao do Windows nao foi confirmada",
+      userMessage:
+        "O app tentou abrir a janela com permissao de administrador, mas o Windows nao confirmou esse pedido.",
+      recommendation:
+        "Tente novamente e aceite o UAC. Se nada aparecer, desmarque 'Executar como administrador (UAC)' ou rode o comando recomendado manualmente em um CMD admin.",
+      technical,
+    };
+  }
+
+  if (code === "cmd_launch_failed" || signal.includes("cmd_launch_failed")) {
+    return {
+      level: "warn",
+      code: "cmd_launch_failed",
+      title: "Janela de CMD nao abriu",
+      userMessage:
+        "O app tentou abrir a auditoria em uma janela de CMD, mas o Windows nao confirmou a abertura.",
+      recommendation:
+        "Tente novamente. Se continuar falhando, copie o comando recomendado e rode manualmente em um CMD do Windows.",
+      technical,
+    };
+  }
+
   if (code === "audit_failed" || signal.includes("audit_failed")) {
     return {
       level: "error",
@@ -1529,7 +1555,15 @@ function PageContent() {
     const payload = (await res.json()) as CmdLaunchResponse;
     if (!res.ok || !payload.ok) {
       const detail = payload.detail ?? payload.error ?? "cmd_open_failed";
+      const notice = classifyAuditNotice({
+        error: payload.error,
+        detail,
+        targetUrl: targetUrl.trim(),
+      });
+      setAuditNotice(notice);
       pushLog(`[cmd] falha pelo bridge local: ${detail}`);
+      pushLog(`[cmd] traducao: ${notice.userMessage}`);
+      pushLog(`[cmd] acao recomendada: ${notice.recommendation}`);
       if (payload.recommendedCommand) pushLog(`[cmd] comando recomendado: ${payload.recommendedCommand}`);
       return false;
     }
@@ -1732,6 +1766,13 @@ function PageContent() {
     setOpeningCmd(true);
     pushLog("[cmd] abrindo janela do CMD...");
     try {
+      if (desktopMode || desktopApiAvailable) {
+        pushLog("[cmd] usando launcher local do SitePulse Desktop...");
+        const openedLocally = await tryOpenCmdViaLocalBridge();
+        if (openedLocally) return;
+        pushLog("[cmd] launcher local nao confirmou a abertura. Tentando rota interna como fallback...");
+      }
+
       const res = await fetch("/api/open-cmd", {
         method: "POST",
         headers: { "content-type": "application/json" },
