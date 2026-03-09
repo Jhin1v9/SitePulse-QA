@@ -3,68 +3,88 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SitePulse Desktop Diagnostics</title>
+    <title>SitePulse Desktop</title>
     <link rel="stylesheet" href="./renderer.css" />
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
-        <div class="brand">
-          <h1>SitePulse Desktop</h1>
-          <p>Diagnostico local do app desktop: Hub embutido, bridge, logs e relatorios.</p>
+    <div class="desktop-shell">
+      <header class="windowbar">
+        <div class="windowbar-drag">
+          <div class="app-mark">SP</div>
+          <div class="windowbar-copy">
+            <p class="windowbar-eyebrow">desktop quality operations suite</p>
+            <h1>SitePulse Desktop</h1>
+            <p>Auditoria real, runtime local, workspace embutido e controle tecnico em uma interface de programa.</p>
+          </div>
         </div>
-        <div class="badge-row">
-          <span class="badge">Hub embutido</span>
-          <span class="badge">Playwright real</span>
-          <span class="badge">Desktop app</span>
+
+        <div class="windowbar-meta">
+          <span class="meta-chip" id="bridgeChip">bridge offline</span>
+          <span class="meta-chip" id="hubChip">hub offline</span>
+          <span class="meta-chip ok" id="modeChip">workspace desktop</span>
+        </div>
+
+        <div class="window-controls no-drag">
+          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimizar">—</button>
+          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximizar">□</button>
+          <button id="winClose" class="window-btn danger" type="button" aria-label="Fechar">✕</button>
         </div>
       </header>
 
-      <section class="layout">
-        <article class="card">
-          <header class="card-head">
-            <h2>Status</h2>
-          </header>
-          <div class="card-body">
-            <div class="status">
-              <div class="status-row">
-                <span class="muted">Servico</span>
-                <strong id="service">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Bridge</span>
-                <strong class="ok" id="bridge">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Hub local</span>
-                <strong class="ok" id="hub">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Runtime QA</span>
-                <strong class="mono" id="runtime">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Runtime Hub</span>
-                <strong class="mono" id="webRuntime">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Relatorios</span>
-                <strong class="mono" id="reports">carregando...</strong>
-              </div>
-              <div class="status-row">
-                <span class="muted">Iniciar com Windows</span>
-                <strong id="autostart">carregando...</strong>
+      <main class="desktop-grid">
+        <aside class="sidebar">
+          <section class="surface hero-panel">
+            <p class="panel-kicker">controle local</p>
+            <h2>Programa pronto para operar</h2>
+            <p class="muted">
+              O shell desktop segura runtime, bridge, reports e workspace do Hub sem depender do navegador externo.
+            </p>
+
+            <div class="nav-stack">
+              <button class="nav-item active" data-route="/" type="button">
+                <span class="nav-title">Command Center</span>
+                <span class="nav-desc">Painel principal do Hub embutido</span>
+              </button>
+              <button class="nav-item" data-route="/relatorio" type="button">
+                <span class="nav-title">Detailed Report</span>
+                <span class="nav-desc">Relatorio tecnico e executivo</span>
+              </button>
+              <button class="nav-item" id="openReportsNav" type="button">
+                <span class="nav-title">Report Vault</span>
+                <span class="nav-desc">Abrir pasta local de relatórios</span>
+              </button>
+              <button class="nav-item" id="reloadWorkspaceNav" type="button">
+                <span class="nav-title">Reload Workspace</span>
+                <span class="nav-desc">Revalidar Hub local e recarregar o frame</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="surface status-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">status do motor</p>
+                <h3>Core local</h3>
               </div>
             </div>
 
-            <div class="btn-row">
-              <button id="startBridge" class="primary" type="button">Iniciar bridge</button>
-              <button id="stopBridge" class="secondary" type="button">Parar bridge</button>
-            </div>
-            <div class="btn-row">
-              <button id="openHub" class="secondary" type="button">Abrir Hub desktop</button>
-              <button id="openReports" class="secondary" type="button">Abrir relatorios</button>
-              <button id="copyBridgeUrl" type="button">Copiar URL do bridge</button>
+            <div class="status-grid">
+              <div class="status-card">
+                <span class="status-label">Servico</span>
+                <strong id="service">carregando...</strong>
+              </div>
+              <div class="status-card">
+                <span class="status-label">Bridge</span>
+                <strong id="bridge">carregando...</strong>
+              </div>
+              <div class="status-card">
+                <span class="status-label">Hub local</span>
+                <strong id="hub">carregando...</strong>
+              </div>
+              <div class="status-card">
+                <span class="status-label">Autostart</span>
+                <strong id="autostart">carregando...</strong>
+              </div>
             </div>
 
             <label class="toggle">
@@ -72,24 +92,85 @@
               Iniciar automaticamente com o Windows
             </label>
 
-            <div class="box">
-              <p class="muted" style="margin: 0;">
-                Fluxo recomendado: abrir o app desktop, deixar bridge e Hub locais online e rodar a auditoria completa no proprio programa.
-              </p>
+            <div class="action-row">
+              <button id="startBridge" class="primary" type="button">Ativar motor</button>
+              <button id="stopBridge" class="secondary" type="button">Parar motor</button>
             </div>
-          </div>
-        </article>
+          </section>
+        </aside>
 
-        <article class="card">
-          <header class="card-head">
-            <h2>Logs</h2>
-          </header>
-          <div class="card-body">
-            <div id="log" class="box log mono">[companion] pronto</div>
-          </div>
-        </article>
-      </section>
-    </main>
+        <section class="workspace">
+          <section class="workspace-top surface">
+            <div>
+              <p class="panel-kicker">workspace</p>
+              <h2 id="workspaceTitle">Hub local embutido</h2>
+              <p class="muted" id="workspaceSubtitle">Preparando runtime e conectando o programa ao workspace interno.</p>
+            </div>
+
+            <div class="action-row compact">
+              <button id="refreshHub" class="secondary" type="button">Atualizar workspace</button>
+              <button id="copyBridgeUrl" type="button">Copiar bridge</button>
+              <button id="openReports" type="button">Abrir reports</button>
+            </div>
+          </section>
+
+          <section class="workspace-stage surface">
+            <div id="workspaceOverlay" class="workspace-overlay">
+              <div class="overlay-card">
+                <p class="panel-kicker">workspace status</p>
+                <h3 id="overlayTitle">Iniciando SitePulse Desktop</h3>
+                <p id="overlayText" class="muted">
+                  O shell do programa está aguardando o Hub local ficar disponível para montar a área principal.
+                </p>
+                <div class="action-row">
+                  <button id="recoverWorkspace" class="primary" type="button">Tentar novamente</button>
+                  <button id="openReportWorkspace" class="secondary" type="button">Abrir relatorio</button>
+                </div>
+              </div>
+            </div>
+
+            <iframe id="hubFrame" title="SitePulse Hub Workspace" src="about:blank"></iframe>
+          </section>
+        </section>
+
+        <aside class="inspector">
+          <section class="surface details-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">runtime details</p>
+                <h3>Infra local</h3>
+              </div>
+            </div>
+
+            <div class="detail-list">
+              <div class="detail-item">
+                <span class="detail-label">Runtime QA</span>
+                <code class="mono" id="runtime">carregando...</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Runtime Hub</span>
+                <code class="mono" id="webRuntime">carregando...</code>
+              </div>
+              <div class="detail-item">
+                <span class="detail-label">Relatorios</span>
+                <code class="mono" id="reports">carregando...</code>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface log-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">activity feed</p>
+                <h3>Operacao ao vivo</h3>
+              </div>
+              <button id="clearLog" class="ghost" type="button">limpar</button>
+            </div>
+            <div id="log" class="log mono">[desktop-shell] pronto</div>
+          </section>
+        </aside>
+      </main>
+    </div>
 
     <script src="./renderer.js"></script>
   </body>

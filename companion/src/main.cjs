@@ -28,6 +28,19 @@ let launchOnLogin = false;
 let shuttingDown = false;
 const logLines = [];
 
+function getWindowStatePayload() {
+  return {
+    focused: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isFocused(),
+    maximized: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isMaximized(),
+    minimized: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isMinimized(),
+  };
+}
+
+function notifyWindowState() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  mainWindow.webContents.send("companion:window-state", getWindowStatePayload());
+}
+
 function writeBootstrapTrace(message) {
   try {
     fsSync.mkdirSync(path.dirname(BOOTSTRAP_TRACE_FILE), { recursive: true });
@@ -230,7 +243,7 @@ async function startHubServer() {
       notifyState();
       if (!shuttingDown) {
         pushLog(`[hub] servidor local encerrou com codigo ${typeof code === "number" ? code : "?"}.`);
-        void loadDiagnosticsView();
+        void loadDesktopShell();
       }
     }
   });
@@ -312,25 +325,21 @@ function getStatePayload() {
   };
 }
 
-async function loadDiagnosticsView() {
+async function loadDesktopShell() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   await mainWindow.loadFile(path.join(__dirname, "renderer.html"));
-}
-
-async function loadDesktopHubInMainWindow() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  const url = hubHandle?.url || getDesktopHubUrl();
-  await mainWindow.loadURL(url);
-  mainWindow.focus();
+  notifyState();
+  notifyWindowState();
 }
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 960,
-    minWidth: 1180,
-    minHeight: 760,
-    backgroundColor: "#07111f",
+    width: 1540,
+    height: 980,
+    minWidth: 1280,
+    minHeight: 820,
+    frame: false,
+    backgroundColor: "#050914",
     autoHideMenuBar: true,
     show: false,
     title: "SitePulse Desktop",
@@ -344,15 +353,21 @@ function createWindow() {
   mainWindow.once("ready-to-show", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
+      notifyWindowState();
     }
   });
 
   mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedUrl) => {
     if (validatedUrl.startsWith("http://")) {
       pushLog(`[window] falha ao abrir Hub local: ${errorCode} ${errorDescription}`);
-      void loadDiagnosticsView();
+      void loadDesktopShell();
     }
   });
+
+  mainWindow.on("maximize", () => notifyWindowState());
+  mainWindow.on("unmaximize", () => notifyWindowState());
+  mainWindow.on("focus", () => notifyWindowState());
+  mainWindow.on("blur", () => notifyWindowState());
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -431,7 +446,18 @@ ipcMain.handle("companion:open-hub", async () => {
   if (!hubHandle) {
     await startHubServer();
   }
-  await loadDesktopHubInMainWindow();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+  notifyState();
+  return { ok: true, url: hubHandle?.url || getDesktopHubUrl() };
+});
+ipcMain.handle("companion:refresh-hub", async () => {
+  if (!hubHandle) {
+    await startHubServer();
+  }
+  notifyState();
   return { ok: true, url: hubHandle?.url || getDesktopHubUrl() };
 });
 ipcMain.handle("companion:open-reports", async () => {
@@ -449,6 +475,27 @@ ipcMain.handle("companion:set-launch-on-login", async (_event, enabled) => {
   app.setLoginItemSettings({ openAtLogin: launchOnLogin });
   notifyState();
   return { ok: true, enabled: launchOnLogin };
+});
+ipcMain.handle("companion:get-window-state", async () => getWindowStatePayload());
+ipcMain.handle("companion:window-minimize", async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: "window_unavailable" };
+  mainWindow.minimize();
+  return { ok: true };
+});
+ipcMain.handle("companion:window-maximize-toggle", async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: "window_unavailable" };
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+  } else {
+    mainWindow.maximize();
+  }
+  notifyWindowState();
+  return { ok: true, ...getWindowStatePayload() };
+});
+ipcMain.handle("companion:window-close", async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return { ok: false, error: "window_unavailable" };
+  mainWindow.close();
+  return { ok: true };
 });
 
 app.whenReady().then(async () => {
@@ -473,19 +520,20 @@ app.whenReady().then(async () => {
   createWindow();
   writeBootstrapTrace("main window created");
   pushLog("[desktop] janela principal criada");
+  await loadDesktopShell();
 
   try {
     await ensureQaRuntime();
     await ensureWebRuntime();
     await startBridge();
     await startHubServer();
-    await loadDesktopHubInMainWindow();
+    notifyState();
     writeBootstrapTrace("desktop boot completed");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || "desktop_boot_failed");
     writeBootstrapTrace(`desktop boot failed: ${message}`);
     pushLog(`[desktop] falha ao subir hub local: ${message}`);
-    await loadDiagnosticsView();
+    await loadDesktopShell();
   }
 });
 

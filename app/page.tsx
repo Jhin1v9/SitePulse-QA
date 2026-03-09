@@ -2118,13 +2118,13 @@ function PageContent() {
   }
 
   return (
-    <main className="page-shell">
+    <main className={`page-shell ${desktopMode ? "embedded-mode" : ""}`}>
       <div className="noise" />
       <div className="orb orb-a" />
       <div className="orb orb-b" />
 
-      <section className="wrap">
-        <header className="topbar topbar-hero reveal" data-audit-ignore="true">
+      <section className={`wrap ${desktopMode ? "wrap-embedded" : ""}`}>
+        <header className={`topbar topbar-hero reveal ${desktopMode ? "topbar-embedded" : ""}`} data-audit-ignore="true">
           <div className="brand">
             <div className="brand-mark">SP</div>
             <div className="brand-copy">

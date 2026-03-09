@@ -6,4 +6,5 @@ out
 *.tsbuildinfo
 companion/node_modules
 companion/dist
+companion/dist-*
 companion/runtime-source

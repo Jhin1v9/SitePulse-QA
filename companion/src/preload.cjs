@@ -5,10 +5,15 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
   startBridge: () => ipcRenderer.invoke("companion:start-bridge"),
   stopBridge: () => ipcRenderer.invoke("companion:stop-bridge"),
   openHub: () => ipcRenderer.invoke("companion:open-hub"),
+  refreshHub: () => ipcRenderer.invoke("companion:refresh-hub"),
   openReports: () => ipcRenderer.invoke("companion:open-reports"),
   copyBridgeUrl: () => ipcRenderer.invoke("companion:copy-bridge-url"),
   getLaunchOnLogin: () => ipcRenderer.invoke("companion:get-launch-on-login"),
   setLaunchOnLogin: (enabled) => ipcRenderer.invoke("companion:set-launch-on-login", !!enabled),
+  getWindowState: () => ipcRenderer.invoke("companion:get-window-state"),
+  minimizeWindow: () => ipcRenderer.invoke("companion:window-minimize"),
+  toggleMaximizeWindow: () => ipcRenderer.invoke("companion:window-maximize-toggle"),
+  closeWindow: () => ipcRenderer.invoke("companion:window-close"),
   onLog: (callback) => {
     const wrapped = (_event, payload) => callback(payload);
     ipcRenderer.on("companion:log", wrapped);
@@ -18,5 +23,10 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
     const wrapped = (_event, payload) => callback(payload);
     ipcRenderer.on("companion:state", wrapped);
     return () => ipcRenderer.removeListener("companion:state", wrapped);
-  }
+  },
+  onWindowState: (callback) => {
+    const wrapped = (_event, payload) => callback(payload);
+    ipcRenderer.on("companion:window-state", wrapped);
+    return () => ipcRenderer.removeListener("companion:window-state", wrapped);
+  },
 });
