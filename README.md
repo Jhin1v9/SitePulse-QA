@@ -4,7 +4,7 @@ Pasta independente com:
 - app web (Next.js) para operar auditoria e ler relatorios
 - auditor CLI (`qa`) com Playwright para varrer qualquer URL
 
-Nao depende do projeto Kuruma para funcionar.
+Nao depende de nenhum outro projeto para funcionar.
 
 ## Estrutura
 - `app/`: interface web SitePulse Hub

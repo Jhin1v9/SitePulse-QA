@@ -106,7 +106,7 @@ function printHelp() {
 
 function pickConfig(mode, explicitPath) {
   if (explicitPath) return explicitPath;
-  return mode === "mobile" ? "audit.kuruma.mobile.json" : "audit.kuruma.json";
+  return mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
 }
 
 async function readJson(filePath) {

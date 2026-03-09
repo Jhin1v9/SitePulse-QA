@@ -47,8 +47,8 @@ Ou use:
 - `run-audit-url.cmd <BASE_URL>`
 
 ## Configs
-- `audit.kuruma.json` (desktop)
-- `audit.kuruma.mobile.json` (mobile)
+- `audit.default.json` (desktop)
+- `audit.default.mobile.json` (mobile)
 
 Campos importantes:
 - `sectionOrderRules`: regras de ordem visual por seletor

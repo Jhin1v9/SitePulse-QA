@@ -4,17 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "audit": "node src/index.mjs --config audit.kuruma.json",
-    "audit:headed": "node src/index.mjs --config audit.kuruma.json --headed",
-    "audit:fresh": "node src/index.mjs --config audit.kuruma.json --fresh",
-    "audit:mobile": "node src/index.mjs --config audit.kuruma.mobile.json --fresh",
+    "audit": "node src/index.mjs --config audit.default.json",
+    "audit:headed": "node src/index.mjs --config audit.default.json --headed",
+    "audit:fresh": "node src/index.mjs --config audit.default.json --fresh",
+    "audit:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh",
     "audit:self": "node src/index.mjs --config audit.sitepulse-hub.json --fresh",
     "audit:self:mobile": "node src/index.mjs --config audit.sitepulse-hub.mobile.json --fresh",
-    "audit:auto": "node src/run-until-done.mjs --config audit.kuruma.json",
+    "audit:auto": "node src/run-until-done.mjs --config audit.default.json",
     "audit:hub": "node src/cmd-hub.mjs",
     "audit:hub:mobile": "node src/cmd-hub.mjs --mode mobile --non-interactive",
-    "audit:cmd": "node src/index.mjs --config audit.kuruma.json --fresh --live-log --human-log",
-    "audit:cmd:mobile": "node src/index.mjs --config audit.kuruma.mobile.json --fresh --live-log --human-log"
+    "audit:cmd": "node src/index.mjs --config audit.default.json --fresh --live-log --human-log",
+    "audit:cmd:mobile": "node src/index.mjs --config audit.default.mobile.json --fresh --live-log --human-log"
   },
   "dependencies": {
     "playwright": "^1.53.2"

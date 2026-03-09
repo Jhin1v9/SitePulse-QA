@@ -53,35 +53,36 @@ type RunPlanResponse = {
   mode: Mode;
   command: string;
   startedAt: string;
+  finishedAt?: string;
+  durationMs?: number;
   steps: string[];
+  report?: unknown;
+  detail?: string;
   error?: string;
 };
 
-const DEFAULT_URL = "https://projeto-web-profissional-kuruma-net.vercel.app";
+const DEFAULT_TARGET_URL = "https://example.com";
+const REPORT_FALLBACK_URL = "https://your-site.com";
 const DEMO_USERS = [
   { username: "admin", password: "admin123" },
   { username: "mobile", password: "mobile123" },
 ];
 
 const ISSUE_GROUP: Record<string, string> = {
-  ROUTE_LOAD_FAIL: "Flow break",
-  BTN_CLICK_ERROR: "Broken interaction",
-  BTN_NO_EFFECT: "Unexpected or missing action",
-  HTTP_4XX: "API contract/auth issue",
-  HTTP_5XX: "Backend failure",
-  NET_REQUEST_FAILED: "Network/CORS/connectivity",
-  JS_RUNTIME_ERROR: "Frontend runtime",
-  CONSOLE_ERROR: "Frontend runtime",
-  VISUAL_SECTION_ORDER_INVALID: "Visual and functional layout",
-  VISUAL_SECTION_MISSING: "Visual and functional layout",
+  ROUTE_LOAD_FAIL: "Pagina nao abriu",
+  BTN_CLICK_ERROR: "Botao com erro",
+  BTN_NO_EFFECT: "Botao sem reacao",
+  HTTP_4XX: "Erro de requisicao (4xx)",
+  HTTP_5XX: "Erro do servidor (5xx)",
+  NET_REQUEST_FAILED: "Falha de rede",
+  JS_RUNTIME_ERROR: "Erro de JavaScript",
+  CONSOLE_ERROR: "Erro no console",
+  VISUAL_SECTION_ORDER_INVALID: "Ordem visual errada",
+  VISUAL_SECTION_MISSING: "Secao ausente",
 };
 
 function nowIso() {
   return new Date().toISOString();
-}
-
-function wait(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function parseSeverity(value: unknown, fallbackCode = ""): Severity {
@@ -161,7 +162,7 @@ function normalizeReport(raw: unknown): ReportModel {
   return {
     meta: {
       project: String(metaObj.project ?? "sitepulse-report"),
-      baseUrl: String(metaObj.baseUrl ?? source.baseUrl ?? DEFAULT_URL),
+      baseUrl: String(metaObj.baseUrl ?? source.baseUrl ?? REPORT_FALLBACK_URL),
       generatedAt: String(metaObj.finishedAt ?? metaObj.generatedAt ?? nowIso()),
     },
     summary: {
@@ -176,7 +177,7 @@ function normalizeReport(raw: unknown): ReportModel {
       replayCommand: String(
         guideObj.replayCommand ??
           metaObj.replayCommand ??
-          `node src/index.mjs --config "audit.kuruma.${String(source.mode) === "mobile" ? "mobile" : "json"}" --fresh --live-log --human-log`
+          `node src/index.mjs --config "audit.default.${String(source.mode) === "mobile" ? "mobile.json" : "json"}" --fresh --live-log --human-log`
       ),
       immediateSteps: Array.isArray(guideObj.immediateSteps)
         ? guideObj.immediateSteps.map((v) => String(v))
@@ -200,7 +201,7 @@ function scoreFromIssues(issues: IssueModel[]): number {
 }
 
 function makeCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: boolean) {
-  const config = mode === "mobile" ? "audit.kuruma.mobile.json" : "audit.kuruma.json";
+  const config = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
   const parts = [
     "npm --prefix qa run audit:cmd --",
     `--config "${config}"`,
@@ -248,21 +249,22 @@ function severityPillClass(severity: Severity) {
 }
 
 function mapHealthChip(health: "idle" | "ok" | "bad") {
-  if (health === "ok") return { label: "API healthy", className: "dot ok" };
-  if (health === "bad") return { label: "API offline/error", className: "dot bad" };
-  return { label: "API not checked", className: "dot" };
+  if (health === "ok") return { label: "API OK", className: "dot ok" };
+  if (health === "bad") return { label: "API com erro", className: "dot bad" };
+  return { label: "API nao verificada", className: "dot" };
 }
 
 function PageContent() {
   const searchParams = useSearchParams();
   const autoLogin = searchParams.get("autologin") === "1";
+  const selfAudit = searchParams.get("selfaudit") === "1";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [logged, setLogged] = useState(false);
   const [loginError, setLoginError] = useState("");
 
   const [mode, setMode] = useState<Mode>("desktop");
-  const [targetUrl, setTargetUrl] = useState(DEFAULT_URL);
+  const [targetUrl, setTargetUrl] = useState(DEFAULT_TARGET_URL);
   const [noServer, setNoServer] = useState(true);
   const [headed, setHeaded] = useState(false);
 
@@ -377,15 +379,17 @@ function PageContent() {
       const payload = (await res.json()) as RunPlanResponse;
       if (!res.ok || !payload.ok) throw new Error(payload.error ?? "run_plan_failed");
 
+      setProgress(75);
       const steps = payload.steps ?? [];
-      const total = Math.max(steps.length, 1);
-      for (let i = 0; i < steps.length; i += 1) {
-        pushLog(`[step] ${steps[i]}`);
-        setProgress(Math.round(((i + 1) / total) * 82));
-        await wait(450);
+      for (const step of steps) {
+        pushLog(`[step] ${step}`);
       }
 
-      await loadDemoReport();
+      if (payload.report) {
+        applyReport(payload.report, "live_audit");
+      } else {
+        pushLog("[report] no report returned, use CMD run and import JSON.");
+      }
       setProgress(100);
       pushLog("[run] completed");
     } catch (error) {
@@ -461,7 +465,7 @@ function PageContent() {
                 SitePulse Hub
               </p>
               <h1>App + CMD auditor command center.</h1>
-              <p>Built for rapid detection of missing, unexpected and broken actions.</p>
+              <p>Auditoria simples para qualquer URL, com resultado tecnico e resumo claro.</p>
             </header>
             <div className="login-body">
               <div className="field">
@@ -474,7 +478,7 @@ function PageContent() {
               </div>
               <div className="btn-row">
                 <button className="btn-primary" type="button" onClick={validateLogin}>
-                  Enter command center
+                  Entrar
                 </button>
               </div>
               <p className="small muted">Demo users: admin/admin123 and mobile/mobile123</p>
@@ -498,7 +502,7 @@ function PageContent() {
             <div className="brand-mark">SP</div>
             <div>
               <h1 className="brand-title">SitePulse Hub</h1>
-              <p className="brand-sub">High signal dashboard for audits, unexpected actions and root-cause playbooks.</p>
+              <p className="brand-sub">Verifique erros de rota, botoes e requests em qualquer site.</p>
               <p className="small muted" style={{ margin: "2px 0 0" }}>ui pulse: {actionPulse}</p>
             </div>
           </div>
@@ -513,7 +517,7 @@ function PageContent() {
             </span>
             <span className="chip">
               <span className={running ? "dot" : "dot ok"} />
-              {running ? "run active" : "idle"}
+              {running ? "auditoria em andamento" : "pronto"}
             </span>
           </div>
         </header>
@@ -521,16 +525,16 @@ function PageContent() {
         <section className="dashboard">
           <article className="card reveal d2">
             <header className="card-head">
-              <h2 className="card-title">Control Center</h2>
+              <h2 className="card-title">Painel</h2>
             </header>
             <div className="card-body">
               <div className="field">
-                <label>Target URL</label>
+                <label>URL do site</label>
                 <input value={targetUrl} onChange={(e) => setTargetUrl(e.target.value)} placeholder="https://your-site.com" />
               </div>
 
               <div className="field">
-                <label>Viewport mode</label>
+                <label>Modo de tela</label>
                 <div className="segmented">
                   <button
                     type="button"
@@ -553,28 +557,33 @@ function PageContent() {
 
               <label className="checkbox">
                 <input type="checkbox" checked={noServer} onChange={(e) => setNoServer(e.target.checked)} />
-                use --no-server (external URL mode)
+                Usar --no-server (auditar URL externa)
               </label>
               <label className="checkbox">
                 <input type="checkbox" checked={headed} onChange={(e) => setHeaded(e.target.checked)} />
-                headed browser mode
+                Abrir navegador visivel
               </label>
 
               <div className="btn-row">
-                <button className="btn-primary" type="button" disabled={running} onClick={runPlan}>
-                  {running ? "Running plan..." : "Run plan (demo flow)"}
+                <button
+                  className="btn-primary"
+                  type="button"
+                  disabled={running || selfAudit}
+                  onClick={runPlan}
+                >
+                  {running ? "Auditando..." : "Auditar URL agora"}
                 </button>
                 <button className="btn-secondary" type="button" onClick={checkHealth}>
-                  Check API
+                  Checar API
                 </button>
               </div>
 
               <div className="btn-row">
                 <button type="button" onClick={() => void loadDemoReport()}>
-                  Load demo report
+                  Carregar exemplo
                 </button>
                 <button type="button" onClick={() => fileInputRef.current?.click()}>
-                  Import JSON file
+                  Importar JSON
                 </button>
               </div>
 
@@ -592,7 +601,7 @@ function PageContent() {
                   rows={5}
                   value={jsonPaste}
                   onChange={(e) => setJsonPaste(e.target.value)}
-                  placeholder='Paste full report JSON here and click "Apply pasted JSON".'
+                  placeholder='Cole o JSON completo aqui e clique em "Aplicar JSON".'
                 />
               </div>
               <div className="btn-row">
@@ -602,7 +611,7 @@ function PageContent() {
                   onClick={importFromPaste}
                   disabled={!pasteReady}
                 >
-                  Apply pasted JSON
+                  Aplicar JSON
                 </button>
               </div>
             </div>
@@ -610,51 +619,51 @@ function PageContent() {
 
           <article className="card reveal d3">
             <header className="card-head">
-              <h2 className="card-title">Live Run + Metrics</h2>
+              <h2 className="card-title">Resultado da auditoria</h2>
             </header>
             <div className="card-body">
               <div className="metrics">
                 <div className="metric">
                   <div className="value">{report?.summary.routesChecked ?? 0}</div>
-                  <div className="label">Routes</div>
+                  <div className="label">Rotas</div>
                 </div>
                 <div className="metric">
                   <div className="value">{report?.summary.buttonsChecked ?? 0}</div>
-                  <div className="label">Buttons</div>
+                  <div className="label">Botoes</div>
                 </div>
                 <div className="metric">
                   <div className="value">{report?.summary.totalIssues ?? 0}</div>
-                  <div className="label">Issues</div>
+                  <div className="label">Problemas</div>
                 </div>
                 <div className="metric">
                   <div className="value">{riskScore}</div>
-                  <div className="label">Risk score</div>
+                  <div className="label">Risco</div>
                 </div>
               </div>
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Progress
+                  Progresso
                 </p>
                 <div className="progress">
                   <div style={{ width: `${progress}%` }} />
                 </div>
                 <p className="small muted" style={{ margin: "7px 0 0" }}>
-                  {progress}% complete
+                  {progress}% completo
                 </p>
               </div>
 
               <div className="legend">
-                <span className="pill pill-high">high {severityCounts.high}</span>
-                <span className="pill pill-medium">medium {severityCounts.medium}</span>
-                <span className="pill pill-low">low {severityCounts.low}</span>
-                <span className="pill">visual order invalid {report?.summary.visualSectionOrderInvalid ?? 0}</span>
-                <span className="pill">no effect buttons {report?.summary.buttonsNoEffect ?? 0}</span>
+                <span className="pill pill-high">alto {severityCounts.high}</span>
+                <span className="pill pill-medium">medio {severityCounts.medium}</span>
+                <span className="pill pill-low">baixo {severityCounts.low}</span>
+                <span className="pill">ordem visual errada {report?.summary.visualSectionOrderInvalid ?? 0}</span>
+                <span className="pill">botoes sem resposta {report?.summary.buttonsNoEffect ?? 0}</span>
               </div>
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Run log
+                  Log da auditoria
                 </p>
                 <div className="log mono">
                   {logs.map((line, idx) => (
@@ -669,26 +678,26 @@ function PageContent() {
                 <div className="field" style={{ minWidth: 220 }}>
                   <label>Filter severity</label>
                   <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value as SeverityFilter)}>
-                    <option value="all">all</option>
-                    <option value="high">high</option>
-                    <option value="medium">medium</option>
-                    <option value="low">low</option>
+                    <option value="all">todos</option>
+                    <option value="high">alto</option>
+                    <option value="medium">medio</option>
+                    <option value="low">baixo</option>
                   </select>
                 </div>
                 <div className="field" style={{ minWidth: 280 }}>
-                  <label>Search issue text</label>
-                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="code, route, action or detail..." />
+                  <label>Buscar problema</label>
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="codigo, rota, acao ou detalhe..." />
                 </div>
               </div>
 
               <div className="issues-grid">
                 {!reportAvailable ? (
                   <div className="issue">
-                    <p className="small muted">No report loaded yet. Run plan or import a JSON report.</p>
+                    <p className="small muted">Nenhum relatorio carregado ainda. Rode a auditoria ou importe um JSON.</p>
                   </div>
                 ) : filteredIssues.length === 0 ? (
                   <div className="issue">
-                    <p className="small muted">No issue matches current filters.</p>
+                    <p className="small muted">Nenhum problema encontrado com os filtros atuais.</p>
                   </div>
                 ) : (
                   filteredIssues.map((issue) => (
@@ -704,11 +713,11 @@ function PageContent() {
                         {issue.action ? ` -> ${issue.action}` : ""}
                       </p>
                       <p className="issue-detail">{issue.detail}</p>
-                      <p className="issue-meta">Recommended resolution: {issue.recommendedResolution}</p>
+                      <p className="issue-meta">Resolucao recomendada: {issue.recommendedResolution}</p>
                       {issue.assistantHint.firstChecks?.length ? (
                         <div className="assistant-block">
                           <p className="small muted" style={{ marginTop: 0 }}>
-                            First checks
+                            Primeiras verificacoes
                           </p>
                           <ul className="assistant-list">
                             {issue.assistantHint.firstChecks.map((line, idx) => (
@@ -720,7 +729,7 @@ function PageContent() {
                       {issue.assistantHint.commandHints?.length ? (
                         <div className="assistant-block">
                           <p className="small muted" style={{ marginTop: 0 }}>
-                            Command hints
+                            Comandos uteis
                           </p>
                           <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
                         </div>
@@ -734,36 +743,36 @@ function PageContent() {
 
           <article className="card reveal d2">
             <header className="card-head">
-              <h2 className="card-title">CMD + Assistant</h2>
+              <h2 className="card-title">CMD + Guia</h2>
             </header>
             <div className="card-body">
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Guided wizard command
+                  Comando guiado
                 </p>
                 <div className="code-box mono">{guidedCmd}</div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <button className="btn-secondary" type="button" onClick={() => void copyText(guidedCmd, "guided cmd copied")}>
-                    Copy guided CMD
+                    Copiar comando guiado
                   </button>
                 </div>
               </div>
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Direct command
+                  Comando direto
                 </p>
                 <div className="code-box mono">{directCmd}</div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <button type="button" onClick={() => void copyText(directCmd, "direct cmd copied")}>
-                    Copy direct CMD
+                    Copiar comando direto
                   </button>
                 </div>
               </div>
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Assistant immediate steps
+                  Proximos passos
                 </p>
                 <div className="assistant-block">
                   <ul className="assistant-list">
@@ -776,19 +785,19 @@ function PageContent() {
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Quick-start prompt
+                  Prompt rapido
                 </p>
                 <div className="code-box mono">{report?.assistantGuide.quickStartPrompt ?? "No prompt yet."}</div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <button className="btn-warn" type="button" onClick={() => void copyText(report?.assistantGuide.quickStartPrompt ?? "", "prompt copied")}>
-                    Copy prompt
+                    Copiar prompt
                   </button>
                 </div>
               </div>
 
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Replay command
+                  Comando para repetir auditoria
                 </p>
                 <div className="code-box mono">{report?.assistantGuide.replayCommand ?? "No replay command available."}</div>
               </div>
@@ -804,7 +813,7 @@ function PageContent() {
                     downloadJson(`sitepulse-hub-report-${mode}.json`, reportRaw);
                   }}
                 >
-                  Download current report JSON
+                  Baixar JSON do relatorio
                 </button>
               </div>
             </div>

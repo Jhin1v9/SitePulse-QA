@@ -16,13 +16,16 @@
   "checkpointFile": "reports/sitepulse-hub-mobile-checkpoint.json",
   "requireButtonEffect": true,
   "allowedNoEffectButtonContains": [
-    "import json file"
+    "import json file",
+    "importar json",
+    "checar api",
+    "carregar exemplo"
   ],
   "ignoredRequestFailedErrors": [
     "ERR_ABORTED"
   ],
   "sectionOrderRules": [],
   "routes": [
-    "/?autologin=1"
+    "/?autologin=1&selfaudit=1"
   ]
 }

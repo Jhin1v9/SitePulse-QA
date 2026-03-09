@@ -5,92 +5,70 @@ type Mode = "desktop" | "mobile";
 function sample(mode: Mode) {
   return {
     meta: {
-      project: "kuruma-site-home-audit",
+      project: "external-site-audit-demo",
       mode,
       generatedAt: new Date().toISOString(),
+      baseUrl: "https://your-site.com",
     },
     summary: {
       routesChecked: 1,
-      buttonsChecked: mode === "mobile" ? 14 : 31,
-      totalIssues: 3,
-      visualSectionOrderInvalid: 1,
+      buttonsChecked: mode === "mobile" ? 10 : 18,
+      totalIssues: 2,
+      visualSectionOrderInvalid: 0,
       buttonsNoEffect: 1,
       consoleErrors: 1,
     },
     assistantGuide: {
       replayCommand:
         mode === "mobile"
-          ? 'node src/index.mjs --config "audit.kuruma.mobile.json" --fresh --live-log --human-log'
-          : 'node src/index.mjs --config "audit.kuruma.json" --fresh --live-log --human-log',
+          ? 'node src/index.mjs --config "audit.default.mobile.json" --fresh --live-log --human-log'
+          : 'node src/index.mjs --config "audit.default.json" --fresh --live-log --human-log',
       immediateSteps: [
-        "Corrigir primeiro a ordem visual de secoes.",
-        "Depois corrigir botoes sem efeito.",
-        "Remover erro de console e revalidar.",
+        "Corrigir botoes sem resposta primeiro.",
+        "Depois corrigir erros do console.",
+        "Rodar auditoria novamente para confirmar.",
       ],
       quickStartPrompt: [
-        "Atue como engenheiro de software senior com foco em causa raiz.",
-        "Ataque: visual order -> buttons -> console.",
-        "Revalide no final ate totalIssues=0.",
+        "Atue como engenheiro de software senior.",
+        "Priorize problemas de alto impacto.",
+        "Valide com nova auditoria ate totalIssues = 0.",
       ].join("\n"),
     },
     issues: [
       {
         id: "iss-1",
-        code: "VISUAL_SECTION_ORDER_INVALID",
-        severity: "high",
+        code: "BTN_NO_EFFECT",
+        severity: "medium",
         route: "/",
-        action: "layout_rule:faq-before-footer",
-        detail: "service-details foi renderizado abaixo do footer no mobile.",
-        recommendedResolution: "Revisar buildSectionRenderPlan e flags mobile/desktop.",
+        action: "Botao principal",
+        detail: "O clique nao gerou mudanca visivel (rota, DOM, request ou scroll).",
+        recommendedResolution: "Ligar o botao a uma acao real e validar alvo/ID.",
         assistantHint: {
-          priority: "P0",
+          priority: "P1",
           firstChecks: [
-            "Comparar ordem do DOM em mobile.",
-            "Validar sectionOrderRules e section IDs.",
-            "Garantir render da secao antes do footer.",
+            "Confirmar se onClick existe.",
+            "Verificar seletor/alvo correto.",
+            "Checar se o botao nao esta desabilitado por estado.",
           ],
-          commandHints: [
-            'rg -n "buildSectionRenderPlan|service-details|footer" src',
-            'rg -n "sectionOrderRules" qa',
-          ],
+          commandHints: ['rg -n "onClick|scrollTo|router.push|href" app src'],
         },
       },
       {
         id: "iss-2",
-        code: "BTN_NO_EFFECT",
-        severity: "medium",
-        route: "/",
-        action: "Info + FAQ",
-        detail: "Clique sem efeito observavel (URL, DOM, request, dialog, scroll).",
-        recommendedResolution: "Garantir scrollToSection com ID valido e feedback visual.",
-        assistantHint: {
-          priority: "P1",
-          firstChecks: [
-            "Verificar label versus alvo de scroll.",
-            "Conferir se o ID da secao existe.",
-            "Validar o comportamento em desktop e mobile.",
-          ],
-          commandHints: [
-            'rg -n "scrollToSection|service-details|SectionDock" src',
-          ],
-        },
-      },
-      {
-        id: "iss-3",
         code: "CONSOLE_ERROR",
         severity: "low",
         route: "/",
         action: "route_load",
-        detail: "Mixed language fallback warning on FAQ copy.",
-        recommendedResolution: "Padronizar copy por idioma em ServiceSummaries.",
+        detail: "Erro no console durante carregamento da pagina.",
+        recommendedResolution: "Corrigir import/props nulos e validar fallback.",
         assistantHint: {
           priority: "P2",
           firstChecks: [
-            "Inspecionar logs do navegador.",
-            "Padronizar textos por idioma.",
-            "Remover warnings ruidosos.",
+            "Abrir console e pegar stacktrace.",
+            "Mapear arquivo/linha de origem.",
+            "Aplicar correção e validar novamente.",
           ],
-          commandHints: ['rg -n "FAQ|placeholder|labels" src/components/sections'],
+          commandHints: ['rg -n "console.error|throw new Error|undefined|null" app src'],
         },
       },
     ],

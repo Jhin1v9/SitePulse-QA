@@ -1,5 +1,5 @@
 {
-  "name": "kuruma-site-home-audit",
+  "name": "sitepulse-default-desktop-audit",
   "baseUrl": "http://127.0.0.1:3110",
   "serverCommand": "npm run dev -- --hostname 127.0.0.1 --port 3110",
   "serverCwd": "..",
@@ -9,34 +9,21 @@
   "viewportWidth": 1536,
   "viewportHeight": 864,
   "scrollEffectMinPx": 8,
-  "sectionOrderWaitMs": 1600,
+  "sectionOrderWaitMs": 1200,
   "maxRunMs": 180000,
   "checkpointEveryClicks": 10,
   "reportDir": "reports",
-  "checkpointFile": "reports/kuruma-checkpoint.json",
+  "checkpointFile": "reports/default-checkpoint.json",
   "requireButtonEffect": true,
   "allowedNoEffectButtonContains": [
     "whatsapp",
-    "inici",
-    "inicio",
     "home",
-    "ir para slide"
+    "menu"
   ],
   "ignoredRequestFailedErrors": [
     "ERR_ABORTED"
   ],
-  "sectionOrderRules": [
-    {
-      "id": "faq-before-footer",
-      "description": "Infos + FAQ deve aparecer antes do footer.",
-      "routes": [
-        "/"
-      ],
-      "beforeSelector": "#service-details",
-      "afterSelector": "#footer",
-      "required": true
-    }
-  ],
+  "sectionOrderRules": [],
   "routes": [
     "/"
   ]
