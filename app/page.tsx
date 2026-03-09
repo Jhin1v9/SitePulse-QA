@@ -1202,16 +1202,64 @@ function PageContent() {
       displayMode.addListener(onDisplayModeChange);
     }
 
+    let swUpdateInterval: number | undefined;
+    let onVisibilityChange: (() => void) | null = null;
+    let onControllerChange: (() => void) | null = null;
+    let didControllerReload = false;
+
     if ("serviceWorker" in navigator) {
+      const activateWaitingWorker = (registration: ServiceWorkerRegistration) => {
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      };
+
       navigator.serviceWorker
-        .register("/sw.js")
-        .then(() => {
+        .register("/sw.js", { updateViaCache: "none" })
+        .then((registration) => {
           setLogs((prev) => prependLog(prev, "[pwa] service worker ativo."));
+
+          registration.addEventListener("updatefound", () => {
+            const installing = registration.installing;
+            if (!installing) return;
+            installing.addEventListener("statechange", () => {
+              if (installing.state !== "installed") return;
+              if (navigator.serviceWorker.controller) {
+                setLogs((prev) => prependLog(prev, "[pwa] nova versao detectada. Aplicando update automatico..."));
+                activateWaitingWorker(registration);
+              }
+            });
+          });
+
+          if (registration.waiting) {
+            setLogs((prev) => prependLog(prev, "[pwa] versao pendente encontrada. Atualizando agora..."));
+            activateWaitingWorker(registration);
+          }
+
+          void registration.update().catch(() => {});
+          swUpdateInterval = window.setInterval(() => {
+            void registration.update().catch(() => {});
+          }, 60_000);
+
+          onVisibilityChange = () => {
+            if (document.visibilityState === "visible") {
+              void registration.update().catch(() => {});
+            }
+          };
+          document.addEventListener("visibilitychange", onVisibilityChange);
         })
         .catch((error) => {
           const message = error instanceof Error ? error.message : "sw_register_failed";
           setLogs((prev) => prependLog(prev, `[pwa] falha service worker: ${message}`));
         });
+
+      onControllerChange = () => {
+        if (didControllerReload) return;
+        didControllerReload = true;
+        setLogs((prev) => prependLog(prev, "[pwa] app atualizado. Recarregando para aplicar mudancas..."));
+        window.location.reload();
+      };
+      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
     } else {
       setLogs((prev) => prependLog(prev, "[pwa] navegador sem suporte a service worker."));
     }
@@ -1223,6 +1271,15 @@ function PageContent() {
         displayMode.removeEventListener("change", onDisplayModeChange);
       } else if (typeof displayMode.removeListener === "function") {
         displayMode.removeListener(onDisplayModeChange);
+      }
+      if (typeof swUpdateInterval === "number") {
+        window.clearInterval(swUpdateInterval);
+      }
+      if (onVisibilityChange) {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      if (onControllerChange && "serviceWorker" in navigator) {
+        navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       }
     };
   }, []);
