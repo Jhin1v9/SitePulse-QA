@@ -87,7 +87,7 @@ const ISSUE_GUIDE = {
     layman:
       "Algo deu errado por baixo dos panos, mesmo que a tela ainda apareca.",
     recommendation:
-      "Inspecionar stack/message no console, remover erros silenciosos e corrigir integraÃ§Ãµes quebradas.",
+      "Inspecionar stack/message no console, remover erros silenciosos e corrigir integracoes quebradas.",
   },
   [CODE.VISUAL_SECTION_ORDER_INVALID]: {
     technical:
@@ -292,6 +292,1018 @@ function normalizeText(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function uniqueNormalizedLines(values, maxItems = 8) {
+  const out = [];
+  const seen = new Set();
+  for (const value of values ?? []) {
+    const normalized = normalizeText(value);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+    if (out.length >= maxItems) break;
+  }
+  return out;
+}
+
+function parseHttpDetail(detail) {
+  const normalized = normalizeText(detail);
+  const match = normalized.match(/^(\d{3})\s+([A-Z]+)\s+(.+)$/);
+  if (!match) return null;
+  const status = Number(match[1]);
+  if (!Number.isFinite(status)) return null;
+  return {
+    status,
+    method: match[2],
+    requestUrl: match[3],
+  };
+}
+
+function parseRequestFailedDetail(detail) {
+  const normalized = normalizeText(detail);
+  const match = normalized.match(/^([A-Z]+)\s+(.+?)\s+::\s+(.+)$/);
+  if (!match) return null;
+  return {
+    method: match[1],
+    requestUrl: match[2],
+    failureText: match[3],
+    failureLower: match[3].toLowerCase(),
+  };
+}
+
+function tryParsePathname(urlLike) {
+  if (!urlLike) return "";
+  try {
+    return new URL(urlLike).pathname || urlLike;
+  } catch {
+    return urlLike;
+  }
+}
+
+const HTTP_STATUS_INTELLIGENCE = {
+  400: {
+    subtype: "bad_request_payload",
+    title: "HTTP 400 Bad Request",
+    probableCauses: [
+      "Payload fora do schema esperado.",
+      "Headers obrigatorios ausentes (Content-Type, Authorization).",
+      "Parametro de query/body invalido.",
+    ],
+    technicalChecks: [
+      "Comparar payload real com schema esperado no endpoint.",
+      "Validar serializacao JSON e headers obrigatorios.",
+      "Logar body validado no backend em ambiente de teste.",
+    ],
+    recommendedActions: [
+      "Aplicar validacao de formulario antes do fetch.",
+      "Padronizar retorno de erro de campo para feedback em tela.",
+    ],
+    commandHints: [
+      "rg -n \"fetch\\(|axios|POST|PUT|PATCH\" src",
+      "rg -n \"zod|schema|safeParse|parse\\(\" src/app/api src/lib",
+    ],
+  },
+  401: {
+    subtype: "auth_missing_or_expired",
+    title: "HTTP 401 Unauthorized",
+    probableCauses: [
+      "Token ausente/expirado.",
+      "Sessao invalida apos refresh.",
+      "Header Authorization nao enviado.",
+    ],
+    technicalChecks: [
+      "Verificar emissao/refresh de token no frontend.",
+      "Conferir middleware de auth do endpoint.",
+      "Auditar fluxo de logout/relogin automatico.",
+    ],
+    recommendedActions: [
+      "Revalidar sessao antes de chamadas protegidas.",
+      "Exibir CTA de login quando ocorrer 401.",
+    ],
+    commandHints: [
+      "rg -n \"Authorization|Bearer|token|session\" src",
+      "rg -n \"middleware|auth|requireAuth\" src/app src/lib",
+    ],
+  },
+  403: {
+    subtype: "forbidden_permission",
+    title: "HTTP 403 Forbidden",
+    probableCauses: [
+      "Usuario sem permissao para a acao.",
+      "RBAC/ACL bloqueando o endpoint.",
+      "Protecao CSRF/origin recusando a chamada.",
+    ],
+    technicalChecks: [
+      "Conferir claims/permissoes do usuario.",
+      "Comparar regra de autorizacao com o caso de uso.",
+      "Validar controles CSRF e origin.",
+    ],
+    recommendedActions: [
+      "Ajustar regra de permissao ou fluxo de autorizacao.",
+      "Mostrar mensagem de acesso negado orientando proximo passo.",
+    ],
+    commandHints: [
+      "rg -n \"role|permission|acl|rbac\" src",
+      "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+    ],
+  },
+  404: {
+    subtype: "endpoint_not_found",
+    title: "HTTP 404 Not Found",
+    probableCauses: [
+      "Endpoint incorreto no frontend.",
+      "Base URL/env aponta para ambiente errado.",
+      "Reescrita/proxy nao encaminha a rota.",
+    ],
+    technicalChecks: [
+      "Comparar URL do fetch com rotas realmente expostas.",
+      "Validar variaveis de ambiente de API.",
+      "Revisar rewrites/proxy.",
+    ],
+    recommendedActions: [
+      "Centralizar construcao de endpoint para evitar typo.",
+      "Adicionar teste de contrato para rotas criticas.",
+    ],
+    commandHints: [
+      "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+      "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+    ],
+  },
+  405: {
+    subtype: "method_not_allowed",
+    title: "HTTP 405 Method Not Allowed",
+    probableCauses: [
+      "Metodo HTTP divergente entre UI e API.",
+      "Handler do metodo nao implementado.",
+      "Gateway bloqueando verbo.",
+    ],
+    technicalChecks: [
+      "Comparar method do fetch com metodo aceito no endpoint.",
+      "Validar export dos handlers HTTP no route.ts.",
+      "Conferir politica do proxy para verbos.",
+    ],
+    recommendedActions: [
+      "Alinhar metodo da chamada com o contrato da API.",
+      "Retornar erro funcional claro para metodo invalido.",
+    ],
+    commandHints: [
+      "rg -n \"fetch\\(|method:\\s*\\\"\" src",
+      "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+    ],
+  },
+  408: {
+    subtype: "request_timeout",
+    title: "HTTP 408 Request Timeout",
+    probableCauses: [
+      "Endpoint lento ou dependencia externa lenta.",
+      "Timeout de gateway curto para a operacao.",
+      "Sem retry controlado no cliente.",
+    ],
+    technicalChecks: [
+      "Medir latencia do endpoint/dependencias.",
+      "Conferir timeout de fetch e proxy.",
+      "Validar se ha gargalo de query/API externa.",
+    ],
+    recommendedActions: [
+      "Otimizar endpoint e adicionar retry idempotente com backoff.",
+      "Mostrar estado de tentativa novamente na UI.",
+    ],
+    commandHints: [
+      "rg -n \"timeout|AbortController|signal|retry|backoff\" src",
+    ],
+  },
+  409: {
+    subtype: "resource_conflict",
+    title: "HTTP 409 Conflict",
+    probableCauses: [
+      "Conflito de estado/versao do recurso.",
+      "Duplicidade por chave unica.",
+      "Falta de idempotencia em repeticao de request.",
+    ],
+    technicalChecks: [
+      "Auditar restricoes unicas e regras de negocio.",
+      "Mapear corrida entre requests simultaneas.",
+      "Avaliar uso de versionamento/etag.",
+    ],
+    recommendedActions: [
+      "Implementar operacoes idempotentes.",
+      "Exibir mensagem orientando atualizar e reenviar.",
+    ],
+    commandHints: [
+      "rg -n \"upsert|unique|conflict|transaction\" src",
+      "rg -n \"idempot|retry|etag|version\" src",
+    ],
+  },
+  413: {
+    subtype: "payload_too_large",
+    title: "HTTP 413 Payload Too Large",
+    probableCauses: [
+      "Upload/body acima do limite permitido.",
+      "Sem compressao/chunking para payload grande.",
+      "Limite de parser/gateway muito baixo.",
+    ],
+    technicalChecks: [
+      "Medir tamanho real do payload enviado.",
+      "Revisar limites no backend/proxy.",
+      "Validar estrategia de upload.",
+    ],
+    recommendedActions: [
+      "Validar tamanho no cliente antes de enviar.",
+      "Adotar upload em partes para arquivos grandes.",
+    ],
+    commandHints: [
+      "rg -n \"multipart|form-data|upload|bodyParser|maxFile\" src",
+    ],
+  },
+  415: {
+    subtype: "unsupported_media_type",
+    title: "HTTP 415 Unsupported Media Type",
+    probableCauses: [
+      "Content-Type incorreto para o endpoint.",
+      "Body enviado com serializacao invalida.",
+      "Endpoint espera multipart e recebeu JSON (ou vice-versa).",
+    ],
+    technicalChecks: [
+      "Conferir header Content-Type enviado.",
+      "Validar parse do body no backend.",
+      "Alinhar formato de payload no contrato da API.",
+    ],
+    recommendedActions: [
+      "Padronizar Content-Type por endpoint.",
+      "Adicionar erro de validacao claro no backend.",
+    ],
+    commandHints: [
+      "rg -n \"Content-Type|headers\" src",
+      "rg -n \"request\\.json\\(|formData\\(|multipart\" src/app/api",
+    ],
+  },
+  422: {
+    subtype: "validation_failed",
+    title: "HTTP 422 Unprocessable Entity",
+    probableCauses: [
+      "Campos obrigatorios faltando.",
+      "Formato de campo invalido para regra de negocio.",
+      "Schema rejeitou payload no backend.",
+    ],
+    technicalChecks: [
+      "Inspecionar detalhe do erro de schema retornado.",
+      "Replicar validacao do backend no frontend.",
+      "Conferir mascara/conversao de tipos antes do envio.",
+    ],
+    recommendedActions: [
+      "Mostrar erro por campo na UI.",
+      "Unificar schema entre frontend e backend.",
+    ],
+    commandHints: [
+      "rg -n \"zod|yup|schema|safeParse\" src",
+      "rg -n \"form|react-hook-form|validation\" src/components src/app",
+    ],
+  },
+  429: {
+    subtype: "rate_limited",
+    title: "HTTP 429 Too Many Requests",
+    probableCauses: [
+      "Burst de requests sem debounce/throttle.",
+      "Retry sem backoff gerando avalanche.",
+      "Limite de API baixo para o fluxo.",
+    ],
+    technicalChecks: [
+      "Contar requests disparadas por acao.",
+      "Verificar debounce/throttle em campos dinamicos.",
+      "Auditar politica de retry e rate limit.",
+    ],
+    recommendedActions: [
+      "Aplicar backoff exponencial e deduplicacao de request.",
+      "Cachear leituras repetidas.",
+    ],
+    commandHints: [
+      "rg -n \"debounce|throttle|retry|backoff\" src",
+      "rg -n \"useEffect\\(|fetch\\(\" src/components src/app",
+    ],
+  },
+  500: {
+    subtype: "internal_server_error",
+    title: "HTTP 500 Internal Server Error",
+    probableCauses: [
+      "Excecao nao tratada no endpoint.",
+      "Dependencia critica indisponivel (DB/API externa/storage).",
+      "Dados inesperados sem validacao defensiva.",
+    ],
+    technicalChecks: [
+      "Correlacionar request com stack trace do backend.",
+      "Logar entrada e saida do endpoint com contexto.",
+      "Reproduzir com o mesmo payload.",
+    ],
+    recommendedActions: [
+      "Encapsular endpoint com try/catch e erro consistente.",
+      "Adicionar validacoes e fallback de dependencia.",
+    ],
+    commandHints: [
+      "rg -n \"throw new Error|try\\s*\\{|catch\\s*\\(\" src/app/api src/lib",
+      "rg -n \"db|prisma|supabase|axios|fetch\" src/app/api src/lib",
+    ],
+  },
+  502: {
+    subtype: "bad_gateway_upstream",
+    title: "HTTP 502 Bad Gateway",
+    probableCauses: [
+      "Gateway recebeu resposta invalida do upstream.",
+      "Servico upstream caiu/reiniciou.",
+      "Roteamento interno com falha.",
+    ],
+    technicalChecks: [
+      "Verificar saude do upstream no horario da falha.",
+      "Inspecionar logs de proxy/gateway.",
+      "Conferir timeout/keep-alive entre servicos.",
+    ],
+    recommendedActions: [
+      "Implementar retry seletivo para falha transiente.",
+      "Adicionar fallback para indisponibilidade parcial.",
+    ],
+    commandHints: [
+      "rg -n \"proxy|rewrites|upstream|gateway\" next.config.js src",
+      "rg -n \"fetch\\(|axios\\(\" src/app/api src/lib",
+    ],
+  },
+  503: {
+    subtype: "service_unavailable",
+    title: "HTTP 503 Service Unavailable",
+    probableCauses: [
+      "Servico em sobrecarga/manutencao.",
+      "Escalabilidade insuficiente para o pico.",
+      "Dependencia critica indisponivel.",
+    ],
+    technicalChecks: [
+      "Checar health checks e disponibilidade.",
+      "Analisar saturacao de CPU/memoria/conexoes.",
+      "Mapear backlog/filas de processamento.",
+    ],
+    recommendedActions: [
+      "Adicionar fallback com mensagem clara de indisponibilidade.",
+      "Ajustar autoscaling/protecao de carga.",
+    ],
+    commandHints: [
+      "rg -n \"health|ready|liveness|status\" src/app/api src/lib",
+      "rg -n \"queue|worker|retry|circuit\" src",
+    ],
+  },
+  504: {
+    subtype: "gateway_timeout",
+    title: "HTTP 504 Gateway Timeout",
+    probableCauses: [
+      "Upstream excedeu timeout do gateway.",
+      "Endpoint com operacao lenta.",
+      "Dependencia externa com latencia alta.",
+    ],
+    technicalChecks: [
+      "Mapear etapa lenta no trace da request.",
+      "Conferir timeout de gateway e backend.",
+      "Avaliar cache para leituras repetidas.",
+    ],
+    recommendedActions: [
+      "Otimizar trecho lento e reduzir encadeamento de chamadas.",
+      "Configurar timeout/retry com idempotencia.",
+    ],
+    commandHints: [
+      "rg -n \"timeout|AbortController|signal\" src",
+      "rg -n \"cache|revalidate|unstable_cache\" src/app src/lib",
+    ],
+  },
+};
+
+function diagnoseHttpStatus(status, method, requestUrl) {
+  const data = HTTP_STATUS_INTELLIGENCE[status];
+  const requestPath = tryParsePathname(requestUrl);
+  const isServerError = status >= 500;
+
+  const fallbackData = isServerError
+    ? {
+        subtype: "server_error_generic",
+        title: `HTTP ${status} Server Error`,
+        probableCauses: [
+          "Erro interno nao mapeado explicitamente.",
+          "Falha de dependencia intermitente.",
+          "Excecao nao tratada no backend.",
+        ],
+        technicalChecks: [
+          "Capturar stack trace e contexto da request.",
+          "Mapear dependencia que falhou.",
+          "Garantir resposta de erro padronizada.",
+        ],
+        recommendedActions: [
+          "Tratar excecoes no endpoint e reforcar logs.",
+          "Monitorar taxa de erro por rota.",
+        ],
+        commandHints: [
+          "rg -n \"throw new Error|console.error|try\\s*\\{|catch\\s*\\(\" src/app/api src/lib",
+        ],
+      }
+    : {
+        subtype: "client_error_generic",
+        title: `HTTP ${status} Client Error`,
+        probableCauses: [
+          "Contrato frontend/backend desalinhado.",
+          "Permissao/cabecalho/payload invalido.",
+          "Endpoint incorreto ou regra de negocio rejeitou a acao.",
+        ],
+        technicalChecks: [
+          "Comparar request real com contrato da API.",
+          "Verificar autenticacao/autorizacao.",
+          "Inspecionar detalhe do erro devolvido pelo backend.",
+        ],
+        recommendedActions: [
+          "Ajustar payload e validacoes.",
+          "Padronizar erros para feedback claro na UI.",
+        ],
+        commandHints: [
+          "rg -n \"fetch\\(|axios|Authorization|Content-Type\" src",
+          "rg -n \"schema|zod|validate|safeParse\" src/app/api src/lib",
+        ],
+      };
+
+  const selected = data ?? fallbackData;
+  return {
+    category: "http",
+    subtype: selected.subtype,
+    confidence: "high",
+    title: selected.title,
+    httpStatus: status,
+    method,
+    requestUrl,
+    requestPath,
+    failureText: "",
+    probableCauses: selected.probableCauses,
+    technicalChecks: selected.technicalChecks,
+    recommendedActions: selected.recommendedActions,
+    commandHints: selected.commandHints,
+    likelyAreas: ["src/app/api/**/route.ts", "src/lib/**"],
+    technicalExplanation: isServerError
+      ? "Erro HTTP 5xx retornado pela API, ligado a excecao de backend ou dependencia indisponivel."
+      : "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+    laymanExplanation: isServerError
+      ? "O servidor nao conseguiu concluir a operacao."
+      : "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+    recommendedResolution: selected.recommendedActions.join(" "),
+  };
+}
+
+function diagnoseNetworkFailure(method, requestUrl, failureText) {
+  const lower = String(failureText ?? "").toLowerCase();
+  const requestPath = tryParsePathname(requestUrl);
+  const base = {
+    category: "network",
+    subtype: "network_unknown",
+    confidence: "medium",
+    title: `Falha de rede em ${method || "fetch"}`,
+    httpStatus: null,
+    method,
+    requestUrl,
+    requestPath,
+    failureText,
+    probableCauses: [],
+    technicalChecks: [],
+    recommendedActions: [],
+    commandHints: [],
+    likelyAreas: ["src/lib/**", "src/app/api/**/route.ts", "src/components/**"],
+    technicalExplanation:
+      "A requisicao falhou antes de receber resposta HTTP valida. Normalmente envolve conectividade, CORS, DNS, certificado ou timeout.",
+    laymanExplanation:
+      "O app tentou buscar dados, mas nao conseguiu conversar com o servidor.",
+    recommendedResolution:
+      "Verificar conectividade, CORS e URL da API. Garantir fallback amigavel e opcao de tentar novamente.",
+  };
+
+  if (lower.includes("cors") || lower.includes("cross-origin")) {
+    return {
+      ...base,
+      subtype: "network_cors_blocked",
+      title: "Falha de rede: CORS bloqueado",
+      probableCauses: [
+        "Origin atual nao permitido no backend.",
+        "Preflight OPTIONS sem headers corretos.",
+        "Uso de credentials/cookies sem configuracao CORS.",
+      ],
+      technicalChecks: [
+        "Validar Access-Control-Allow-Origin/Methods/Headers.",
+        "Inspecionar resposta do preflight OPTIONS.",
+        "Revisar credentials e SameSite.",
+      ],
+      recommendedActions: [
+        "Permitir origin correto e headers necessarios.",
+        "Adicionar erro de CORS com explicacao na UI.",
+      ],
+      commandHints: [
+        "rg -n \"Access-Control-Allow|CORS|origin\" src/app/api src/lib",
+        "rg -n \"credentials|withCredentials|sameSite\" src",
+      ],
+    };
+  }
+
+  if (lower.includes("err_name_not_resolved") || lower.includes("dns") || lower.includes("name not resolved")) {
+    return {
+      ...base,
+      subtype: "network_dns_failure",
+      title: "Falha de rede: DNS",
+      probableCauses: [
+        "Hostname da API incorreto.",
+        "DNS do ambiente nao resolve o dominio.",
+        "Variavel de ambiente com URL invalida.",
+      ],
+      technicalChecks: [
+        "Conferir dominio configurado no fetch/baseUrl.",
+        "Testar resolucao DNS no ambiente de deploy.",
+        "Validar variaveis NEXT_PUBLIC/ENV por ambiente.",
+      ],
+      recommendedActions: [
+        "Corrigir host da API por ambiente.",
+        "Validar URL na inicializacao do app.",
+      ],
+      commandHints: [
+        "rg -n \"NEXT_PUBLIC|API_URL|baseUrl|baseURL\" src",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("err_cert") ||
+    lower.includes("ssl") ||
+    lower.includes("tls") ||
+    lower.includes("certificate")
+  ) {
+    return {
+      ...base,
+      subtype: "network_tls_certificate",
+      title: "Falha de rede: TLS/SSL",
+      probableCauses: [
+        "Certificado invalido/expirado.",
+        "Dominio nao corresponde ao certificado.",
+        "Handshake TLS falhando no host/proxy.",
+      ],
+      technicalChecks: [
+        "Validar certificado e cadeia de confianca.",
+        "Checar expiracao/SAN do dominio.",
+        "Revisar configuracao HTTPS do host/proxy.",
+      ],
+      recommendedActions: [
+        "Renovar/corrigir certificado da API.",
+        "Eliminar chamadas mixed-content.",
+      ],
+      commandHints: [
+        "rg -n \"https://|http://\" src",
+        "rg -n \"proxy|rewrites|headers\" next.config.js src",
+      ],
+    };
+  }
+
+  if (lower.includes("timeout") || lower.includes("timed out") || lower.includes("err_timed_out")) {
+    return {
+      ...base,
+      subtype: "network_timeout",
+      title: "Falha de rede: timeout",
+      probableCauses: [
+        "Servidor demorou alem do limite.",
+        "Rede com latencia alta/instavel.",
+        "Sem timeout/retry controlado no cliente.",
+      ],
+      technicalChecks: [
+        "Medir latencia da API no horario da falha.",
+        "Auditar timeout de fetch/proxy.",
+        "Verificar retries com backoff.",
+      ],
+      recommendedActions: [
+        "Aplicar AbortController + retry idempotente.",
+        "Exibir estado de reconexao para o usuario.",
+      ],
+      commandHints: [
+        "rg -n \"AbortController|signal|timeout|retry|backoff\" src",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("err_connection_refused") ||
+    lower.includes("econnrefused") ||
+    lower.includes("connection refused")
+  ) {
+    return {
+      ...base,
+      subtype: "network_connection_refused",
+      title: "Falha de rede: conexao recusada",
+      probableCauses: [
+        "Servico destino nao esta ativo na porta.",
+        "Host/porta incorretos no endpoint.",
+        "Firewall/rede bloqueando a conexao.",
+      ],
+      technicalChecks: [
+        "Conferir host e porta configurados.",
+        "Verificar se o servico esta no ar.",
+        "Checar bloqueios de rede/firewall.",
+      ],
+      recommendedActions: [
+        "Corrigir endpoint e health checks.",
+        "Adicionar fallback de indisponibilidade na UI.",
+      ],
+      commandHints: [
+        "rg -n \"127.0.0.1|localhost|API_URL|PORT\" src qa",
+      ],
+    };
+  }
+
+  if (lower.includes("err_blocked_by_client")) {
+    return {
+      ...base,
+      subtype: "network_blocked_by_client",
+      title: "Falha de rede: bloqueio no cliente",
+      probableCauses: [
+        "Extensao de navegador bloqueou o recurso.",
+        "Filtro corporativo bloqueia o dominio.",
+        "Recurso classificado como tracking/ad.",
+      ],
+      technicalChecks: [
+        "Reproduzir em navegador limpo sem extensoes.",
+        "Verificar se recurso bloqueado e essencial.",
+        "Mapear dominio e tipo do recurso bloqueado.",
+      ],
+      recommendedActions: [
+        "Remover dependencia critica de recurso bloqueavel.",
+        "Criar fallback quando recurso opcional falhar.",
+      ],
+      commandHints: [
+        "rg -n \"analytics|track|pixel|ads\" src",
+      ],
+    };
+  }
+
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror") ||
+    lower.includes("load failed") ||
+    lower.includes("err_failed")
+  ) {
+    return {
+      ...base,
+      subtype: "network_fetch_failed",
+      title: "Falha de rede: fetch falhou",
+      probableCauses: [
+        "Conectividade com endpoint falhou.",
+        "Erro de CORS/DNS/TLS sem detalhe claro.",
+        "Cancelamento/abort nao tratado.",
+      ],
+      technicalChecks: [
+        "Inspecionar request no DevTools > Network.",
+        "Correlacionar com logs do backend/proxy.",
+        "Registrar codigo interno para classe de erro.",
+      ],
+      recommendedActions: [
+        "Tratar falhas de fetch com mensagem + retry.",
+        "Melhorar observabilidade do erro de rede.",
+      ],
+      commandHints: [
+        "rg -n \"fetch\\(|try\\s*\\{|catch\\s*\\(\" src",
+        "rg -n \"setError|toast|fallback|retry\" src/components src/app",
+      ],
+    };
+  }
+
+  return {
+    ...base,
+    probableCauses: [
+      "Falha de rede sem assinatura especifica.",
+      "Infraestrutura instavel ou endpoint indisponivel.",
+      "Timeout/cancelamento sem tratamento explicito.",
+    ],
+    technicalChecks: [
+      "Inspecionar request no Network e logs do servidor.",
+      "Validar DNS, CORS, TLS e disponibilidade do endpoint.",
+      "Garantir fallback de erro de comunicacao na UI.",
+    ],
+    recommendedActions: [
+      "Adicionar retries idempotentes com backoff.",
+      "Padronizar telemetria de erro de rede.",
+    ],
+    commandHints: [
+      "rg -n \"fetch\\(|axios|AbortController|signal\" src",
+    ],
+  };
+}
+
+function diagnoseRuntimeSignal(code, detail) {
+  const normalized = normalizeText(detail);
+  const lower = normalized.toLowerCase();
+  const base = {
+    category: code === CODE.CONSOLE_ERROR ? "console" : "runtime",
+    subtype: "runtime_unknown",
+    confidence: "medium",
+    title: code === CODE.CONSOLE_ERROR ? "Erro no console do navegador" : "Erro de runtime no navegador",
+    httpStatus: null,
+    method: "",
+    requestUrl: "",
+    requestPath: "",
+    failureText: normalized,
+    probableCauses: [],
+    technicalChecks: [],
+    recommendedActions: [],
+    commandHints: [],
+    likelyAreas: ["src/components/**", "src/app/**", "src/lib/**"],
+    technicalExplanation:
+      "Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.",
+    laymanExplanation:
+      "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+    recommendedResolution:
+      "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.",
+  };
+
+  const resourceStatus = lower.match(/status of (\d{3})/);
+  if (resourceStatus) {
+    const status = Number(resourceStatus[1]);
+    if (Number.isFinite(status) && status >= 400) {
+      const httpView = diagnoseHttpStatus(status, "GET", "");
+      return {
+        ...httpView,
+        category: "console_http",
+        subtype: `console_http_${status}`,
+        title: `Console reportou recurso com HTTP ${status}`,
+        confidence: "high",
+      };
+    }
+  }
+
+  if (
+    lower.includes("failed to fetch") ||
+    lower.includes("networkerror when attempting to fetch resource")
+  ) {
+    return {
+      ...base,
+      subtype: "runtime_fetch_unhandled",
+      title: "Runtime sem tratamento para falha de fetch",
+      probableCauses: [
+        "fetch rejeitou e nao houve tratamento adequado.",
+        "Promise rejection sem fallback da UI.",
+        "Erro de resposta quebrou fluxo da tela.",
+      ],
+      technicalChecks: [
+        "Envolver fetch com try/catch e validar response.ok.",
+        "Garantir estado de erro/loading no fluxo da tela.",
+        "Registrar endpoint/status no erro de frontend.",
+      ],
+      recommendedActions: [
+        "Padronizar tratamento de fetch no frontend.",
+        "Exibir mensagem de erro com opcao de tentar novamente.",
+      ],
+      commandHints: [
+        "rg -n \"fetch\\(|response\\.ok|try\\s*\\{|catch\\s*\\(\" src",
+        "rg -n \"useEffect\\(|setError|toast|fallback\" src/components src/app",
+      ],
+    };
+  }
+
+  if (lower.includes("cannot read properties of") || lower.includes("null is not an object")) {
+    return {
+      ...base,
+      subtype: "runtime_null_undefined_access",
+      title: "Acesso invalido a null/undefined",
+      probableCauses: [
+        "Dados assincronos nao carregados antes do uso.",
+        "Objeto opcional sem guarda.",
+        "Mudanca de contrato de dados sem ajuste na UI.",
+      ],
+      technicalChecks: [
+        "Mapear variavel nula no stack trace.",
+        "Adicionar guard clauses antes do acesso.",
+        "Garantir valor default para estado assicrono.",
+      ],
+      recommendedActions: [
+        "Aplicar optional chaining e fallback de render.",
+        "Cobrir com teste de estado vazio/erro/loading.",
+      ],
+      commandHints: [
+        "rg -n \"\\?\\.|null|undefined\" src/components src/app src/lib",
+      ],
+    };
+  }
+
+  if (lower.includes("is not a function")) {
+    return {
+      ...base,
+      subtype: "runtime_type_mismatch_function",
+      title: "Tipo invalido: valor nao e funcao",
+      probableCauses: [
+        "Import/prop errado sobrescrevendo callback.",
+        "Valor esperado como funcao veio undefined/string.",
+        "API/objeto alterado sem atualizar chamadas.",
+      ],
+      technicalChecks: [
+        "Inspecionar origem do callback no stack trace.",
+        "Validar tipo de props/retornos antes de invocar.",
+        "Conferir imports default vs named.",
+      ],
+      recommendedActions: [
+        "Corrigir assinatura/tipagem da funcao.",
+        "Adicionar guarda quando callback for opcional.",
+      ],
+      commandHints: [
+        "rg -n \"onClick|callback|props|is not a function\" src/components src/app",
+        "rg -n \"export default|export const|import .* from\" src",
+      ],
+    };
+  }
+
+  if (lower.includes("is not defined")) {
+    return {
+      ...base,
+      subtype: "runtime_reference_not_defined",
+      title: "Referencia nao definida",
+      probableCauses: [
+        "Variavel usada sem declaracao/import.",
+        "Dependencia carregada fora de ordem.",
+        "Uso de API de browser fora de ambiente client.",
+      ],
+      technicalChecks: [
+        "Mapear simbolo ausente no stack trace.",
+        "Checar imports/escopo da variavel.",
+        "Validar guard de ambiente para window/document.",
+      ],
+      recommendedActions: [
+        "Declarar/importar simbolo corretamente.",
+        "Proteger codigo browser-only para SSR.",
+      ],
+      commandHints: [
+        "rg -n \"window\\.|document\\.|navigator\\.|localStorage\" src/components src/app",
+        "rg -n \"typeof window|is not defined\" src",
+      ],
+    };
+  }
+
+  if (lower.includes("hydration")) {
+    return {
+      ...base,
+      subtype: "runtime_hydration_mismatch",
+      title: "Hydration mismatch",
+      probableCauses: [
+        "HTML server/client diferente no primeiro render.",
+        "Uso de data nao deterministica no SSR.",
+        "Leitura de estado browser no render server.",
+      ],
+      technicalChecks: [
+        "Comparar markup de server e client no componente.",
+        "Mover efeitos browser para useEffect.",
+        "Remover fontes de variacao no primeiro render.",
+      ],
+      recommendedActions: [
+        "Sincronizar estado inicial entre server e client.",
+        "Isolar trechos client-only com guard apropriado.",
+      ],
+      commandHints: [
+        "rg -n \"use client|useEffect|Date\\(|Math\\.random|window\\.\" src/app src/components",
+      ],
+    };
+  }
+
+  if (lower.includes("chunkloaderror") || lower.includes("loading chunk")) {
+    return {
+      ...base,
+      subtype: "runtime_chunk_load_error",
+      title: "Falha ao carregar chunk",
+      probableCauses: [
+        "Deploy novo com cache antigo no navegador.",
+        "Chunk inexistente apos nova build.",
+        "CDN servindo assets desatualizados.",
+      ],
+      technicalChecks: [
+        "Validar politica de cache de _next/static.",
+        "Reproduzir em janela anonima/sem cache.",
+        "Conferir integridade dos assets de deploy.",
+      ],
+      recommendedActions: [
+        "Ajustar invalidacao de cache no deploy.",
+        "Adicionar fallback para reload controlado.",
+      ],
+      commandHints: [
+        "rg -n \"next.config|cache-control|headers\" .",
+      ],
+    };
+  }
+
+  return {
+    ...base,
+    probableCauses: [
+      "Erro de runtime/console sem assinatura especifica.",
+      "Excecao nao tratada em render ou evento.",
+      "Dados inesperados sem validacao defensiva.",
+    ],
+    technicalChecks: [
+      "Usar stack trace para chegar no arquivo/linha.",
+      "Adicionar guard clauses no trecho que falha.",
+      "Reexecutar fluxo e confirmar ausencia do erro.",
+    ],
+    recommendedActions: [
+      "Aprimorar tratamento de erro no frontend.",
+      "Criar teste de regressao para o fluxo quebrado.",
+    ],
+    commandHints: [
+      "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib",
+    ],
+  };
+}
+
+function inferIssueIntelligence(input, guide) {
+  const detail = normalizeText(input.detail);
+  const fallback = {
+    category: "generic",
+    subtype: "generic",
+    confidence: "low",
+    title: input.code,
+    httpStatus: null,
+    method: "",
+    requestUrl: "",
+    requestPath: "",
+    failureText: "",
+    probableCauses: [],
+    technicalChecks: [],
+    recommendedActions: [],
+    commandHints: [],
+    likelyAreas: [],
+    technicalExplanation: guide.technical,
+    laymanExplanation: guide.layman,
+    recommendedResolution: guide.recommendation,
+  };
+
+  let rich = null;
+
+  if (input.code === CODE.HTTP_4XX || input.code === CODE.HTTP_5XX) {
+    const parsed = parseHttpDetail(detail);
+    if (parsed) {
+      rich = diagnoseHttpStatus(parsed.status, parsed.method, parsed.requestUrl);
+    }
+  } else if (input.code === CODE.NET_REQUEST_FAILED) {
+    const parsed = parseRequestFailedDetail(detail);
+    if (parsed) {
+      rich = diagnoseNetworkFailure(parsed.method, parsed.requestUrl, parsed.failureText);
+    } else {
+      rich = diagnoseNetworkFailure("", "", detail);
+    }
+  } else if (input.code === CODE.JS_RUNTIME_ERROR || input.code === CODE.CONSOLE_ERROR) {
+    rich = diagnoseRuntimeSignal(input.code, detail);
+  } else if (input.code === CODE.ROUTE_LOAD_FAIL) {
+    const lower = detail.toLowerCase();
+    if (lower.includes("timeout")) {
+      rich = {
+        category: "routing",
+        subtype: "route_timeout",
+        confidence: "high",
+        title: "Falha de carga por timeout",
+        httpStatus: null,
+        method: "",
+        requestUrl: input.url ?? "",
+        requestPath: tryParsePathname(input.url ?? ""),
+        failureText: detail,
+        probableCauses: [
+          "Rota depende de backend lento ou indisponivel.",
+          "Middleware com redirecionamento em loop.",
+          "Render bloqueado por erro silencioso.",
+        ],
+        technicalChecks: [
+          "Reproduzir rota com logs ativos.",
+          "Medir tempo de resposta do carregamento inicial.",
+          "Inspecionar middleware e chamadas fetch da pagina.",
+        ],
+        recommendedActions: [
+          "Otimizar carregamento e incluir fallback de loading/erro.",
+          "Corrigir loop de redirect/middleware quando existir.",
+        ],
+        commandHints: [
+          "rg -n \"middleware|redirect\\(|notFound\\(|fetch\\(\" src/app src",
+        ],
+        likelyAreas: ["src/app/**", "src/middleware.ts", "src/app/api/**/route.ts"],
+        technicalExplanation:
+          "A rota excedeu o tempo limite de carga, indicando gargalo de backend/render ou loop de navegacao.",
+        laymanExplanation:
+          "A pagina demorou demais para abrir e aparentou travar.",
+        recommendedResolution:
+          "Identificar a etapa lenta no fluxo e corrigir para que a rota abra no tempo esperado.",
+      };
+    }
+  }
+
+  const merged = {
+    ...fallback,
+    ...(rich ?? {}),
+  };
+
+  merged.probableCauses = uniqueNormalizedLines(merged.probableCauses, 8);
+  merged.technicalChecks = uniqueNormalizedLines(merged.technicalChecks, 8);
+  merged.recommendedActions = uniqueNormalizedLines(merged.recommendedActions, 8);
+  merged.commandHints = uniqueNormalizedLines(merged.commandHints, 8);
+  merged.likelyAreas = uniqueNormalizedLines(merged.likelyAreas, 8);
+
+  if (!merged.recommendedResolution) {
+    merged.recommendedResolution = merged.recommendedActions.join(" ");
+  }
+
+  return merged;
+}
+
 function emitLiveEvent(args, type, payload = {}) {
   if (!args?.liveLog) return;
   const event = { ts: nowIso(), type, ...payload };
@@ -477,7 +1489,7 @@ function normalizeConfig(config, configDir) {
 }
 
 function buildIssueFixPrompt(issue) {
-  return [
+  const lines = [
     "Atue como engenheiro de software senior focado em causa raiz.",
     "Corrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.",
     "",
@@ -500,44 +1512,39 @@ function buildIssueFixPrompt(issue) {
     "- mudancas de codigo",
     "- resumo da causa raiz",
     "- como validar que foi resolvido",
-  ].join("\n");
+  ];
+
+  if (issue.diagnosis?.title) {
+    lines.splice(10, 0, `Classificacao inteligente: ${issue.diagnosis.title} (${issue.diagnosis.subtype})`);
+  }
+  if (issue.diagnosis?.probableCauses?.length) {
+    lines.push("");
+    lines.push("Causas provaveis detectadas:");
+    for (const cause of issue.diagnosis.probableCauses.slice(0, 5)) {
+      lines.push(`- ${cause}`);
+    }
+  }
+  if (issue.diagnosis?.technicalChecks?.length) {
+    lines.push("");
+    lines.push("Checks tecnicos sugeridos:");
+    for (const check of issue.diagnosis.technicalChecks.slice(0, 5)) {
+      lines.push(`- ${check}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
-function mkIssue(input) {
-  const guide = ISSUE_GUIDE[input.code] ?? {
+function guideForIssueCode(code) {
+  return ISSUE_GUIDE[code] ?? {
     technical: "Sem descricao tecnica definida para este codigo.",
     layman: "Foi detectada uma inconsistenca que precisa de revisao.",
     recommendation: "Revisar logs e fluxo afetado para aplicar correcao orientada a causa raiz.",
   };
-  const issue = {
-    id: shortHash(`${input.code}|${input.route}|${input.action ?? ""}|${input.detail}`),
-    code: input.code,
-    severity: input.severity,
-    route: input.route,
-    action: input.action ?? "",
-    detail: input.detail,
-    url: input.url ?? "",
-    timestamp: nowIso(),
-    technicalExplanation: guide.technical,
-    laymanExplanation: guide.layman,
-    recommendedResolution: guide.recommendation,
-    assistantHint: buildIssueActionHint({
-      code: input.code,
-      severity: input.severity,
-      route: input.route,
-      action: input.action ?? "",
-      detail: input.detail,
-      recommendedResolution: guide.recommendation,
-    }),
-  };
-  issue.recommendedPrompt = buildIssueFixPrompt(issue);
-  return issue;
 }
 
-function pushIssue(report, input) {
-  const issue = mkIssue(input);
-  report.issues.push(issue);
-  report.issueLog.push({
+function createIssueLogEntry(issue) {
+  return {
     timestamp: issue.timestamp,
     code: issue.code,
     severity: issue.severity,
@@ -548,7 +1555,67 @@ function pushIssue(report, input) {
     recommendedResolution: issue.recommendedResolution,
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
+    diagnosis: issue.diagnosis,
+  };
+}
+
+function hydrateIssue(rawIssue) {
+  const guide = guideForIssueCode(rawIssue.code);
+  const diagnosis = rawIssue.diagnosis ?? inferIssueIntelligence(rawIssue, guide);
+
+  const issue = {
+    id:
+      rawIssue.id ??
+      shortHash(`${rawIssue.code}|${rawIssue.route}|${rawIssue.action ?? ""}|${rawIssue.detail}`),
+    code: rawIssue.code,
+    severity: rawIssue.severity ?? severityFromCode(rawIssue.code),
+    route: rawIssue.route ?? "/",
+    action: rawIssue.action ?? "",
+    detail: rawIssue.detail ?? "",
+    url: rawIssue.url ?? "",
+    timestamp: rawIssue.timestamp ?? nowIso(),
+    diagnosis,
+    technicalExplanation:
+      rawIssue.technicalExplanation ?? diagnosis.technicalExplanation ?? guide.technical,
+    laymanExplanation:
+      rawIssue.laymanExplanation ?? diagnosis.laymanExplanation ?? guide.layman,
+    recommendedResolution:
+      rawIssue.recommendedResolution ?? diagnosis.recommendedResolution ?? guide.recommendation,
+  };
+
+  issue.assistantHint =
+    rawIssue.assistantHint ??
+    buildIssueActionHint(
+      {
+        code: issue.code,
+        severity: issue.severity,
+        route: issue.route,
+        action: issue.action,
+        detail: issue.detail,
+        recommendedResolution: issue.recommendedResolution,
+      },
+      diagnosis,
+    );
+  issue.recommendedPrompt = rawIssue.recommendedPrompt ?? buildIssueFixPrompt(issue);
+
+  return issue;
+}
+
+function mkIssue(input) {
+  return hydrateIssue({
+    code: input.code,
+    severity: input.severity,
+    route: input.route,
+    action: input.action ?? "",
+    detail: input.detail,
+    url: input.url ?? "",
   });
+}
+
+function pushIssue(report, input) {
+  const issue = mkIssue(input);
+  report.issues.push(issue);
+  report.issueLog.push(createIssueLogEntry(issue));
 }
 
 function severityFromCode(code) {
@@ -591,13 +1658,26 @@ function playbookForCode(code) {
   };
 }
 
-function buildIssueActionHint(issue) {
+function buildIssueActionHint(issue, diagnosis = null) {
   const playbook = playbookForCode(issue.code);
+  const mergedChecks = uniqueNormalizedLines(
+    [...(diagnosis?.technicalChecks ?? []), ...(playbook.firstChecks ?? [])],
+    8,
+  );
+  const mergedCommands = uniqueNormalizedLines(
+    [...(diagnosis?.commandHints ?? []), ...(playbook.commandHints ?? [])],
+    8,
+  );
+  const mergedAreas = uniqueNormalizedLines(
+    [...(diagnosis?.likelyAreas ?? []), ...(playbook.likelyAreas ?? [])],
+    8,
+  );
+
   return {
     priority: playbook.priority,
-    firstChecks: playbook.firstChecks,
-    commandHints: playbook.commandHints,
-    likelyAreas: playbook.likelyAreas,
+    firstChecks: mergedChecks,
+    commandHints: mergedCommands,
+    likelyAreas: mergedAreas,
   };
 }
 
@@ -676,8 +1756,9 @@ function buildAssistantGuide(report) {
       route: issue.route,
       action: issue.action,
       detail: issue.detail,
+      diagnosis: issue.diagnosis,
       recommendedResolution: issue.recommendedResolution,
-      assistantHint: issue.assistantHint ?? buildIssueActionHint(issue),
+      assistantHint: issue.assistantHint ?? buildIssueActionHint(issue, issue.diagnosis),
     })),
   };
 }
@@ -713,6 +1794,9 @@ function toAssistantBrief(report) {
     for (const issue of guide.topIssues) {
       lines.push(`- [${issue.code}] (${issue.severity}) ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}`);
       lines.push(`  detalhe: ${issue.detail}`);
+      if (issue.diagnosis?.title) {
+        lines.push(`  diagnostico: ${issue.diagnosis.title} [${issue.diagnosis.subtype}]`);
+      }
       lines.push(`  resolucao: ${issue.recommendedResolution}`);
       lines.push(`  prioridade: ${issue.assistantHint.priority}`);
       lines.push(`  checks: ${issue.assistantHint.firstChecks.join(" | ")}`);
@@ -800,6 +1884,25 @@ function buildPromptPack(issues) {
     );
   }
 
+  const intelligenceRows = issues
+    .filter((issue) => issue.diagnosis?.title)
+    .slice(0, 30)
+    .map((issue) => {
+      const action = issue.action ? ` -> ${issue.action}` : "";
+      const subtype = issue.diagnosis?.subtype ?? "generic";
+      return `- ${issue.route}${action} | ${issue.diagnosis.title} [${subtype}] | ${issue.detail}`;
+    });
+  if (intelligenceRows.length) {
+    prompts.push(
+      [
+        "Use a classificacao inteligente para atacar causa raiz de fetch/network/http/runtime.",
+        "Para cada item: confirmar causa, aplicar fix robusto e validar com replay da auditoria.",
+        "Diagnosticos capturados:",
+        intelligenceRows.join("\n"),
+      ].join("\n"),
+    );
+  }
+
   const masterPrompt = [
     "Atue como engenheiro de software senior e corrija todas as issues listadas abaixo com foco em causa raiz.",
     "Nao aplique correcoes cosmeticas. Garanta comportamento funcional correto em desktop e mobile.",
@@ -830,6 +1933,19 @@ function laymanSummaryByCode(issues) {
     grouped.get(issue.code).count += 1;
   }
   return Array.from(grouped.entries()).map(([code, info]) => ({ code, ...info }));
+}
+
+function intelligenceSummaryBySubtype(issues) {
+  const grouped = new Map();
+  for (const issue of issues) {
+    const title = issue.diagnosis?.title ?? issue.code;
+    const subtype = issue.diagnosis?.subtype ?? "generic";
+    const key = `${subtype}|${title}`;
+    const prev = grouped.get(key) ?? { subtype, title, count: 0 };
+    prev.count += 1;
+    grouped.set(key, prev);
+  }
+  return Array.from(grouped.values()).sort((a, b) => b.count - a.count || a.title.localeCompare(b.title));
 }
 
 function toMarkdown(report) {
@@ -890,6 +2006,17 @@ function toMarkdown(report) {
     }
   }
   lines.push("");
+  lines.push("## Inteligencia De Erros");
+  lines.push("");
+  const intelligenceSummary = intelligenceSummaryBySubtype(report.issues);
+  if (!intelligenceSummary.length) {
+    lines.push("- Sem classificacoes adicionais nesta rodada.");
+  } else {
+    for (const row of intelligenceSummary.slice(0, 20)) {
+      lines.push(`- [${row.subtype}] ${row.title} -> ${row.count} ocorrencia(s)`);
+    }
+  }
+  lines.push("");
   lines.push("## Progresso");
   lines.push("");
   lines.push(`- Proxima rota indice: ${report.progress.nextRouteIndex}`);
@@ -906,9 +2033,18 @@ function toMarkdown(report) {
     for (const issue of report.issues) {
       const issuePrompt = issue.recommendedPrompt ?? buildIssueFixPrompt(issue);
       lines.push(`- [${issue.code}] (${issue.severity}) ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}: ${issue.detail}`);
+      if (issue.diagnosis?.title) {
+        lines.push(`  - Classificacao: ${issue.diagnosis.title} [${issue.diagnosis.subtype}]`);
+      }
       lines.push(`  - Tecnico: ${issue.technicalExplanation}`);
       lines.push(`  - Leigo: ${issue.laymanExplanation}`);
       lines.push(`  - Resolucao recomendada: ${issue.recommendedResolution}`);
+      if (issue.diagnosis?.probableCauses?.length) {
+        lines.push(`  - Causas provaveis: ${issue.diagnosis.probableCauses.join(" | ")}`);
+      }
+      if (issue.diagnosis?.recommendedActions?.length) {
+        lines.push(`  - Acoes recomendadas: ${issue.diagnosis.recommendedActions.join(" | ")}`);
+      }
       lines.push(`  - Prioridade de ataque: ${issue.assistantHint?.priority ?? "P2"}`);
       if (issue.assistantHint?.firstChecks?.length) {
         lines.push(`  - Checks iniciais: ${issue.assistantHint.firstChecks.join(" | ")}`);
@@ -964,6 +2100,13 @@ function toIssueLog(report) {
       [
         `[${entry.timestamp}] [${entry.severity}] [${entry.code}] ${entry.route}${entry.action ? ` -> ${entry.action}` : ""}`,
         `detalhe: ${entry.detail}`,
+        `diagnostico_titulo: ${entry.diagnosis?.title ?? "n/a"}`,
+        `diagnostico_subtipo: ${entry.diagnosis?.subtype ?? "generic"}`,
+        `diagnostico_confianca: ${entry.diagnosis?.confidence ?? "low"}`,
+        `diagnostico_http_status: ${entry.diagnosis?.httpStatus ?? "n/a"}`,
+        `diagnostico_request: ${entry.diagnosis?.method ?? ""} ${entry.diagnosis?.requestPath ?? entry.diagnosis?.requestUrl ?? ""}`.trim(),
+        `diagnostico_causas: ${(entry.diagnosis?.probableCauses ?? []).join(" | ")}`,
+        `diagnostico_acoes: ${(entry.diagnosis?.recommendedActions ?? []).join(" | ")}`,
         `leigo: ${entry.laymanExplanation}`,
         `resolucao_recomendada: ${entry.recommendedResolution}`,
         `prioridade_assistente: ${entry.assistantHint?.priority ?? "P2"}`,
@@ -1443,22 +2586,8 @@ function shouldPauseByTime(runStartedAt, maxRunMs) {
 
 function finalizeReport(report, paused) {
   report.issues = dedupeIssues(report.issues);
-  report.issues = report.issues.map((issue) => ({
-    ...issue,
-    assistantHint: issue.assistantHint ?? buildIssueActionHint(issue),
-  }));
-  report.issueLog = report.issues.map((issue) => ({
-    timestamp: issue.timestamp,
-    code: issue.code,
-    severity: issue.severity,
-    route: issue.route,
-    action: issue.action,
-    detail: issue.detail,
-    laymanExplanation: issue.laymanExplanation,
-    recommendedResolution: issue.recommendedResolution,
-    recommendedPrompt: issue.recommendedPrompt ?? buildIssueFixPrompt(issue),
-    assistantHint: issue.assistantHint ?? buildIssueActionHint(issue),
-  }));
+  report.issues = report.issues.map((issue) => hydrateIssue(issue));
+  report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
