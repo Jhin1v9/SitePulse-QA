@@ -452,6 +452,211 @@ function persistLastReport(raw: unknown) {
   }
 }
 
+function splitLogList(value: string) {
+  return String(value ?? "")
+    .split(/\s+\|\s+|\s+\|\|\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function extractBaseUrlFromLog(text: string) {
+  const urlMatch = text.match(/URL:\s*(https?:\/\/[^\s]+)/i) ?? text.match(/https?:\/\/[^\s)]+/i);
+  if (!urlMatch) return REPORT_FALLBACK_URL;
+  try {
+    return new URL(urlMatch[1] ?? urlMatch[0]).origin;
+  } catch {
+    return REPORT_FALLBACK_URL;
+  }
+}
+
+function parseIssueLogToReport(text: string, source: string) {
+  const lines = String(text ?? "").replace(/\r/g, "").split("\n");
+  const issues: Array<Record<string, unknown>> = [];
+  let current: Record<string, unknown> | null = null;
+  let currentField = "";
+  let inPrompt = false;
+
+  const flushCurrent = () => {
+    if (!current) return;
+    issues.push(current);
+    current = null;
+    currentField = "";
+    inPrompt = false;
+  };
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const headerMatch = line.match(/^\[([^\]]+)\]\s+\[(high|medium|low)\]\s+\[([A-Z0-9_]+)\]\s+(\S+)(?:\s+->\s+(.*))?$/);
+    if (headerMatch) {
+      flushCurrent();
+      current = {
+        id: `log-${issues.length + 1}`,
+        timestamp: headerMatch[1],
+        severity: headerMatch[2],
+        code: headerMatch[3],
+        route: headerMatch[4],
+        action: headerMatch[5] ?? "",
+        assistantHint: {},
+      };
+      continue;
+    }
+
+    if (!current) continue;
+
+    if (line.startsWith("prompt_correcao:")) {
+      inPrompt = true;
+      current.recommendedPrompt = line.slice("prompt_correcao:".length).trim();
+      currentField = "recommendedPrompt";
+      continue;
+    }
+
+    const keyValueMatch = line.match(/^([a-z_]+):\s*(.*)$/i);
+    if (keyValueMatch) {
+      inPrompt = false;
+      currentField = keyValueMatch[1];
+      current[currentField] = keyValueMatch[2];
+      continue;
+    }
+
+    if (!line.trim()) {
+      if (inPrompt) {
+        current.recommendedPrompt = `${String(current.recommendedPrompt ?? "")}\n`;
+      }
+      continue;
+    }
+
+    if (inPrompt) {
+      const prev = String(current.recommendedPrompt ?? "");
+      current.recommendedPrompt = prev ? `${prev}\n${line}` : line;
+      continue;
+    }
+
+    if (currentField) {
+      current[currentField] = `${String(current[currentField] ?? "")} ${line}`.trim();
+    }
+  }
+
+  flushCurrent();
+
+  if (!issues.length) return null;
+
+  const baseUrl = extractBaseUrlFromLog(text);
+  const routesChecked = new Set(issues.map((issue) => String(issue.route ?? "/"))).size;
+  const buttonsChecked = issues.filter((issue) => String(issue.action ?? "").trim()).length;
+  const codeCount = (code: string) => issues.filter((issue) => String(issue.code ?? "") === code).length;
+  const grouped = new Map<string, number>();
+  for (const issue of issues) {
+    const code = String(issue.code ?? "UNKNOWN");
+    grouped.set(code, (grouped.get(code) ?? 0) + 1);
+  }
+  const groupedTop = [...grouped.entries()].sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const normalizedIssues = issues.map((issue, index) => {
+    const detail = String(issue.detalhe ?? "Sem detalhe.");
+    const checks = splitLogList(String(issue.checks_assistente ?? ""));
+    const commandHints = splitLogList(String(issue.comandos_assistente ?? ""));
+    const priority = String(issue.prioridade_assistente ?? "");
+    const technicalTitle = String(issue.diagnostico_titulo ?? "");
+    const technicalSubtype = String(issue.diagnostico_subtipo ?? "");
+    const technicalExplanation = [
+      technicalTitle,
+      technicalSubtype ? `subtipo: ${technicalSubtype}` : "",
+      detail,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+
+    return {
+      id: String(issue.id ?? `log-issue-${index + 1}`),
+      code: String(issue.code ?? "UNKNOWN"),
+      severity: parseSeverity(issue.severity, String(issue.code ?? "")),
+      route: String(issue.route ?? "/"),
+      action: String(issue.action ?? ""),
+      detail,
+      recommendedResolution: String(issue.resolucao_recomendada ?? "Revisar logs e corrigir causa raiz."),
+      laymanExplanation: String(issue.leigo ?? ""),
+      technicalExplanation,
+      recommendedPrompt: String(issue.recommendedPrompt ?? ""),
+      assistantHint: {
+        priority: priority === "P0" || priority === "P1" || priority === "P2" ? priority : undefined,
+        firstChecks: checks,
+        commandHints,
+        likelyAreas: [],
+      },
+    };
+  });
+
+  const dominantIssue = groupedTop[0];
+  const quickPrompt =
+    typeof normalizedIssues[0]?.recommendedPrompt === "string" && normalizedIssues[0].recommendedPrompt.trim()
+      ? normalizedIssues[0].recommendedPrompt
+      : `Atue como engenheiro senior. Corrija primeiro ${dominantIssue?.[0] ?? "a falha principal"} e revalide com nova auditoria.`;
+
+  return {
+    meta: {
+      project: "sitepulse-log-import",
+      baseUrl,
+      generatedAt: nowIso(),
+      startedAt: nowIso(),
+      finishedAt: nowIso(),
+      source,
+    },
+    summary: {
+      routesChecked,
+      routeLoadFailures: codeCount("ROUTE_LOAD_FAIL"),
+      buttonsChecked,
+      actionsMapped: buttonsChecked,
+      actionsWithEffect: 0,
+      actionsNoEffectDetected: codeCount("BTN_NO_EFFECT"),
+      actionsFailed: codeCount("BTN_CLICK_ERROR"),
+      actionsAnalysisOnly: 0,
+      buttonsNoEffect: codeCount("BTN_NO_EFFECT"),
+      http4xx: codeCount("HTTP_4XX"),
+      http5xx: codeCount("HTTP_5XX"),
+      netRequestFailed: codeCount("NET_REQUEST_FAILED"),
+      jsRuntimeErrors: codeCount("JS_RUNTIME_ERROR"),
+      consoleErrors: codeCount("CONSOLE_ERROR"),
+      visualSectionOrderInvalid: codeCount("VISUAL_SECTION_ORDER_INVALID"),
+      visualSectionMissing: codeCount("VISUAL_SECTION_MISSING"),
+      seoScore: 0,
+      seoPagesAnalyzed: 0,
+      seoCriticalIssues: 0,
+      seoTotalIssues: 0,
+      totalIssues: normalizedIssues.length,
+    },
+    assistantGuide: {
+      replayCommand: "Rode novamente via CMD para validar o fix e gerar novo report/issue log.",
+      immediateSteps: groupedTop.length
+        ? groupedTop.map(([code, count], index) => `Prioridade ${index + 1}: tratar ${code} (${count} ocorrencias).`)
+        : ["Importe um novo log ou gere uma rodada completa para continuar."],
+      quickStartPrompt: quickPrompt,
+    },
+    actionSweep: [],
+    seo: {
+      overallScore: 0,
+      pagesAnalyzed: 0,
+      categoryScore: {
+        technical: 0,
+        content: 0,
+        accessibility: 0,
+      },
+      issues: [],
+      topRecommendations: [],
+    },
+    issues: normalizedIssues,
+  };
+}
+
+function parseImportedPayload(text: string, source: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  try {
+    return JSON.parse(trimmed) as unknown;
+  } catch {
+    return parseIssueLogToReport(trimmed, source);
+  }
+}
+
 function issueFingerprint(issue: { code: string; route: string; action: string }) {
   return `${issue.code}|${issue.route}|${issue.action || "_"}`;
 }
@@ -1444,23 +1649,22 @@ function PageContent() {
     const file = event.target.files?.[0];
     if (!file) return;
     const text = await file.text();
-    try {
-      const parsed = JSON.parse(text);
+    const parsed = parseImportedPayload(text, file.name);
+    if (parsed) {
       applyReport(parsed, file.name);
-    } catch {
-      pushLog("[report] could not parse selected file");
-    } finally {
-      event.target.value = "";
+    } else {
+      pushLog("[report] could not parse selected file (json/log unsupported)");
     }
+    event.target.value = "";
   }
 
   function importFromPaste() {
     if (!jsonPaste.trim()) return;
-    try {
-      const parsed = JSON.parse(jsonPaste);
+    const parsed = parseImportedPayload(jsonPaste, "paste");
+    if (parsed) {
       applyReport(parsed, "paste");
-    } catch {
-      pushLog("[report] paste is not valid json");
+    } else {
+      pushLog("[report] pasted content is not valid json/log");
     }
   }
 
@@ -1803,25 +2007,25 @@ function PageContent() {
                   Carregar exemplo
                 </button>
                 <button type="button" onClick={() => fileInputRef.current?.click()}>
-                  Importar JSON
+                  Importar JSON ou LOG
                 </button>
               </div>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="application/json,.json"
+                accept="application/json,.json,.log,.txt,text/plain"
                 style={{ display: "none" }}
                 onChange={onReportFileChange}
               />
 
               <div className="field">
-                <label>Paste JSON report</label>
+                <label>Colar JSON ou log do CMD</label>
                 <textarea
                   rows={5}
                   value={jsonPaste}
                   onChange={(e) => setJsonPaste(e.target.value)}
-                  placeholder='Cole o JSON completo aqui e clique em "Aplicar JSON".'
+                  placeholder='Cole o JSON completo ou o log parcial/final do CMD aqui e clique em "Aplicar".'
                 />
               </div>
               <div className="btn-row">
@@ -1831,7 +2035,7 @@ function PageContent() {
                   onClick={importFromPaste}
                   disabled={!pasteReady}
                 >
-                  Aplicar JSON
+                  Aplicar
                 </button>
               </div>
             </div>
