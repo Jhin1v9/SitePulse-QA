@@ -18,6 +18,30 @@ const SERVERLESS_ENV_KEYS = [
   "LAMBDA_TASK_ROOT",
   "SITEPULSE_FORCE_SERVERLESS_CHROMIUM",
 ];
+const STATIC_ASSET_EXTENSIONS = [
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".svg",
+  ".ico",
+  ".avif",
+  ".bmp",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".otf",
+  ".eot",
+  ".mp4",
+  ".webm",
+  ".mp3",
+  ".wav",
+];
+const TELEMETRY_DOMAINS = [
+  "google-analytics.com",
+  "googletagmanager.com",
+];
 
 const CODE = {
   ROUTE_LOAD_FAIL: "ROUTE_LOAD_FAIL",
@@ -2683,6 +2707,68 @@ function resolveWritableReportPaths(reportDir, checkpointFile) {
   };
 }
 
+function pathFromUrl(input) {
+  if (!input) return "";
+  try {
+    return new URL(input).pathname.toLowerCase();
+  } catch {
+    return String(input).toLowerCase();
+  }
+}
+
+function isTelemetryRequestUrl(requestUrl) {
+  const lower = String(requestUrl ?? "").toLowerCase();
+  return TELEMETRY_DOMAINS.some((domain) => lower.includes(domain));
+}
+
+function isLikelyStaticAssetRequest(requestUrl, resourceType) {
+  const lowerType = String(resourceType ?? "").toLowerCase();
+  if (["image", "media", "font", "stylesheet"].includes(lowerType)) {
+    return true;
+  }
+  const pathname = pathFromUrl(requestUrl);
+  if (pathname.includes("/assets/images/")) {
+    return true;
+  }
+  return STATIC_ASSET_EXTENSIONS.some((ext) => pathname.endsWith(ext));
+}
+
+function shouldIgnoreRequestFailureNoise(input) {
+  const failureLower = String(input.failureText ?? "").toLowerCase();
+  if (!failureLower) return false;
+
+  if (isTelemetryRequestUrl(input.requestUrl)) {
+    return true;
+  }
+
+  if (input.serverlessMode && failureLower.includes("err_insufficient_resources")) {
+    if (isLikelyStaticAssetRequest(input.requestUrl, input.resourceType)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function shouldIgnoreConsoleNoise(detail, serverlessMode) {
+  const lower = String(detail ?? "").toLowerCase();
+  if (!lower) return false;
+
+  const analyticsCspBlocked =
+    lower.includes("google-analytics.com") &&
+    lower.includes("content security policy");
+
+  if (analyticsCspBlocked) {
+    return true;
+  }
+
+  if (serverlessMode && lower.includes("failed to load resource") && lower.includes("err_insufficient_resources")) {
+    return true;
+  }
+
+  return false;
+}
+
 async function resolveChromiumLaunchPlan(args) {
   const defaultPlan = {
     engine: "playwright",
@@ -2806,6 +2892,7 @@ async function run() {
     requestsFinished: 0,
     dialogs: 0,
   };
+  const serverlessMode = isServerlessRuntime();
 
   let browser = null;
 
@@ -2849,12 +2936,16 @@ async function run() {
 
     page.on("console", (msg) => {
       if (msg.type() !== "error") return;
+      const detail = normalizeText(msg.text()) || "Erro de console.";
+      if (shouldIgnoreConsoleNoise(detail, serverlessMode)) {
+        return;
+      }
       pushIssue(report, {
         code: CODE.CONSOLE_ERROR,
         severity: severityFromCode(CODE.CONSOLE_ERROR),
         route: currentRoute,
         action: currentAction,
-        detail: normalizeText(msg.text()) || "Erro de console.",
+        detail,
         url: page.url(),
       });
     });
@@ -2867,12 +2958,24 @@ async function run() {
       const failure = request.failure()?.errorText ?? "request_failed";
       const ignored = cfg.ignoredRequestFailedErrors.some((token) => failure.toLowerCase().includes(token));
       if (ignored) return;
+      const requestUrl = request.url();
+      const requestResourceType = typeof request.resourceType === "function" ? request.resourceType() : "";
+      if (
+        shouldIgnoreRequestFailureNoise({
+          requestUrl,
+          resourceType: requestResourceType,
+          failureText: failure,
+          serverlessMode,
+        })
+      ) {
+        return;
+      }
       pushIssue(report, {
         code: CODE.NET_REQUEST_FAILED,
         severity: severityFromCode(CODE.NET_REQUEST_FAILED),
         route: currentRoute,
         action: currentAction,
-        detail: `${request.method()} ${request.url()} :: ${failure}`,
+        detail: `${request.method()} ${requestUrl} :: ${failure}`,
         url: page.url(),
       });
     });
