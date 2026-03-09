@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type Mode = "desktop" | "mobile";
 type Severity = "high" | "medium" | "low";
@@ -82,6 +82,7 @@ type CmdLaunchResponse = {
 
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
+const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
 const DEMO_USERS = [
   { username: "admin", password: "admin123" },
   { username: "mobile", password: "mobile123" },
@@ -271,6 +272,14 @@ function mapHealthChip(health: "idle" | "ok" | "bad") {
   if (health === "ok") return { label: "API OK", className: "dot ok" };
   if (health === "bad") return { label: "API com erro", className: "dot bad" };
   return { label: "API nao verificada", className: "dot" };
+}
+
+function persistLastReport(raw: unknown) {
+  try {
+    localStorage.setItem(LAST_REPORT_STORAGE_KEY, JSON.stringify(raw));
+  } catch {
+    // ignore storage errors
+  }
 }
 
 function classifyAuditNotice(input: {
@@ -470,6 +479,7 @@ function classifyAuditNotice(input: {
 }
 
 function PageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const autoLogin = searchParams.get("autologin") === "1";
   const selfAudit = searchParams.get("selfaudit") === "1";
@@ -524,6 +534,13 @@ function PageContent() {
   const riskScore = useMemo(() => scoreFromIssues(report?.issues ?? []), [report]);
   const healthChip = mapHealthChip(health);
 
+  function openReportPage(focus?: "routes" | "buttons" | "issues" | "risk") {
+    const params = new URLSearchParams();
+    if (focus) params.set("foco", focus);
+    const suffix = params.toString() ? `?${params.toString()}` : "";
+    router.push(`/relatorio${suffix}`);
+  }
+
   function pushLog(line: string) {
     setLogs((prev) => [`${new Date().toLocaleTimeString()} ${line}`, ...prev].slice(0, 140));
   }
@@ -570,6 +587,7 @@ function PageContent() {
     const normalized = normalizeReport(data);
     setReportRaw(data);
     setReport(normalized);
+    persistLastReport(data);
     setAuditNotice(null);
     setSeverityFilter("all");
     setSearch("");
@@ -705,6 +723,7 @@ function PageContent() {
       const normalized = normalizeReport(raw);
       setReportRaw(raw);
       setReport(normalized);
+      persistLastReport(raw);
       setAuditNotice(null);
       setSeverityFilter("all");
       setSearch("");
@@ -951,22 +970,22 @@ function PageContent() {
               ) : null}
 
               <div className="metrics">
-                <div className="metric">
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("routes")}>
                   <div className="value">{report?.summary.routesChecked ?? 0}</div>
                   <div className="label">Rotas</div>
-                </div>
-                <div className="metric">
+                </button>
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("buttons")}>
                   <div className="value">{report?.summary.buttonsChecked ?? 0}</div>
                   <div className="label">Botoes</div>
-                </div>
-                <div className="metric">
+                </button>
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("issues")}>
                   <div className="value">{report?.summary.totalIssues ?? 0}</div>
                   <div className="label">Problemas</div>
-                </div>
-                <div className="metric">
+                </button>
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("risk")}>
                   <div className="value">{riskScore}</div>
                   <div className="label">Risco</div>
-                </div>
+                </button>
               </div>
 
               <div>

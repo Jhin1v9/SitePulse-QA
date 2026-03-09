@@ -342,6 +342,19 @@ button:disabled {
   background: rgba(8, 12, 20, 0.76);
 }
 
+.metric-action {
+  width: 100%;
+  text-align: left;
+  border-radius: 13px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(8, 12, 20, 0.76);
+}
+
+.metric-action:hover {
+  border-color: rgba(101, 240, 197, 0.52);
+}
+
 .metric .value {
   font-size: 25px;
   font-weight: 800;
@@ -540,6 +553,49 @@ button:disabled {
   margin-bottom: 2px;
 }
 
+.btn-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(91, 189, 255, 0.46);
+  border-radius: 999px;
+  padding: 9px 13px;
+  color: #edf5ff;
+  text-decoration: none;
+  font-weight: 600;
+  background: linear-gradient(120deg, rgba(17, 45, 92, 0.8), rgba(17, 33, 62, 0.92));
+  transition: transform 140ms ease, filter 140ms ease, border-color 140ms ease;
+}
+
+.btn-link:hover {
+  filter: brightness(1.09);
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.report-wrap {
+  width: min(1200px, 94vw);
+  margin: 0 auto;
+  padding: 26px 0 40px;
+  position: relative;
+  display: grid;
+  gap: 14px;
+}
+
+.report-card {
+  overflow: hidden;
+}
+
+.report-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.report-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -630,5 +686,10 @@ button:disabled {
 
   .metrics {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .report-wrap {
+    width: min(98vw, 98vw);
+    padding: 16px 0 34px;
   }
 }
