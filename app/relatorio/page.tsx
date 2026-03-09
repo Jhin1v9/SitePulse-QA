@@ -652,6 +652,8 @@ function ReportPageContent() {
   const [report, setReport] = useState<ReportModel | null>(null);
   const [rawText, setRawText] = useState("");
   const [showDev, setShowDev] = useState(false);
+  const [showErrorAnalysis, setShowErrorAnalysis] = useState(true);
+  const [showSeoAnalysis, setShowSeoAnalysis] = useState(true);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [actionSearch, setActionSearch] = useState("");
   const [actionStatusFilter, setActionStatusFilter] = useState("all");
@@ -724,6 +726,16 @@ function ReportPageContent() {
     if (!report) return "";
     return report.seo.fixPrompt || buildSeoPrompt(report);
   }, [report]);
+
+  const topTechnicalIssues = useMemo(() => {
+    if (!report || !showErrorAnalysis) return [];
+    return report.issues.slice(0, 6);
+  }, [report, showErrorAnalysis]);
+
+  const topSeoIssues = useMemo(() => {
+    if (!report || !showSeoAnalysis) return [];
+    return report.seo.issues.slice(0, 6);
+  }, [report, showSeoAnalysis]);
 
   async function copySeoPrompt() {
     if (!seoFixPrompt) return;
@@ -814,6 +826,106 @@ function ReportPageContent() {
           </div>
         </article>
 
+        <article className="card report-card reveal d2">
+          <header className="card-head">
+            <h2 className="card-title">Analise geral (possiveis erros + SEO)</h2>
+          </header>
+          <div className="card-body">
+            <div className="btn-row">
+              <label className="checkbox">
+                <input type="checkbox" checked={showErrorAnalysis} onChange={(e) => setShowErrorAnalysis(e.target.checked)} />
+                Mostrar possiveis erros
+              </label>
+              <label className="checkbox">
+                <input type="checkbox" checked={showSeoAnalysis} onChange={(e) => setShowSeoAnalysis(e.target.checked)} />
+                Mostrar SEO
+              </label>
+            </div>
+
+            {!showErrorAnalysis && !showSeoAnalysis ? (
+              <div className="issue">
+                <p className="small muted">Marque pelo menos uma opcao para montar a analise geral.</p>
+              </div>
+            ) : (
+              <>
+                <div className="metrics report-metrics">
+                  {showErrorAnalysis ? (
+                    <>
+                      <div className="metric">
+                        <div className="value">{report.summary.totalIssues}</div>
+                        <div className="label">Possiveis erros</div>
+                      </div>
+                      <div className="metric">
+                        <div className="value">{score}</div>
+                        <div className="label">Risco tecnico</div>
+                      </div>
+                    </>
+                  ) : null}
+                  {showSeoAnalysis ? (
+                    <>
+                      <div className="metric">
+                        <div className="value">{report.seo.overallScore}</div>
+                        <div className="label">SEO score</div>
+                      </div>
+                      <div className="metric">
+                        <div className="value">{report.summary.seoCriticalIssues}</div>
+                        <div className="label">SEO critico</div>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+
+                <div className="assistant-block">
+                  <p className="small muted" style={{ marginTop: 0 }}>
+                    {showErrorAnalysis && showSeoAnalysis
+                      ? "Leitura combinada: funcionamento do site + pontos que afetam o Google."
+                      : showSeoAnalysis
+                      ? "Modo SEO: esta leitura mostra apenas o que afeta indexacao, conteudo e estrutura para busca."
+                      : "Modo erros tecnicos: esta leitura mostra apenas falhas de funcionamento, fluxo e interface."}
+                  </p>
+                </div>
+
+                <div className="comparison-grid">
+                  {showErrorAnalysis ? (
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>Possiveis erros principais</p>
+                      {topTechnicalIssues.length ? (
+                        <ul className="assistant-list">
+                          {topTechnicalIssues.map((issue) => (
+                            <li key={`general-issue-${issue.id}`}>
+                              <strong>{issue.group}:</strong> {currentAction(issue)} | corrigir: {issue.recommendedResolution}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="small muted">Nenhum erro tecnico relevante nesta rodada.</p>
+                      )}
+                    </div>
+                  ) : null}
+
+                  {showSeoAnalysis ? (
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>Principais pontos de SEO</p>
+                      {topSeoIssues.length ? (
+                        <ul className="assistant-list">
+                          {topSeoIssues.map((seoIssue) => (
+                            <li key={`general-seo-${seoIssue.code}`}>
+                              <strong>{seoIssue.code}:</strong> {seoIssue.detail} | melhorar: {seoIssue.recommendation}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="small muted">Nenhum problema SEO relevante nesta rodada.</p>
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </>
+            )}
+          </div>
+        </article>
+
+        {showErrorAnalysis ? (
         <article id="sec-routes" className="card report-card reveal d2">
           <header className="card-head">
             <h2 className="card-title">Rotas averiguadas</h2>
@@ -830,7 +942,9 @@ function ReportPageContent() {
             </div>
           </div>
         </article>
+        ) : null}
 
+        {showErrorAnalysis ? (
         <article id="sec-buttons" className="card report-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Botoes e Acoes</h2>
@@ -856,7 +970,9 @@ function ReportPageContent() {
             </p>
           </div>
         </article>
+        ) : null}
 
+        {showErrorAnalysis ? (
         <article id="sec-actions" className="card report-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Mapa Humanizado De Acoes</h2>
@@ -929,7 +1045,9 @@ function ReportPageContent() {
             ) : null}
           </div>
         </article>
+        ) : null}
 
+        {showErrorAnalysis ? (
         <article id="sec-issues" className="card report-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Problemas encontrados</h2>
@@ -1017,7 +1135,9 @@ function ReportPageContent() {
             </div>
           </div>
         </article>
+        ) : null}
 
+        {showSeoAnalysis ? (
         <article id="sec-seo" className="card report-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Analise SEO Total</h2>
@@ -1106,7 +1226,9 @@ function ReportPageContent() {
             </div>
           </div>
         </article>
+        ) : null}
 
+        {showErrorAnalysis ? (
         <article id="sec-risk" className="card report-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Risco</h2>
@@ -1128,6 +1250,7 @@ function ReportPageContent() {
             </div>
           </div>
         </article>
+        ) : null}
 
         {showDev ? (
           <article className="card report-card reveal">
