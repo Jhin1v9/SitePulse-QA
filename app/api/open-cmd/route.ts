@@ -76,12 +76,12 @@ export async function POST(req: NextRequest) {
     `node ${runnerEntry} --config "${config}" --fresh --live-log --human-log --base-url "${safeQuoted(baseUrl)}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`,
   ];
   const runner = cmdParts.join(" && ");
-  const startCommand = `start "SitePulse QA" cmd /k "${safeQuoted(runner)}"`;
+  const argList = `/k "${safeQuoted(runner)}"`;
+  const nonElevatedPsScript = `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}'`;
   const recommendedCommand = `cd /d "${qaDir}" && node ${runnerEntry.replace(/\\/g, "/")} --config "${config}" --fresh --live-log --human-log --base-url "${baseUrl}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`;
 
-  let launchPreview = startCommand;
+  let launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${nonElevatedPsScript}"`;
   if (elevated) {
-    const argList = `/k "${safeQuoted(runner)}"`;
     launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'"`;
   }
 
@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
 
   let child;
   if (elevated) {
-    const argList = `/k "${safeQuoted(runner)}"`;
     const psScript = `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'`;
     child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
       detached: true,
@@ -108,7 +107,7 @@ export async function POST(req: NextRequest) {
       windowsHide: false,
     });
   } else {
-    child = spawn("cmd.exe", ["/c", startCommand], {
+    child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", nonElevatedPsScript], {
       detached: true,
       stdio: "ignore",
       windowsHide: false,

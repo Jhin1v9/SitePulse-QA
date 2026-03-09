@@ -233,10 +233,10 @@ function openCmdWindow(input) {
     `node ${command.runnerEntry.replace(/\//g, "\\")} --config \"${command.config}\" --fresh --live-log --human-log --base-url \"${safeQuoted(input.baseUrl)}\"${input.noServer !== false ? " --no-server" : ""}${input.headed === true ? " --headed" : ""}`,
   ];
   const runner = cmdParts.join(" && ");
-  const startCommand = `start \"SitePulse QA\" cmd /k \"${safeQuoted(runner)}\"`;
+  const argList = `/k \"${safeQuoted(runner)}\"`;
+  const nonElevatedPsScript = `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}'`;
 
   if (input.elevated === true) {
-    const argList = `/k \"${safeQuoted(runner)}\"`;
     const psScript = `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}'`;
     const elevatedChild = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], {
       detached: true,
@@ -255,7 +255,7 @@ function openCmdWindow(input) {
     };
   }
 
-  const child = spawn("cmd.exe", ["/c", startCommand], {
+  const child = spawn("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", nonElevatedPsScript], {
     detached: true,
     stdio: "ignore",
     windowsHide: false,
@@ -265,7 +265,7 @@ function openCmdWindow(input) {
     ok: true,
     message: "Janela CMD aberta com a auditoria configurada.",
     mode: command.mode,
-    command: startCommand,
+    command: nonElevatedPsScript,
     recommendedCommand: command.recommendedCommand,
     elevated: false,
     fullAudit: input.fullAudit !== false,
