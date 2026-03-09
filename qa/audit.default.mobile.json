@@ -18,6 +18,8 @@
   "discoverFromSitemap": true,
   "discoverMenuLinks": true,
   "maxDiscoveredRoutes": 60,
+  "maxActionsPerRoute": 200,
+  "maxActionRoutes": 0,
   "requireButtonEffect": true,
   "allowedNoEffectButtonContains": [
     "whatsapp",

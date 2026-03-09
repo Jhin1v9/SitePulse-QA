@@ -1646,6 +1646,12 @@ function normalizeConfig(config, configDir) {
     maxDiscoveredRoutes: Number.isFinite(Number(config.maxDiscoveredRoutes))
       ? Math.max(1, Number(config.maxDiscoveredRoutes))
       : 40,
+    maxActionsPerRoute: Number.isFinite(Number(config.maxActionsPerRoute))
+      ? Math.max(1, Number(config.maxActionsPerRoute))
+      : 200,
+    maxActionRoutes: Number.isFinite(Number(config.maxActionRoutes))
+      ? Math.max(0, Number(config.maxActionRoutes))
+      : 0,
     ignoredRequestFailedErrors: (config.ignoredRequestFailedErrors ?? ["ERR_ABORTED"]).map((item) =>
       String(item).toLowerCase(),
     ),
@@ -3159,7 +3165,15 @@ async function run() {
   };
   const baseOrigin = new URL(cfg.baseUrl).origin;
 
-  const maxRunMs = args.maxRunMs ?? (cfg.maxRunMs > 0 ? cfg.maxRunMs : 0);
+  let maxRunMs = args.maxRunMs ?? (cfg.maxRunMs > 0 ? cfg.maxRunMs : 0);
+  const serverlessMode = isServerlessRuntime();
+  if (serverlessMode) {
+    if (maxRunMs <= 0 || maxRunMs > 55000) {
+      maxRunMs = 55000;
+    }
+    cfg.maxActionsPerRoute = Math.min(cfg.maxActionsPerRoute, 20);
+    cfg.maxActionRoutes = cfg.maxActionRoutes > 0 ? Math.min(cfg.maxActionRoutes, 1) : 1;
+  }
 
   if (args.fresh) {
     await clearCheckpoint(cfg.checkpointFile);
@@ -3202,7 +3216,6 @@ async function run() {
     requestsFinished: 0,
     dialogs: 0,
   };
-  const serverlessMode = isServerlessRuntime();
 
   let browser = null;
 
@@ -3412,8 +3425,26 @@ async function run() {
       if (cfg.discoverMenuLinks) {
         await tryExpandNavigationMenus(page).catch(() => undefined);
       }
-      const labels = await extractButtonLabels(page, baseOrigin);
-      routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, labels.length);
+      const discoveredLabels = await extractButtonLabels(page, baseOrigin);
+      const labels =
+        cfg.maxActionsPerRoute > 0
+          ? discoveredLabels.slice(0, Math.min(discoveredLabels.length, cfg.maxActionsPerRoute))
+          : discoveredLabels;
+      routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, discoveredLabels.length);
+
+      const shouldAuditActions = cfg.maxActionRoutes <= 0 || routeIndex < cfg.maxActionRoutes;
+      if (!shouldAuditActions) {
+        emitLiveEvent(args, "button_route_skipped", {
+          route,
+          action: "button_sweep",
+          detail: "route_limit",
+        });
+        report.progress.nextRouteIndex = routeIndex + 1;
+        report.progress.nextLabelIndex = 0;
+        await saveCheckpoint(cfg.checkpointFile, report);
+        clicksSinceLastCheckpoint = 0;
+        continue;
+      }
 
       let labelStartIndex = routeIndex === report.progress.nextRouteIndex ? report.progress.nextLabelIndex : 0;
       if (labelStartIndex < 0) labelStartIndex = 0;
