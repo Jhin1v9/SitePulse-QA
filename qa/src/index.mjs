@@ -2394,8 +2394,8 @@ async function runSectionOrderChecks(page, route, cfg) {
   return findings.filter((item) => item.status !== "ok");
 }
 
-function extractButtonLabels(page) {
-  return page.evaluate(() => {
+function extractButtonLabels(page, baseOrigin) {
+  return page.evaluate((origin) => {
     const isVisible = (el) => {
       const style = window.getComputedStyle(el);
       if (!style || style.visibility === "hidden" || style.display === "none") return false;
@@ -2403,19 +2403,56 @@ function extractButtonLabels(page) {
       return rect.width > 0 && rect.height > 0;
     };
 
-    const all = Array.from(document.querySelectorAll("button"));
+    const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+    const hasInternalHref = (value) => {
+      const href = clean(value);
+      if (!href) return false;
+      if (href.startsWith("#")) return true;
+      if (href.startsWith("/")) return true;
+      if (href.startsWith("?")) return true;
+      if (/^mailto:|^tel:|^javascript:/i.test(href)) return false;
+      try {
+        const url = new URL(href, window.location.href);
+        return url.origin === origin;
+      } catch {
+        return false;
+      }
+    };
+    const all = Array.from(
+      document.querySelectorAll(
+        [
+          "button",
+          "a[href]",
+          '[role="button"]',
+          '[role="link"]',
+          '[role="menuitem"]',
+          '[role="tab"]',
+          "summary",
+          'input[type="button"]',
+          'input[type="submit"]',
+          "[onclick]",
+          "[data-action]",
+        ].join(","),
+      ),
+    );
     const labels = all
       .filter((el) => isVisible(el))
-      .map((el) => {
-        const text = (el.textContent ?? "").replace(/\s+/g, " ").trim();
-        const aria = (el.getAttribute("aria-label") ?? "").replace(/\s+/g, " ").trim();
-        const title = (el.getAttribute("title") ?? "").replace(/\s+/g, " ").trim();
-        return text || aria || title || "";
+      .filter((el) => {
+        const tag = (el.tagName || "").toLowerCase();
+        if (tag === "a") return hasInternalHref(el.getAttribute("href"));
+        return true;
       })
-      .filter((label) => label.length > 0);
+      .map((el) => {
+        const text = clean(el.textContent);
+        const aria = clean(el.getAttribute("aria-label"));
+        const title = clean(el.getAttribute("title"));
+        const value = clean(el.getAttribute("value"));
+        return text || aria || title || value || "";
+      })
+      .filter((label) => label.length >= 2 && label.length <= 140);
 
-    return Array.from(new Set(labels));
-  });
+    return Array.from(new Set(labels)).slice(0, 180);
+  }, baseOrigin);
 }
 
 async function extractInternalRoutesFromPage(page, baseOrigin) {
@@ -2614,23 +2651,44 @@ async function fingerprint(page) {
 }
 
 async function clickButtonByLabel(page, label, cfg, counters) {
-  const strict = page.getByRole("button", { name: label, exact: true }).first();
-  let target = strict;
-  let visible = await strict.isVisible().catch(() => false);
+  const resolveTarget = async () => {
+    let sawDisabled = false;
+    const candidates = [
+      page.getByRole("button", { name: label, exact: true }).first(),
+      page.getByRole("button", { name: label }).first(),
+      page.getByRole("link", { name: label, exact: true }).first(),
+      page.getByRole("link", { name: label }).first(),
+      page.getByRole("menuitem", { name: label, exact: true }).first(),
+      page.getByRole("menuitem", { name: label }).first(),
+      page.getByRole("tab", { name: label, exact: true }).first(),
+      page.getByRole("tab", { name: label }).first(),
+    ];
 
-  if (!visible) {
-    const soft = page.getByRole("button", { name: label }).first();
-    visible = await soft.isVisible().catch(() => false);
-    target = soft;
+    for (const candidate of candidates) {
+      const visible = await candidate.isVisible().catch(() => false);
+      if (!visible) continue;
+      const enabled = await candidate.isEnabled().catch(() => true);
+      if (!enabled) {
+        sawDisabled = true;
+        continue;
+      }
+      return { target: candidate, sawDisabled };
+    }
+    return { target: null, sawDisabled };
+  };
+
+  let resolved = await resolveTarget();
+  let target = resolved.target;
+  if (!target) {
+    await tryExpandNavigationMenus(page).catch(() => undefined);
+    resolved = await resolveTarget();
+    target = resolved.target;
   }
-
-  if (!visible) {
-    return { ok: false, reason: "button_not_visible" };
-  }
-
-  const enabled = await target.isEnabled().catch(() => false);
-  if (!enabled) {
-    return { ok: false, reason: "button_disabled" };
+  if (!target) {
+    return {
+      ok: false,
+      reason: resolved.sawDisabled ? "button_disabled" : "button_not_visible",
+    };
   }
 
   const activeState = await target
@@ -2658,7 +2716,17 @@ async function clickButtonByLabel(page, label, cfg, counters) {
   const beforeReq = counters.requestsFinished;
   const beforeDialogs = counters.dialogs;
 
-  await target.click({ timeout: cfg.buttonClickTimeoutMs });
+  try {
+    await target.click({ timeout: cfg.buttonClickTimeoutMs });
+  } catch (error) {
+    const detail = normalizeText(String(error)).toLowerCase();
+    const canForce =
+      detail.includes("intercepts pointer events") ||
+      detail.includes("not receiving pointer events") ||
+      detail.includes("element is outside of the viewport");
+    if (!canForce) throw error;
+    await target.click({ timeout: cfg.buttonClickTimeoutMs, force: true });
+  }
   await page.waitForTimeout(cfg.clickWaitMs);
 
   const after = await fingerprint(page);
@@ -3089,6 +3157,7 @@ async function run() {
     ...cfgBase,
     baseUrl: args.baseUrlOverride ? String(args.baseUrlOverride) : cfgBase.baseUrl,
   };
+  const baseOrigin = new URL(cfg.baseUrl).origin;
 
   const maxRunMs = args.maxRunMs ?? (cfg.maxRunMs > 0 ? cfg.maxRunMs : 0);
 
@@ -3340,7 +3409,10 @@ async function run() {
         }
       }
 
-      const labels = await extractButtonLabels(page);
+      if (cfg.discoverMenuLinks) {
+        await tryExpandNavigationMenus(page).catch(() => undefined);
+      }
+      const labels = await extractButtonLabels(page, baseOrigin);
       routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, labels.length);
 
       let labelStartIndex = routeIndex === report.progress.nextRouteIndex ? report.progress.nextLabelIndex : 0;

@@ -10,7 +10,7 @@
   "viewportHeight": 844,
   "scrollEffectMinPx": 6,
   "sectionOrderWaitMs": 1400,
-  "maxRunMs": 180000,
+  "maxRunMs": 900000,
   "checkpointEveryClicks": 10,
   "reportDir": "reports",
   "checkpointFile": "reports/default-mobile-checkpoint.json",
