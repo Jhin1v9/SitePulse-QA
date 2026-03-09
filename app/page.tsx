@@ -80,6 +80,11 @@ type CmdLaunchResponse = {
   error?: string;
 };
 
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
+};
+
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
 const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
@@ -103,6 +108,10 @@ const ISSUE_GROUP: Record<string, string> = {
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function prependLog(previous: string[], line: string) {
+  return [`${new Date().toLocaleTimeString()} ${line}`, ...previous].slice(0, 140);
 }
 
 function parseSeverity(value: unknown, fallbackCode = ""): Severity {
@@ -505,9 +514,12 @@ function PageContent() {
   const [jsonPaste, setJsonPaste] = useState("");
   const [actionPulse, setActionPulse] = useState(0);
   const [auditNotice, setAuditNotice] = useState<AuditNotice | null>(null);
+  const [pwaReady, setPwaReady] = useState(false);
+  const [pwaInstalled, setPwaInstalled] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoginAppliedRef = useRef(false);
+  const installEventRef = useRef<InstallPromptEvent | null>(null);
 
   const directCmd = useMemo(() => makeCommand(mode, targetUrl, noServer, headed), [mode, targetUrl, noServer, headed]);
   const guidedCmd = useMemo(() => wizardCommand(mode, targetUrl, noServer, headed), [mode, targetUrl, noServer, headed]);
@@ -542,7 +554,34 @@ function PageContent() {
   }
 
   function pushLog(line: string) {
-    setLogs((prev) => [`${new Date().toLocaleTimeString()} ${line}`, ...prev].slice(0, 140));
+    setLogs((prev) => prependLog(prev, line));
+  }
+
+  async function installApp() {
+    if (pwaInstalled) {
+      pushLog("[pwa] app ja esta no modo instalado.");
+      return;
+    }
+
+    const deferredInstall = installEventRef.current;
+    if (!deferredInstall) {
+      pushLog("[pwa] instalacao direta indisponivel neste navegador.");
+      pushLog("[pwa] abra menu do navegador e use: Instalar app / Adicionar a tela inicial.");
+      return;
+    }
+
+    try {
+      await deferredInstall.prompt();
+      const choice = await deferredInstall.userChoice;
+      if (choice.outcome === "accepted") {
+        pushLog("[pwa] instalacao confirmada.");
+      } else {
+        pushLog("[pwa] instalacao cancelada.");
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "install_prompt_failed";
+      pushLog(`[pwa] falha ao abrir instalacao: ${message}`);
+    }
   }
 
   async function checkHealth() {
@@ -777,6 +816,68 @@ function PageContent() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLogin]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const navigatorWithStandalone = navigator as Navigator & { standalone?: boolean };
+    const getStandaloneMode = () =>
+      window.matchMedia("(display-mode: standalone)").matches || navigatorWithStandalone.standalone === true;
+
+    setPwaInstalled(getStandaloneMode());
+
+    const onBeforeInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      installEventRef.current = event as InstallPromptEvent;
+      setPwaReady(true);
+      setLogs((prev) => prependLog(prev, "[pwa] instalacao habilitada."));
+    };
+
+    const onAppInstalled = () => {
+      installEventRef.current = null;
+      setPwaReady(false);
+      setPwaInstalled(true);
+      setLogs((prev) => prependLog(prev, "[pwa] app instalado com sucesso."));
+    };
+
+    const onDisplayModeChange = () => {
+      setPwaInstalled(getStandaloneMode());
+    };
+
+    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt as EventListener);
+    window.addEventListener("appinstalled", onAppInstalled);
+
+    const displayMode = window.matchMedia("(display-mode: standalone)");
+    if (typeof displayMode.addEventListener === "function") {
+      displayMode.addEventListener("change", onDisplayModeChange);
+    } else if (typeof displayMode.addListener === "function") {
+      displayMode.addListener(onDisplayModeChange);
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then(() => {
+          setLogs((prev) => prependLog(prev, "[pwa] service worker ativo."));
+        })
+        .catch((error) => {
+          const message = error instanceof Error ? error.message : "sw_register_failed";
+          setLogs((prev) => prependLog(prev, `[pwa] falha service worker: ${message}`));
+        });
+    } else {
+      setLogs((prev) => prependLog(prev, "[pwa] navegador sem suporte a service worker."));
+    }
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt as EventListener);
+      window.removeEventListener("appinstalled", onAppInstalled);
+      if (typeof displayMode.removeEventListener === "function") {
+        displayMode.removeEventListener("change", onDisplayModeChange);
+      } else if (typeof displayMode.removeListener === "function") {
+        displayMode.removeListener(onDisplayModeChange);
+      }
+    };
+  }, []);
+
   if (!showDashboard) {
     return (
       <main className="page-shell">
@@ -844,6 +945,10 @@ function PageContent() {
               <span className={running ? "dot" : "dot ok"} />
               {running ? "auditoria em andamento" : "pronto"}
             </span>
+            <button type="button" className={`chip chip-action ${pwaInstalled ? "active" : ""}`} onClick={() => void installApp()}>
+              <span className={pwaInstalled || pwaReady ? "dot ok" : "dot"} />
+              {pwaInstalled ? "app instalado" : pwaReady ? "instalar app" : "modo app"}
+            </button>
           </div>
         </header>
 
