@@ -782,6 +782,31 @@ function diagnoseNetworkFailure(method, requestUrl, failureText) {
       "Verificar conectividade, CORS e URL da API. Garantir fallback amigavel e opcao de tentar novamente.",
   };
 
+  if (lower.includes("err_insufficient_resources")) {
+    return {
+      ...base,
+      subtype: "runtime_resource_limited",
+      title: "Limite de recursos no ambiente de auditoria",
+      probableCauses: [
+        "Ambiente serverless sem recursos suficientes para abrir/renderizar a pagina.",
+        "Bloqueio do site para trafego de datacenter/headless.",
+        "Pagina exige mais memoria/conexoes do que o runtime liberou.",
+      ],
+      technicalChecks: [
+        "Comparar execucao no servidor vs CMD local para a mesma URL.",
+        "Validar se o erro ocorre apenas em ambiente cloud/serverless.",
+        "Executar rodada local headed para confirmar comportamento real da pagina.",
+      ],
+      recommendedActions: [
+        "Usar auditoria completa via CMD local para diagnostico de botoes/layout.",
+        "No servidor, tratar como sinal de limite de runtime e manter fallback HTTP.",
+      ],
+      commandHints: [
+        "npm --prefix qa run audit:cmd -- --config \"audit.default.json\" --base-url \"https://SEU-SITE\" --no-server --fresh --live-log --human-log",
+      ],
+    };
+  }
+
   if (lower.includes("cors") || lower.includes("cross-origin")) {
     return {
       ...base,
@@ -1255,7 +1280,43 @@ function inferIssueIntelligence(input, guide) {
     rich = diagnoseRuntimeSignal(input.code, detail);
   } else if (input.code === CODE.ROUTE_LOAD_FAIL) {
     const lower = detail.toLowerCase();
-    if (lower.includes("timeout")) {
+    if (lower.includes("err_insufficient_resources")) {
+      rich = {
+        category: "routing",
+        subtype: "route_resource_limited",
+        confidence: "high",
+        title: "Falha de carga por limite de recursos",
+        httpStatus: null,
+        method: "",
+        requestUrl: input.url ?? "",
+        requestPath: tryParsePathname(input.url ?? ""),
+        failureText: detail,
+        probableCauses: [
+          "Ambiente serverless sem recursos suficientes para render da rota.",
+          "Bloqueio do dominio para ambiente headless de datacenter.",
+          "Dependencias da pagina exigem runtime mais robusto.",
+        ],
+        technicalChecks: [
+          "Rodar a mesma auditoria no CMD local com navegador real.",
+          "Comparar resultado com fallback HTTP para validar disponibilidade da URL.",
+          "Inspecionar se apenas a cloud falha e local passa.",
+        ],
+        recommendedActions: [
+          "Considerar resultado serverless como triagem inicial.",
+          "Usar CMD local para validacao final de interacoes e ordem visual.",
+        ],
+        commandHints: [
+          "npm --prefix qa run audit:cmd -- --config \"audit.default.json\" --base-url \"https://SEU-SITE\" --no-server --fresh --live-log --human-log",
+        ],
+        likelyAreas: ["qa/src/index.mjs", "app/api/run-plan/route.ts"],
+        technicalExplanation:
+          "A rota nao abriu no ambiente remoto por limite de recursos do runtime, nao necessariamente por erro funcional da pagina.",
+        laymanExplanation:
+          "No servidor remoto faltou recurso para carregar a pagina completa.",
+        recommendedResolution:
+          "Validar no CMD local para confirmar o comportamento real e usar servidor como triagem.",
+      };
+    } else if (lower.includes("timeout")) {
       rich = {
         category: "routing",
         subtype: "route_timeout",
