@@ -93,6 +93,39 @@ type ReportModel = {
   issues: IssueModel[];
 };
 
+type HistoryIssueModel = {
+  code: string;
+  severity: Severity;
+  route: string;
+  action: string;
+  detail: string;
+  recommendedResolution: string;
+};
+
+type ReportHistoryEntry = {
+  id: string;
+  savedAt: string;
+  source: string;
+  mode: Mode;
+  baseUrl: string;
+  summary: {
+    routesChecked: number;
+    buttonsChecked: number;
+    totalIssues: number;
+    riskScore: number;
+    seoScore: number;
+  };
+  issues: HistoryIssueModel[];
+  raw: unknown;
+  fingerprint: string;
+};
+
+type HistoryComparison = {
+  fixed: HistoryIssueModel[];
+  unresolved: HistoryIssueModel[];
+  added: HistoryIssueModel[];
+};
+
 type RunPlanResponse = {
   ok: boolean;
   mode: Mode;
@@ -145,6 +178,9 @@ type InstallPromptEvent = Event & {
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
 const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
+const CURRENT_REPORT_SESSION_KEY = "sitepulse:current-report-session-v1";
+const REPORT_HISTORY_STORAGE_KEY = "sitepulse:report-history-v1";
+const MAX_REPORT_HISTORY = 12;
 const LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:47891";
 const LOCAL_BRIDGE_START_COMMAND = "npm run audit:bridge";
 const DEMO_USERS = [
@@ -416,6 +452,228 @@ function persistLastReport(raw: unknown) {
   }
 }
 
+function issueFingerprint(issue: { code: string; route: string; action: string }) {
+  return `${issue.code}|${issue.route}|${issue.action || "_"}`;
+}
+
+function toHistoryIssue(issue: IssueModel): HistoryIssueModel {
+  return {
+    code: issue.code,
+    severity: issue.severity,
+    route: issue.route,
+    action: issue.action,
+    detail: issue.detail,
+    recommendedResolution: issue.recommendedResolution,
+  };
+}
+
+function reportFingerprint(report: Pick<ReportModel, "meta" | "summary" | "issues">) {
+  return [
+    report.meta.baseUrl,
+    report.summary.totalIssues,
+    report.summary.routesChecked,
+    report.summary.buttonsChecked,
+    report.issues.slice(0, 40).map((item) => issueFingerprint(item)).join(","),
+  ].join("|");
+}
+
+function buildHistoryEntry(report: ReportModel, raw: unknown, source: string, mode: Mode): ReportHistoryEntry {
+  const issues = report.issues.slice(0, 220).map(toHistoryIssue);
+  const fingerprint = reportFingerprint(report);
+
+  return {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    savedAt: nowIso(),
+    source,
+    mode,
+    baseUrl: report.meta.baseUrl,
+    summary: {
+      routesChecked: report.summary.routesChecked,
+      buttonsChecked: report.summary.buttonsChecked,
+      totalIssues: report.summary.totalIssues,
+      riskScore: scoreFromIssues(report.issues),
+      seoScore: report.summary.seoScore || report.seo.overallScore,
+    },
+    issues,
+    raw,
+    fingerprint,
+  };
+}
+
+function parseHistoryIssue(raw: unknown): HistoryIssueModel {
+  const item = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const code = String(item.code ?? "UNKNOWN");
+  return {
+    code,
+    severity: parseSeverity(item.severity, code),
+    route: String(item.route ?? "/"),
+    action: String(item.action ?? ""),
+    detail: String(item.detail ?? "Sem detalhe."),
+    recommendedResolution: String(item.recommendedResolution ?? "Revisar causa raiz."),
+  };
+}
+
+function parseHistoryEntry(raw: unknown, index: number): ReportHistoryEntry | null {
+  const item = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : null;
+  if (!item) return null;
+  const summaryRaw = item.summary && typeof item.summary === "object" ? (item.summary as Record<string, unknown>) : {};
+  const issuesRaw = Array.isArray(item.issues) ? item.issues : [];
+  const issues = issuesRaw.map(parseHistoryIssue);
+  const mode = item.mode === "mobile" ? "mobile" : "desktop";
+  const baseUrl = String(item.baseUrl ?? REPORT_FALLBACK_URL);
+  const totalIssues = toNumber(summaryRaw.totalIssues, issues.length);
+  const routesChecked = toNumber(summaryRaw.routesChecked, 0);
+  const buttonsChecked = toNumber(summaryRaw.buttonsChecked, 0);
+  const riskScore = toNumber(summaryRaw.riskScore, Math.min(100, totalIssues * 10));
+  const seoScore = toNumber(summaryRaw.seoScore, 0);
+  const source = String(item.source ?? "unknown");
+  const savedAt = String(item.savedAt ?? nowIso());
+  const fingerprint = String(
+    item.fingerprint ??
+    [
+      baseUrl,
+      totalIssues,
+      routesChecked,
+      buttonsChecked,
+      issues.slice(0, 40).map((issue) => issueFingerprint(issue)).join(","),
+    ].join("|"),
+  );
+
+  return {
+    id: String(item.id ?? `history-${index + 1}`),
+    savedAt,
+    source,
+    mode,
+    baseUrl,
+    summary: {
+      routesChecked,
+      buttonsChecked,
+      totalIssues,
+      riskScore,
+      seoScore,
+    },
+    issues,
+    raw: item.raw ?? null,
+    fingerprint,
+  };
+}
+
+function readHistoryStorage(): ReportHistoryEntry[] {
+  try {
+    const raw = localStorage.getItem(REPORT_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((item, index) => parseHistoryEntry(item, index))
+      .filter((item): item is ReportHistoryEntry => !!item)
+      .sort((a, b) => new Date(b.savedAt).getTime() - new Date(a.savedAt).getTime())
+      .slice(0, MAX_REPORT_HISTORY);
+  } catch {
+    return [];
+  }
+}
+
+function persistHistoryStorage(entries: ReportHistoryEntry[]) {
+  try {
+    localStorage.setItem(REPORT_HISTORY_STORAGE_KEY, JSON.stringify(entries.slice(0, MAX_REPORT_HISTORY)));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function persistCurrentSessionReport(raw: unknown) {
+  try {
+    sessionStorage.setItem(CURRENT_REPORT_SESSION_KEY, JSON.stringify(raw));
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function readCurrentSessionReport() {
+  try {
+    const raw = sessionStorage.getItem(CURRENT_REPORT_SESSION_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function clearCurrentSessionReport() {
+  try {
+    sessionStorage.removeItem(CURRENT_REPORT_SESSION_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function buildHistoryComparison(previous: ReportHistoryEntry, current: ReportModel): HistoryComparison {
+  const previousByKey = new Map<string, HistoryIssueModel>();
+  for (const issue of previous.issues) {
+    previousByKey.set(issueFingerprint(issue), issue);
+  }
+
+  const currentByKey = new Map<string, HistoryIssueModel>();
+  for (const issue of current.issues.map(toHistoryIssue)) {
+    currentByKey.set(issueFingerprint(issue), issue);
+  }
+
+  const fixed: HistoryIssueModel[] = [];
+  const unresolved: HistoryIssueModel[] = [];
+  const added: HistoryIssueModel[] = [];
+
+  for (const [key, issue] of previousByKey) {
+    if (currentByKey.has(key)) unresolved.push(issue);
+    else fixed.push(issue);
+  }
+  for (const [key, issue] of currentByKey) {
+    if (!previousByKey.has(key)) added.push(issue);
+  }
+
+  const bySeverity = { high: 0, medium: 1, low: 2 } as const;
+  const sorter = (a: HistoryIssueModel, b: HistoryIssueModel) =>
+    bySeverity[a.severity] - bySeverity[b.severity] || a.code.localeCompare(b.code);
+
+  return {
+    fixed: fixed.sort(sorter),
+    unresolved: unresolved.sort(sorter),
+    added: added.sort(sorter),
+  };
+}
+
+function buildAiComparisonPrompt(previous: ReportHistoryEntry, current: ReportModel, diff: HistoryComparison) {
+  const topUnresolved = diff.unresolved.slice(0, 8);
+  const topAdded = diff.added.slice(0, 8);
+
+  return [
+    "Atue como engenheiro senior com foco em causa raiz e execucao rapida.",
+    `Site: ${current.meta.baseUrl}`,
+    `Comparacao: report anterior ${previous.savedAt} vs atual ${current.meta.generatedAt}.`,
+    `Resumo: corrigidos=${diff.fixed.length}, pendentes=${diff.unresolved.length}, novos=${diff.added.length}.`,
+    "",
+    "Pendencias principais (P0/P1 primeiro):",
+    ...topUnresolved.map((item, idx) => `${idx + 1}. [${item.code}] ${item.route} -> ${item.action || "route_load"} | ${item.detail}`),
+    "",
+    "Novos problemas detectados:",
+    ...topAdded.map((item, idx) => `${idx + 1}. [${item.code}] ${item.route} -> ${item.action || "route_load"} | ${item.detail}`),
+    "",
+    "Entrega obrigatoria:",
+    "- corrigir problemas high antes de medium/low",
+    "- adicionar evidencias por arquivo/linha alterada",
+    "- reexecutar auditoria e comprovar reducao de issues",
+  ].join("\n");
+}
+
+function pickComparisonEntry(entries: ReportHistoryEntry[], current: ReportModel | null) {
+  if (!entries.length) return "";
+  if (!current) return entries[0]?.id ?? "";
+  const candidate = entries.find(
+    (entry) => entry.baseUrl === current.meta.baseUrl && entry.fingerprint !== reportFingerprint(current),
+  );
+  return candidate?.id ?? entries[0]?.id ?? "";
+}
+
 function classifyAuditNotice(input: {
   error?: string;
   detail?: string;
@@ -670,9 +928,12 @@ function PageContent() {
   const [auditNotice, setAuditNotice] = useState<AuditNotice | null>(null);
   const [pwaReady, setPwaReady] = useState(false);
   const [pwaInstalled, setPwaInstalled] = useState(false);
+  const [historyEntries, setHistoryEntries] = useState<ReportHistoryEntry[]>([]);
+  const [selectedHistoryId, setSelectedHistoryId] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoginAppliedRef = useRef(false);
+  const restoredSessionReportRef = useRef(false);
   const installEventRef = useRef<InstallPromptEvent | null>(null);
 
   const directCmd = useMemo(() => makeCommand(mode, targetUrl, noServer, headed), [mode, targetUrl, noServer, headed]);
@@ -700,6 +961,18 @@ function PageContent() {
   const riskScore = useMemo(() => scoreFromIssues(report?.issues ?? []), [report]);
   const healthChip = mapHealthChip(health);
   const bridgeChip = mapBridgeChip(localBridgeHealth);
+  const selectedHistory = useMemo(
+    () => historyEntries.find((entry) => entry.id === selectedHistoryId) ?? null,
+    [historyEntries, selectedHistoryId],
+  );
+  const historyDiff = useMemo(() => {
+    if (!selectedHistory || !report) return null;
+    return buildHistoryComparison(selectedHistory, report);
+  }, [selectedHistory, report]);
+  const historyAiPrompt = useMemo(() => {
+    if (!selectedHistory || !report || !historyDiff) return "";
+    return buildAiComparisonPrompt(selectedHistory, report, historyDiff);
+  }, [selectedHistory, report, historyDiff]);
 
   function openReportPage(focus?: "routes" | "actions" | "issues" | "risk" | "seo") {
     const params = new URLSearchParams();
@@ -787,8 +1060,6 @@ function PageContent() {
     if (!targetUrl.trim()) return;
     setRunning(true);
     setProgress(0);
-    setReport(null);
-    setReportRaw(null);
     setAuditNotice(null);
     setLogs([]);
     pushLog("[run-local] iniciando auditoria completa via bridge local...");
@@ -946,26 +1217,38 @@ function PageContent() {
     }
   }
 
+  function loadHistoryEntry(entry: ReportHistoryEntry) {
+    if (entry.raw == null) {
+      pushLog("[history] este report salvo nao possui JSON bruto para recarregar.");
+      return;
+    }
+    applyReport(entry.raw, `history:${entry.savedAt}`, {
+      persistHistory: false,
+      writeLastReport: true,
+      persistSession: true,
+      writeLog: true,
+    });
+    setSelectedHistoryId(entry.id);
+  }
+
+  function clearHistory() {
+    setHistoryEntries([]);
+    setSelectedHistoryId("");
+    persistHistoryStorage([]);
+    pushLog("[history] historico local removido.");
+  }
+
   async function loadDemoReport() {
     const res = await fetch(`/api/demo-report?mode=${mode}`, { cache: "no-store" });
     const data = await res.json();
-    const normalized = normalizeReport(data);
-    setReportRaw(data);
-    setReport(normalized);
-    persistLastReport(data);
-    setAuditNotice(null);
-    setSeverityFilter("all");
-    setSearch("");
-    pushLog(`[report] demo loaded (${normalized.issues.length} issues)`);
-    return normalized;
+    applyReport(data, "demo_report");
+    return normalizeReport(data);
   }
 
   async function runPlan() {
     if (!targetUrl.trim()) return;
     setRunning(true);
     setProgress(0);
-    setReport(null);
-    setReportRaw(null);
     setAuditNotice(null);
     setLogs([]);
     pushLog("[run] starting plan");
@@ -1112,16 +1395,46 @@ function PageContent() {
     }
   }
 
-  function applyReport(raw: unknown, source: string) {
+  function applyReport(
+    raw: unknown,
+    source: string,
+    options?: {
+      persistSession?: boolean;
+      persistHistory?: boolean;
+      writeLastReport?: boolean;
+      writeLog?: boolean;
+    },
+  ) {
     try {
       const normalized = normalizeReport(raw);
       setReportRaw(raw);
       setReport(normalized);
-      persistLastReport(raw);
+      setTargetUrl(normalized.meta.baseUrl || targetUrl);
+      if (options?.writeLastReport !== false) {
+        persistLastReport(raw);
+      }
+      if (options?.persistSession !== false) {
+        persistCurrentSessionReport(raw);
+      }
+      if (options?.persistHistory !== false) {
+        const nextEntry = buildHistoryEntry(normalized, raw, source, mode);
+        setHistoryEntries((prev) => {
+          const merged = [nextEntry, ...prev.filter((entry) => entry.fingerprint !== nextEntry.fingerprint)];
+          const limited = merged.slice(0, MAX_REPORT_HISTORY);
+          persistHistoryStorage(limited);
+          const suggested = limited.find(
+            (entry) => entry.baseUrl === normalized.meta.baseUrl && entry.fingerprint !== nextEntry.fingerprint,
+          );
+          setSelectedHistoryId(suggested?.id ?? limited[1]?.id ?? "");
+          return limited;
+        });
+      }
       setAuditNotice(null);
       setSeverityFilter("all");
       setSearch("");
-      pushLog(`[report] imported from ${source}`);
+      if (options?.writeLog !== false) {
+        pushLog(`[report] imported from ${source}`);
+      }
     } catch {
       pushLog("[report] invalid json");
     }
@@ -1164,6 +1477,40 @@ function PageContent() {
     pushLog("[auth] autologin enabled by query param");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLogin]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const history = readHistoryStorage();
+    setHistoryEntries(history);
+
+    if (restoredSessionReportRef.current) return;
+    restoredSessionReportRef.current = true;
+
+    const navigationEntry = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
+    if (navigationEntry?.type === "reload") {
+      clearCurrentSessionReport();
+      setSelectedHistoryId(history[0]?.id ?? "");
+      pushLog("[session] hard reload detectado. Estado ativo limpo.");
+      return;
+    }
+
+    const sessionReport = readCurrentSessionReport();
+    if (!sessionReport) {
+      setSelectedHistoryId(history[0]?.id ?? "");
+      return;
+    }
+
+    applyReport(sessionReport, "session_restore", {
+      persistSession: false,
+      persistHistory: false,
+      writeLastReport: false,
+      writeLog: false,
+    });
+    const normalized = normalizeReport(sessionReport);
+    setSelectedHistoryId(pickComparisonEntry(history, normalized));
+    pushLog("[session] ultimo report restaurado apos voltar.");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1720,6 +2067,171 @@ function PageContent() {
                   Baixar JSON do relatorio
                 </button>
               </div>
+            </div>
+          </article>
+        </section>
+
+        <section className="history-grid" data-audit-ignore="true">
+          <article className="card reveal">
+            <header className="card-head">
+              <h2 className="card-title">Ultimos reports</h2>
+            </header>
+            <div className="card-body">
+              <div className="btn-row" style={{ justifyContent: "space-between" }}>
+                <p className="small muted" style={{ margin: 0 }}>
+                  Reports ficam salvos localmente para voce voltar, comparar e reutilizar solucao.
+                </p>
+                <button type="button" className="btn-secondary" onClick={clearHistory} disabled={!historyEntries.length}>
+                  Limpar historico
+                </button>
+              </div>
+
+              {!historyEntries.length ? (
+                <div className="issue">
+                  <p className="small muted">Nenhum report salvo ainda. Rode uma auditoria ou importe um JSON.</p>
+                </div>
+              ) : (
+                <div className="history-list">
+                  {historyEntries.map((entry) => (
+                    <article
+                      key={entry.id}
+                      className={`history-item ${selectedHistoryId === entry.id ? "active" : ""}`}
+                      onClick={() => setSelectedHistoryId(entry.id)}
+                    >
+                      <div className="issue-top">
+                        <span className="issue-code">{entry.baseUrl}</span>
+                        <span className="pill">{entry.mode}</span>
+                        <span className="pill">issues {entry.summary.totalIssues}</span>
+                        <span className="pill">seo {entry.summary.seoScore}</span>
+                        <span className="pill">risco {entry.summary.riskScore}</span>
+                      </div>
+                      <p className="issue-meta">
+                        Salvo em {new Date(entry.savedAt).toLocaleString()} | origem: {entry.source}
+                      </p>
+                      <p className="issue-detail">
+                        Rotas: {entry.summary.routesChecked} | acoes: {entry.summary.buttonsChecked}
+                      </p>
+                      <div className="btn-row">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSelectedHistoryId(entry.id);
+                          }}
+                        >
+                          Comparar com atual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            loadHistoryEntry(entry);
+                          }}
+                        >
+                          Carregar este report
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </article>
+
+          <article className="card reveal d2">
+            <header className="card-head">
+              <h2 className="card-title">Comparacao de reports</h2>
+            </header>
+            <div className="card-body">
+              {!reportAvailable ? (
+                <div className="issue">
+                  <p className="small muted">Carregue um report atual para comparar com os anteriores.</p>
+                </div>
+              ) : !selectedHistory || !historyDiff ? (
+                <div className="issue">
+                  <p className="small muted">Selecione um report salvo para comparar o estado antigo com o atual.</p>
+                </div>
+              ) : (
+                <>
+                  <div className="metrics">
+                    <div className="metric">
+                      <div className="value">{historyDiff.fixed.length}</div>
+                      <div className="label">Consertados</div>
+                    </div>
+                    <div className="metric">
+                      <div className="value">{historyDiff.unresolved.length}</div>
+                      <div className="label">Ainda abertos</div>
+                    </div>
+                    <div className="metric">
+                      <div className="value">{historyDiff.added.length}</div>
+                      <div className="label">Novos</div>
+                    </div>
+                    <div className="metric">
+                      <div className="value">{selectedHistory.summary.totalIssues - (report?.summary.totalIssues ?? 0)}</div>
+                      <div className="label">Delta issues</div>
+                    </div>
+                  </div>
+
+                  <div className="assistant-block">
+                    <p className="small muted" style={{ marginTop: 0 }}>Resumo para leigo</p>
+                    <p className="issue-detail">
+                      Antes o site tinha {selectedHistory.summary.totalIssues} problemas nessa rodada. Agora ele tem {report?.summary.totalIssues ?? 0}.
+                      Foram corrigidos {historyDiff.fixed.length}, continuam {historyDiff.unresolved.length} e apareceram {historyDiff.added.length} novos.
+                    </p>
+                  </div>
+
+                  <div className="comparison-grid">
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>Para dev</p>
+                      <ul className="assistant-list">
+                        {historyDiff.unresolved.slice(0, 8).map((item, idx) => (
+                          <li key={`unresolved-${idx}`}>
+                            [{item.code}] {item.route} {item.action ? `-> ${item.action}` : ""} | {item.detail}
+                          </li>
+                        ))}
+                        {!historyDiff.unresolved.length ? <li>Nenhum problema antigo ainda pendente.</li> : null}
+                      </ul>
+                    </div>
+
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>Para IA</p>
+                      <div className="code-box mono">{historyAiPrompt || "Sem prompt de comparacao disponivel."}</div>
+                      <div className="btn-row" style={{ marginTop: 8 }}>
+                        <button type="button" className="btn-warn" onClick={() => void copyText(historyAiPrompt, "comparison prompt copied")}>
+                          Copiar prompt de comparacao
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="comparison-grid">
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>O que foi consertado</p>
+                      <ul className="assistant-list">
+                        {historyDiff.fixed.slice(0, 8).map((item, idx) => (
+                          <li key={`fixed-${idx}`}>
+                            [{item.code}] {item.route} {item.action ? `-> ${item.action}` : ""} | {item.detail}
+                          </li>
+                        ))}
+                        {!historyDiff.fixed.length ? <li>Nenhum item marcado como corrigido nessa comparacao.</li> : null}
+                      </ul>
+                    </div>
+
+                    <div className="assistant-block">
+                      <p className="small muted" style={{ marginTop: 0 }}>O que apareceu de novo</p>
+                      <ul className="assistant-list">
+                        {historyDiff.added.slice(0, 8).map((item, idx) => (
+                          <li key={`added-${idx}`}>
+                            [{item.code}] {item.route} {item.action ? `-> ${item.action}` : ""} | {item.detail}
+                          </li>
+                        ))}
+                        {!historyDiff.added.length ? <li>Nenhum problema novo apareceu nessa comparacao.</li> : null}
+                      </ul>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </article>
         </section>

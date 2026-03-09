@@ -333,6 +333,121 @@ function parseHttpDetail(detail: string) {
   return { status: match[1], method: match[2], requestUrl: match[3] };
 }
 
+function extractSourceLocation(detail: string) {
+  const normalized = String(detail ?? "");
+  const stackWithParen = normalized.match(/\(([^()]+):(\d+):(\d+)\)/);
+  if (stackWithParen) {
+    return {
+      file: stackWithParen[1],
+      line: Number(stackWithParen[2]),
+      column: Number(stackWithParen[3]),
+      raw: `${stackWithParen[1]}:${stackWithParen[2]}:${stackWithParen[3]}`,
+    };
+  }
+
+  const direct = normalized.match(/([A-Za-z0-9_./:-]+):(\d+):(\d+)/);
+  if (direct) {
+    return {
+      file: direct[1],
+      line: Number(direct[2]),
+      column: Number(direct[3]),
+      raw: `${direct[1]}:${direct[2]}:${direct[3]}`,
+    };
+  }
+
+  return null;
+}
+
+function parseWhatsappNumber(detail: string) {
+  const match = String(detail ?? "").match(/wa\.me\/(\d+)/i) ?? String(detail ?? "").match(/phone=(\d+)/i);
+  if (!match) return "";
+  return match[1];
+}
+
+function buildDeveloperLineHint(issue: IssueModel) {
+  const location = extractSourceLocation(issue.detail);
+  const actionLower = issue.action.toLowerCase();
+
+  if (actionLower.includes("whatsapp")) {
+    const detectedNumber = parseWhatsappNumber(issue.detail);
+    const safeNumber = detectedNumber || "34685093192";
+    return {
+      location,
+      wrongLine: `window.open("https://wa.me/${safeNumber}", "_blank");`,
+      correctLine:
+        `window.open("https://wa.me/${safeNumber}?text=${encodeURIComponent("Ola, quero informacoes")}", "_blank", "noopener,noreferrer");`,
+      why:
+        "Para WhatsApp funcionar bem, use link valido com texto inicial e protecao noopener/noreferrer.",
+    };
+  }
+
+  const requestFail = parseFailedRequest(issue.detail);
+  if (issue.code === "NET_REQUEST_FAILED" && requestFail) {
+    return {
+      location,
+      wrongLine: `await fetch("${requestFail.requestUrl}");`,
+      correctLine:
+        `const response = await fetch("${requestFail.requestUrl}", { cache: "no-store" });\nif (!response.ok) throw new Error(\`HTTP \${response.status}\`);`,
+      why:
+        "Validar response.ok e tratar erro evita falha silenciosa de rede no frontend.",
+    };
+  }
+
+  const httpFail = parseHttpDetail(issue.detail);
+  if ((issue.code === "HTTP_4XX" || issue.code === "HTTP_5XX") && httpFail) {
+    return {
+      location,
+      wrongLine: `const response = await fetch("${httpFail.requestUrl}"); // sem validar status`,
+      correctLine:
+        `const response = await fetch("${httpFail.requestUrl}");\nif (!response.ok) { throw new Error(\`Request failed: ${httpFail.status}\`); }`,
+      why:
+        "Sem checar status HTTP, o fluxo segue quebrado e o usuario fica sem feedback claro.",
+    };
+  }
+
+  if (issue.code === "BTN_NO_EFFECT") {
+    return {
+      location,
+      wrongLine: `<button onClick={() => {}}>CTA</button>`,
+      correctLine:
+        `<button onClick={handleCtaClick}>CTA</button>\n// handleCtaClick: navegar, abrir modal ou enviar acao real`,
+      why:
+        "Um botao precisa executar uma acao real; callback vazio gera clique sem efeito.",
+    };
+  }
+
+  if (issue.code === "BTN_CLICK_ERROR") {
+    return {
+      location,
+      wrongLine: `onClick={() => executarAcao()}`,
+      correctLine:
+        `onClick={async () => {\n  try { await executarAcao(); }\n  catch (error) { setUiError("Falha ao executar acao"); }\n}}`,
+      why:
+        "Try/catch no clique evita quebra do fluxo e mostra retorno para o usuario.",
+    };
+  }
+
+  if (issue.code === "ROUTE_LOAD_FAIL") {
+    return {
+      location,
+      wrongLine: `const route = "/rota-tal"; // pode estar errada`,
+      correctLine:
+        `const route = resolveSafeRoute("/rota-tal");\nif (!route) throw new Error("Rota invalida");`,
+      why:
+        "Validar rota antes de usar evita erro de carregamento por typo ou path inexistente.",
+    };
+  }
+
+  return {
+    location,
+    wrongLine: `// linha atual com comportamento incorreto\n${shortText(issue.detail, 120)}`,
+    correctLine:
+      `// linha sugerida (ajuste manual)\n// 1) tratar erro explicitamente\n// 2) validar status/retorno\n// 3) atualizar UI com feedback ao usuario`,
+    why:
+      "Ajuste para garantir que a acao tenha resultado claro para usuario e logs para dev.",
+  };
+}
+
 function explainTarget(issue: IssueModel) {
   const action = issue.action.trim();
   if (!action || action === "route_load") {
@@ -838,43 +953,66 @@ function ReportPageContent() {
                   <p className="small muted">Nenhum problema para este filtro.</p>
                 </div>
               ) : (
-                issuesFiltered.map((issue) => (
-                  <article className="issue" key={issue.id}>
-                    <div className="issue-top">
-                      <span className="issue-code">{issue.group}</span>
-                      <span className={`pill ${issue.severity === "high" ? "pill-high" : issue.severity === "medium" ? "pill-medium" : "pill-low"}`}>
-                        {severityLabel(issue.severity)}
-                      </span>
-                      <span className="pill">{issue.assistantHint.priority ?? "P2"}</span>
-                    </div>
-                    <p className="issue-route">Rota: {issue.route}{issue.action ? ` -> ${issue.action}` : ""}</p>
-                    <p className="issue-detail">
-                      <strong>Acao que deveria fazer:</strong> {expectedAction(issue)}
-                    </p>
-                    <p className="issue-detail">
-                      <strong>Acao que esta realizando:</strong> {currentAction(issue)}
-                    </p>
-                    <p className="issue-meta">
-                      <strong>Resolucao recomendada:</strong> {issue.recommendedResolution}
-                    </p>
-                    {showDev ? (
-                      <div className="assistant-block">
-                        <p className="small muted" style={{ marginTop: 0 }}>Dados de desenvolvedor</p>
-                        <p className="small muted">Codigo: {issue.code}</p>
-                        {issue.assistantHint.firstChecks?.length ? (
-                          <ul className="assistant-list">
-                            {issue.assistantHint.firstChecks.map((line, idx) => (
-                              <li key={`${issue.id}-dev-check-${idx}`}>{line}</li>
-                            ))}
-                          </ul>
-                        ) : null}
-                        {issue.assistantHint.commandHints?.length ? (
-                          <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
-                        ) : null}
+                issuesFiltered.map((issue) => {
+                  const devLine = buildDeveloperLineHint(issue);
+                  return (
+                    <article className="issue" key={issue.id}>
+                      <div className="issue-top">
+                        <span className="issue-code">{issue.group}</span>
+                        <span className={`pill ${issue.severity === "high" ? "pill-high" : issue.severity === "medium" ? "pill-medium" : "pill-low"}`}>
+                          {severityLabel(issue.severity)}
+                        </span>
+                        <span className="pill">{issue.assistantHint.priority ?? "P2"}</span>
                       </div>
-                    ) : null}
-                  </article>
-                ))
+                      <p className="issue-route">Rota: {issue.route}{issue.action ? ` -> ${issue.action}` : ""}</p>
+                      <p className="issue-detail">
+                        <strong>Acao que deveria fazer:</strong> {expectedAction(issue)}
+                      </p>
+                      <p className="issue-detail">
+                        <strong>Acao que esta realizando:</strong> {currentAction(issue)}
+                      </p>
+                      <p className="issue-meta">
+                        <strong>Resolucao recomendada:</strong> {issue.recommendedResolution}
+                      </p>
+                      {showDev ? (
+                        <div className="assistant-block">
+                          <p className="small muted" style={{ marginTop: 0 }}>Dados de desenvolvedor</p>
+                          <p className="small muted">Codigo: {issue.code}</p>
+                          <p className="small muted">Explicacao tecnica: {issue.technicalExplanation || "Sem explicacao tecnica detalhada."}</p>
+                          {devLine.location ? (
+                            <>
+                              <p className="small muted">Arquivo detectado: {devLine.location.file}</p>
+                              <p className="small muted">Linha: {devLine.location.line} | Coluna: {devLine.location.column}</p>
+                            </>
+                          ) : (
+                            <p className="small muted">Linha do erro detectada: Nao detectada automaticamente no stack.</p>
+                          )}
+                          <p className="small muted">Linha possivelmente errada:</p>
+                          <div className="code-box mono">{devLine.wrongLine}</div>
+                          <p className="small muted" style={{ marginTop: 8 }}>Linha sugerida para trocar manualmente:</p>
+                          <div className="code-box mono">{devLine.correctLine}</div>
+                          <p className="small muted">Por que essa troca: {devLine.why}</p>
+                          {issue.recommendedPrompt ? (
+                            <>
+                              <p className="small muted" style={{ marginTop: 8 }}>Prompt de correcao sugerido:</p>
+                              <div className="code-box mono">{issue.recommendedPrompt}</div>
+                            </>
+                          ) : null}
+                          {issue.assistantHint.firstChecks?.length ? (
+                            <ul className="assistant-list">
+                              {issue.assistantHint.firstChecks.map((line, idx) => (
+                                <li key={`${issue.id}-dev-check-${idx}`}>{line}</li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {issue.assistantHint.commandHints?.length ? (
+                            <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })
               )}
             </div>
           </div>
