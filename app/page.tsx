@@ -976,6 +976,8 @@ function PageContent() {
         body: JSON.stringify({
           baseUrl: targetUrl.trim(),
           mode,
+          noServer,
+          headed,
         }),
       });
       const payload = (await res.json()) as RunPlanResponse;

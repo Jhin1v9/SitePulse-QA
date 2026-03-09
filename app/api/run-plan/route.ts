@@ -312,9 +312,16 @@ async function buildFallbackReport(input: {
   };
 }
 
-async function runAudit(baseUrl: string, mode: Mode) {
+async function runAudit(baseUrl: string, mode: Mode, options: { noServer: boolean; headed: boolean }) {
   const config = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
-  const command = `npm --prefix qa run audit:cmd -- --config "${config}" --base-url "${baseUrl}" --no-server`;
+  const commandParts = [
+    "npm --prefix qa run audit:cmd --",
+    `--config "${config}"`,
+    `--base-url "${baseUrl}"`,
+    options.noServer ? "--no-server" : "",
+    options.headed ? "--headed" : "",
+  ].filter(Boolean);
+  const command = commandParts.join(" ");
   const startedAt = nowIso();
   const startedMs = Date.now();
   const forceServerlessChromium =
@@ -337,8 +344,9 @@ async function runAudit(baseUrl: string, mode: Mode) {
     "--human-log",
     "--base-url",
     baseUrl,
-    "--no-server",
   ];
+  if (options.noServer) args.push("--no-server");
+  if (options.headed) args.push("--headed");
 
   let spawnError = "";
   const child = spawn(process.execPath, args, {
@@ -436,6 +444,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const baseUrl = String(body?.baseUrl ?? "").trim();
   const mode: Mode = body?.mode === "mobile" ? "mobile" : "desktop";
+  const noServer = body?.noServer !== false;
+  const headed = body?.headed === true;
 
   if (!baseUrl) {
     return NextResponse.json({ ok: false, error: "baseUrl is required" }, { status: 400 });
@@ -449,7 +459,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const payload = await runAudit(baseUrl, mode);
+    const payload = await runAudit(baseUrl, mode, { noServer, headed });
     const status = payload.report ? 200 : 500;
     return NextResponse.json(payload, { status });
   } catch (error) {
