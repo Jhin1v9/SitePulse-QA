@@ -89,7 +89,9 @@ async function runAudit(baseUrl: string, mode: Mode) {
   ];
 
   return {
-    ok: exitCode === 0 || exitCode === 2,
+    ok: !!report,
+    clean: exitCode === 0,
+    exitCode,
     mode,
     command,
     startedAt,
@@ -98,8 +100,8 @@ async function runAudit(baseUrl: string, mode: Mode) {
     steps,
     report,
     summary: parsed?.summary ?? null,
-    error: exitCode === 0 || exitCode === 2 ? undefined : "audit_failed",
-    detail: exitCode === 0 || exitCode === 2 ? undefined : stderr.trim().slice(0, 800),
+    error: report ? undefined : "audit_failed",
+    detail: report ? undefined : stderr.trim().slice(0, 800),
   };
 }
 
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const payload = await runAudit(baseUrl, mode);
-    const status = payload.ok ? 200 : 500;
+    const status = payload.report ? 200 : 500;
     return NextResponse.json(payload, { status });
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";

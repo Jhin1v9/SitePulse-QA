@@ -397,11 +397,17 @@ function PageContent() {
 
       if (payload.report) {
         applyReport(payload.report, "live_audit");
+        const totalIssues = Number((payload.report as { summary?: { totalIssues?: number } })?.summary?.totalIssues ?? 0);
+        if (Number.isFinite(totalIssues) && totalIssues > 0) {
+          pushLog(`[run] concluida com ${totalIssues} problema(s) para revisar.`);
+        } else {
+          pushLog("[run] concluida sem problemas detectados.");
+        }
       } else {
         pushLog("[report] no report returned, use CMD run and import JSON.");
       }
       setProgress(100);
-      pushLog("[run] completed");
+      pushLog("[run] finalizada.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown_error";
       pushLog(`[run] failed: ${message}`);
