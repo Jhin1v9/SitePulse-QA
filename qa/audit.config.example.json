@@ -1,0 +1,41 @@
+{
+  "name": "project-audit",
+  "baseUrl": "http://127.0.0.1:3110",
+  "serverCommand": "npm run dev -- --hostname 127.0.0.1 --port 3110",
+  "serverCwd": "..",
+  "routeLoadTimeoutMs": 40000,
+  "buttonClickTimeoutMs": 4000,
+  "clickWaitMs": 900,
+  "viewportWidth": 1536,
+  "viewportHeight": 864,
+  "scrollEffectMinPx": 8,
+  "sectionOrderWaitMs": 1500,
+  "maxRunMs": 180000,
+  "checkpointEveryClicks": 10,
+  "reportDir": "reports",
+  "checkpointFile": "reports/sitepulse-checkpoint.json",
+  "requireButtonEffect": true,
+  "allowedNoEffectButtonContains": [
+    "whatsapp",
+    "home",
+    "go to slide"
+  ],
+  "ignoredRequestFailedErrors": [
+    "ERR_ABORTED"
+  ],
+  "sectionOrderRules": [
+    {
+      "id": "faq-before-footer",
+      "description": "FAQ deve vir antes do footer.",
+      "routes": [
+        "/"
+      ],
+      "beforeSelector": "#service-details",
+      "afterSelector": "#footer",
+      "required": true
+    }
+  ],
+  "routes": [
+    "/"
+  ]
+}
