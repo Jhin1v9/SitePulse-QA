@@ -145,9 +145,14 @@ async function runAudit(input) {
   const command = makeCommandParts(input);
   const startedAt = nowIso();
   const startedMs = Date.now();
+  const forceServerlessChromium =
+    process.platform === "linux"
+      ? "1"
+      : String(process.env.SITEPULSE_FORCE_SERVERLESS_CHROMIUM || "");
   const runtimeEnv = {
     ...process.env,
     PLAYWRIGHT_BROWSERS_PATH: process.env.PLAYWRIGHT_BROWSERS_PATH ?? "0",
+    SITEPULSE_FORCE_SERVERLESS_CHROMIUM: forceServerlessChromium,
   };
 
   const child = spawn(process.execPath, command.args, {
