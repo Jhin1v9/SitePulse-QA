@@ -568,6 +568,144 @@ function makeActionRecord(input) {
   };
 }
 
+const SEO_BASELINE_CHECKLIST = [
+  {
+    id: "title",
+    label: "Title unico e com tamanho ideal (30-65)",
+    why: "E o texto principal que aparece no Google.",
+    codes: ["SEO_TITLE_MISSING", "SEO_TITLE_LENGTH"],
+    recommendation: "Defina um title unico por pagina com foco na intencao do usuario.",
+  },
+  {
+    id: "meta_description",
+    label: "Meta description clara (70-170)",
+    why: "Ajuda a pessoa entender a pagina antes de clicar.",
+    codes: ["SEO_META_DESCRIPTION_MISSING", "SEO_META_DESCRIPTION_LENGTH"],
+    recommendation: "Crie descricao objetiva com beneficio real e chamada para acao.",
+  },
+  {
+    id: "heading_h1",
+    label: "Estrutura de headings com 1 H1",
+    why: "Organiza o tema principal da pagina para Google e usuarios.",
+    codes: ["SEO_H1_MISSING", "SEO_H1_MULTIPLE"],
+    recommendation: "Mantenha apenas um H1 claro e use H2/H3 para secoes.",
+  },
+  {
+    id: "lang_viewport",
+    label: "HTML com lang e viewport mobile",
+    why: "Melhora indexacao correta por idioma e experiencia em celular.",
+    codes: ["SEO_LANG_MISSING", "SEO_VIEWPORT_MISSING"],
+    recommendation: "Adicione lang em <html> e meta viewport no <head>.",
+  },
+  {
+    id: "canonical",
+    label: "Canonical definido",
+    why: "Evita conteudo duplicado em URLs diferentes.",
+    codes: ["SEO_CANONICAL_MISSING"],
+    recommendation: "Defina <link rel=\"canonical\"> para cada pagina indexavel.",
+  },
+  {
+    id: "indexing",
+    label: "Pagina indexavel (sem noindex indevido)",
+    why: "Sem isso o Google pode ignorar paginas importantes.",
+    codes: ["SEO_NOINDEX"],
+    recommendation: "Remova noindex das paginas que precisam ranquear.",
+  },
+  {
+    id: "images_alt",
+    label: "Imagens com alt descritivo",
+    why: "Ajuda SEO de imagem e acessibilidade.",
+    codes: ["SEO_IMG_ALT_MISSING"],
+    recommendation: "Preencha alt nas imagens relevantes com descricao real.",
+  },
+  {
+    id: "structured_data",
+    label: "Schema JSON-LD (LocalBusiness/Service/FAQ)",
+    why: "Aumenta chance de rich results no Google.",
+    codes: ["SEO_STRUCTURED_DATA_MISSING"],
+    recommendation: "Adicione dados estruturados validos por pagina.",
+  },
+  {
+    id: "content_depth",
+    label: "Conteudo util e suficiente",
+    why: "Paginas rasas tendem a ranquear pior.",
+    codes: ["SEO_CONTENT_THIN"],
+    recommendation: "Adicione conteudo especifico, provas, FAQs e diferenciais.",
+  },
+  {
+    id: "internal_links",
+    label: "Links internos entre paginas",
+    why: "Ajuda rastreamento e distribuicao de autoridade.",
+    codes: ["SEO_INTERNAL_LINKS_LOW"],
+    recommendation: "Inclua links para servicos, contato, cidade e paginas correlatas.",
+  },
+  {
+    id: "social_meta",
+    label: "Meta social (Open Graph + Twitter Card)",
+    why: "Melhora compartilhamento e CTR em redes sociais.",
+    codes: ["SEO_OPEN_GRAPH_INCOMPLETE", "SEO_TWITTER_CARD_MISSING"],
+    recommendation: "Complete og:title, og:description, og:image, og:type e twitter:card.",
+  },
+  {
+    id: "meta_robots",
+    label: "Meta robots presente e coerente",
+    why: "Define como bots devem indexar/seguir links.",
+    codes: ["SEO_META_ROBOTS_MISSING"],
+    recommendation: "Defina meta robots adequada para cada tipo de pagina.",
+  },
+];
+
+function buildSeoChecklist(issues) {
+  const codeSet = new Set((issues ?? []).map((item) => String(item.code)));
+  return SEO_BASELINE_CHECKLIST.map((item) => {
+    const missingCodes = item.codes.filter((code) => codeSet.has(code));
+    return {
+      id: item.id,
+      label: item.label,
+      why: item.why,
+      status: missingCodes.length ? "missing" : "ok",
+      missingCodes,
+      recommendation: item.recommendation,
+    };
+  });
+}
+
+function buildSeoFixPrompt(input) {
+  const checklist = Array.isArray(input?.checklist) ? input.checklist : [];
+  const missing = checklist.filter((row) => row.status === "missing");
+  const topIssues = Array.isArray(input?.issues) ? input.issues.slice(0, 20) : [];
+  const score = Number(input?.overallScore ?? 0);
+  const baseUrl = normalizeText(input?.baseUrl);
+
+  if (!missing.length && !topIssues.length) {
+    return [
+      "Atue como especialista SEO tecnico e de conteudo.",
+      `Site auditado: ${baseUrl || "(base URL nao informada)"}`,
+      `Score atual: ${score}/100.`,
+      "Nao ha gaps SEO relevantes nesta rodada.",
+      "Objetivo: manter baseline, evitar regressao e monitorar periodicamente.",
+    ].join("\n");
+  }
+
+  return [
+    "Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.",
+    `Site auditado: ${baseUrl || "(base URL nao informada)"}`,
+    `Score SEO atual: ${score}/100.`,
+    "Objetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.",
+    "",
+    "Checklist SEO pendente (explicacao para leigos + acao):",
+    ...missing.map((row, index) => `${index + 1}. ${row.label} | por que importa: ${row.why} | o que fazer: ${row.recommendation}`),
+    "",
+    "Issues SEO detectadas:",
+    ...topIssues.map((issue, index) => `${index + 1}. [${issue.code}] (${issue.severity}) ${issue.detail} | recomendacao: ${issue.recommendation}`),
+    "",
+    "Entrega obrigatoria:",
+    "- listar arquivos alterados e motivo de cada alteracao",
+    "- mostrar antes/depois dos metadados principais",
+    "- validar novamente e comprovar melhoria de score",
+  ].join("\n");
+}
+
 function evaluateSeoSnapshot(snapshot) {
   const checks = [];
   let overall = 100;
@@ -686,6 +824,18 @@ function evaluateSeoSnapshot(snapshot) {
     });
   }
 
+  if (!snapshot.hasMetaRobots) {
+    applyPenalty({
+      code: "SEO_META_ROBOTS_MISSING",
+      status: "warn",
+      severity: "low",
+      category: "technical",
+      weight: 3,
+      detail: "Meta robots ausente.",
+      recommendation: "Defina meta robots explicita para controle de indexacao.",
+    });
+  }
+
   if (snapshot.robotsNoindex) {
     applyPenalty({
       code: "SEO_NOINDEX",
@@ -720,6 +870,30 @@ function evaluateSeoSnapshot(snapshot) {
       weight: 4,
       detail: "Nenhum JSON-LD encontrado.",
       recommendation: "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.",
+    });
+  }
+
+  if (!snapshot.ogComplete) {
+    applyPenalty({
+      code: "SEO_OPEN_GRAPH_INCOMPLETE",
+      status: "warn",
+      severity: "medium",
+      category: "content",
+      weight: 6,
+      detail: "Open Graph incompleto (faltando og:title, og:description, og:image ou og:type).",
+      recommendation: "Complete as metas Open Graph para melhorar compartilhamento e CTR.",
+    });
+  }
+
+  if (!snapshot.hasTwitterCard) {
+    applyPenalty({
+      code: "SEO_TWITTER_CARD_MISSING",
+      status: "warn",
+      severity: "low",
+      category: "content",
+      weight: 3,
+      detail: "Twitter Card ausente.",
+      recommendation: "Adicione meta twitter:card e metadados sociais complementares.",
     });
   }
 
@@ -779,6 +953,12 @@ async function captureSeoSnapshot(page, route) {
     const canonicalUrl = clean(document.querySelector('link[rel="canonical"]')?.getAttribute("href"));
     const lang = clean(document.documentElement?.getAttribute("lang"));
     const robots = clean(document.querySelector('meta[name="robots"]')?.getAttribute("content"));
+    const ogTitle = clean(document.querySelector('meta[property="og:title"]')?.getAttribute("content"));
+    const ogDescription = clean(document.querySelector('meta[property="og:description"]')?.getAttribute("content"));
+    const ogImage = clean(document.querySelector('meta[property="og:image"]')?.getAttribute("content"));
+    const ogType = clean(document.querySelector('meta[property="og:type"]')?.getAttribute("content"));
+    const twitterCard = clean(document.querySelector('meta[name="twitter:card"]')?.getAttribute("content"));
+    const hasMetaRobots = Boolean(document.querySelector('meta[name="robots"]'));
     const hasViewport = Boolean(document.querySelector('meta[name="viewport"]'));
     const images = Array.from(document.querySelectorAll("img"));
     const imagesMissingAlt = images.filter((img) => !clean(img.getAttribute("alt"))).length;
@@ -808,7 +988,10 @@ async function captureSeoSnapshot(page, route) {
       h1Count: document.querySelectorAll("h1").length,
       canonicalUrl,
       lang,
+      hasMetaRobots,
       robotsNoindex: /(^|\\s|,)noindex(\\s|,|$)/i.test(robots),
+      ogComplete: Boolean(ogTitle && ogDescription && ogImage && ogType),
+      hasTwitterCard: Boolean(twitterCard),
       hasViewport,
       imagesTotal: images.length,
       imagesMissingAlt,
@@ -837,6 +1020,8 @@ function finalizeSeoReport(report) {
       categoryScore: { technical: 0, content: 0, accessibility: 0 },
       issues: [],
       topRecommendations: [],
+      checklist: buildSeoChecklist([]),
+      fixPrompt: buildSeoFixPrompt({ checklist: buildSeoChecklist([]), issues: [], overallScore: 0, baseUrl: report?.meta?.baseUrl }),
       pages: [],
     };
     return;
@@ -889,12 +1074,22 @@ function finalizeSeoReport(report) {
     }))
     .sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.count - a.count || a.code.localeCompare(b.code));
 
+  const checklist = buildSeoChecklist(issues);
+  const fixPrompt = buildSeoFixPrompt({
+    checklist,
+    issues,
+    overallScore,
+    baseUrl: report?.meta?.baseUrl,
+  });
+
   report.seo = {
     overallScore,
     pagesAnalyzed: pages.length,
     categoryScore,
     issues,
     topRecommendations: issues.slice(0, 8).map((item) => item.recommendation),
+    checklist,
+    fixPrompt,
     pages,
   };
 }
@@ -2460,6 +2655,7 @@ function buildAssistantGuide(report) {
           "Corrigir primeiro erros high (runtime/5xx/ordem visual).",
           "Depois tratar medium (clicks falhos/rede/secoes ausentes).",
           "Finalizar com low e ruido de console.",
+          "Atacar checklist SEO pendente antes da revalidacao final.",
           "Reexecutar auditoria completa e confirmar totalIssues=0.",
         ];
 
@@ -2483,6 +2679,11 @@ function buildAssistantGuide(report) {
             const action = issue.action ? ` -> ${issue.action}` : "";
             return `${idx + 1}. [${issue.code}] (${issue.severity}) ${issue.route}${action} | ${issue.detail}`;
           }),
+          "",
+          "SEO (obrigatorio):",
+          report?.seo?.fixPrompt
+            ? report.seo.fixPrompt
+            : "Revisar title/meta/H1/canonical/alt/schema/links internos e validar nova pontuacao SEO.",
           "",
           `Comando de revalidacao: ${report.meta.replayCommand}`,
         ].join("\n");
@@ -2823,6 +3024,18 @@ function toMarkdown(report) {
     }
   } else {
     lines.push("- Sem issues SEO relevantes nesta rodada.");
+  }
+  if (Array.isArray(report?.seo?.checklist) && report.seo.checklist.length > 0) {
+    lines.push("- Checklist SEO base:");
+    for (const row of report.seo.checklist) {
+      lines.push(`  - [${row.status}] ${row.label} | ${row.why}`);
+    }
+  }
+  if (normalizeText(report?.seo?.fixPrompt)) {
+    lines.push("- Prompt recomendado para corrigir SEO:");
+    lines.push("```");
+    lines.push(report.seo.fixPrompt);
+    lines.push("```");
   }
 
   lines.push("");
@@ -3587,6 +3800,8 @@ function createEmptyReport(cfg, args, maxRunMs) {
       categoryScore: { technical: 0, content: 0, accessibility: 0 },
       issues: [],
       topRecommendations: [],
+      checklist: [],
+      fixPrompt: "",
       pages: [],
     },
     issues: [],
@@ -3634,12 +3849,16 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
       categoryScore: { technical: 0, content: 0, accessibility: 0 },
       issues: [],
       topRecommendations: [],
+      checklist: [],
+      fixPrompt: "",
       pages: [],
     };
   }
   if (!Array.isArray(report.seo.pages)) report.seo.pages = [];
   if (!Array.isArray(report.seo.issues)) report.seo.issues = [];
   if (!Array.isArray(report.seo.topRecommendations)) report.seo.topRecommendations = [];
+  if (!Array.isArray(report.seo.checklist)) report.seo.checklist = [];
+  if (typeof report.seo.fixPrompt !== "string") report.seo.fixPrompt = "";
   if (!Array.isArray(report.issues)) report.issues = [];
   if (!Array.isArray(report.issueLog)) report.issueLog = [];
   if (!report.promptPack || typeof report.promptPack !== "object") {

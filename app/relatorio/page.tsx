@@ -22,6 +22,9 @@ type IssueModel = {
   action: string;
   detail: string;
   recommendedResolution: string;
+  laymanExplanation: string;
+  technicalExplanation: string;
+  recommendedPrompt: string;
   assistantHint: AssistantHint;
   group: string;
 };
@@ -59,6 +62,14 @@ type SeoModel = {
   };
   issues: SeoIssueModel[];
   topRecommendations: string[];
+  checklist: {
+    id: string;
+    label: string;
+    why: string;
+    status: "ok" | "missing";
+    recommendation: string;
+  }[];
+  fixPrompt: string;
 };
 
 type ReportModel = {
@@ -145,6 +156,9 @@ function normalizeIssue(raw: unknown, index: number): IssueModel {
   const action = String(item.action ?? "");
   const detail = String(item.detail ?? "Sem detalhe.");
   const recommendedResolution = String(item.recommendedResolution ?? "Revisar logs e causa raiz.");
+  const laymanExplanation = String(item.laymanExplanation ?? "");
+  const technicalExplanation = String(item.technicalExplanation ?? "");
+  const recommendedPrompt = String(item.recommendedPrompt ?? "");
   const hintObj = item.assistantHint && typeof item.assistantHint === "object"
     ? (item.assistantHint as Record<string, unknown>)
     : {};
@@ -169,6 +183,9 @@ function normalizeIssue(raw: unknown, index: number): IssueModel {
     action,
     detail,
     recommendedResolution,
+    laymanExplanation,
+    technicalExplanation,
+    recommendedPrompt,
     assistantHint,
     group: ISSUE_GROUP[code] ?? "Outro",
   };
@@ -192,6 +209,7 @@ function normalizeReport(raw: unknown): ReportModel {
       : {};
   const seoIssuesRaw = Array.isArray(seoObj.issues) ? seoObj.issues : [];
   const topRecommendationsRaw = Array.isArray(seoObj.topRecommendations) ? seoObj.topRecommendations : [];
+  const seoChecklistRaw = Array.isArray(seoObj.checklist) ? seoObj.checklist : [];
 
   const issuesRaw = Array.isArray(source.issues) ? source.issues : [];
   const issues = issuesRaw.map((issue, index) => normalizeIssue(issue, index));
@@ -274,6 +292,18 @@ function normalizeReport(raw: unknown): ReportModel {
       },
       issues: seoIssues,
       topRecommendations: topRecommendationsRaw.map((v) => String(v)),
+      checklist: seoChecklistRaw.map((item, index) => {
+        const rawItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+        const status = String(rawItem.status ?? "ok").toLowerCase() === "missing" ? "missing" : "ok";
+        return {
+          id: String(rawItem.id ?? `seo-check-${index + 1}`),
+          label: String(rawItem.label ?? "Checklist SEO"),
+          why: String(rawItem.why ?? "Sem explicacao."),
+          status,
+          recommendation: String(rawItem.recommendation ?? "Sem recomendacao."),
+        } as SeoModel["checklist"][number];
+      }),
+      fixPrompt: String(seoObj.fixPrompt ?? ""),
     },
     issues,
   };
@@ -285,37 +315,107 @@ function severityLabel(severity: Severity) {
   return "baixo";
 }
 
+function shortText(value: string, maxLen = 180) {
+  const text = String(value ?? "").replace(/\s+/g, " ").trim();
+  if (text.length <= maxLen) return text;
+  return `${text.slice(0, maxLen)}...`;
+}
+
+function parseFailedRequest(detail: string) {
+  const match = String(detail ?? "").match(/^([A-Z]+)\s+(.+?)\s+::\s+(.+)$/);
+  if (!match) return null;
+  return { method: match[1], requestUrl: match[2], error: match[3] };
+}
+
+function parseHttpDetail(detail: string) {
+  const match = String(detail ?? "").match(/^(\d{3})\s+([A-Z]+)\s+(.+)$/);
+  if (!match) return null;
+  return { status: match[1], method: match[2], requestUrl: match[3] };
+}
+
+function explainTarget(issue: IssueModel) {
+  const action = issue.action.trim();
+  if (!action || action === "route_load") {
+    return `a pagina ${issue.route}`;
+  }
+  return `o botao "${action}"`;
+}
+
 function expectedAction(issue: IssueModel) {
-  if (issue.code === "BTN_NO_EFFECT") {
-    return "Ao clicar, o botao deve executar uma acao visivel (abrir, navegar, enviar, confirmar).";
+  const actionLower = issue.action.toLowerCase();
+  const target = explainTarget(issue);
+
+  if (issue.laymanExplanation) {
+    return issue.laymanExplanation;
   }
-  if (issue.code === "BTN_CLICK_ERROR") {
-    return "Ao clicar, o botao deve concluir a funcao sem erro de script.";
+
+  if (actionLower.includes("whatsapp")) {
+    return `Ao clicar em ${target}, deveria abrir o WhatsApp da empresa para a pessoa enviar mensagem sem erro.`;
   }
+  if (actionLower.includes("contato") || actionLower.includes("contact")) {
+    return `Ao clicar em ${target}, deveria levar para contato e mostrar formas reais de falar com a empresa.`;
+  }
+  if (actionLower.includes("menu")) {
+    return `Ao clicar em ${target}, deveria abrir/fechar o menu para a pessoa navegar no site.`;
+  }
+  if (actionLower.includes("ver mais") || actionLower.includes("saiba mais")) {
+    return `Ao clicar em ${target}, deveria mostrar mais informacoes do servico sem quebrar a pagina.`;
+  }
+
   if (issue.code === "ROUTE_LOAD_FAIL") {
-    return "A rota deve abrir dentro do tempo esperado.";
+    return `Quando alguem abre ${target}, tudo deveria carregar normalmente para a pessoa usar o site.`;
   }
   if (issue.code === "HTTP_4XX" || issue.code === "HTTP_5XX") {
-    return "A chamada deveria retornar sucesso (2xx) para o fluxo principal.";
+    return `Quando a pessoa usa ${target}, a requisicao principal deveria retornar sucesso (2xx), nao erro.`;
   }
   if (issue.code === "NET_REQUEST_FAILED") {
-    return "A comunicacao com o servidor deveria acontecer sem queda de rede.";
+    return `Quando a pessoa usa ${target}, o site deveria conseguir se comunicar com o servidor sem queda de rede.`;
+  }
+  if (issue.code === "BTN_NO_EFFECT") {
+    return `Quando a pessoa clica em ${target}, algo deveria acontecer na tela (abrir, navegar, enviar ou confirmar).`;
+  }
+  if (issue.code === "BTN_CLICK_ERROR") {
+    return `Quando a pessoa clica em ${target}, a acao deveria terminar sem travar e sem erro de script.`;
   }
   if (issue.code === "VISUAL_SECTION_ORDER_INVALID") {
-    return "As secoes devem aparecer na ordem correta para nao confundir o usuario.";
+    return "As secoes deveriam aparecer na ordem certa para nao confundir quem esta lendo.";
   }
   if (issue.code === "VISUAL_SECTION_MISSING") {
-    return "A secao obrigatoria deveria estar visivel.";
+    return "A secao importante deveria estar visivel para a pessoa encontrar a informacao.";
   }
   if (issue.code === "AUDIT_ENGINE_UNAVAILABLE") {
-    return "A auditoria completa deveria rodar com navegador automatizado.";
+    return "A auditoria completa deveria abrir o navegador automatizado e testar cliques/ordem visual.";
   }
-  return "O fluxo deveria completar sem erro funcional.";
+  return `Quando a pessoa usa ${target}, deveria funcionar sem erro.`;
 }
 
 function currentAction(issue: IssueModel) {
-  if (issue.action) return issue.action;
-  return issue.detail;
+  const target = explainTarget(issue);
+  const requestFail = parseFailedRequest(issue.detail);
+  const httpFail = parseHttpDetail(issue.detail);
+
+  if (issue.code === "NET_REQUEST_FAILED" && requestFail) {
+    return `Ao usar ${target}, o site tentou ${requestFail.method} em ${requestFail.requestUrl}, mas falhou com "${requestFail.error}".`;
+  }
+  if ((issue.code === "HTTP_4XX" || issue.code === "HTTP_5XX") && httpFail) {
+    return `Ao usar ${target}, o servidor respondeu ${httpFail.status} em ${httpFail.requestUrl}, entao a acao nao concluiu.`;
+  }
+  if (issue.code === "BTN_NO_EFFECT") {
+    return `Ao clicar em ${target}, nada mudou na tela (sem abrir, sem navegar e sem confirmar).`;
+  }
+  if (issue.code === "BTN_CLICK_ERROR") {
+    return `Ao clicar em ${target}, ocorreu falha de clique: ${shortText(issue.detail)}`;
+  }
+  if (issue.code === "ROUTE_LOAD_FAIL") {
+    return `Ao abrir ${target}, a pagina nao carregou como deveria: ${shortText(issue.detail)}`;
+  }
+  if (issue.code === "CONSOLE_ERROR" || issue.code === "JS_RUNTIME_ERROR") {
+    return `Durante ${target}, apareceu erro de codigo no navegador: ${shortText(issue.detail)}`;
+  }
+  if (issue.code === "AUDIT_ENGINE_UNAVAILABLE") {
+    return `Nesta rodada, o ambiente nao conseguiu abrir o navegador de teste e ficou apenas na verificacao parcial.`;
+  }
+  return shortText(issue.detail || issue.action || "Sem detalhe de execucao.");
 }
 
 function actionStatusPill(status: string) {
@@ -328,6 +428,109 @@ function actionStatusPill(status: string) {
   return "pill";
 }
 
+function fallbackSeoChecklistFromIssues(seo: SeoModel) {
+  const codeSet = new Set((seo.issues ?? []).map((item) => item.code));
+  const rows = [
+    {
+      id: "title",
+      label: "Title unico e com tamanho ideal",
+      why: "E o titulo que aparece no Google.",
+      missing: codeSet.has("SEO_TITLE_MISSING") || codeSet.has("SEO_TITLE_LENGTH"),
+      recommendation: "Defina title unico por pagina (30-65 caracteres).",
+    },
+    {
+      id: "meta_description",
+      label: "Meta description clara",
+      why: "Explica a pagina no resultado de busca.",
+      missing: codeSet.has("SEO_META_DESCRIPTION_MISSING") || codeSet.has("SEO_META_DESCRIPTION_LENGTH"),
+      recommendation: "Escreva meta description objetiva (70-170 caracteres).",
+    },
+    {
+      id: "h1",
+      label: "Um H1 principal por pagina",
+      why: "Organiza o tema principal da pagina.",
+      missing: codeSet.has("SEO_H1_MISSING") || codeSet.has("SEO_H1_MULTIPLE"),
+      recommendation: "Mantenha um H1 e use H2/H3 para secoes.",
+    },
+    {
+      id: "technical",
+      label: "Lang + viewport + canonical",
+      why: "Garante indexacao correta e boa experiencia mobile.",
+      missing:
+        codeSet.has("SEO_LANG_MISSING") ||
+        codeSet.has("SEO_VIEWPORT_MISSING") ||
+        codeSet.has("SEO_CANONICAL_MISSING"),
+      recommendation: "Defina lang, viewport e canonical em todas as paginas indexaveis.",
+    },
+    {
+      id: "indexing",
+      label: "Indexacao correta (sem noindex indevido)",
+      why: "Paginas importantes precisam poder aparecer no Google.",
+      missing: codeSet.has("SEO_NOINDEX"),
+      recommendation: "Remova noindex de paginas que devem ranquear.",
+    },
+    {
+      id: "assets",
+      label: "Imagens com alt + schema JSON-LD",
+      why: "Melhora acessibilidade e rich snippets.",
+      missing: codeSet.has("SEO_IMG_ALT_MISSING") || codeSet.has("SEO_STRUCTURED_DATA_MISSING"),
+      recommendation: "Adicione alt descritivo e schema (LocalBusiness/Service/FAQ).",
+    },
+    {
+      id: "content_links",
+      label: "Conteudo suficiente + links internos",
+      why: "Ajuda rastreamento e relevancia semantica.",
+      missing: codeSet.has("SEO_CONTENT_THIN") || codeSet.has("SEO_INTERNAL_LINKS_LOW"),
+      recommendation: "Expanda conteudo util e crie links internos estrategicos.",
+    },
+    {
+      id: "social",
+      label: "Open Graph + Twitter Card",
+      why: "Melhora compartilhamento e taxa de clique.",
+      missing: codeSet.has("SEO_OPEN_GRAPH_INCOMPLETE") || codeSet.has("SEO_TWITTER_CARD_MISSING"),
+      recommendation: "Complete og:title/description/image/type e twitter:card.",
+    },
+  ];
+
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.label,
+    why: row.why,
+    status: row.missing ? "missing" : "ok",
+    recommendation: row.recommendation,
+  })) as SeoModel["checklist"];
+}
+
+function buildSeoPrompt(report: ReportModel) {
+  const checklist = report.seo.checklist.length ? report.seo.checklist : fallbackSeoChecklistFromIssues(report.seo);
+  const missing = checklist.filter((item) => item.status === "missing");
+  const topIssues = report.seo.issues.slice(0, 20);
+  if (!missing.length && !topIssues.length) {
+    return [
+      "Atue como especialista SEO senior.",
+      `Site: ${report.meta.baseUrl}`,
+      "Nao ha gaps SEO relevantes nesta rodada.",
+      "Objetivo: manter baseline e evitar regressao.",
+    ].join("\n");
+  }
+
+  return [
+    "Atue como especialista SEO senior com foco em execucao real, sem fix cosmetico.",
+    `Site: ${report.meta.baseUrl}`,
+    `Score atual: ${report.seo.overallScore}/100`,
+    "",
+    "Corrigir itens pendentes do checklist:",
+    ...missing.map((item, idx) => `${idx + 1}. ${item.label} | por que importa: ${item.why} | acao: ${item.recommendation}`),
+    "",
+    "Issues SEO detectadas:",
+    ...topIssues.map((item, idx) => `${idx + 1}. [${item.code}] (${item.severity}) ${item.detail} | recomendacao: ${item.recommendation}`),
+    "",
+    "Entrega obrigatoria:",
+    "- implementar ajustes com evidencias por arquivo",
+    "- validar novamente e mostrar melhoria de score/checklist",
+  ].join("\n");
+}
+
 function ReportPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("foco");
@@ -337,6 +540,7 @@ function ReportPageContent() {
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [actionSearch, setActionSearch] = useState("");
   const [actionStatusFilter, setActionStatusFilter] = useState("all");
+  const [seoPromptCopied, setSeoPromptCopied] = useState(false);
 
   useEffect(() => {
     const raw = localStorage.getItem(LAST_REPORT_STORAGE_KEY);
@@ -394,6 +598,28 @@ function ReportPageContent() {
       return hay.includes(query);
     });
   }, [report, actionSearch, actionStatusFilter]);
+
+  const seoChecklist = useMemo(() => {
+    if (!report) return [];
+    if (report.seo.checklist.length) return report.seo.checklist;
+    return fallbackSeoChecklistFromIssues(report.seo);
+  }, [report]);
+
+  const seoFixPrompt = useMemo(() => {
+    if (!report) return "";
+    return report.seo.fixPrompt || buildSeoPrompt(report);
+  }, [report]);
+
+  async function copySeoPrompt() {
+    if (!seoFixPrompt) return;
+    try {
+      await navigator.clipboard.writeText(seoFixPrompt);
+      setSeoPromptCopied(true);
+      setTimeout(() => setSeoPromptCopied(false), 1800);
+    } catch {
+      setSeoPromptCopied(false);
+    }
+  }
 
   if (!report) {
     return (
@@ -673,6 +899,22 @@ function ReportPageContent() {
             <p className="small muted">
               Esta analise aponta gaps de SEO on-page (title, meta, H1, alt, canonical, noindex, links internos etc).
             </p>
+
+            {seoChecklist.length ? (
+              <div className="assistant-block">
+                <p className="small muted" style={{ marginTop: 0 }}>Checklist SEO completo (explicado de forma simples)</p>
+                <ul className="assistant-list">
+                  {seoChecklist.map((item) => (
+                    <li key={item.id}>
+                      <strong>{item.status === "ok" ? "OK" : "FALTANDO"}:</strong> {item.label}
+                      {" | "}por que importa: {item.why}
+                      {item.status === "missing" ? ` | como corrigir: ${item.recommendation}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {report.seo.topRecommendations.length ? (
               <div className="assistant-block">
                 <p className="small muted" style={{ marginTop: 0 }}>Prioridades SEO recomendadas</p>
@@ -681,6 +923,18 @@ function ReportPageContent() {
                     <li key={`seo-top-${idx}`}>{line}</li>
                   ))}
                 </ul>
+              </div>
+            ) : null}
+
+            {seoFixPrompt ? (
+              <div className="assistant-block">
+                <p className="small muted" style={{ marginTop: 0 }}>Prompt recomendado para corrigir SEO</p>
+                <div className="code-box mono">{seoFixPrompt}</div>
+                <div className="btn-row" style={{ marginTop: 8 }}>
+                  <button type="button" onClick={() => void copySeoPrompt()}>
+                    {seoPromptCopied ? "Prompt SEO copiado" : "Copiar prompt SEO"}
+                  </button>
+                </div>
               </div>
             ) : null}
 
