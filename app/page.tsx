@@ -310,6 +310,19 @@ function classifyAuditNotice(input: {
     };
   }
 
+  if (code === "audit_failed" || signal.includes("audit_failed")) {
+    return {
+      level: "error",
+      code: "audit_failed",
+      title: "Auditoria nao conseguiu gerar relatorio",
+      userMessage:
+        "A verificacao iniciou, mas nao conseguiu finalizar o relatorio automaticamente neste ambiente.",
+      recommendation:
+        "Rode a auditoria via CMD local para gerar o JSON completo e importe no painel.",
+      technical,
+    };
+  }
+
   if (
     signal.includes("err_name_not_resolved") ||
     signal.includes("dns") ||
@@ -592,6 +605,8 @@ function PageContent() {
         });
         setAuditNotice(notice);
         pushLog(`[run] failed: ${notice.title}`);
+        pushLog(`[run] traducao: ${notice.userMessage}`);
+        pushLog(`[run] acao recomendada: ${notice.recommendation}`);
         if (notice.technical) {
           pushLog(`[run] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
         }
@@ -643,6 +658,8 @@ function PageContent() {
       });
       setAuditNotice(notice);
       pushLog(`[run] failed: ${notice.title}`);
+      pushLog(`[run] traducao: ${notice.userMessage}`);
+      pushLog(`[run] acao recomendada: ${notice.recommendation}`);
       if (notice.technical) {
         pushLog(`[run] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
       }
