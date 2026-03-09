@@ -1516,6 +1516,18 @@ function normalizeRoutePath(input) {
   }
 }
 
+function canonicalRouteKey(input) {
+  const normalized = normalizeRoutePath(input);
+  if (!normalized) return "";
+  let key = normalized.toLowerCase();
+  if (key !== "/" && key.endsWith(".html")) {
+    key = key.slice(0, -5);
+    if (!key.startsWith("/")) key = `/${key}`;
+    if (!key) key = "/";
+  }
+  return key;
+}
+
 function buildRouteUrl(baseUrl, route) {
   const base = String(baseUrl ?? "").trim();
   const normalizedBase = base.endsWith("/") ? base : `${base}/`;
@@ -2518,13 +2530,15 @@ async function discoverRoutes(page, cfg, args) {
   const baseOrigin = new URL(cfg.baseUrl).origin;
 
   const discovered = [];
-  const seen = new Set();
+  const seenCanonical = new Set();
   const enqueue = (route, source = "seed") => {
     const normalized = normalizeRoutePath(route);
     if (!normalized) return false;
-    if (seen.has(normalized)) return false;
+    const canonical = canonicalRouteKey(normalized);
+    if (!canonical) return false;
+    if (seenCanonical.has(canonical)) return false;
     if (discovered.length >= maxRoutes) return false;
-    seen.add(normalized);
+    seenCanonical.add(canonical);
     discovered.push(normalized);
     emitLiveEvent(args, "route_discovered", {
       action: "route_discovery",
@@ -3353,7 +3367,7 @@ async function run() {
 
         try {
           const currentPath = normalizeRoutePath(tryParsePathname(page.url()));
-          if (currentPath !== route) {
+          if (canonicalRouteKey(currentPath) !== canonicalRouteKey(route)) {
             await page.goto(routeUrl, {
               waitUntil: "domcontentloaded",
               timeout: cfg.routeLoadTimeoutMs,
