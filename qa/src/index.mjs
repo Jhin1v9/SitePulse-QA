@@ -1499,6 +1499,58 @@ function toAbsoluteMaybe(value, baseDir) {
   return path.isAbsolute(value) ? value : path.resolve(baseDir, value);
 }
 
+function normalizeRoutePath(input) {
+  const raw = String(input ?? "").trim();
+  if (!raw) return "";
+  const withoutHash = raw.split("#")[0].trim();
+  if (!withoutHash) return "";
+
+  try {
+    const parsed = new URL(withoutHash, "https://sitepulse.local");
+    const pathname = parsed.pathname.replace(/\/{2,}/g, "/");
+    if (!pathname.startsWith("/")) return "";
+    if (pathname === "/") return "/";
+    return pathname.replace(/\/+$/, "");
+  } catch {
+    return "";
+  }
+}
+
+function buildRouteUrl(baseUrl, route) {
+  const base = String(baseUrl ?? "").trim();
+  const normalizedBase = base.endsWith("/") ? base : `${base}/`;
+  const normalizedRoute = String(route ?? "").trim().replace(/^\/+/, "");
+  return new URL(normalizedRoute, normalizedBase).toString();
+}
+
+function toInternalRoute(candidateUrl, baseOrigin) {
+  const raw = String(candidateUrl ?? "").trim();
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (
+    lower.startsWith("javascript:") ||
+    lower.startsWith("mailto:") ||
+    lower.startsWith("tel:") ||
+    lower.startsWith("data:")
+  ) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(raw, `${baseOrigin}/`);
+    if (parsed.origin !== baseOrigin) return "";
+    const normalizedPath = normalizeRoutePath(parsed.pathname);
+    if (!normalizedPath) return "";
+    const pathLower = normalizedPath.toLowerCase();
+    if (STATIC_ASSET_EXTENSIONS.some((ext) => pathLower.endsWith(ext))) {
+      return "";
+    }
+    return normalizedPath;
+  } catch {
+    return "";
+  }
+}
+
 function normalizeSectionOrderRules(rules) {
   if (!Array.isArray(rules)) return [];
 
@@ -1576,6 +1628,12 @@ function normalizeConfig(config, configDir) {
       ? Math.max(0, Number(config.sectionOrderWaitMs))
       : 1400,
     sectionOrderRules: normalizeSectionOrderRules(config.sectionOrderRules ?? []),
+    autoDiscoverRoutes: config.autoDiscoverRoutes !== false,
+    discoverFromSitemap: config.discoverFromSitemap !== false,
+    discoverMenuLinks: config.discoverMenuLinks !== false,
+    maxDiscoveredRoutes: Number.isFinite(Number(config.maxDiscoveredRoutes))
+      ? Math.max(1, Number(config.maxDiscoveredRoutes))
+      : 40,
     ignoredRequestFailedErrors: (config.ignoredRequestFailedErrors ?? ["ERR_ABORTED"]).map((item) =>
       String(item).toLowerCase(),
     ),
@@ -2348,6 +2406,175 @@ function extractButtonLabels(page) {
   });
 }
 
+async function extractInternalRoutesFromPage(page, baseOrigin) {
+  const hrefs = await page.evaluate(() => {
+    const found = [];
+    const pushValue = (value) => {
+      const normalized = String(value ?? "").trim();
+      if (normalized) found.push(normalized);
+    };
+
+    for (const node of document.querySelectorAll("a[href]")) {
+      pushValue(node.getAttribute("href"));
+    }
+    for (const node of document.querySelectorAll("[data-href]")) {
+      pushValue(node.getAttribute("data-href"));
+    }
+    return Array.from(new Set(found));
+  });
+
+  const routes = [];
+  const seen = new Set();
+  for (const href of hrefs) {
+    const route = toInternalRoute(href, baseOrigin);
+    if (!route || seen.has(route)) continue;
+    seen.add(route);
+    routes.push(route);
+  }
+  return routes;
+}
+
+async function tryExpandNavigationMenus(page) {
+  const selectors = [
+    'button[aria-label*="menu" i]',
+    '[aria-controls*="menu" i]',
+    '[aria-haspopup="menu"]',
+    'button:has-text("Menu")',
+    'button:has-text("Menú")',
+    'button:has-text("Menú principal")',
+    'button:has-text("Abrir menu")',
+  ];
+
+  let clicks = 0;
+  for (const selector of selectors) {
+    const locator = page.locator(selector);
+    const count = await locator.count().catch(() => 0);
+    const max = Math.min(count, 3);
+
+    for (let idx = 0; idx < max; idx += 1) {
+      const target = locator.nth(idx);
+      const visible = await target.isVisible().catch(() => false);
+      if (!visible) continue;
+      const enabled = await target.isEnabled().catch(() => false);
+      if (!enabled) continue;
+
+      await target.click({ timeout: 1500 }).catch(() => undefined);
+      await page.waitForTimeout(120);
+      clicks += 1;
+      if (clicks >= 8) {
+        return clicks;
+      }
+    }
+  }
+  return clicks;
+}
+
+async function fetchRoutesFromSitemap(baseUrl, limit = 40) {
+  const candidates = [
+    buildRouteUrl(baseUrl, "/sitemap.xml"),
+    buildRouteUrl(baseUrl, "/sitemap_index.xml"),
+  ];
+  const baseOrigin = new URL(baseUrl).origin;
+  const routes = [];
+  const seen = new Set();
+
+  for (const sitemapUrl of candidates) {
+    try {
+      const response = await fetch(sitemapUrl, {
+        cache: "no-store",
+        headers: { "user-agent": "SitePulse-QA-RouteDiscovery/1.0" },
+      });
+      if (!response.ok) continue;
+      const xml = await response.text();
+      const matches = [...xml.matchAll(/<loc>(.*?)<\/loc>/gims)];
+
+      for (const match of matches) {
+        if (routes.length >= limit) break;
+        const raw = String(match?.[1] ?? "").trim();
+        if (!raw) continue;
+        const decoded = raw
+          .replace(/&amp;/g, "&")
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&quot;/g, "\"")
+          .replace(/&#39;/g, "'");
+        const route = toInternalRoute(decoded, baseOrigin);
+        if (!route || seen.has(route)) continue;
+        seen.add(route);
+        routes.push(route);
+      }
+    } catch {
+      // ignore sitemap errors and continue discovery by crawling
+    }
+    if (routes.length >= limit) break;
+  }
+
+  return routes;
+}
+
+async function discoverRoutes(page, cfg, args) {
+  const seedRoutes = Array.isArray(cfg.routes) ? cfg.routes : [];
+  const maxRoutes = Math.max(1, Number(cfg.maxDiscoveredRoutes ?? 40));
+  const baseOrigin = new URL(cfg.baseUrl).origin;
+
+  const discovered = [];
+  const seen = new Set();
+  const enqueue = (route, source = "seed") => {
+    const normalized = normalizeRoutePath(route);
+    if (!normalized) return false;
+    if (seen.has(normalized)) return false;
+    if (discovered.length >= maxRoutes) return false;
+    seen.add(normalized);
+    discovered.push(normalized);
+    emitLiveEvent(args, "route_discovered", {
+      action: "route_discovery",
+      detail: `${source}:${normalized}`,
+    });
+    return true;
+  };
+
+  for (const route of seedRoutes) {
+    enqueue(route, "seed");
+  }
+
+  if (cfg.discoverFromSitemap) {
+    const sitemapRoutes = await fetchRoutesFromSitemap(cfg.baseUrl, maxRoutes);
+    for (const route of sitemapRoutes) {
+      enqueue(route, "sitemap");
+      if (discovered.length >= maxRoutes) break;
+    }
+  }
+
+  for (let index = 0; index < discovered.length; index += 1) {
+    if (discovered.length >= maxRoutes) break;
+    const route = discovered[index];
+    const routeUrl = buildRouteUrl(cfg.baseUrl, route);
+
+    try {
+      await page.goto(routeUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: cfg.routeLoadTimeoutMs,
+      });
+      await page.waitForTimeout(250);
+    } catch {
+      continue;
+    }
+
+    if (cfg.discoverMenuLinks) {
+      await tryExpandNavigationMenus(page);
+    }
+
+    const links = await extractInternalRoutesFromPage(page, baseOrigin);
+    for (const linkRoute of links) {
+      if (enqueue(linkRoute, "link") && discovered.length >= maxRoutes) {
+        break;
+      }
+    }
+  }
+
+  return discovered.length > 0 ? discovered : ["/"];
+}
+
 async function fingerprint(page) {
   const snap = await page.evaluate(() => {
     const bodyText = (document.body?.innerText ?? "").replace(/\s+/g, " ").trim();
@@ -2914,6 +3141,24 @@ async function run() {
     const context = await browser.newContext({ viewport: { width: cfg.viewportWidth, height: cfg.viewportHeight } });
     const page = await context.newPage();
 
+    if (cfg.autoDiscoverRoutes) {
+      emitLiveEvent(args, "route_discovery_start", {
+        action: "route_discovery",
+        detail: `seed=${cfg.routes.length} max=${cfg.maxDiscoveredRoutes}`,
+      });
+      const discoveredRoutes = await discoverRoutes(page, cfg, args);
+      cfg.routes = discoveredRoutes;
+      report.progress.totalRoutes = cfg.routes.length;
+      report.progress.nextRouteIndex = Math.max(
+        0,
+        Math.min(Number(report.progress.nextRouteIndex ?? 0), cfg.routes.length),
+      );
+      emitLiveEvent(args, "route_discovery_done", {
+        action: "route_discovery",
+        detail: `total=${cfg.routes.length}`,
+      });
+    }
+
     page.on("dialog", async (dialog) => {
       counters.dialogs += 1;
       try {
@@ -3005,6 +3250,7 @@ async function run() {
       const route = cfg.routes[routeIndex];
       currentRoute = route;
       currentAction = "route_load";
+      const routeUrl = buildRouteUrl(cfg.baseUrl, route);
       emitLiveEvent(args, "route_start", {
         route,
         action: "route_load",
@@ -3015,7 +3261,7 @@ async function run() {
       routeResult.loadOk = true;
 
       try {
-        await page.goto(`${cfg.baseUrl}${route}`, {
+        await page.goto(routeUrl, {
           waitUntil: "domcontentloaded",
           timeout: cfg.routeLoadTimeoutMs,
         });
@@ -3032,7 +3278,7 @@ async function run() {
           severity: severityFromCode(CODE.ROUTE_LOAD_FAIL),
           route,
           detail: normalizeText(String(error)),
-          url: `${cfg.baseUrl}${route}`,
+          url: routeUrl,
         });
         report.progress.nextRouteIndex = routeIndex + 1;
         report.progress.nextLabelIndex = 0;
@@ -3106,8 +3352,9 @@ async function run() {
         });
 
         try {
-          if (!page.url().includes(route)) {
-            await page.goto(`${cfg.baseUrl}${route}`, {
+          const currentPath = normalizeRoutePath(tryParsePathname(page.url()));
+          if (currentPath !== route) {
+            await page.goto(routeUrl, {
               waitUntil: "domcontentloaded",
               timeout: cfg.routeLoadTimeoutMs,
             });

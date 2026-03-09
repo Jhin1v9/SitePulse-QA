@@ -14,6 +14,10 @@
   "checkpointEveryClicks": 10,
   "reportDir": "reports",
   "checkpointFile": "reports/default-mobile-checkpoint.json",
+  "autoDiscoverRoutes": true,
+  "discoverFromSitemap": true,
+  "discoverMenuLinks": true,
+  "maxDiscoveredRoutes": 60,
   "requireButtonEffect": true,
   "allowedNoEffectButtonContains": [
     "whatsapp",
