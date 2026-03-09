@@ -61,6 +61,15 @@ type RunPlanResponse = {
   error?: string;
 };
 
+type CmdLaunchResponse = {
+  ok: boolean;
+  mode?: Mode;
+  message?: string;
+  command?: string;
+  detail?: string;
+  error?: string;
+};
+
 const DEFAULT_TARGET_URL = "https://example.com";
 const REPORT_FALLBACK_URL = "https://your-site.com";
 const DEMO_USERS = [
@@ -269,6 +278,7 @@ function PageContent() {
   const [headed, setHeaded] = useState(false);
 
   const [running, setRunning] = useState(false);
+  const [openingCmd, setOpeningCmd] = useState(false);
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>(["[hub] ready"]);
   const [report, setReport] = useState<ReportModel | null>(null);
@@ -398,6 +408,37 @@ function PageContent() {
       setProgress(0);
     } finally {
       setRunning(false);
+    }
+  }
+
+  async function openCmdRun() {
+    if (!targetUrl.trim()) {
+      pushLog("[cmd] informe uma URL para abrir no CMD.");
+      return;
+    }
+    setOpeningCmd(true);
+    pushLog("[cmd] abrindo janela do CMD...");
+    try {
+      const res = await fetch("/api/open-cmd", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          baseUrl: targetUrl.trim(),
+          mode,
+          noServer,
+          headed,
+        }),
+      });
+      const payload = (await res.json()) as CmdLaunchResponse;
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.detail ?? payload.error ?? "cmd_open_failed");
+      }
+      pushLog(`[cmd] ${payload.message ?? "janela CMD aberta."}`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "unknown_error";
+      pushLog(`[cmd] falha ao abrir CMD: ${message}`);
+    } finally {
+      setOpeningCmd(false);
     }
   }
 
@@ -568,15 +609,26 @@ function PageContent() {
                 <button
                   className="btn-primary"
                   type="button"
-                  disabled={running || selfAudit}
+                  disabled={running || openingCmd || selfAudit}
                   onClick={runPlan}
                 >
                   {running ? "Auditando..." : "Auditar URL agora"}
+                </button>
+                <button
+                  className="btn-secondary"
+                  type="button"
+                  disabled={running || openingCmd || selfAudit}
+                  onClick={openCmdRun}
+                >
+                  {openingCmd ? "Abrindo CMD..." : "Rodar via CMD (janela)"}
                 </button>
                 <button className="btn-secondary" type="button" onClick={checkHealth}>
                   Checar API
                 </button>
               </div>
+              <p className="small muted" style={{ margin: 0 }}>
+                "Rodar via CMD (janela)" funciona em Windows local.
+              </p>
 
               <div className="btn-row">
                 <button type="button" onClick={() => void loadDemoReport()}>
