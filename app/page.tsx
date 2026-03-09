@@ -62,6 +62,15 @@ type RunPlanResponse = {
   error?: string;
 };
 
+type AuditNotice = {
+  level: "error" | "warn" | "info";
+  code?: string;
+  title: string;
+  userMessage: string;
+  recommendation: string;
+  technical?: string;
+};
+
 type CmdLaunchResponse = {
   ok: boolean;
   mode?: Mode;
@@ -264,6 +273,189 @@ function mapHealthChip(health: "idle" | "ok" | "bad") {
   return { label: "API nao verificada", className: "dot" };
 }
 
+function classifyAuditNotice(input: {
+  error?: string;
+  detail?: string;
+  usedFallback?: boolean;
+  targetUrl: string;
+}): AuditNotice {
+  const code = String(input.error ?? "").trim();
+  const detail = String(input.detail ?? "").trim();
+  const signal = `${code} ${detail}`.toLowerCase();
+  const technical = detail || undefined;
+
+  if (input.usedFallback || code === "audit_engine_unavailable") {
+    return {
+      level: "warn",
+      code: code || "audit_engine_unavailable",
+      title: "Auditoria parcial no servidor",
+      userMessage:
+        "O sistema conseguiu validar a resposta HTTP do site, mas nao conseguiu executar toda a auditoria visual (botoes/layout) no servidor.",
+      recommendation:
+        "Use 'Rodar via CMD (janela)' no Windows local para auditoria completa e depois importe o JSON no painel.",
+      technical,
+    };
+  }
+
+  if (code === "baseUrl is required" || code === "invalid baseUrl") {
+    return {
+      level: "error",
+      code: code || "invalid_base_url",
+      title: "URL invalida",
+      userMessage:
+        "A URL informada nao esta no formato correto.",
+      recommendation:
+        "Digite a URL completa com protocolo, por exemplo: https://seusite.com.",
+      technical,
+    };
+  }
+
+  if (
+    signal.includes("err_name_not_resolved") ||
+    signal.includes("dns") ||
+    signal.includes("name not resolved")
+  ) {
+    return {
+      level: "error",
+      code: code || "dns_error",
+      title: "Dominio nao encontrado",
+      userMessage:
+        "Nao foi possivel localizar o dominio do site.",
+      recommendation:
+        "Confira se a URL esta correta e se o dominio esta ativo.",
+      technical,
+    };
+  }
+
+  if (
+    signal.includes("err_connection_refused") ||
+    signal.includes("econnrefused") ||
+    signal.includes("connection refused")
+  ) {
+    return {
+      level: "error",
+      code: code || "connection_refused",
+      title: "Servidor recusou conexao",
+      userMessage:
+        "O site existe, mas o servidor recusou a conexao no momento do teste.",
+      recommendation:
+        "Verifique se o servidor esta online e se nao ha bloqueio de rede/firewall.",
+      technical,
+    };
+  }
+
+  if (
+    signal.includes("err_cert") ||
+    signal.includes("ssl") ||
+    signal.includes("tls") ||
+    signal.includes("certificate")
+  ) {
+    return {
+      level: "error",
+      code: code || "ssl_error",
+      title: "Erro de certificado SSL/TLS",
+      userMessage:
+        "A conexao segura do site falhou por problema de certificado.",
+      recommendation:
+        "Corrija/renove o certificado HTTPS do dominio e teste novamente.",
+      technical,
+    };
+  }
+
+  if (signal.includes("timeout") || signal.includes("timed out")) {
+    return {
+      level: "error",
+      code: code || "timeout",
+      title: "Tempo limite excedido",
+      userMessage:
+        "O site demorou mais do que o esperado para responder.",
+      recommendation:
+        "Teste de novo e verifique desempenho/estabilidade do servidor.",
+      technical,
+    };
+  }
+
+  if (signal.includes(" 403 ") || signal.includes("forbidden")) {
+    return {
+      level: "error",
+      code: code || "http_403",
+      title: "Acesso bloqueado (403)",
+      userMessage:
+        "O servidor bloqueou o acesso para esta verificacao.",
+      recommendation:
+        "Revise regras de firewall, WAF, CORS ou permissao da rota.",
+      technical,
+    };
+  }
+
+  if (signal.includes(" 404 ") || signal.includes("not found")) {
+    return {
+      level: "error",
+      code: code || "http_404",
+      title: "Pagina/rota nao encontrada (404)",
+      userMessage:
+        "A URL foi acessada, mas a rota solicitada nao existe no servidor.",
+      recommendation:
+        "Confirme o caminho da URL e se a rota esta publicada.",
+      technical,
+    };
+  }
+
+  if (signal.includes(" 500 ") || signal.includes("5xx")) {
+    return {
+      level: "error",
+      code: code || "http_5xx",
+      title: "Erro interno do servidor (5xx)",
+      userMessage:
+        "O servidor encontrou uma falha interna ao processar a requisicao.",
+      recommendation:
+        "Verifique logs do backend e dependencias externas.",
+      technical,
+    };
+  }
+
+  if (
+    signal.includes("playwright") ||
+    signal.includes("chromium") ||
+    signal.includes("browsertype.launch")
+  ) {
+    return {
+      level: "warn",
+      code: code || "runner_unavailable",
+      title: "Motor de browser indisponivel no ambiente",
+      userMessage:
+        "O ambiente atual nao conseguiu abrir o navegador da auditoria.",
+      recommendation:
+        "Execute a auditoria completa via CMD local e importe o JSON no Hub.",
+      technical,
+    };
+  }
+
+  if (signal.includes("failed to fetch") || signal.includes("networkerror")) {
+    return {
+      level: "error",
+      code: code || "network_error",
+      title: "Falha de rede na auditoria",
+      userMessage:
+        "Houve uma falha de comunicacao ao tentar verificar o site.",
+      recommendation:
+        "Confirme conexao, URL e bloqueios de rede, depois tente novamente.",
+      technical,
+    };
+  }
+
+  return {
+    level: "error",
+    code: code || "run_plan_failed",
+    title: "Falha ao executar auditoria",
+    userMessage:
+      `Nao foi possivel concluir a verificacao de ${input.targetUrl}.`,
+    recommendation:
+      "Tente novamente. Se persistir, rode via CMD local para obter diagnostico completo.",
+    technical,
+  };
+}
+
 function PageContent() {
   const searchParams = useSearchParams();
   const autoLogin = searchParams.get("autologin") === "1";
@@ -289,6 +481,7 @@ function PageContent() {
   const [search, setSearch] = useState("");
   const [jsonPaste, setJsonPaste] = useState("");
   const [actionPulse, setActionPulse] = useState(0);
+  const [auditNotice, setAuditNotice] = useState<AuditNotice | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoginAppliedRef = useRef(false);
@@ -364,6 +557,7 @@ function PageContent() {
     const normalized = normalizeReport(data);
     setReportRaw(data);
     setReport(normalized);
+    setAuditNotice(null);
     setSeverityFilter("all");
     setSearch("");
     pushLog(`[report] demo loaded (${normalized.issues.length} issues)`);
@@ -376,6 +570,7 @@ function PageContent() {
     setProgress(0);
     setReport(null);
     setReportRaw(null);
+    setAuditNotice(null);
     setLogs([]);
     pushLog("[run] starting plan");
     try {
@@ -389,14 +584,35 @@ function PageContent() {
       });
       const payload = (await res.json()) as RunPlanResponse;
       if (!res.ok || !payload.ok) {
-        const reason = [payload.error, payload.detail].filter(Boolean).join(": ");
-        throw new Error(reason || "run_plan_failed");
+        const notice = classifyAuditNotice({
+          error: payload.error,
+          detail: payload.detail,
+          usedFallback: payload.usedFallback,
+          targetUrl: targetUrl.trim(),
+        });
+        setAuditNotice(notice);
+        pushLog(`[run] failed: ${notice.title}`);
+        if (notice.technical) {
+          pushLog(`[run] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
+        }
+        setProgress(0);
+        return;
       }
 
       setProgress(75);
       const steps = payload.steps ?? [];
       for (const step of steps) {
         pushLog(`[step] ${step}`);
+      }
+      if (payload.usedFallback) {
+        const notice = classifyAuditNotice({
+          error: payload.error,
+          detail: payload.detail,
+          usedFallback: true,
+          targetUrl: targetUrl.trim(),
+        });
+        setAuditNotice(notice);
+        pushLog("[run] aviso: auditoria parcial no servidor.");
       }
       if (payload.usedFallback) {
         pushLog("[run] fallback ativo no servidor (auditoria HTTP). Para auditoria completa, rode via CMD local.");
@@ -420,7 +636,16 @@ function PageContent() {
       pushLog("[run] finalizada.");
     } catch (error) {
       const message = error instanceof Error ? error.message : "unknown_error";
-      pushLog(`[run] failed: ${message}`);
+      const notice = classifyAuditNotice({
+        error: "run_plan_failed",
+        detail: message,
+        targetUrl: targetUrl.trim(),
+      });
+      setAuditNotice(notice);
+      pushLog(`[run] failed: ${notice.title}`);
+      if (notice.technical) {
+        pushLog(`[run] detalhe tecnico: ${notice.technical.slice(0, 220)}`);
+      }
       setProgress(0);
     } finally {
       setRunning(false);
@@ -463,6 +688,7 @@ function PageContent() {
       const normalized = normalizeReport(raw);
       setReportRaw(raw);
       setReport(normalized);
+      setAuditNotice(null);
       setSeverityFilter("all");
       setSearch("");
       pushLog(`[report] imported from ${source}`);
@@ -690,6 +916,23 @@ function PageContent() {
               <h2 className="card-title">Resultado da auditoria</h2>
             </header>
             <div className="card-body">
+              {auditNotice ? (
+                <section className={`audit-alert ${auditNotice.level}`}>
+                  <div className="audit-alert-top">
+                    <strong>{auditNotice.title}</strong>
+                    {auditNotice.code ? <span className="pill">{auditNotice.code}</span> : null}
+                  </div>
+                  <p>{auditNotice.userMessage}</p>
+                  <p className="small">{auditNotice.recommendation}</p>
+                  {auditNotice.technical ? (
+                    <details>
+                      <summary>Mostrar detalhe tecnico</summary>
+                      <div className="code-box mono">{auditNotice.technical}</div>
+                    </details>
+                  ) : null}
+                </section>
+              ) : null}
+
               <div className="metrics">
                 <div className="metric">
                   <div className="value">{report?.summary.routesChecked ?? 0}</div>
