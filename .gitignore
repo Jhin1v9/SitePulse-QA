@@ -4,3 +4,6 @@ out
 .vercel
 *.log
 *.tsbuildinfo
+companion/node_modules
+companion/dist
+companion/runtime-source

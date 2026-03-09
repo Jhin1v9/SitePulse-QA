@@ -1,0 +1,56 @@
+{
+  "name": "sitepulse-companion",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Windows companion app for SitePulse local audits and localhost bridge control.",
+  "author": "SitePulse",
+  "type": "module",
+  "main": "src/main.cjs",
+  "scripts": {
+    "sync:runtime": "node scripts/sync-runtime.mjs",
+    "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
+    "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
+    "pack:dir": "npm run sync:runtime && electron-builder --dir",
+    "build:win": "npm run sync:runtime && electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@sparticuz/chromium": "138.0.2",
+    "playwright": "^1.53.2"
+  },
+  "devDependencies": {
+    "electron": "40.8.0",
+    "electron-builder": "26.8.1"
+  },
+  "build": {
+    "appId": "com.sitepulse.companion",
+    "productName": "SitePulse Companion",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "runtime-source/**/*",
+      "package.json"
+    ],
+    "extraMetadata": {
+      "main": "src/main.cjs"
+    },
+    "asarUnpack": [
+      "runtime-source/**",
+      "node_modules/playwright/**",
+      "node_modules/playwright-core/**",
+      "node_modules/@sparticuz/**"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "SitePulse-Companion-${version}-Setup.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
+    }
+  }
+}

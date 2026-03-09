@@ -164,6 +164,7 @@ type CmdLaunchResponse = {
 
 type LocalBridgeHealthResponse = {
   ok: boolean;
+  service?: string;
   running?: boolean;
   runningTarget?: string | null;
   runningMode?: Mode | null;
@@ -183,6 +184,8 @@ const REPORT_HISTORY_STORAGE_KEY = "sitepulse:report-history-v1";
 const MAX_REPORT_HISTORY = 12;
 const LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:47891";
 const LOCAL_BRIDGE_START_COMMAND = "npm run audit:bridge";
+const LOCAL_COMPANION_HINT =
+  "Instale o SitePulse Companion no Windows para auditoria local completa sem precisar do codigo-fonte. Em modo dev, rode npm run audit:bridge.";
 const DEMO_USERS = [
   { username: "admin", password: "admin123" },
   { username: "mobile", password: "mobile123" },
@@ -438,10 +441,10 @@ function mapHealthChip(health: "idle" | "ok" | "bad") {
   return { label: "API nao verificada", className: "dot" };
 }
 
-function mapBridgeChip(status: "idle" | "ok" | "bad") {
-  if (status === "ok") return { label: "Bridge local ON", className: "dot ok" };
-  if (status === "bad") return { label: "Bridge local OFF", className: "dot bad" };
-  return { label: "Bridge local nao checado", className: "dot" };
+function mapBridgeChip(status: "idle" | "ok" | "bad", serviceName = "Bridge local") {
+  if (status === "ok") return { label: `${serviceName} ON`, className: "dot ok" };
+  if (status === "bad") return { label: `${serviceName} OFF`, className: "dot bad" };
+  return { label: `${serviceName} nao checado`, className: "dot" };
 }
 
 function persistLastReport(raw: unknown) {
@@ -922,9 +925,9 @@ function classifyAuditNotice(input: {
       code,
       title: "Bridge local indisponivel",
       userMessage:
-        "A auditoria completa via browser precisa do Bridge local ativo na sua maquina.",
+        "A auditoria completa via browser precisa do companion local ou do bridge local ativo na sua maquina.",
       recommendation:
-        `Abra um CMD na pasta do projeto e rode: ${LOCAL_BRIDGE_START_COMMAND}.`,
+        `Use o SitePulse Companion. Em modo dev, abra um CMD na pasta do projeto e rode: ${LOCAL_BRIDGE_START_COMMAND}.`,
       technical,
     };
   }
@@ -1126,6 +1129,7 @@ function PageContent() {
   const [reportRaw, setReportRaw] = useState<unknown>(null);
   const [health, setHealth] = useState<"idle" | "ok" | "bad">("idle");
   const [localBridgeHealth, setLocalBridgeHealth] = useState<"idle" | "ok" | "bad">("idle");
+  const [localBridgeService, setLocalBridgeService] = useState("Bridge local");
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [search, setSearch] = useState("");
   const [jsonPaste, setJsonPaste] = useState("");
@@ -1165,7 +1169,7 @@ function PageContent() {
 
   const riskScore = useMemo(() => scoreFromIssues(report?.issues ?? []), [report]);
   const healthChip = mapHealthChip(health);
-  const bridgeChip = mapBridgeChip(localBridgeHealth);
+  const bridgeChip = mapBridgeChip(localBridgeHealth, localBridgeService);
   const selectedHistory = useMemo(
     () => historyEntries.find((entry) => entry.id === selectedHistoryId) ?? null,
     [historyEntries, selectedHistoryId],
@@ -1238,24 +1242,29 @@ function PageContent() {
       const res = await fetch(`${LOCAL_BRIDGE_BASE_URL}/health`, { cache: "no-store" });
       if (!res.ok) {
         setLocalBridgeHealth("bad");
+        setLocalBridgeService("Bridge local");
         if (!silent) pushLog("[bridge] check failed");
         return false;
       }
       const payload = (await res.json()) as LocalBridgeHealthResponse;
       if (!payload.ok) {
         setLocalBridgeHealth("bad");
+        setLocalBridgeService("Bridge local");
         if (!silent) pushLog("[bridge] respondeu com erro.");
         return false;
       }
+      const serviceName = payload.service === "sitepulse-companion-bridge" ? "Companion local" : "Bridge local";
+      setLocalBridgeService(serviceName);
       setLocalBridgeHealth("ok");
       if (!silent) {
-        pushLog(payload.running ? "[bridge] ativo (auditoria em andamento)." : "[bridge] ativo e pronto.");
+        pushLog(payload.running ? `[bridge] ${serviceName} ativo (auditoria em andamento).` : `[bridge] ${serviceName} ativo e pronto.`);
       }
       return true;
     } catch {
       setLocalBridgeHealth("bad");
+      setLocalBridgeService("Bridge local");
       if (!silent) {
-        pushLog("[bridge] offline. Inicie com: npm run audit:bridge");
+        pushLog(`[bridge] offline. ${LOCAL_COMPANION_HINT}`);
       }
       return false;
     }
@@ -1978,7 +1987,7 @@ function PageContent() {
                   disabled={running || openingCmd || selfAudit}
                   onClick={runPlanViaLocalBridge}
                 >
-                  {running ? "Auditando..." : "Auditar completo (Bridge local)"}
+                  {running ? "Auditando..." : "Auditar completo (Companion local)"}
                 </button>
                 <button
                   className="btn-secondary"
@@ -1992,14 +2001,17 @@ function PageContent() {
                   Checar API
                 </button>
                 <button className="btn-secondary" type="button" onClick={() => void checkLocalBridge()}>
-                  Checar Bridge local
+                  Checar Companion local
                 </button>
               </div>
               <p className="small muted" style={{ margin: 0 }}>
                 "Rodar via CMD (janela)" abre no Windows local. Em deploy remoto (ex.: Vercel), use o comando recomendado.
               </p>
               <p className="small muted" style={{ margin: "4px 0 0" }}>
-                Para auditoria completa via browser em qualquer deploy: inicie o bridge local com <code>{LOCAL_BRIDGE_START_COMMAND}</code>.
+                {LOCAL_COMPANION_HINT}
+              </p>
+              <p className="small muted" style={{ margin: "4px 0 0" }}>
+                Fallback de desenvolvimento: <code>{LOCAL_BRIDGE_START_COMMAND}</code>.
               </p>
 
               <div className="btn-row">
@@ -2196,12 +2208,23 @@ function PageContent() {
 
           <article className="card reveal d2">
             <header className="card-head">
-              <h2 className="card-title">CMD + Guia</h2>
+              <h2 className="card-title">Companion + CMD + Guia</h2>
             </header>
             <div className="card-body">
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Inicializar bridge local (obrigatorio para auditoria completa no browser)
+                  Companion local (preferido)
+                </p>
+                <div className="assistant-block">
+                  <p className="small muted" style={{ marginTop: 0 }}>
+                    Instale e abra o SitePulse Companion para manter o bridge ativo no Windows sem depender do projeto fonte.
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="small muted" style={{ margin: "0 0 6px" }}>
+                  Fallback dev: inicializar bridge manual
                 </p>
                 <div className="code-box mono">{LOCAL_BRIDGE_START_COMMAND}</div>
                 <div className="btn-row" style={{ marginTop: 8 }}>
