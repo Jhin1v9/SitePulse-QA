@@ -26,6 +26,41 @@ type IssueModel = {
   group: string;
 };
 
+type ActionSweepModel = {
+  id: string;
+  route: string;
+  label: string;
+  kind: string;
+  href: string;
+  expectedFunction: string;
+  expectedForUser: string;
+  actualFunction: string;
+  status: string;
+  statusLabel: string;
+  detail: string;
+};
+
+type SeoIssueModel = {
+  code: string;
+  severity: Severity;
+  detail: string;
+  recommendation: string;
+  count: number;
+  affectedRoutes: string[];
+};
+
+type SeoModel = {
+  overallScore: number;
+  pagesAnalyzed: number;
+  categoryScore: {
+    technical: number;
+    content: number;
+    accessibility: number;
+  };
+  issues: SeoIssueModel[];
+  topRecommendations: string[];
+};
+
 type ReportModel = {
   meta: {
     project: string;
@@ -39,12 +74,22 @@ type ReportModel = {
     visualSectionOrderInvalid: number;
     buttonsNoEffect: number;
     consoleErrors: number;
+    actionsMapped: number;
+    actionsWithEffect: number;
+    actionsNoEffectDetected: number;
+    actionsFailed: number;
+    actionsAnalysisOnly: number;
+    seoScore: number;
+    seoPagesAnalyzed: number;
+    seoCriticalIssues: number;
   };
   assistantGuide: {
     replayCommand: string;
     immediateSteps: string[];
     quickStartPrompt: string;
   };
+  actionSweep: ActionSweepModel[];
+  seo: SeoModel;
   issues: IssueModel[];
 };
 
@@ -139,6 +184,14 @@ function normalizeReport(raw: unknown): ReportModel {
       : source.promptPack && typeof source.promptPack === "object"
       ? (source.promptPack as Record<string, unknown>)
       : {};
+  const actionSweepRaw = Array.isArray(source.actionSweep) ? source.actionSweep : [];
+  const seoObj = source.seo && typeof source.seo === "object" ? (source.seo as Record<string, unknown>) : {};
+  const seoCategoryObj =
+    seoObj.categoryScore && typeof seoObj.categoryScore === "object"
+      ? (seoObj.categoryScore as Record<string, unknown>)
+      : {};
+  const seoIssuesRaw = Array.isArray(seoObj.issues) ? seoObj.issues : [];
+  const topRecommendationsRaw = Array.isArray(seoObj.topRecommendations) ? seoObj.topRecommendations : [];
 
   const issuesRaw = Array.isArray(source.issues) ? source.issues : [];
   const issues = issuesRaw.map((issue, index) => normalizeIssue(issue, index));
@@ -147,6 +200,35 @@ function normalizeReport(raw: unknown): ReportModel {
     const severityCmp = bySeverityWeight[a.severity] - bySeverityWeight[b.severity];
     if (severityCmp !== 0) return severityCmp;
     return a.code.localeCompare(b.code);
+  });
+
+  const actionSweep = actionSweepRaw.map((item, index) => {
+    const rawItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    return {
+      id: String(rawItem.id ?? `action-${index + 1}`),
+      route: String(rawItem.route ?? "/"),
+      label: String(rawItem.label ?? "acao sem nome"),
+      kind: String(rawItem.kind ?? "button"),
+      href: String(rawItem.href ?? ""),
+      expectedFunction: String(rawItem.expectedFunction ?? "Executar acao esperada do elemento."),
+      expectedForUser: String(rawItem.expectedForUser ?? "Deve entregar resposta clara para o usuario."),
+      actualFunction: String(rawItem.actualFunction ?? "Sem resultado registrado."),
+      status: String(rawItem.status ?? "unknown"),
+      statusLabel: String(rawItem.statusLabel ?? String(rawItem.status ?? "unknown")),
+      detail: String(rawItem.detail ?? ""),
+    } as ActionSweepModel;
+  });
+
+  const seoIssues = seoIssuesRaw.map((item) => {
+    const rawItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    return {
+      code: String(rawItem.code ?? "SEO_UNKNOWN"),
+      severity: parseSeverity(rawItem.severity, "CONSOLE_ERROR"),
+      detail: String(rawItem.detail ?? "Sem detalhe."),
+      recommendation: String(rawItem.recommendation ?? "Sem recomendacao."),
+      count: toNumber(rawItem.count, 1),
+      affectedRoutes: Array.isArray(rawItem.affectedRoutes) ? rawItem.affectedRoutes.map((v) => String(v)) : [],
+    } as SeoIssueModel;
   });
 
   return {
@@ -162,6 +244,17 @@ function normalizeReport(raw: unknown): ReportModel {
       visualSectionOrderInvalid: toNumber(summaryObj.visualSectionOrderInvalid, 0),
       buttonsNoEffect: toNumber(summaryObj.buttonsNoEffect, 0),
       consoleErrors: toNumber(summaryObj.consoleErrors, 0),
+      actionsMapped: toNumber(summaryObj.actionsMapped, actionSweep.length),
+      actionsWithEffect: toNumber(summaryObj.actionsWithEffect, 0),
+      actionsNoEffectDetected: toNumber(summaryObj.actionsNoEffectDetected, 0),
+      actionsFailed: toNumber(summaryObj.actionsFailed, 0),
+      actionsAnalysisOnly: toNumber(summaryObj.actionsAnalysisOnly, 0),
+      seoScore: toNumber(summaryObj.seoScore, toNumber(seoObj.overallScore, 0)),
+      seoPagesAnalyzed: toNumber(summaryObj.seoPagesAnalyzed, toNumber(seoObj.pagesAnalyzed, 0)),
+      seoCriticalIssues: toNumber(
+        summaryObj.seoCriticalIssues,
+        seoIssues.filter((item) => item.severity === "high").length,
+      ),
     },
     assistantGuide: {
       replayCommand: String(guideObj.replayCommand ?? metaObj.replayCommand ?? "indisponivel"),
@@ -169,6 +262,18 @@ function normalizeReport(raw: unknown): ReportModel {
         ? guideObj.immediateSteps.map((v) => String(v))
         : ["Comece por problemas P0/P1.", "Corrija causa raiz.", "Rode novamente para validar."],
       quickStartPrompt: String(guideObj.quickStartPrompt ?? "Sem prompt rapido nesta rodada."),
+    },
+    actionSweep,
+    seo: {
+      overallScore: toNumber(seoObj.overallScore, 0),
+      pagesAnalyzed: toNumber(seoObj.pagesAnalyzed, 0),
+      categoryScore: {
+        technical: toNumber(seoCategoryObj.technical, 0),
+        content: toNumber(seoCategoryObj.content, 0),
+        accessibility: toNumber(seoCategoryObj.accessibility, 0),
+      },
+      issues: seoIssues,
+      topRecommendations: topRecommendationsRaw.map((v) => String(v)),
     },
     issues,
   };
@@ -213,6 +318,16 @@ function currentAction(issue: IssueModel) {
   return issue.detail;
 }
 
+function actionStatusPill(status: string) {
+  if (status === "clicked_effect") return "pill pill-low";
+  if (status === "clicked_no_effect") return "pill pill-medium";
+  if (status === "click_error") return "pill pill-high";
+  if (status === "skipped_not_visible" || status === "skipped_disabled" || status === "skipped_already_active") {
+    return "pill pill-medium";
+  }
+  return "pill";
+}
+
 function ReportPageContent() {
   const searchParams = useSearchParams();
   const focus = searchParams.get("foco");
@@ -220,6 +335,8 @@ function ReportPageContent() {
   const [rawText, setRawText] = useState("");
   const [showDev, setShowDev] = useState(false);
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+  const [actionSearch, setActionSearch] = useState("");
+  const [actionStatusFilter, setActionStatusFilter] = useState("all");
 
   useEffect(() => {
     const raw = localStorage.getItem(LAST_REPORT_STORAGE_KEY);
@@ -239,10 +356,12 @@ function ReportPageContent() {
     if (!focus) return;
     const target = focus === "routes"
       ? "sec-routes"
-      : focus === "buttons"
-      ? "sec-buttons"
+      : focus === "actions" || focus === "buttons"
+      ? "sec-actions"
       : focus === "issues"
       ? "sec-issues"
+      : focus === "seo"
+      ? "sec-seo"
       : focus === "risk"
       ? "sec-risk"
       : "";
@@ -264,6 +383,17 @@ function ReportPageContent() {
     if (severityFilter === "all") return report.issues;
     return report.issues.filter((issue) => issue.severity === severityFilter);
   }, [report, severityFilter]);
+
+  const actionFiltered = useMemo(() => {
+    if (!report) return [];
+    const query = actionSearch.trim().toLowerCase();
+    return report.actionSweep.filter((action) => {
+      if (actionStatusFilter !== "all" && action.status !== actionStatusFilter) return false;
+      if (!query) return true;
+      const hay = `${action.route} ${action.label} ${action.expectedFunction} ${action.actualFunction} ${action.statusLabel}`.toLowerCase();
+      return hay.includes(query);
+    });
+  }, [report, actionSearch, actionStatusFilter]);
 
   if (!report) {
     return (
@@ -326,16 +456,16 @@ function ReportPageContent() {
                 <div className="label">Rotas averiguadas</div>
               </div>
               <div className="metric">
-                <div className="value">{report.summary.buttonsChecked}</div>
-                <div className="label">Botoes checados</div>
+                <div className="value">{report.summary.actionsMapped || report.summary.buttonsChecked}</div>
+                <div className="label">Acoes mapeadas</div>
               </div>
               <div className="metric">
                 <div className="value">{report.summary.totalIssues}</div>
                 <div className="label">Problemas</div>
               </div>
               <div className="metric">
-                <div className="value">{score}</div>
-                <div className="label">Risco</div>
+                <div className="value">{report.summary.seoScore || report.seo.overallScore}</div>
+                <div className="label">SEO score</div>
               </div>
             </div>
             <p className="small muted">Site: {report.meta.baseUrl}</p>
@@ -362,18 +492,100 @@ function ReportPageContent() {
 
         <article id="sec-buttons" className="card report-card reveal d3">
           <header className="card-head">
-            <h2 className="card-title">Botoes</h2>
+            <h2 className="card-title">Botoes e Acoes</h2>
           </header>
           <div className="card-body">
             <p>
               Botoes checados: <strong>{report.summary.buttonsChecked}</strong>
             </p>
             <p>
+              Acoes mapeadas com contexto: <strong>{report.summary.actionsMapped || report.actionSweep.length}</strong>
+            </p>
+            <p>
+              Acoes com efeito visivel: <strong>{report.summary.actionsWithEffect ?? report.actionSweep.filter((a) => a.status === "clicked_effect").length}</strong>
+            </p>
+            <p>
+              Acoes sem efeito: <strong>{report.summary.actionsNoEffectDetected ?? report.actionSweep.filter((a) => a.status === "clicked_no_effect").length}</strong>
+            </p>
+            <p>
               Botoes sem resposta: <strong>{report.summary.buttonsNoEffect}</strong>
             </p>
             <p className="small muted">
-              Se houver falha de botao, veja a secao de problemas para comparar acao esperada vs acao atual.
+              Cada acao abaixo mostra: funcao esperada, funcao que executou e status real.
             </p>
+          </div>
+        </article>
+
+        <article id="sec-actions" className="card report-card reveal d3">
+          <header className="card-head">
+            <h2 className="card-title">Mapa Humanizado De Acoes</h2>
+          </header>
+          <div className="card-body">
+            <div className="issues-head">
+              <div className="field" style={{ minWidth: 220 }}>
+                <label>Filtrar status da acao</label>
+                <select value={actionStatusFilter} onChange={(e) => setActionStatusFilter(e.target.value)}>
+                  <option value="all">todos</option>
+                  <option value="clicked_effect">executou com efeito</option>
+                  <option value="clicked_no_effect">sem efeito</option>
+                  <option value="click_error">erro no clique</option>
+                  <option value="skipped_not_visible">nao visivel</option>
+                  <option value="skipped_disabled">desabilitado</option>
+                  <option value="skipped_already_active">ja ativo</option>
+                  <option value="analysis_only">mapeado sem clique</option>
+                  <option value="route_limit">nao executado (limite)</option>
+                </select>
+              </div>
+              <div className="field" style={{ minWidth: 280 }}>
+                <label>Buscar acao</label>
+                <input
+                  value={actionSearch}
+                  onChange={(e) => setActionSearch(e.target.value)}
+                  placeholder="whatsapp, ver mais, contato, rota..."
+                />
+              </div>
+            </div>
+
+            <div className="issues-grid">
+              {actionFiltered.length === 0 ? (
+                <div className="issue">
+                  <p className="small muted">Nenhuma acao encontrada com os filtros atuais.</p>
+                </div>
+              ) : (
+                actionFiltered.slice(0, 600).map((action) => (
+                  <article className="issue" key={action.id}>
+                    <div className="issue-top">
+                      <span className="issue-code">{action.label}</span>
+                      <span className={actionStatusPill(action.status)}>{action.statusLabel}</span>
+                      <span className="pill">{action.kind}</span>
+                    </div>
+                    <p className="issue-route">Rota: {action.route}</p>
+                    <p className="issue-detail">
+                      <strong>Funcao que deveria fazer:</strong> {action.expectedFunction}
+                    </p>
+                    <p className="issue-detail">
+                      <strong>Traducao para leigo:</strong> {action.expectedForUser}
+                    </p>
+                    <p className="issue-detail">
+                      <strong>Funcao que executou:</strong> {action.actualFunction}
+                    </p>
+                    {action.href ? (
+                      <p className="issue-meta">
+                        <strong>Destino:</strong> {action.href}
+                      </p>
+                    ) : null}
+                    {action.detail ? (
+                      <p className="issue-meta">
+                        <strong>Detalhe tecnico:</strong> {action.detail}
+                      </p>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+            {actionFiltered.length > 600 ? (
+              <p className="small muted">Mostrando 600 registros. Refine a busca para ver mais detalhes.</p>
+            ) : null}
           </div>
         </article>
 
@@ -434,6 +646,67 @@ function ReportPageContent() {
                           <div className="code-box mono">{issue.assistantHint.commandHints.join("\n")}</div>
                         ) : null}
                       </div>
+                    ) : null}
+                  </article>
+                ))
+              )}
+            </div>
+          </div>
+        </article>
+
+        <article id="sec-seo" className="card report-card reveal d3">
+          <header className="card-head">
+            <h2 className="card-title">Analise SEO Total</h2>
+          </header>
+          <div className="card-body">
+            <p>
+              Pontuacao SEO geral: <strong>{report.seo.overallScore}/100</strong>
+            </p>
+            <p>
+              Paginas analisadas: <strong>{report.seo.pagesAnalyzed}</strong>
+            </p>
+            <p>
+              Categoria tecnica: <strong>{report.seo.categoryScore.technical}/100</strong> | conteudo:{" "}
+              <strong>{report.seo.categoryScore.content}/100</strong> | acessibilidade:{" "}
+              <strong>{report.seo.categoryScore.accessibility}/100</strong>
+            </p>
+            <p className="small muted">
+              Esta analise aponta gaps de SEO on-page (title, meta, H1, alt, canonical, noindex, links internos etc).
+            </p>
+            {report.seo.topRecommendations.length ? (
+              <div className="assistant-block">
+                <p className="small muted" style={{ marginTop: 0 }}>Prioridades SEO recomendadas</p>
+                <ul className="assistant-list">
+                  {report.seo.topRecommendations.slice(0, 8).map((line, idx) => (
+                    <li key={`seo-top-${idx}`}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            <div className="issues-grid">
+              {report.seo.issues.length === 0 ? (
+                <div className="issue">
+                  <p className="small muted">Sem problemas SEO relevantes nesta rodada.</p>
+                </div>
+              ) : (
+                report.seo.issues.map((seoIssue) => (
+                  <article className="issue" key={`seo-${seoIssue.code}`}>
+                    <div className="issue-top">
+                      <span className="issue-code">{seoIssue.code}</span>
+                      <span className={severityLabel(seoIssue.severity) === "alto" ? "pill pill-high" : severityLabel(seoIssue.severity) === "medio" ? "pill pill-medium" : "pill pill-low"}>
+                        {severityLabel(seoIssue.severity)}
+                      </span>
+                      <span className="pill">{seoIssue.count} ocorrencias</span>
+                    </div>
+                    <p className="issue-detail">{seoIssue.detail}</p>
+                    <p className="issue-meta">
+                      <strong>Como melhorar:</strong> {seoIssue.recommendation}
+                    </p>
+                    {seoIssue.affectedRoutes.length ? (
+                      <p className="issue-meta">
+                        <strong>Rotas afetadas:</strong> {seoIssue.affectedRoutes.slice(0, 10).join(", ")}
+                      </p>
                     ) : null}
                   </article>
                 ))

@@ -26,6 +26,41 @@ type IssueModel = {
   group: string;
 };
 
+type ActionSweepModel = {
+  id: string;
+  route: string;
+  label: string;
+  kind: string;
+  href: string;
+  expectedFunction: string;
+  expectedForUser: string;
+  actualFunction: string;
+  status: string;
+  statusLabel: string;
+  detail: string;
+};
+
+type SeoIssueModel = {
+  code: string;
+  severity: Severity;
+  detail: string;
+  recommendation: string;
+  count: number;
+  affectedRoutes: string[];
+};
+
+type SeoModel = {
+  overallScore: number;
+  pagesAnalyzed: number;
+  categoryScore: {
+    technical: number;
+    content: number;
+    accessibility: number;
+  };
+  issues: SeoIssueModel[];
+  topRecommendations: string[];
+};
+
 type ReportModel = {
   meta: {
     project: string;
@@ -39,12 +74,22 @@ type ReportModel = {
     visualSectionOrderInvalid: number;
     buttonsNoEffect: number;
     consoleErrors: number;
+    actionsMapped: number;
+    actionsWithEffect: number;
+    actionsNoEffectDetected: number;
+    actionsFailed: number;
+    actionsAnalysisOnly: number;
+    seoScore: number;
+    seoPagesAnalyzed: number;
+    seoCriticalIssues: number;
   };
   assistantGuide: {
     replayCommand: string;
     immediateSteps: string[];
     quickStartPrompt: string;
   };
+  actionSweep: ActionSweepModel[];
+  seo: SeoModel;
   issues: IssueModel[];
 };
 
@@ -178,6 +223,14 @@ function normalizeReport(raw: unknown): ReportModel {
       : source.promptPack && typeof source.promptPack === "object"
       ? (source.promptPack as Record<string, unknown>)
       : {};
+  const actionSweepRaw = Array.isArray(source.actionSweep) ? source.actionSweep : [];
+  const seoObj = source.seo && typeof source.seo === "object" ? (source.seo as Record<string, unknown>) : {};
+  const seoCategoryObj =
+    seoObj.categoryScore && typeof seoObj.categoryScore === "object"
+      ? (seoObj.categoryScore as Record<string, unknown>)
+      : {};
+  const seoIssuesRaw = Array.isArray(seoObj.issues) ? seoObj.issues : [];
+  const topRecommendationsRaw = Array.isArray(seoObj.topRecommendations) ? seoObj.topRecommendations : [];
 
   const issuesRaw = Array.isArray(source.issues) ? source.issues : [];
   const issues = issuesRaw.map((issue, index) => normalizeIssue(issue, index));
@@ -186,6 +239,35 @@ function normalizeReport(raw: unknown): ReportModel {
     const severityCmp = bySeverityWeight[a.severity] - bySeverityWeight[b.severity];
     if (severityCmp !== 0) return severityCmp;
     return a.code.localeCompare(b.code);
+  });
+
+  const actionSweep = actionSweepRaw.map((item, index) => {
+    const rawItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    return {
+      id: String(rawItem.id ?? `action-${index + 1}`),
+      route: String(rawItem.route ?? "/"),
+      label: String(rawItem.label ?? "acao sem nome"),
+      kind: String(rawItem.kind ?? "button"),
+      href: String(rawItem.href ?? ""),
+      expectedFunction: String(rawItem.expectedFunction ?? "Executar acao esperada do elemento."),
+      expectedForUser: String(rawItem.expectedForUser ?? "Deve entregar resposta clara para o usuario."),
+      actualFunction: String(rawItem.actualFunction ?? "Sem resultado registrado."),
+      status: String(rawItem.status ?? "unknown"),
+      statusLabel: String(rawItem.statusLabel ?? String(rawItem.status ?? "unknown")),
+      detail: String(rawItem.detail ?? ""),
+    } as ActionSweepModel;
+  });
+
+  const seoIssues = seoIssuesRaw.map((item) => {
+    const rawItem = item && typeof item === "object" ? (item as Record<string, unknown>) : {};
+    return {
+      code: String(rawItem.code ?? "SEO_UNKNOWN"),
+      severity: parseSeverity(rawItem.severity, "CONSOLE_ERROR"),
+      detail: String(rawItem.detail ?? "Sem detalhe."),
+      recommendation: String(rawItem.recommendation ?? "Sem recomendacao."),
+      count: toNumber(rawItem.count, 1),
+      affectedRoutes: Array.isArray(rawItem.affectedRoutes) ? rawItem.affectedRoutes.map((v) => String(v)) : [],
+    } as SeoIssueModel;
   });
 
   return {
@@ -201,6 +283,17 @@ function normalizeReport(raw: unknown): ReportModel {
       visualSectionOrderInvalid: toNumber(summaryObj.visualSectionOrderInvalid, 0),
       buttonsNoEffect: toNumber(summaryObj.buttonsNoEffect, 0),
       consoleErrors: toNumber(summaryObj.consoleErrors, 0),
+      actionsMapped: toNumber(summaryObj.actionsMapped, actionSweep.length),
+      actionsWithEffect: toNumber(summaryObj.actionsWithEffect, 0),
+      actionsNoEffectDetected: toNumber(summaryObj.actionsNoEffectDetected, 0),
+      actionsFailed: toNumber(summaryObj.actionsFailed, 0),
+      actionsAnalysisOnly: toNumber(summaryObj.actionsAnalysisOnly, 0),
+      seoScore: toNumber(summaryObj.seoScore, toNumber(seoObj.overallScore, 0)),
+      seoPagesAnalyzed: toNumber(summaryObj.seoPagesAnalyzed, toNumber(seoObj.pagesAnalyzed, 0)),
+      seoCriticalIssues: toNumber(
+        summaryObj.seoCriticalIssues,
+        seoIssues.filter((item) => item.severity === "high").length,
+      ),
     },
     assistantGuide: {
       replayCommand: String(
@@ -216,6 +309,18 @@ function normalizeReport(raw: unknown): ReportModel {
           guideObj.masterPrompt ??
           "Act as a senior engineer. Fix highest severity issues first and validate with a new audit run."
       ),
+    },
+    actionSweep,
+    seo: {
+      overallScore: toNumber(seoObj.overallScore, 0),
+      pagesAnalyzed: toNumber(seoObj.pagesAnalyzed, 0),
+      categoryScore: {
+        technical: toNumber(seoCategoryObj.technical, 0),
+        content: toNumber(seoCategoryObj.content, 0),
+        accessibility: toNumber(seoCategoryObj.accessibility, 0),
+      },
+      issues: seoIssues,
+      topRecommendations: topRecommendationsRaw.map((v) => String(v)),
     },
     issues,
   };
@@ -546,7 +651,7 @@ function PageContent() {
   const riskScore = useMemo(() => scoreFromIssues(report?.issues ?? []), [report]);
   const healthChip = mapHealthChip(health);
 
-  function openReportPage(focus?: "routes" | "buttons" | "issues" | "risk") {
+  function openReportPage(focus?: "routes" | "actions" | "issues" | "risk" | "seo") {
     const params = new URLSearchParams();
     if (focus) params.set("foco", focus);
     const suffix = params.toString() ? `?${params.toString()}` : "";
@@ -1085,17 +1190,17 @@ function PageContent() {
                   <div className="value">{report?.summary.routesChecked ?? 0}</div>
                   <div className="label">Rotas</div>
                 </button>
-                <button type="button" className="metric metric-action" onClick={() => openReportPage("buttons")}>
-                  <div className="value">{report?.summary.buttonsChecked ?? 0}</div>
-                  <div className="label">Botoes</div>
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("actions")}>
+                  <div className="value">{report?.summary.actionsMapped ?? report?.summary.buttonsChecked ?? 0}</div>
+                  <div className="label">Acoes</div>
                 </button>
                 <button type="button" className="metric metric-action" onClick={() => openReportPage("issues")}>
                   <div className="value">{report?.summary.totalIssues ?? 0}</div>
                   <div className="label">Problemas</div>
                 </button>
-                <button type="button" className="metric metric-action" onClick={() => openReportPage("risk")}>
-                  <div className="value">{riskScore}</div>
-                  <div className="label">Risco</div>
+                <button type="button" className="metric metric-action" onClick={() => openReportPage("seo")}>
+                  <div className="value">{report?.summary.seoScore ?? report?.seo.overallScore ?? 0}</div>
+                  <div className="label">SEO</div>
                 </button>
               </div>
 
@@ -1117,6 +1222,8 @@ function PageContent() {
                 <span className="pill pill-low">baixo {severityCounts.low}</span>
                 <span className="pill">ordem visual errada {report?.summary.visualSectionOrderInvalid ?? 0}</span>
                 <span className="pill">botoes sem resposta {report?.summary.buttonsNoEffect ?? 0}</span>
+                <span className="pill">risco {riskScore}</span>
+                <span className="pill">seo critico {report?.summary.seoCriticalIssues ?? 0}</span>
               </div>
 
               <div>

@@ -56,6 +56,17 @@ const CODE = {
   VISUAL_SECTION_MISSING: "VISUAL_SECTION_MISSING",
 };
 
+const ACTION_STATUS = {
+  CLICKED_EFFECT: "clicked_effect",
+  CLICKED_NO_EFFECT: "clicked_no_effect",
+  SKIPPED_NOT_VISIBLE: "skipped_not_visible",
+  SKIPPED_DISABLED: "skipped_disabled",
+  SKIPPED_ACTIVE: "skipped_already_active",
+  CLICK_ERROR: "click_error",
+  ANALYSIS_ONLY: "analysis_only",
+  ROUTE_LIMIT: "route_limit",
+};
+
 const ISSUE_GUIDE = {
   [CODE.ROUTE_LOAD_FAIL]: {
     technical:
@@ -322,6 +333,570 @@ function shortHash(value) {
 
 function normalizeText(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function escapeLocatorAttr(value) {
+  return String(value ?? "")
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"');
+}
+
+function severityRank(level) {
+  if (level === "high") return 3;
+  if (level === "medium") return 2;
+  return 1;
+}
+
+function maxSeverity(left, right) {
+  return severityRank(right) > severityRank(left) ? right : left;
+}
+
+function inferActionIntent(action) {
+  const label = normalizeText(action?.label);
+  const href = normalizeText(action?.href);
+  const kind = normalizeText(action?.kind || "button");
+  const hay = `${label} ${normalizeText(action?.ariaLabel)} ${normalizeText(action?.title)} ${href}`.toLowerCase();
+
+  if (hay.includes("whatsapp") || hay.includes("wa.me") || hay.includes("api.whatsapp")) {
+    return {
+      area: "contato",
+      expectedFunction: "Abrir contato via WhatsApp",
+      expectedTechnical:
+        "Abrir link externo de WhatsApp (wa.me/api.whatsapp) ou CTA de contato sem erro.",
+      userExplanation:
+        "Permite que o visitante inicie conversa imediata pelo WhatsApp.",
+    };
+  }
+
+  if (
+    hay.includes("contato") ||
+    hay.includes("contact") ||
+    hay.includes("contacto") ||
+    hay.includes("/contact")
+  ) {
+    return {
+      area: "contato",
+      expectedFunction: "Levar para canal de contato",
+      expectedTechnical: "Navegar para pagina/ancora de contato ou abrir formulario/modal de contato.",
+      userExplanation: "Conduz o visitante para falar com a empresa.",
+    };
+  }
+
+  if (
+    hay.includes("menu") ||
+    hay.includes("abrir menu") ||
+    hay.includes("toggle") ||
+    kind === "menuitem"
+  ) {
+    return {
+      area: "navegacao",
+      expectedFunction: "Abrir/fechar menu de navegacao",
+      expectedTechnical: "Alternar estado do menu (aria-expanded, classes, visibilidade de links).",
+      userExplanation: "Mostra os links principais do site para o usuario navegar.",
+    };
+  }
+
+  if (
+    hay.includes("ver mais") ||
+    hay.includes("saber mais") ||
+    hay.includes("leer mas") ||
+    hay.includes("leer más") ||
+    hay.includes("saiba mais")
+  ) {
+    return {
+      area: "conteudo",
+      expectedFunction: "Expandir detalhes ou abrir pagina complementar",
+      expectedTechnical: "Executar expansao de conteudo, abrir modal ou navegar para detalhe.",
+      userExplanation: "Mostra mais informacoes sobre o servico/oferta.",
+    };
+  }
+
+  if (
+    hay.includes("voltar") ||
+    hay.includes("anterior") ||
+    hay.includes("proximo") ||
+    hay.includes("próximo")
+  ) {
+    return {
+      area: "navegacao",
+      expectedFunction: "Navegacao entre secoes/etapas",
+      expectedTechnical: "Mudar slide, secao, etapa ou historico conforme contexto.",
+      userExplanation: "Permite avancar ou voltar no fluxo de leitura.",
+    };
+  }
+
+  if (
+    hay.includes("aceito") ||
+    hay.includes("acepto") ||
+    hay.includes("consent") ||
+    hay.includes("cookie")
+  ) {
+    return {
+      area: "privacidade",
+      expectedFunction: "Registrar consentimento",
+      expectedTechnical: "Confirmar preferencia de cookies/privacidade e ocultar o banner.",
+      userExplanation: "Confirma a preferencia de privacidade do visitante.",
+    };
+  }
+
+  if (
+    hay.includes("comprar") ||
+    hay.includes("agendar") ||
+    hay.includes("reservar") ||
+    hay.includes("orcamento") ||
+    hay.includes("orçamento")
+  ) {
+    return {
+      area: "conversao",
+      expectedFunction: "Iniciar acao de conversao",
+      expectedTechnical:
+        "Abrir checkout/formulario/whatsapp de venda ou enviar evento principal de conversao.",
+      userExplanation: "Leva o visitante para a acao principal de negocio.",
+    };
+  }
+
+  if (kind === "link" || href.startsWith("/") || href.startsWith("http")) {
+    return {
+      area: "navegacao",
+      expectedFunction: "Navegar para outra pagina",
+      expectedTechnical: "Executar navegacao para a URL de destino sem erro de carregamento.",
+      userExplanation: "Leva o visitante para outra parte do site.",
+    };
+  }
+
+  if (kind === "tab" || kind === "summary") {
+    return {
+      area: "conteudo",
+      expectedFunction: "Alternar bloco de conteudo",
+      expectedTechnical: "Mudar aba/accordion e exibir o conteudo correspondente.",
+      userExplanation: "Mostra um bloco especifico de informacoes na mesma tela.",
+    };
+  }
+
+  return {
+    area: "interacao",
+    expectedFunction: "Executar acao interativa",
+    expectedTechnical: "Disparar handler do elemento e refletir resultado visual/funcional.",
+    userExplanation: "Deve reagir ao clique com resultado visivel para o usuario.",
+  };
+}
+
+function actionStatusLabel(status) {
+  if (status === ACTION_STATUS.CLICKED_EFFECT) return "Executou com efeito visivel";
+  if (status === ACTION_STATUS.CLICKED_NO_EFFECT) return "Clique sem efeito visivel";
+  if (status === ACTION_STATUS.SKIPPED_NOT_VISIBLE) return "Nao clicado: nao visivel";
+  if (status === ACTION_STATUS.SKIPPED_DISABLED) return "Nao clicado: desabilitado";
+  if (status === ACTION_STATUS.SKIPPED_ACTIVE) return "Nao clicado: ja estava ativo";
+  if (status === ACTION_STATUS.CLICK_ERROR) return "Falha ao clicar";
+  if (status === ACTION_STATUS.ROUTE_LIMIT) return "Nao executado: limite de rota";
+  return "Mapeado sem clique (modo analise)";
+}
+
+function describeActionResult(result) {
+  if (!result?.ok) {
+    if (result?.reason === "button_not_visible") return ACTION_STATUS.SKIPPED_NOT_VISIBLE;
+    if (result?.reason === "button_disabled") return ACTION_STATUS.SKIPPED_DISABLED;
+    if (result?.reason === "button_already_active") return ACTION_STATUS.SKIPPED_ACTIVE;
+    return ACTION_STATUS.CLICK_ERROR;
+  }
+  return result.effectDetected ? ACTION_STATUS.CLICKED_EFFECT : ACTION_STATUS.CLICKED_NO_EFFECT;
+}
+
+function toShortPath(urlLike) {
+  if (!urlLike) return "";
+  try {
+    const url = new URL(urlLike);
+    return `${url.pathname}${url.search}`;
+  } catch {
+    return String(urlLike);
+  }
+}
+
+function inferActualFunctionFromResult(result, fallbackDetail = "") {
+  if (!result?.ok) {
+    if (result?.reason === "button_not_visible") return "Elemento nao estava visivel para clique.";
+    if (result?.reason === "button_disabled") return "Elemento estava desabilitado.";
+    if (result?.reason === "button_already_active") return "Elemento ja estava no estado ativo.";
+    return fallbackDetail || "Falhou ao executar o clique.";
+  }
+
+  if (result.navigationChanged) {
+    return `Navegou de ${toShortPath(result.beforeHref)} para ${toShortPath(result.afterHref)}.`;
+  }
+
+  if (result.effectSignals?.length) {
+    const map = {
+      title_changed: "titulo mudou",
+      dom_changed: "conteudo da pagina mudou",
+      root_class_changed: "estado visual mudou",
+      dialog_changed: "modal/dialog mudou",
+      scroll_changed: "rolagem mudou",
+      network_request: "houve requisicao de rede",
+      dialog_event: "houve interacao de dialog",
+    };
+    const labels = result.effectSignals.map((item) => map[item] ?? item).join(", ");
+    return `Acao executada na mesma pagina com efeito: ${labels}.`;
+  }
+
+  if (result.effectDetected) {
+    return "Acao executada com alteracao visivel na interface.";
+  }
+  return "Clique ocorreu, mas sem efeito observavel.";
+}
+
+function makeActionRecord(input) {
+  return {
+    id: shortHash(`${input.route}|${input.label}|${input.kind}|${input.index}`),
+    route: input.route,
+    label: input.label,
+    kind: input.kind,
+    href: input.href || "",
+    role: input.role || "",
+    expectedFunction: input.expectedFunction,
+    expectedTechnical: input.expectedTechnical,
+    expectedForUser: input.expectedForUser,
+    status: input.status,
+    statusLabel: actionStatusLabel(input.status),
+    actualFunction: input.actualFunction,
+    detail: input.detail || "",
+    effectDetected: Boolean(input.effectDetected),
+    beforeUrl: input.beforeUrl || "",
+    afterUrl: input.afterUrl || "",
+    checkedAt: nowIso(),
+    area: input.area || "interacao",
+    signals: Array.isArray(input.signals) ? input.signals : [],
+  };
+}
+
+function evaluateSeoSnapshot(snapshot) {
+  const checks = [];
+  let overall = 100;
+  let technical = 100;
+  let content = 100;
+  let accessibility = 100;
+
+  const applyPenalty = (input) => {
+    if (input.status === "pass") return;
+    checks.push(input);
+    overall = Math.max(0, overall - input.weight);
+    if (input.category === "technical") technical = Math.max(0, technical - input.weight);
+    if (input.category === "content") content = Math.max(0, content - input.weight);
+    if (input.category === "accessibility") accessibility = Math.max(0, accessibility - input.weight);
+  };
+
+  if (!snapshot.title) {
+    applyPenalty({
+      code: "SEO_TITLE_MISSING",
+      status: "fail",
+      severity: "high",
+      category: "content",
+      weight: 18,
+      detail: "Pagina sem <title> definido.",
+      recommendation: "Defina um title unico e claro para cada pagina.",
+    });
+  } else if (snapshot.titleLength < 30 || snapshot.titleLength > 65) {
+    applyPenalty({
+      code: "SEO_TITLE_LENGTH",
+      status: "warn",
+      severity: "medium",
+      category: "content",
+      weight: 6,
+      detail: `Title com ${snapshot.titleLength} caracteres (ideal: 30-65).`,
+      recommendation: "Ajuste o tamanho do title para melhorar leitura no Google.",
+    });
+  }
+
+  if (!snapshot.metaDescription) {
+    applyPenalty({
+      code: "SEO_META_DESCRIPTION_MISSING",
+      status: "fail",
+      severity: "high",
+      category: "content",
+      weight: 16,
+      detail: "Meta description ausente.",
+      recommendation: "Adicione meta description unica com proposta clara da pagina.",
+    });
+  } else if (snapshot.metaDescriptionLength < 70 || snapshot.metaDescriptionLength > 170) {
+    applyPenalty({
+      code: "SEO_META_DESCRIPTION_LENGTH",
+      status: "warn",
+      severity: "medium",
+      category: "content",
+      weight: 5,
+      detail: `Meta description com ${snapshot.metaDescriptionLength} caracteres (ideal: 70-170).`,
+      recommendation: "Ajuste o tamanho da meta description para evitar corte no resultado de busca.",
+    });
+  }
+
+  if (snapshot.h1Count === 0) {
+    applyPenalty({
+      code: "SEO_H1_MISSING",
+      status: "fail",
+      severity: "high",
+      category: "content",
+      weight: 14,
+      detail: "Nenhum H1 encontrado na pagina.",
+      recommendation: "Inclua 1 H1 claro descrevendo o tema principal da pagina.",
+    });
+  } else if (snapshot.h1Count > 1) {
+    applyPenalty({
+      code: "SEO_H1_MULTIPLE",
+      status: "warn",
+      severity: "medium",
+      category: "content",
+      weight: 5,
+      detail: `${snapshot.h1Count} H1 encontrados (ideal: 1).`,
+      recommendation: "Mantenha um unico H1 para reforcar hierarquia semantica.",
+    });
+  }
+
+  if (!snapshot.lang) {
+    applyPenalty({
+      code: "SEO_LANG_MISSING",
+      status: "warn",
+      severity: "medium",
+      category: "technical",
+      weight: 7,
+      detail: "Atributo lang ausente em <html>.",
+      recommendation: "Defina lang no HTML para melhorar indexacao e acessibilidade.",
+    });
+  }
+
+  if (!snapshot.hasViewport) {
+    applyPenalty({
+      code: "SEO_VIEWPORT_MISSING",
+      status: "fail",
+      severity: "high",
+      category: "technical",
+      weight: 10,
+      detail: "Meta viewport ausente.",
+      recommendation: "Adicione meta viewport para boa experiencia mobile.",
+    });
+  }
+
+  if (!snapshot.canonicalUrl) {
+    applyPenalty({
+      code: "SEO_CANONICAL_MISSING",
+      status: "warn",
+      severity: "low",
+      category: "technical",
+      weight: 4,
+      detail: "Link canonical ausente.",
+      recommendation: "Defina canonical para evitar duplicidade de URL.",
+    });
+  }
+
+  if (snapshot.robotsNoindex) {
+    applyPenalty({
+      code: "SEO_NOINDEX",
+      status: "fail",
+      severity: "high",
+      category: "technical",
+      weight: 25,
+      detail: "Meta robots contem noindex.",
+      recommendation: "Remova noindex das paginas que precisam aparecer no Google.",
+    });
+  }
+
+  if (snapshot.imagesTotal > 0 && snapshot.imagesMissingAlt > 0) {
+    const missingRatio = snapshot.imagesMissingAlt / snapshot.imagesTotal;
+    applyPenalty({
+      code: "SEO_IMG_ALT_MISSING",
+      status: missingRatio >= 0.35 ? "fail" : "warn",
+      severity: missingRatio >= 0.35 ? "high" : "medium",
+      category: "accessibility",
+      weight: missingRatio >= 0.35 ? 16 : 8,
+      detail: `${snapshot.imagesMissingAlt}/${snapshot.imagesTotal} imagens sem alt.`,
+      recommendation: "Preencha atributo alt descritivo nas imagens relevantes.",
+    });
+  }
+
+  if (!snapshot.hasStructuredData) {
+    applyPenalty({
+      code: "SEO_STRUCTURED_DATA_MISSING",
+      status: "warn",
+      severity: "low",
+      category: "technical",
+      weight: 4,
+      detail: "Nenhum JSON-LD encontrado.",
+      recommendation: "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.",
+    });
+  }
+
+  if (snapshot.wordCount < 80) {
+    applyPenalty({
+      code: "SEO_CONTENT_THIN",
+      status: "warn",
+      severity: "medium",
+      category: "content",
+      weight: 7,
+      detail: `Conteudo textual curto (${snapshot.wordCount} palavras).`,
+      recommendation: "Adicione conteudo util e especifico sobre servico/local para SEO local.",
+    });
+  }
+
+  if (snapshot.internalLinks < 2) {
+    applyPenalty({
+      code: "SEO_INTERNAL_LINKS_LOW",
+      status: "warn",
+      severity: "low",
+      category: "technical",
+      weight: 4,
+      detail: `Poucos links internos (${snapshot.internalLinks}).`,
+      recommendation: "Aumente links internos para melhorar rastreio e distribuicao de autoridade.",
+    });
+  }
+
+  if (!checks.length) {
+    checks.push({
+      code: "SEO_OK",
+      status: "pass",
+      severity: "low",
+      category: "technical",
+      weight: 0,
+      detail: "Checks principais de SEO sem falhas relevantes nesta rota.",
+      recommendation: "Manter monitoramento continuo.",
+    });
+  }
+
+  return {
+    score: Math.max(0, Math.round(overall)),
+    categoryScore: {
+      technical: Math.max(0, Math.round(technical)),
+      content: Math.max(0, Math.round(content)),
+      accessibility: Math.max(0, Math.round(accessibility)),
+    },
+    checks,
+  };
+}
+
+async function captureSeoSnapshot(page, route) {
+  const url = page.url();
+  const snapshot = await page.evaluate(() => {
+    const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+    const title = clean(document.title);
+    const metaDescription = clean(document.querySelector('meta[name="description"]')?.getAttribute("content"));
+    const canonicalUrl = clean(document.querySelector('link[rel="canonical"]')?.getAttribute("href"));
+    const lang = clean(document.documentElement?.getAttribute("lang"));
+    const robots = clean(document.querySelector('meta[name="robots"]')?.getAttribute("content"));
+    const hasViewport = Boolean(document.querySelector('meta[name="viewport"]'));
+    const images = Array.from(document.querySelectorAll("img"));
+    const imagesMissingAlt = images.filter((img) => !clean(img.getAttribute("alt"))).length;
+    const structuredScripts = document.querySelectorAll('script[type="application/ld+json"]').length;
+    const text = clean(document.body?.innerText);
+    const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
+
+    const links = Array.from(document.querySelectorAll("a[href]"));
+    const internalLinks = links.filter((node) => {
+      const href = clean(node.getAttribute("href"));
+      if (!href) return false;
+      if (href.startsWith("#")) return true;
+      if (href.startsWith("/")) return true;
+      try {
+        const parsed = new URL(href, window.location.href);
+        return parsed.origin === window.location.origin;
+      } catch {
+        return false;
+      }
+    }).length;
+
+    return {
+      title,
+      titleLength: title.length,
+      metaDescription,
+      metaDescriptionLength: metaDescription.length,
+      h1Count: document.querySelectorAll("h1").length,
+      canonicalUrl,
+      lang,
+      robotsNoindex: /(^|\\s|,)noindex(\\s|,|$)/i.test(robots),
+      hasViewport,
+      imagesTotal: images.length,
+      imagesMissingAlt,
+      hasStructuredData: structuredScripts > 0,
+      structuredDataCount: structuredScripts,
+      internalLinks,
+      wordCount,
+    };
+  });
+
+  const evaluated = evaluateSeoSnapshot(snapshot);
+  return {
+    route,
+    url,
+    ...snapshot,
+    ...evaluated,
+  };
+}
+
+function finalizeSeoReport(report) {
+  const pages = Array.isArray(report?.seo?.pages) ? report.seo.pages : [];
+  if (!pages.length) {
+    report.seo = {
+      overallScore: 0,
+      pagesAnalyzed: 0,
+      categoryScore: { technical: 0, content: 0, accessibility: 0 },
+      issues: [],
+      topRecommendations: [],
+      pages: [],
+    };
+    return;
+  }
+
+  const avg = (values) => {
+    if (!values.length) return 0;
+    return Math.round(values.reduce((acc, item) => acc + item, 0) / values.length);
+  };
+
+  const overallScore = avg(pages.map((page) => Number(page.score || 0)));
+  const categoryScore = {
+    technical: avg(pages.map((page) => Number(page.categoryScore?.technical || 0))),
+    content: avg(pages.map((page) => Number(page.categoryScore?.content || 0))),
+    accessibility: avg(pages.map((page) => Number(page.categoryScore?.accessibility || 0))),
+  };
+
+  const grouped = new Map();
+  for (const page of pages) {
+    for (const check of page.checks ?? []) {
+      if (check.status === "pass") continue;
+      const key = check.code;
+      const current = grouped.get(key) ?? {
+        code: check.code,
+        severity: check.severity || "low",
+        detail: check.detail || "",
+        recommendation: check.recommendation || "Sem recomendacao.",
+        category: check.category || "technical",
+        count: 0,
+        affectedRoutes: new Set(),
+      };
+      current.severity = maxSeverity(current.severity, check.severity || "low");
+      current.count += 1;
+      current.affectedRoutes.add(page.route);
+      if (!current.detail && check.detail) current.detail = check.detail;
+      if (!current.recommendation && check.recommendation) current.recommendation = check.recommendation;
+      grouped.set(key, current);
+    }
+  }
+
+  const issues = Array.from(grouped.values())
+    .map((item) => ({
+      code: item.code,
+      severity: item.severity,
+      category: item.category,
+      detail: item.detail,
+      recommendation: item.recommendation,
+      count: item.count,
+      affectedRoutes: Array.from(item.affectedRoutes).sort(),
+    }))
+    .sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.count - a.count || a.code.localeCompare(b.code));
+
+  report.seo = {
+    overallScore,
+    pagesAnalyzed: pages.length,
+    categoryScore,
+    issues,
+    topRecommendations: issues.slice(0, 8).map((item) => item.recommendation),
+    pages,
+  };
 }
 
 function uniqueNormalizedLines(values, maxItems = 8) {
@@ -2135,6 +2710,11 @@ function toMarkdown(report) {
   lines.push(`- Rotas verificadas: ${report.summary.routesChecked}`);
   lines.push(`- Falhas de carga de rota: ${report.summary.routeLoadFailures}`);
   lines.push(`- Botoes verificados: ${report.summary.buttonsChecked}`);
+  lines.push(`- Acoes mapeadas (detalhadas): ${report.summary.actionsMapped ?? 0}`);
+  lines.push(`- Acoes com efeito: ${report.summary.actionsWithEffect ?? 0}`);
+  lines.push(`- Acoes sem efeito detectado: ${report.summary.actionsNoEffectDetected ?? 0}`);
+  lines.push(`- Acoes com erro de clique: ${report.summary.actionsFailed ?? 0}`);
+  lines.push(`- Acoes em modo analise (sem clique): ${report.summary.actionsAnalysisOnly ?? 0}`);
   lines.push(`- Botoes sem efeito: ${report.summary.buttonsNoEffect}`);
   lines.push(`- Erros HTTP 4xx: ${report.summary.http4xx}`);
   lines.push(`- Erros HTTP 5xx: ${report.summary.http5xx}`);
@@ -2143,6 +2723,10 @@ function toMarkdown(report) {
   lines.push(`- Console errors: ${report.summary.consoleErrors}`);
   lines.push(`- Ordem visual invalida: ${report.summary.visualSectionOrderInvalid}`);
   lines.push(`- Secao obrigatoria ausente/invisivel: ${report.summary.visualSectionMissing}`);
+  lines.push(`- SEO score: ${report.summary.seoScore ?? 0}/100`);
+  lines.push(`- SEO paginas analisadas: ${report.summary.seoPagesAnalyzed ?? 0}`);
+  lines.push(`- SEO issues criticas: ${report.summary.seoCriticalIssues ?? 0}`);
+  lines.push(`- SEO issues totais: ${report.summary.seoTotalIssues ?? 0}`);
   lines.push(`- Total issues: ${report.summary.totalIssues}`);
 
   lines.push("");
@@ -2192,6 +2776,54 @@ function toMarkdown(report) {
   lines.push(`- Proxima rota indice: ${report.progress.nextRouteIndex}`);
   lines.push(`- Proximo botao indice: ${report.progress.nextLabelIndex}`);
   lines.push(`- Segmentos executados: ${report.progress.segments}`);
+
+  lines.push("");
+  lines.push("## Mapa De Acoes (Botoes/Menu/Links)");
+  lines.push("");
+  if (!Array.isArray(report.actionSweep) || report.actionSweep.length === 0) {
+    lines.push("- Nenhuma acao mapeada nesta rodada.");
+  } else {
+    const maxActionsToPrint = 300;
+    const actionsToPrint = report.actionSweep.slice(0, maxActionsToPrint);
+    for (const action of actionsToPrint) {
+      lines.push(
+        `- [${action.status}] ${action.route} -> ${action.label} (${action.kind})`,
+      );
+      lines.push(`  - Funcao esperada: ${action.expectedFunction}`);
+      lines.push(`  - Explicacao para leigo: ${action.expectedForUser}`);
+      lines.push(`  - Funcao executada: ${action.actualFunction}`);
+      if (action.detail) {
+        lines.push(`  - Detalhe: ${action.detail}`);
+      }
+      if (action.href) {
+        lines.push(`  - Destino/href: ${action.href}`);
+      }
+    }
+    if (report.actionSweep.length > maxActionsToPrint) {
+      lines.push(
+        `- ... ${report.actionSweep.length - maxActionsToPrint} acoes adicionais omitidas no markdown (presentes no JSON).`,
+      );
+    }
+  }
+
+  lines.push("");
+  lines.push("## Analise SEO");
+  lines.push("");
+  lines.push(`- SEO score geral: ${report.seo?.overallScore ?? 0}/100`);
+  lines.push(`- Paginas analisadas: ${report.seo?.pagesAnalyzed ?? 0}`);
+  lines.push(
+    `- Score por categoria: tecnico=${report.seo?.categoryScore?.technical ?? 0}, conteudo=${report.seo?.categoryScore?.content ?? 0}, acessibilidade=${report.seo?.categoryScore?.accessibility ?? 0}`,
+  );
+  if (Array.isArray(report?.seo?.issues) && report.seo.issues.length > 0) {
+    lines.push("- Principais pontos SEO:");
+    for (const issue of report.seo.issues.slice(0, 20)) {
+      lines.push(
+        `  - [${issue.severity}] ${issue.code} (${issue.count}x): ${issue.detail} | recomendacao: ${issue.recommendation}`,
+      );
+    }
+  } else {
+    lines.push("- Sem issues SEO relevantes nesta rodada.");
+  }
 
   lines.push("");
   lines.push("## Issues");
@@ -2441,7 +3073,7 @@ function extractButtonLabels(page, baseOrigin) {
         ].join(","),
       ),
     );
-    const labels = all
+    const actions = all
       .filter((el) => isVisible(el))
       .filter((el) => {
         const tag = (el.tagName || "").toLowerCase();
@@ -2449,15 +3081,50 @@ function extractButtonLabels(page, baseOrigin) {
         return true;
       })
       .map((el) => {
+        const tag = (el.tagName || "").toLowerCase();
         const text = clean(el.textContent);
         const aria = clean(el.getAttribute("aria-label"));
         const title = clean(el.getAttribute("title"));
         const value = clean(el.getAttribute("value"));
-        return text || aria || title || value || "";
+        const label = text || aria || title || value || "";
+        const href = clean(el.getAttribute("href"));
+        const role = clean(el.getAttribute("role"));
+        const id = clean(el.getAttribute("id"));
+        const dataAction = clean(el.getAttribute("data-action"));
+        const kind =
+          role === "tab"
+            ? "tab"
+            : role === "menuitem"
+            ? "menuitem"
+            : tag === "a" || role === "link"
+            ? "link"
+            : tag === "summary"
+            ? "summary"
+            : "button";
+        return {
+          label,
+          kind,
+          href,
+          role,
+          id,
+          title,
+          ariaLabel: aria,
+          dataAction,
+        };
       })
-      .filter((label) => label.length >= 2 && label.length <= 140);
+      .filter((item) => item.label.length >= 2 && item.label.length <= 140);
 
-    return Array.from(new Set(labels)).slice(0, 180);
+    const deduped = [];
+    const seen = new Set();
+    for (const item of actions) {
+      const key = `${item.kind}|${item.label.toLowerCase()}|${item.href.toLowerCase()}|${item.id.toLowerCase()}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(item);
+      if (deduped.length >= 180) break;
+    }
+
+    return deduped;
   }, baseOrigin);
 }
 
@@ -2656,19 +3323,45 @@ async function fingerprint(page) {
   };
 }
 
-async function clickButtonByLabel(page, label, cfg, counters) {
+async function clickButtonByLabel(page, actionTarget, cfg, counters) {
+  const label = normalizeText(actionTarget?.label);
+  const href = normalizeText(actionTarget?.href);
+  const id = normalizeText(actionTarget?.id);
+  const role = normalizeText(actionTarget?.role);
+  const kind = normalizeText(actionTarget?.kind || "");
+
   const resolveTarget = async () => {
     let sawDisabled = false;
-    const candidates = [
-      page.getByRole("button", { name: label, exact: true }).first(),
-      page.getByRole("button", { name: label }).first(),
-      page.getByRole("link", { name: label, exact: true }).first(),
-      page.getByRole("link", { name: label }).first(),
-      page.getByRole("menuitem", { name: label, exact: true }).first(),
-      page.getByRole("menuitem", { name: label }).first(),
-      page.getByRole("tab", { name: label, exact: true }).first(),
-      page.getByRole("tab", { name: label }).first(),
-    ];
+    const candidates = [];
+
+    if (id) {
+      candidates.push(page.locator(`[id="${escapeLocatorAttr(id)}"]`).first());
+    }
+    if (href) {
+      candidates.push(page.locator(`a[href="${escapeLocatorAttr(href)}"]`).first());
+    }
+
+    if (kind === "link" || role === "link") {
+      candidates.push(page.getByRole("link", { name: label, exact: true }).first());
+      candidates.push(page.getByRole("link", { name: label }).first());
+    }
+    if (kind === "menuitem" || role === "menuitem") {
+      candidates.push(page.getByRole("menuitem", { name: label, exact: true }).first());
+      candidates.push(page.getByRole("menuitem", { name: label }).first());
+    }
+    if (kind === "tab" || role === "tab") {
+      candidates.push(page.getByRole("tab", { name: label, exact: true }).first());
+      candidates.push(page.getByRole("tab", { name: label }).first());
+    }
+
+    candidates.push(page.getByRole("button", { name: label, exact: true }).first());
+    candidates.push(page.getByRole("button", { name: label }).first());
+    candidates.push(page.getByRole("link", { name: label, exact: true }).first());
+    candidates.push(page.getByRole("link", { name: label }).first());
+    candidates.push(page.getByRole("menuitem", { name: label, exact: true }).first());
+    candidates.push(page.getByRole("menuitem", { name: label }).first());
+    candidates.push(page.getByRole("tab", { name: label, exact: true }).first());
+    candidates.push(page.getByRole("tab", { name: label }).first());
 
     for (const candidate of candidates) {
       const visible = await candidate.isVisible().catch(() => false);
@@ -2736,19 +3429,26 @@ async function clickButtonByLabel(page, label, cfg, counters) {
   await page.waitForTimeout(cfg.clickWaitMs);
 
   const after = await fingerprint(page);
+  const effectSignals = [];
+  if (before.href !== after.href) effectSignals.push("url_changed");
+  if (before.title !== after.title) effectSignals.push("title_changed");
+  if (before.bodyHash !== after.bodyHash) effectSignals.push("dom_changed");
+  if (before.rootClass !== after.rootClass) effectSignals.push("root_class_changed");
+  if (before.dialogs !== after.dialogs) effectSignals.push("dialog_changed");
+  if (Math.abs(before.scrollY - after.scrollY) >= cfg.scrollEffectMinPx) effectSignals.push("scroll_changed");
+  if (counters.requestsFinished > beforeReq) effectSignals.push("network_request");
+  if (counters.dialogs > beforeDialogs) effectSignals.push("dialog_event");
+
   const effectDetected =
-    before.href !== after.href ||
-    before.title !== after.title ||
-    before.bodyHash !== after.bodyHash ||
-    before.rootClass !== after.rootClass ||
-    before.dialogs !== after.dialogs ||
-    Math.abs(before.scrollY - after.scrollY) >= cfg.scrollEffectMinPx ||
-    counters.requestsFinished > beforeReq ||
-    counters.dialogs > beforeDialogs;
+    effectSignals.length > 0;
 
   return {
     ok: true,
     effectDetected,
+    beforeHref: before.href,
+    afterHref: after.href,
+    navigationChanged: before.href !== after.href,
+    effectSignals,
   };
 }
 
@@ -2803,11 +3503,19 @@ function dedupeIssues(issues) {
 
 function summarize(report) {
   const count = (code) => report.issues.filter((item) => item.code === code).length;
+  const actionSweep = Array.isArray(report.actionSweep) ? report.actionSweep : [];
+  const actionCount = (status) => actionSweep.filter((item) => item.status === status).length;
+  const seoIssues = Array.isArray(report?.seo?.issues) ? report.seo.issues : [];
 
   return {
     routesChecked: report.routeSweep.length,
     routeLoadFailures: count(CODE.ROUTE_LOAD_FAIL),
     buttonsChecked: report.routeSweep.reduce((acc, item) => acc + item.buttonsDiscovered, 0),
+    actionsMapped: actionSweep.length,
+    actionsWithEffect: actionCount(ACTION_STATUS.CLICKED_EFFECT),
+    actionsNoEffectDetected: actionCount(ACTION_STATUS.CLICKED_NO_EFFECT),
+    actionsFailed: actionCount(ACTION_STATUS.CLICK_ERROR),
+    actionsAnalysisOnly: actionCount(ACTION_STATUS.ANALYSIS_ONLY) + actionCount(ACTION_STATUS.ROUTE_LIMIT),
     buttonsNoEffect: count(CODE.BTN_NO_EFFECT),
     http4xx: count(CODE.HTTP_4XX),
     http5xx: count(CODE.HTTP_5XX),
@@ -2816,6 +3524,10 @@ function summarize(report) {
     consoleErrors: count(CODE.CONSOLE_ERROR),
     visualSectionOrderInvalid: count(CODE.VISUAL_SECTION_ORDER_INVALID),
     visualSectionMissing: count(CODE.VISUAL_SECTION_MISSING),
+    seoScore: Number(report?.seo?.overallScore ?? 0),
+    seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
+    seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
+    seoTotalIssues: seoIssues.length,
     totalIssues: report.issues.length,
   };
 }
@@ -2867,6 +3579,15 @@ function createEmptyReport(cfg, args, maxRunMs) {
       segments: 0,
     },
     routeSweep: [],
+    actionSweep: [],
+    seo: {
+      overallScore: 0,
+      pagesAnalyzed: 0,
+      categoryScore: { technical: 0, content: 0, accessibility: 0 },
+      issues: [],
+      topRecommendations: [],
+      pages: [],
+    },
     issues: [],
     issueLog: [],
     promptPack: {
@@ -2904,6 +3625,20 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
     };
   }
   if (!Array.isArray(report.routeSweep)) report.routeSweep = [];
+  if (!Array.isArray(report.actionSweep)) report.actionSweep = [];
+  if (!report.seo || typeof report.seo !== "object") {
+    report.seo = {
+      overallScore: 0,
+      pagesAnalyzed: 0,
+      categoryScore: { technical: 0, content: 0, accessibility: 0 },
+      issues: [],
+      topRecommendations: [],
+      pages: [],
+    };
+  }
+  if (!Array.isArray(report.seo.pages)) report.seo.pages = [];
+  if (!Array.isArray(report.seo.issues)) report.seo.issues = [];
+  if (!Array.isArray(report.seo.topRecommendations)) report.seo.topRecommendations = [];
   if (!Array.isArray(report.issues)) report.issues = [];
   if (!Array.isArray(report.issueLog)) report.issueLog = [];
   if (!report.promptPack || typeof report.promptPack !== "object") {
@@ -2987,6 +3722,16 @@ function ensureRouteResult(report, route) {
   };
   report.routeSweep.push(found);
   return found;
+}
+
+function upsertSeoPage(report, pageResult) {
+  if (!report?.seo || !Array.isArray(report.seo.pages)) return;
+  const index = report.seo.pages.findIndex((item) => item.route === pageResult.route);
+  if (index >= 0) {
+    report.seo.pages[index] = pageResult;
+    return;
+  }
+  report.seo.pages.push(pageResult);
 }
 
 function shouldPauseByTime(runStartedAt, maxRunMs) {
@@ -3131,6 +3876,7 @@ function finalizeReport(report, paused) {
   report.issues = dedupeIssues(report.issues);
   report.issues = report.issues.map((issue) => hydrateIssue(issue));
   report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
+  finalizeSeoReport(report);
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
@@ -3425,15 +4171,44 @@ async function run() {
       if (cfg.discoverMenuLinks) {
         await tryExpandNavigationMenus(page).catch(() => undefined);
       }
-      const discoveredLabels = await extractButtonLabels(page, baseOrigin);
-      const labels =
+      const discoveredActions = await extractButtonLabels(page, baseOrigin);
+      const actionsToClick =
         cfg.maxActionsPerRoute > 0
-          ? discoveredLabels.slice(0, Math.min(discoveredLabels.length, cfg.maxActionsPerRoute))
+          ? discoveredActions.slice(0, Math.min(discoveredActions.length, cfg.maxActionsPerRoute))
           : [];
-      routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, discoveredLabels.length);
+      routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, discoveredActions.length);
+
+      const seoPage = await captureSeoSnapshot(page, route).catch(() => null);
+      if (seoPage) {
+        upsertSeoPage(report, seoPage);
+      }
 
       const shouldAuditActions = cfg.maxActionRoutes <= 0 || routeIndex < cfg.maxActionRoutes;
       if (!shouldAuditActions) {
+        const preview = discoveredActions.slice(0, 80);
+        for (let idx = 0; idx < preview.length; idx += 1) {
+          const actionItem = preview[idx];
+          const intent = inferActionIntent(actionItem);
+          report.actionSweep.push(
+            makeActionRecord({
+              index: idx,
+              route,
+              label: actionItem.label,
+              kind: actionItem.kind,
+              href: actionItem.href,
+              role: actionItem.role,
+              expectedFunction: intent.expectedFunction,
+              expectedTechnical: intent.expectedTechnical,
+              expectedForUser: intent.userExplanation,
+              status: ACTION_STATUS.ROUTE_LIMIT,
+              actualFunction: "Acao mapeada, mas nao executada nesta rota por limite configurado.",
+              detail: "Modo de amostragem de rotas para performance.",
+              beforeUrl: routeUrl,
+              afterUrl: page.url(),
+              area: intent.area,
+            }),
+          );
+        }
         emitLiveEvent(args, "button_route_skipped", {
           route,
           action: "button_sweep",
@@ -3446,11 +4221,38 @@ async function run() {
         continue;
       }
 
+      if (actionsToClick.length === 0 && discoveredActions.length > 0) {
+        const preview = discoveredActions.slice(0, 80);
+        for (let idx = 0; idx < preview.length; idx += 1) {
+          const actionItem = preview[idx];
+          const intent = inferActionIntent(actionItem);
+          report.actionSweep.push(
+            makeActionRecord({
+              index: idx,
+              route,
+              label: actionItem.label,
+              kind: actionItem.kind,
+              href: actionItem.href,
+              role: actionItem.role,
+              expectedFunction: intent.expectedFunction,
+              expectedTechnical: intent.expectedTechnical,
+              expectedForUser: intent.userExplanation,
+              status: ACTION_STATUS.ANALYSIS_ONLY,
+              actualFunction: "Acao apenas mapeada (sem clique) para priorizar cobertura de paginas.",
+              detail: "Modo serverless / analise rapida.",
+              beforeUrl: routeUrl,
+              afterUrl: page.url(),
+              area: intent.area,
+            }),
+          );
+        }
+      }
+
       let labelStartIndex = routeIndex === report.progress.nextRouteIndex ? report.progress.nextLabelIndex : 0;
       if (labelStartIndex < 0) labelStartIndex = 0;
-      if (labelStartIndex > labels.length) labelStartIndex = labels.length;
+      if (labelStartIndex > actionsToClick.length) labelStartIndex = actionsToClick.length;
 
-      for (let labelIndex = labelStartIndex; labelIndex < labels.length; labelIndex += 1) {
+      for (let labelIndex = labelStartIndex; labelIndex < actionsToClick.length; labelIndex += 1) {
         if (shouldPauseByTime(runStartedAt, maxRunMs)) {
           paused = true;
           report.progress.nextRouteIndex = routeIndex;
@@ -3458,14 +4260,16 @@ async function run() {
           break routeLoop;
         }
 
-        const label = labels[labelIndex];
+        const actionItem = actionsToClick[labelIndex];
+        const label = actionItem.label;
+        const intent = inferActionIntent(actionItem);
         currentAction = label;
         emitLiveEvent(args, "button_click_start", {
           route,
           action: label,
           label,
           labelIndex: labelIndex + 1,
-          totalLabels: labels.length,
+          totalLabels: actionsToClick.length,
         });
 
         try {
@@ -3478,7 +4282,33 @@ async function run() {
             await page.waitForTimeout(250);
           }
 
-          const result = await clickButtonByLabel(page, label, cfg, counters);
+          const beforeUrl = page.url();
+          const result = await clickButtonByLabel(page, actionItem, cfg, counters);
+          const status = describeActionResult(result);
+          const actualFunction = inferActualFunctionFromResult(result);
+
+          report.actionSweep.push(
+            makeActionRecord({
+              index: labelIndex,
+              route,
+              label,
+              kind: actionItem.kind,
+              href: actionItem.href,
+              role: actionItem.role,
+              expectedFunction: intent.expectedFunction,
+              expectedTechnical: intent.expectedTechnical,
+              expectedForUser: intent.userExplanation,
+              status,
+              actualFunction,
+              detail: result?.reason ? `Motivo: ${result.reason}` : "",
+              effectDetected: Boolean(result?.effectDetected),
+              beforeUrl: result?.beforeHref || beforeUrl,
+              afterUrl: result?.afterHref || page.url(),
+              area: intent.area,
+              signals: result?.effectSignals || [],
+            }),
+          );
+
           if (!result.ok) {
             emitLiveEvent(args, "button_click_skip", {
               route,
@@ -3521,18 +4351,40 @@ async function run() {
             }
           }
         } catch (error) {
+          const beforeUrl = page.url();
+          const detail = normalizeText(String(error));
+          report.actionSweep.push(
+            makeActionRecord({
+              index: labelIndex,
+              route,
+              label,
+              kind: actionItem.kind,
+              href: actionItem.href,
+              role: actionItem.role,
+              expectedFunction: intent.expectedFunction,
+              expectedTechnical: intent.expectedTechnical,
+              expectedForUser: intent.userExplanation,
+              status: ACTION_STATUS.CLICK_ERROR,
+              actualFunction: "Falha tecnica ao executar clique.",
+              detail,
+              effectDetected: false,
+              beforeUrl,
+              afterUrl: page.url(),
+              area: intent.area,
+            }),
+          );
           emitLiveEvent(args, "button_click_error", {
             route,
             action: label,
             label,
-            detail: normalizeText(String(error)),
+            detail,
           });
           pushIssue(report, {
             code: CODE.BTN_CLICK_ERROR,
             severity: severityFromCode(CODE.BTN_CLICK_ERROR),
             route,
             action: label,
-            detail: normalizeText(String(error)),
+            detail,
             url: page.url(),
           });
         }
