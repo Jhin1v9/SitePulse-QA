@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 
 type Severity = "high" | "medium" | "low";
 type SeverityFilter = Severity | "all";
+type AuditScope = "full" | "seo" | "experience";
 
 type AssistantHint = {
   priority?: "P0" | "P1" | "P2";
@@ -77,6 +78,7 @@ type ReportModel = {
     project: string;
     baseUrl: string;
     generatedAt: string;
+    auditScope: AuditScope;
   };
   summary: {
     routesChecked: number;
@@ -134,6 +136,19 @@ function parseSeverity(value: unknown, fallbackCode = ""): Severity {
     return "medium";
   }
   return "low";
+}
+
+function normalizeAuditScope(value: unknown): AuditScope {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) return "experience";
+  return "full";
+}
+
+function auditScopeLabel(scope: AuditScope) {
+  if (scope === "seo") return "so SEO";
+  if (scope === "experience") return "so site";
+  return "completo";
 }
 
 function toNumber(value: unknown, fallback = 0): number {
@@ -254,6 +269,7 @@ function normalizeReport(raw: unknown): ReportModel {
       project: String(metaObj.project ?? "sitepulse-report"),
       baseUrl: String(metaObj.baseUrl ?? source.baseUrl ?? REPORT_FALLBACK_URL),
       generatedAt: String(metaObj.finishedAt ?? metaObj.generatedAt ?? nowIso()),
+      auditScope: normalizeAuditScope(metaObj.auditScope ?? summaryObj.auditScope),
     },
     summary: {
       routesChecked: toNumber(summaryObj.routesChecked, 0),
@@ -843,6 +859,7 @@ function ReportPageContent() {
             </div>
             <p className="small muted">Site: {report.meta.baseUrl}</p>
             <p className="small muted">Gerado em: {new Date(report.meta.generatedAt).toLocaleString()}</p>
+            <p className="small muted">Escopo da rodada: {auditScopeLabel(report.meta.auditScope)}</p>
           </div>
         </article>
 
@@ -854,11 +871,11 @@ function ReportPageContent() {
             <div className="btn-row">
               <label className="checkbox">
                 <input type="checkbox" checked={showErrorAnalysis} onChange={(e) => setShowErrorAnalysis(e.target.checked)} />
-                Mostrar possiveis erros
+                Exibir erros no relatorio
               </label>
               <label className="checkbox">
                 <input type="checkbox" checked={showSeoAnalysis} onChange={(e) => setShowSeoAnalysis(e.target.checked)} />
-                Mostrar SEO
+                Exibir SEO no relatorio
               </label>
             </div>
 

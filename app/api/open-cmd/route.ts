@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { NextRequest, NextResponse } from "next/server";
 
 type Mode = "desktop" | "mobile";
+type AuditScope = "full" | "seo" | "experience";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,6 +16,15 @@ function singleQuotedPowerShell(value: string) {
   return value.replace(/'/g, "''");
 }
 
+function normalizeAuditScope(value: unknown): AuditScope {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) {
+    return "experience";
+  }
+  return "full";
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const baseUrl = String(body?.baseUrl ?? "").trim();
@@ -24,6 +34,7 @@ export async function POST(req: NextRequest) {
   const fullAudit = body?.fullAudit !== false;
   const elevated = body?.elevated === true;
   const dryRun = body?.dryRun === true;
+  const scope = normalizeAuditScope(body?.scope);
 
   if (!baseUrl) {
     return NextResponse.json({ ok: false, error: "baseUrl is required" }, { status: 400 });
@@ -47,6 +58,7 @@ export async function POST(req: NextRequest) {
       "--fresh",
       "--live-log",
       "--human-log",
+      `--scope "${scope}"`,
       `--base-url "${safeQuoted(baseUrl)}"`,
       noServer ? "--no-server" : "",
       headed ? "--headed" : "",
@@ -73,12 +85,12 @@ export async function POST(req: NextRequest) {
   const runnerEntry = fullAudit ? "src\\run-until-done.mjs" : "src\\index.mjs";
   const cmdParts = [
     `cd /d "${safeQuoted(qaDir)}"`,
-    `node ${runnerEntry} --config "${config}" --fresh --live-log --human-log --base-url "${safeQuoted(baseUrl)}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`,
+    `node ${runnerEntry} --config "${config}" --fresh --live-log --human-log --scope "${scope}" --base-url "${safeQuoted(baseUrl)}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`,
   ];
   const runner = cmdParts.join(" && ");
   const argList = `/k "${safeQuoted(runner)}"`;
   const nonElevatedPsScript = `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}'`;
-  const recommendedCommand = `cd /d "${qaDir}" && node ${runnerEntry.replace(/\\/g, "/")} --config "${config}" --fresh --live-log --human-log --base-url "${baseUrl}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`;
+  const recommendedCommand = `cd /d "${qaDir}" && node ${runnerEntry.replace(/\\/g, "/")} --config "${config}" --fresh --live-log --human-log --scope "${scope}" --base-url "${baseUrl}"${noServer ? " --no-server" : ""}${headed ? " --headed" : ""}`;
 
   let launchPreview = `powershell -NoProfile -ExecutionPolicy Bypass -Command "${nonElevatedPsScript}"`;
   if (elevated) {
@@ -94,6 +106,7 @@ export async function POST(req: NextRequest) {
       fullAudit,
       elevated,
       recommendedCommand,
+      scope,
       dryRun: true,
     });
   }
@@ -125,5 +138,6 @@ export async function POST(req: NextRequest) {
     elevated,
     command: launchPreview,
     recommendedCommand,
+    scope,
   });
 }

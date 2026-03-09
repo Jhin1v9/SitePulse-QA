@@ -1011,7 +1011,22 @@ async function captureSeoSnapshot(page, route) {
   };
 }
 
-function finalizeSeoReport(report) {
+function finalizeSeoReport(report, enabled = true) {
+  if (!enabled) {
+    report.seo = {
+      overallScore: 0,
+      pagesAnalyzed: 0,
+      categoryScore: { technical: 0, content: 0, accessibility: 0 },
+      issues: [],
+      topRecommendations: ["SEO ignorado nesta rodada pelo escopo selecionado."],
+      checklist: [],
+      fixPrompt: "",
+      pages: [],
+      skipped: true,
+      skippedReason: "audit_scope_disabled_seo",
+    };
+    return;
+  }
   const pages = Array.isArray(report?.seo?.pages) ? report.seo.pages : [];
   if (!pages.length) {
     report.seo = {
@@ -2194,6 +2209,7 @@ function parseArgs(argv) {
     liveLog: false,
     humanLog: false,
     baseUrlOverride: "",
+    auditScope: "full",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -2232,6 +2248,11 @@ function parseArgs(argv) {
       i += 1;
       continue;
     }
+    if (token === "--scope" && argv[i + 1]) {
+      args.auditScope = normalizeAuditScope(argv[i + 1]);
+      i += 1;
+      continue;
+    }
     if (token === "--max-run-ms" && argv[i + 1]) {
       const parsed = Number(argv[i + 1]);
       args.maxRunMs = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
@@ -2241,6 +2262,23 @@ function parseArgs(argv) {
   }
 
   return args;
+}
+
+function normalizeAuditScope(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) {
+    return "experience";
+  }
+  return "full";
+}
+
+function shouldRunSeoForScope(scope) {
+  return normalizeAuditScope(scope) !== "experience";
+}
+
+function shouldRunExperienceForScope(scope) {
+  return normalizeAuditScope(scope) !== "seo";
 }
 
 async function readJson(filePath) {
@@ -3722,6 +3760,7 @@ function summarize(report) {
   const seoIssues = Array.isArray(report?.seo?.issues) ? report.seo.issues : [];
 
   return {
+    auditScope: normalizeAuditScope(report?.meta?.auditScope),
     routesChecked: report.routeSweep.length,
     routeLoadFailures: count(CODE.ROUTE_LOAD_FAIL),
     buttonsChecked: report.routeSweep.reduce((acc, item) => acc + item.buttonsDiscovered, 0),
@@ -3753,6 +3792,7 @@ function buildReplayCommand(args, configPath) {
     "--fresh",
     "--live-log",
     "--human-log",
+    `--scope "${normalizeAuditScope(args.auditScope)}"`,
   ];
 
   if (args.baseUrlOverride) {
@@ -3768,6 +3808,7 @@ function buildReplayCommand(args, configPath) {
 function createEmptyReport(cfg, args, maxRunMs) {
   const configPath = path.resolve(process.cwd(), args.configPath);
   const replayCommand = buildReplayCommand(args, configPath);
+  const auditScope = normalizeAuditScope(args.auditScope);
 
   return {
     meta: {
@@ -3785,6 +3826,7 @@ function createEmptyReport(cfg, args, maxRunMs) {
       checkpointFile: cfg.checkpointFile,
       configPath,
       replayCommand,
+      auditScope,
     },
     progress: {
       nextRouteIndex: 0,
@@ -3832,6 +3874,7 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
   if (!report.meta || typeof report.meta !== "object") {
     report.meta = {};
   }
+  report.meta.auditScope = normalizeAuditScope(args.auditScope ?? report.meta.auditScope);
   if (!report.progress || typeof report.progress !== "object") {
     report.progress = {
       nextRouteIndex: 0,
@@ -4102,7 +4145,7 @@ function finalizeReport(report, paused) {
   report.issues = dedupeIssues(report.issues);
   report.issues = report.issues.map((issue) => hydrateIssue(issue));
   report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
-  finalizeSeoReport(report);
+  finalizeSeoReport(report, shouldRunSeoForScope(report?.meta?.auditScope));
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
@@ -4127,6 +4170,7 @@ async function writeReportArtifacts(report, reportDir, paused) {
 
 async function run() {
   const args = parseArgs(process.argv.slice(2));
+  args.auditScope = normalizeAuditScope(args.auditScope);
   const configPath = path.resolve(process.cwd(), args.configPath);
   const configDir = path.dirname(configPath);
   const rawConfig = await readJson(configPath);
@@ -4162,6 +4206,10 @@ async function run() {
   }
 
   report.progress.segments += 1;
+  report.meta.auditScope = args.auditScope;
+
+  const shouldAuditSeo = shouldRunSeoForScope(args.auditScope);
+  const shouldAuditExperience = shouldRunExperienceForScope(args.auditScope);
 
   let currentRoute = "(none)";
   let currentAction = "";
@@ -4357,7 +4405,7 @@ async function run() {
       }
       emitLiveEvent(args, "route_loaded", { route, action: "route_load" });
 
-      if (cfg.sectionOrderRules.length) {
+      if (shouldAuditExperience && cfg.sectionOrderRules.length) {
         currentAction = "visual_layout_check";
         emitLiveEvent(args, "layout_check_start", { route, action: "visual_layout_check" });
         const findings = await runSectionOrderChecks(page, route, cfg);
@@ -4396,19 +4444,32 @@ async function run() {
         }
       }
 
-      if (cfg.discoverMenuLinks) {
+      if (shouldAuditExperience && cfg.discoverMenuLinks) {
         await tryExpandNavigationMenus(page).catch(() => undefined);
       }
-      const discoveredActions = await extractButtonLabels(page, baseOrigin);
+      const discoveredActions = shouldAuditExperience ? await extractButtonLabels(page, baseOrigin) : [];
       const actionsToClick =
         cfg.maxActionsPerRoute > 0
           ? discoveredActions.slice(0, Math.min(discoveredActions.length, cfg.maxActionsPerRoute))
           : [];
       routeResult.buttonsDiscovered = Math.max(routeResult.buttonsDiscovered, discoveredActions.length);
 
-      const seoPage = await captureSeoSnapshot(page, route).catch(() => null);
+      const seoPage = shouldAuditSeo ? await captureSeoSnapshot(page, route).catch(() => null) : null;
       if (seoPage) {
         upsertSeoPage(report, seoPage);
+      }
+
+      if (!shouldAuditExperience) {
+        emitLiveEvent(args, "button_sweep_skipped", {
+          route,
+          action: "button_sweep",
+          detail: "scope=seo",
+        });
+        report.progress.nextRouteIndex = routeIndex + 1;
+        report.progress.nextLabelIndex = 0;
+        await saveCheckpoint(cfg.checkpointFile, report);
+        clicksSinceLastCheckpoint = 0;
+        continue;
       }
 
       const shouldAuditActions = cfg.maxActionRoutes <= 0 || routeIndex < cfg.maxActionRoutes;

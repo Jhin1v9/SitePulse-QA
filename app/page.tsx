@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useRef, useState, type ChangeEvent } from
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Mode = "desktop" | "mobile";
+type AuditScope = "full" | "seo" | "experience";
 type Severity = "high" | "medium" | "low";
 type SeverityFilter = Severity | "all";
 
@@ -66,8 +67,10 @@ type ReportModel = {
     project: string;
     baseUrl: string;
     generatedAt: string;
+    auditScope: AuditScope;
   };
   summary: {
+    auditScope?: AuditScope;
     routesChecked: number;
     buttonsChecked: number;
     totalIssues: number;
@@ -140,6 +143,26 @@ type RunPlanResponse = {
   error?: string;
 };
 
+type SeoWatchDoc = {
+  id: string;
+  title: string;
+  url: string;
+  focus: string;
+  lastUpdated: string;
+  digest: string;
+  status: "new" | "updated" | "unchanged" | "error";
+  note: string;
+};
+
+type SeoWatchResponse = {
+  ok: boolean;
+  checkedAt: string;
+  changedCount: number;
+  docs: SeoWatchDoc[];
+  prompt: string;
+  sources: string[];
+};
+
 type AuditNotice = {
   level: "error" | "warn" | "info";
   code?: string;
@@ -181,6 +204,8 @@ const REPORT_FALLBACK_URL = "https://your-site.com";
 const LAST_REPORT_STORAGE_KEY = "sitepulse:last-report-v1";
 const CURRENT_REPORT_SESSION_KEY = "sitepulse:current-report-session-v1";
 const REPORT_HISTORY_STORAGE_KEY = "sitepulse:report-history-v1";
+const SEO_WATCH_SNAPSHOT_STORAGE_KEY = "sitepulse:seo-watch-snapshot-v1";
+const SEO_WATCH_LAST_CHECK_STORAGE_KEY = "sitepulse:seo-watch-last-check-v1";
 const MAX_REPORT_HISTORY = 12;
 const LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:47891";
 const LOCAL_BRIDGE_START_COMMAND = "npm run audit:bridge";
@@ -221,6 +246,31 @@ function parseSeverity(value: unknown, fallbackCode = ""): Severity {
     return "medium";
   }
   return "low";
+}
+
+function normalizeAuditScope(value: unknown): AuditScope {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) {
+    return "experience";
+  }
+  return "full";
+}
+
+function auditScopeLabel(scope: AuditScope) {
+  if (scope === "seo") return "so SEO";
+  if (scope === "experience") return "so site";
+  return "completo";
+}
+
+function auditScopeHelp(scope: AuditScope) {
+  if (scope === "seo") {
+    return "Analisa SEO e ignora botoes, secoes e cliques para ganhar velocidade.";
+  }
+  if (scope === "experience") {
+    return "Analisa botoes, secoes, runtime e requests. SEO fica ignorado nesta rodada.";
+  }
+  return "Analisa SEO, botoes, secoes, requests e comportamento.";
 }
 
 function normalizeIssue(raw: unknown, index: number): IssueModel {
@@ -328,8 +378,10 @@ function normalizeReport(raw: unknown): ReportModel {
       project: String(metaObj.project ?? "sitepulse-report"),
       baseUrl: String(metaObj.baseUrl ?? source.baseUrl ?? REPORT_FALLBACK_URL),
       generatedAt: String(metaObj.finishedAt ?? metaObj.generatedAt ?? nowIso()),
+      auditScope: normalizeAuditScope(metaObj.auditScope ?? summaryObj.auditScope),
     },
     summary: {
+      auditScope: normalizeAuditScope(summaryObj.auditScope ?? metaObj.auditScope),
       routesChecked: toNumber(summaryObj.routesChecked, 0),
       buttonsChecked: toNumber(summaryObj.buttonsChecked, 0),
       totalIssues: toNumber(summaryObj.totalIssues, issues.length),
@@ -387,7 +439,7 @@ function scoreFromIssues(issues: IssueModel[]): number {
   return score;
 }
 
-function makeCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: boolean) {
+function makeCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: boolean, auditScope: AuditScope) {
   const config = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
   const parts = [
     "npm --prefix qa run audit:cmd --",
@@ -395,6 +447,7 @@ function makeCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: b
     "--fresh",
     "--live-log",
     "--human-log",
+    `--scope "${auditScope}"`,
     `--base-url "${targetUrl}"`,
   ];
   if (noServer) parts.push("--no-server");
@@ -402,10 +455,11 @@ function makeCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: b
   return parts.join(" ");
 }
 
-function wizardCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: boolean) {
+function wizardCommand(mode: Mode, targetUrl: string, noServer: boolean, headed: boolean, auditScope: AuditScope) {
   const parts = [
     "npm --prefix qa run audit:hub --",
     `--mode ${mode}`,
+    `--scope ${auditScope}`,
     `--url "${targetUrl}"`,
   ];
   if (noServer) parts.push("--no-server");
@@ -816,6 +870,39 @@ function clearCurrentSessionReport() {
   }
 }
 
+function readSeoWatchSnapshot() {
+  try {
+    const raw = localStorage.getItem(SEO_WATCH_SNAPSHOT_STORAGE_KEY);
+    if (!raw) return {} as Record<string, { digest: string; lastUpdated: string }>;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object"
+      ? (parsed as Record<string, { digest: string; lastUpdated: string }>)
+      : {};
+  } catch {
+    return {} as Record<string, { digest: string; lastUpdated: string }>;
+  }
+}
+
+function persistSeoWatchSnapshot(docs: SeoWatchDoc[]) {
+  try {
+    const snapshot = Object.fromEntries(
+      docs.map((doc) => [doc.id, { digest: doc.digest, lastUpdated: doc.lastUpdated }]),
+    );
+    localStorage.setItem(SEO_WATCH_SNAPSHOT_STORAGE_KEY, JSON.stringify(snapshot));
+    localStorage.setItem(SEO_WATCH_LAST_CHECK_STORAGE_KEY, nowIso());
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function readSeoWatchLastCheck() {
+  try {
+    return localStorage.getItem(SEO_WATCH_LAST_CHECK_STORAGE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 function buildHistoryComparison(previous: ReportHistoryEntry, current: ReportModel): HistoryComparison {
   const previousByKey = new Map<string, HistoryIssueModel>();
   for (const issue of previous.issues) {
@@ -1115,6 +1202,7 @@ function PageContent() {
   const [loginError, setLoginError] = useState("");
 
   const [mode, setMode] = useState<Mode>("desktop");
+  const [auditScope, setAuditScope] = useState<AuditScope>("full");
   const [targetUrl, setTargetUrl] = useState(DEFAULT_TARGET_URL);
   const [noServer, setNoServer] = useState(true);
   const [headed, setHeaded] = useState(false);
@@ -1139,14 +1227,23 @@ function PageContent() {
   const [pwaInstalled, setPwaInstalled] = useState(false);
   const [historyEntries, setHistoryEntries] = useState<ReportHistoryEntry[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = useState("");
+  const [seoWatchLoading, setSeoWatchLoading] = useState(false);
+  const [seoWatch, setSeoWatch] = useState<SeoWatchResponse | null>(null);
+  const [seoWatchError, setSeoWatchError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const autoLoginAppliedRef = useRef(false);
   const restoredSessionReportRef = useRef(false);
   const installEventRef = useRef<InstallPromptEvent | null>(null);
 
-  const directCmd = useMemo(() => makeCommand(mode, targetUrl, noServer, headed), [mode, targetUrl, noServer, headed]);
-  const guidedCmd = useMemo(() => wizardCommand(mode, targetUrl, noServer, headed), [mode, targetUrl, noServer, headed]);
+  const directCmd = useMemo(
+    () => makeCommand(mode, targetUrl, noServer, headed, auditScope),
+    [mode, targetUrl, noServer, headed, auditScope],
+  );
+  const guidedCmd = useMemo(
+    () => wizardCommand(mode, targetUrl, noServer, headed, auditScope),
+    [mode, targetUrl, noServer, headed, auditScope],
+  );
 
   const filteredIssues = useMemo(() => {
     if (!report) return [];
@@ -1276,7 +1373,7 @@ function PageContent() {
     setProgress(0);
     setAuditNotice(null);
     setLogs([]);
-    pushLog("[run-local] iniciando auditoria completa via bridge local...");
+    pushLog(`[run-local] iniciando auditoria via bridge local | escopo=${auditScope}...`);
 
     const bridgeReady = await checkLocalBridge(true);
     if (!bridgeReady) {
@@ -1300,6 +1397,7 @@ function PageContent() {
         body: JSON.stringify({
           baseUrl: targetUrl.trim(),
           mode,
+          scope: auditScope,
           noServer,
           headed,
           fullAudit: true,
@@ -1390,6 +1488,7 @@ function PageContent() {
       body: JSON.stringify({
         baseUrl: targetUrl.trim(),
         mode,
+        scope: auditScope,
         noServer,
         headed,
         fullAudit: cmdFullAudit,
@@ -1431,6 +1530,42 @@ function PageContent() {
     }
   }
 
+  async function checkSeoUpdates(options?: { silent?: boolean }) {
+    setSeoWatchLoading(true);
+    setSeoWatchError("");
+    try {
+      const previousSnapshot = readSeoWatchSnapshot();
+      const res = await fetch("/api/seo-watch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ previousSnapshot }),
+      });
+      const payload = (await res.json()) as SeoWatchResponse & { error?: string };
+      if (!res.ok || !payload.ok) {
+        throw new Error(payload.error ?? "seo_watch_failed");
+      }
+      setSeoWatch(payload);
+      persistSeoWatchSnapshot(payload.docs);
+      if (!options?.silent) {
+        pushLog(
+          payload.changedCount > 0
+            ? `[seo-watch] ${payload.changedCount} documento(s) oficiais do Google mudaram desde a ultima checagem.`
+            : "[seo-watch] nenhuma mudanca nova encontrada nas docs oficiais do Google.",
+        );
+      } else if (payload.changedCount > 0) {
+        pushLog(`[seo-watch] alerta: ${payload.changedCount} documento(s) oficiais mudaram.`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "seo_watch_failed";
+      setSeoWatchError(message);
+      if (!options?.silent) {
+        pushLog(`[seo-watch] falha ao verificar docs oficiais: ${message}`);
+      }
+    } finally {
+      setSeoWatchLoading(false);
+    }
+  }
+
   function loadHistoryEntry(entry: ReportHistoryEntry) {
     if (entry.raw == null) {
       pushLog("[history] este report salvo nao possui JSON bruto para recarregar.");
@@ -1465,7 +1600,7 @@ function PageContent() {
     setProgress(0);
     setAuditNotice(null);
     setLogs([]);
-    pushLog("[run] starting plan");
+    pushLog(`[run] starting plan | escopo=${auditScope}`);
     try {
       const res = await fetch("/api/run-plan", {
         method: "POST",
@@ -1473,6 +1608,7 @@ function PageContent() {
         body: JSON.stringify({
           baseUrl: targetUrl.trim(),
           mode,
+          scope: auditScope,
           noServer,
           headed,
         }),
@@ -1571,6 +1707,7 @@ function PageContent() {
         body: JSON.stringify({
           baseUrl: targetUrl.trim(),
           mode,
+          scope: auditScope,
           noServer,
           headed,
           fullAudit: cmdFullAudit,
@@ -1623,6 +1760,7 @@ function PageContent() {
       const normalized = normalizeReport(raw);
       setReportRaw(raw);
       setReport(normalized);
+      setAuditScope(normalized.meta.auditScope || "full");
       setTargetUrl(normalized.meta.baseUrl || targetUrl);
       if (options?.writeLastReport !== false) {
         persistLastReport(raw);
@@ -1722,6 +1860,16 @@ function PageContent() {
     const normalized = normalizeReport(sessionReport);
     setSelectedHistoryId(pickComparisonEntry(history, normalized));
     pushLog("[session] ultimo report restaurado apos voltar.");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const lastCheck = readSeoWatchLastCheck();
+    const elapsed = lastCheck ? Date.now() - new Date(lastCheck).getTime() : Number.POSITIVE_INFINITY;
+    if (elapsed >= 1000 * 60 * 60 * 24) {
+      void checkSeoUpdates({ silent: true });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1912,6 +2060,10 @@ function PageContent() {
               mode: {mode}
             </span>
             <span className="chip">
+              <span className="dot ok" />
+              escopo: {auditScopeLabel(auditScope)}
+            </span>
+            <span className="chip">
               <span className={running ? "dot" : "dot ok"} />
               {running ? "auditoria em andamento" : "pronto"}
             </span>
@@ -1953,6 +2105,39 @@ function PageContent() {
                     mobile
                   </button>
                 </div>
+              </div>
+
+              <div className="field">
+                <label>Escopo da auditoria</label>
+                <div className="segmented">
+                  <button
+                    type="button"
+                    className={auditScope === "full" ? "active" : ""}
+                    aria-pressed={auditScope === "full"}
+                    onClick={() => setAuditScope("full")}
+                  >
+                    completo
+                  </button>
+                  <button
+                    type="button"
+                    className={auditScope === "seo" ? "active" : ""}
+                    aria-pressed={auditScope === "seo"}
+                    onClick={() => setAuditScope("seo")}
+                  >
+                    so SEO
+                  </button>
+                  <button
+                    type="button"
+                    className={auditScope === "experience" ? "active" : ""}
+                    aria-pressed={auditScope === "experience"}
+                    onClick={() => setAuditScope("experience")}
+                  >
+                    so site
+                  </button>
+                </div>
+                <p className="small muted" style={{ margin: "8px 0 0" }}>
+                  {auditScopeHelp(auditScope)}
+                </p>
               </div>
 
               <label className="checkbox">
@@ -2021,7 +2206,20 @@ function PageContent() {
                 <button type="button" onClick={() => fileInputRef.current?.click()}>
                   Importar JSON ou LOG
                 </button>
+                <button type="button" className="btn-secondary" onClick={() => void checkSeoUpdates()} disabled={seoWatchLoading}>
+                  {seoWatchLoading ? "Checando docs SEO..." : "Procurar atualizacoes SEO"}
+                </button>
               </div>
+              <p className="small muted" style={{ margin: "4px 0 0" }}>
+                {seoWatch
+                  ? `Docs oficiais Google checadas em ${new Date(seoWatch.checkedAt).toLocaleString()} | mudancas detectadas: ${seoWatch.changedCount}`
+                  : "O app pode verificar docs oficiais do Google Search Central e gerar prompt de atualizacao."}
+              </p>
+              {seoWatchError ? (
+                <p className="small muted" style={{ margin: "4px 0 0" }}>
+                  Falha ao checar docs SEO: {seoWatchError}
+                </p>
+              ) : null}
 
               <input
                 ref={fileInputRef}
@@ -2279,6 +2477,34 @@ function PageContent() {
                 <div className="btn-row" style={{ marginTop: 8 }}>
                   <button className="btn-warn" type="button" onClick={() => void copyText(report?.assistantGuide.quickStartPrompt ?? "", "prompt copied")}>
                     Copiar prompt
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <p className="small muted" style={{ margin: "0 0 6px" }}>
+                  SEO watch (Google docs oficiais)
+                </p>
+                <div className="assistant-block">
+                  <p className="small muted" style={{ marginTop: 0 }}>
+                    Use isso para descobrir mudancas nas docs oficiais do Google e gerar um prompt forte para atualizar as regras SEO do SitePulse.
+                  </p>
+                  <ul className="assistant-list">
+                    {(seoWatch?.docs ?? []).slice(0, 6).map((doc) => (
+                      <li key={`seo-doc-${doc.id}`}>
+                        <strong>{doc.title}</strong> | status: {doc.status} | updated: {doc.lastUpdated || "n/a"} | foco: {doc.focus}
+                      </li>
+                    ))}
+                    {!seoWatch?.docs?.length ? <li>Nenhuma checagem executada ainda.</li> : null}
+                  </ul>
+                </div>
+                <div className="code-box mono">{seoWatch?.prompt ?? "Nenhum prompt de atualizacao SEO gerado ainda."}</div>
+                <div className="btn-row" style={{ marginTop: 8 }}>
+                  <button type="button" className="btn-secondary" onClick={() => void checkSeoUpdates()} disabled={seoWatchLoading}>
+                    {seoWatchLoading ? "Checando..." : "Atualizar snapshot SEO"}
+                  </button>
+                  <button type="button" className="btn-warn" onClick={() => void copyText(seoWatch?.prompt ?? "", "seo watch prompt copied")}>
+                    Copiar prompt SEO
                   </button>
                 </div>
               </div>

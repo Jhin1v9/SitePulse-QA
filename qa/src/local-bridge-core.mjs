@@ -22,6 +22,15 @@ function trimText(value, maxLen = 1500) {
   return `${cleaned.slice(0, maxLen)}...`;
 }
 
+function normalizeAuditScope(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) {
+    return "experience";
+  }
+  return "full";
+}
+
 function stripAnsi(value) {
   return String(value || "").replace(/\u001b\[[0-9;]*m/g, "");
 }
@@ -96,6 +105,7 @@ function defaultRecommendedCommand(input) {
     "--fresh",
     "--live-log",
     "--human-log",
+    `--scope "${normalizeAuditScope(input.scope)}"`,
     `--base-url "${safeQuoted(input.baseUrl)}"`,
     input.noServer !== false ? "--no-server" : "",
     input.headed === true ? "--headed" : "",
@@ -106,6 +116,7 @@ function defaultRecommendedCommand(input) {
 
 function makeCommandParts(input, options) {
   const mode = input.mode === "mobile" ? "mobile" : "desktop";
+  const scope = normalizeAuditScope(input.scope);
   const config = mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
   const runnerEntry = input.fullAudit === false ? "src/index.mjs" : "src/run-until-done.mjs";
   const args = [
@@ -115,6 +126,8 @@ function makeCommandParts(input, options) {
     "--fresh",
     "--live-log",
     "--human-log",
+    "--scope",
+    scope,
     "--base-url",
     input.baseUrl,
   ];
@@ -129,6 +142,7 @@ function makeCommandParts(input, options) {
         noServer: input.noServer !== false,
         headed: input.headed === true,
         fullAudit: input.fullAudit !== false,
+        scope,
       })
     : defaultRecommendedCommand({
         baseUrl: input.baseUrl,
@@ -136,6 +150,7 @@ function makeCommandParts(input, options) {
         config,
         noServer: input.noServer !== false,
         headed: input.headed === true,
+        scope,
       });
 
   const runnerPath = path.join(options.qaDir, ...runnerEntry.split("/"));
@@ -143,10 +158,11 @@ function makeCommandParts(input, options) {
   if (options.runAsNode === true) {
     shellCommandParts.push("set ELECTRON_RUN_AS_NODE=1");
   }
-  shellCommandParts.push(`"${safeQuoted(options.nodeExecPath)}" "${safeQuoted(runnerPath)}" --config "${safeQuoted(config)}" --fresh --live-log --human-log --base-url "${safeQuoted(input.baseUrl)}"${input.noServer !== false ? " --no-server" : ""}${input.headed === true ? " --headed" : ""}`);
+  shellCommandParts.push(`"${safeQuoted(options.nodeExecPath)}" "${safeQuoted(runnerPath)}" --config "${safeQuoted(config)}" --fresh --live-log --human-log --scope "${safeQuoted(scope)}" --base-url "${safeQuoted(input.baseUrl)}"${input.noServer !== false ? " --no-server" : ""}${input.headed === true ? " --headed" : ""}`);
 
   return {
     mode,
+    scope,
     config,
     runnerEntry,
     args,
@@ -361,6 +377,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
     const runInput = {
       baseUrl,
       mode,
+      scope: normalizeAuditScope(body.scope),
       noServer: body.noServer !== false,
       headed: body.headed === true,
       fullAudit: body.fullAudit !== false,
@@ -418,6 +435,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
     const payload = openCmdWindow({
       baseUrl,
       mode: body.mode === "mobile" ? "mobile" : "desktop",
+      scope: normalizeAuditScope(body.scope),
       noServer: body.noServer !== false,
       headed: body.headed === true,
       fullAudit: body.fullAudit !== false,

@@ -24,6 +24,7 @@ function color(text, tone) {
 function parseArgs(argv) {
   const parsed = {
     mode: "",
+    scope: "full",
     url: "",
     noServer: null,
     headed: null,
@@ -42,6 +43,11 @@ function parseArgs(argv) {
     }
     if (token === "--url" && argv[i + 1]) {
       parsed.url = String(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (token === "--scope" && argv[i + 1]) {
+      parsed.scope = String(argv[i + 1]);
       i += 1;
       continue;
     }
@@ -95,6 +101,7 @@ function printHelp() {
   console.log("");
   console.log("Options:");
   console.log("  --mode <desktop|mobile>");
+  console.log("  --scope <full|seo|experience>");
   console.log("  --url <baseUrl>");
   console.log("  --no-server | --server");
   console.log("  --headed | --headless");
@@ -107,6 +114,15 @@ function printHelp() {
 function pickConfig(mode, explicitPath) {
   if (explicitPath) return explicitPath;
   return mode === "mobile" ? "audit.default.mobile.json" : "audit.default.json";
+}
+
+function normalizeAuditScope(value) {
+  const raw = String(value ?? "").trim().toLowerCase();
+  if (raw === "seo") return "seo";
+  if (["experience", "ux", "actions", "action", "buttons", "site"].includes(raw)) {
+    return "experience";
+  }
+  return "full";
 }
 
 async function readJson(filePath) {
@@ -224,6 +240,7 @@ function printHeader() {
 function printRunConfig(info) {
   console.log(color("Run config", "cyan"));
   console.log(`- mode: ${info.mode}`);
+  console.log(`- scope: ${info.scope}`);
   console.log(`- baseUrl: ${info.baseUrl}`);
   console.log(`- config: ${info.configPath}`);
   console.log(`- no-server: ${yesNo(info.noServer)}`);
@@ -318,6 +335,7 @@ async function main() {
   const baseUrlFromConfig = String(configRaw.baseUrl ?? "http://127.0.0.1:3000");
 
   let baseUrl = parsed.url || baseUrlFromConfig;
+  let scope = normalizeAuditScope(parsed.scope);
   let noServer = parsed.noServer ?? false;
   let headed = parsed.headed ?? false;
   let fresh = parsed.fresh;
@@ -363,6 +381,7 @@ async function main() {
   if (fresh) args.push("--fresh");
   if (headed) args.push("--headed");
   args.push("--live-log", "--human-log");
+  args.push("--scope", scope);
   if (baseUrl) {
     args.push("--base-url", baseUrl);
   }
@@ -370,6 +389,7 @@ async function main() {
 
   printRunConfig({
     mode,
+    scope,
     baseUrl,
     configPath,
     noServer,

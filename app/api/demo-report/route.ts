@@ -9,8 +9,10 @@ function sample(mode: Mode) {
       mode,
       generatedAt: new Date().toISOString(),
       baseUrl: "https://your-site.com",
+      auditScope: "full",
     },
     summary: {
+      auditScope: "full",
       routesChecked: 1,
       buttonsChecked: mode === "mobile" ? 10 : 18,
       actionsMapped: mode === "mobile" ? 10 : 18,
