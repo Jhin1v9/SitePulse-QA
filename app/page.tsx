@@ -2124,16 +2124,18 @@ function PageContent() {
       <div className="orb orb-b" />
 
       <section className="wrap">
-        <header className="topbar reveal" data-audit-ignore="true">
+        <header className="topbar topbar-hero reveal" data-audit-ignore="true">
           <div className="brand">
             <div className="brand-mark">SP</div>
-            <div>
+            <div className="brand-copy">
+              <span className="brand-eyebrow">desktop audit control plane</span>
               <h1 className="brand-title">SitePulse Hub</h1>
               <p className="brand-sub">Verifique erros de rota, botoes e requests em qualquer site.</p>
+              <p className="hero-note">Runtime, SEO, acoes e replay tecnico no mesmo fluxo.</p>
               <p className="small muted" style={{ margin: "2px 0 0" }}>ui pulse: {actionPulse}</p>
             </div>
           </div>
-          <div className="chip-row">
+          <div className="chip-row chip-tray">
             <span className="chip">
               <span className={healthChip.className} />
               {healthChip.label}
@@ -2169,7 +2171,7 @@ function PageContent() {
         </header>
 
         <section className="dashboard" data-audit-ignore="true">
-          <article className="card reveal d2">
+          <article className="card panel-card reveal d2">
             <header className="card-head">
               <h2 className="card-title">Painel</h2>
             </header>
@@ -2352,7 +2354,7 @@ function PageContent() {
             </div>
           </article>
 
-          <article className="card reveal d3">
+          <article className="card results-card reveal d3">
             <header className="card-head">
               <h2 className="card-title">Resultado da auditoria</h2>
             </header>
@@ -2505,7 +2507,7 @@ function PageContent() {
             </div>
           </article>
 
-          <article className="card reveal d2">
+          <article className="card guide-card reveal d2">
             <header className="card-head">
               <h2 className="card-title">Desktop + CMD + Guia</h2>
             </header>
@@ -2641,7 +2643,7 @@ function PageContent() {
         </section>
 
         <section className="history-grid" data-audit-ignore="true">
-          <article className="card reveal">
+          <article className="card history-card reveal">
             <header className="card-head">
               <h2 className="card-title">Ultimos reports</h2>
             </header>
@@ -2708,7 +2710,7 @@ function PageContent() {
             </div>
           </article>
 
-          <article className="card reveal d2">
+          <article className="card compare-card reveal d2">
             <header className="card-head">
               <h2 className="card-title">Comparacao de reports</h2>
             </header>

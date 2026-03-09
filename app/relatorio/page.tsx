@@ -816,12 +816,14 @@ function ReportPageContent() {
       <div className="orb orb-a" />
       <div className="orb orb-b" />
       <section className="report-wrap">
-        <header className="topbar reveal">
+        <header className="topbar topbar-hero reveal">
           <div className="brand">
             <div className="brand-mark">SP</div>
-            <div>
+            <div className="brand-copy">
+              <span className="brand-eyebrow">deep report and decision layer</span>
               <h1 className="brand-title">Relatorio detalhado</h1>
               <p className="brand-sub">Leitura completa do resultado em linguagem simples.</p>
+              <p className="hero-note">Resumo executivo, leitura para leigo e trilha tecnica no mesmo painel.</p>
             </div>
           </div>
           <div className="btn-row">
@@ -834,7 +836,7 @@ function ReportPageContent() {
           </div>
         </header>
 
-        <article className="card report-card reveal d2">
+        <article className="card report-card summary-card reveal d2">
           <header className="card-head">
             <h2 className="card-title">Resumo geral</h2>
           </header>
@@ -863,7 +865,7 @@ function ReportPageContent() {
           </div>
         </article>
 
-        <article className="card report-card reveal d2">
+        <article className="card report-card analysis-card reveal d2">
           <header className="card-head">
             <h2 className="card-title">Analise geral (possiveis erros + SEO)</h2>
           </header>
@@ -963,7 +965,7 @@ function ReportPageContent() {
         </article>
 
         {showErrorAnalysis ? (
-        <article id="sec-routes" className="card report-card reveal d2">
+        <article id="sec-routes" className="card report-card routes-card reveal d2">
           <header className="card-head">
             <h2 className="card-title">Rotas averiguadas</h2>
           </header>
@@ -982,7 +984,7 @@ function ReportPageContent() {
         ) : null}
 
         {showErrorAnalysis ? (
-        <article id="sec-buttons" className="card report-card reveal d3">
+        <article id="sec-buttons" className="card report-card actions-summary-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Botoes e Acoes</h2>
           </header>
@@ -1010,7 +1012,7 @@ function ReportPageContent() {
         ) : null}
 
         {showErrorAnalysis ? (
-        <article id="sec-actions" className="card report-card reveal d3">
+        <article id="sec-actions" className="card report-card action-map-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Mapa Humanizado De Acoes</h2>
           </header>
@@ -1085,7 +1087,7 @@ function ReportPageContent() {
         ) : null}
 
         {showErrorAnalysis ? (
-        <article id="sec-issues" className="card report-card reveal d3">
+        <article id="sec-issues" className="card report-card issues-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Problemas encontrados</h2>
           </header>
@@ -1175,7 +1177,7 @@ function ReportPageContent() {
         ) : null}
 
         {showSeoAnalysis ? (
-        <article id="sec-seo" className="card report-card reveal d3">
+        <article id="sec-seo" className="card report-card seo-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Analise SEO Total</h2>
           </header>
@@ -1261,7 +1263,7 @@ function ReportPageContent() {
         ) : null}
 
         {showErrorAnalysis ? (
-        <article id="sec-risk" className="card report-card reveal d3">
+        <article id="sec-risk" className="card report-card risk-card reveal d3">
           <header className="card-head">
             <h2 className="card-title">Risco</h2>
           </header>
@@ -1285,7 +1287,7 @@ function ReportPageContent() {
         ) : null}
 
         {showDev ? (
-          <article className="card report-card reveal">
+          <article className="card report-card dev-card reveal">
             <header className="card-head">
               <h2 className="card-title">JSON tecnico bruto</h2>
             </header>
