@@ -215,7 +215,7 @@ const MAX_REPORT_HISTORY = 12;
 const LOCAL_BRIDGE_BASE_URL = "http://127.0.0.1:47891";
 const LOCAL_BRIDGE_START_COMMAND = "npm run audit:bridge";
 const LOCAL_COMPANION_HINT =
-  "Instale o SitePulse Companion no Windows para auditoria local completa sem precisar do codigo-fonte. Em modo dev, rode npm run audit:bridge.";
+  "Instale o SitePulse Desktop no Windows para auditoria local completa sem precisar do codigo-fonte. Em modo dev, rode npm run audit:bridge.";
 const DEMO_USERS = [
   { username: "admin", password: "admin123" },
   { username: "mobile", password: "mobile123" },
@@ -1023,9 +1023,9 @@ function classifyAuditNotice(input: {
       code,
       title: "Bridge local indisponivel",
       userMessage:
-        "A auditoria completa via browser precisa do companion local ou do bridge local ativo na sua maquina.",
+        "A auditoria completa via browser precisa do SitePulse Desktop local ou do bridge local ativo na sua maquina.",
       recommendation:
-        `Use o SitePulse Companion. Em modo dev, abra um CMD na pasta do projeto e rode: ${LOCAL_BRIDGE_START_COMMAND}.`,
+        `Use o SitePulse Desktop. Em modo dev, abra um CMD na pasta do projeto e rode: ${LOCAL_BRIDGE_START_COMMAND}.`,
       technical,
     };
   }
@@ -1381,7 +1381,7 @@ function PageContent() {
         if (!silent) pushLog("[bridge] respondeu com erro.");
         return false;
       }
-      const serviceName = payload.service === "sitepulse-companion-bridge" ? "Companion local" : "Bridge local";
+      const serviceName = payload.service === "sitepulse-companion-bridge" ? "Desktop local" : "Bridge local";
       setLocalBridgeService(serviceName);
       setLocalBridgeHealth("ok");
       if (!silent) {
@@ -2225,7 +2225,7 @@ function PageContent() {
                   disabled={running || openingCmd || selfAudit}
                   onClick={runPlanViaLocalBridge}
                 >
-                  {running ? "Auditando..." : "Auditar completo (Companion local)"}
+                  {running ? "Auditando..." : "Auditar completo (Desktop local)"}
                 </button>
                 <button
                   className="btn-secondary"
@@ -2239,7 +2239,7 @@ function PageContent() {
                   Checar API
                 </button>
                 <button className="btn-secondary" type="button" onClick={() => void checkLocalBridge()}>
-                  Checar Companion local
+                  Checar Desktop local
                 </button>
               </div>
               <p className="small muted" style={{ margin: 0 }}>
@@ -2466,16 +2466,16 @@ function PageContent() {
 
           <article className="card reveal d2">
             <header className="card-head">
-              <h2 className="card-title">Companion + CMD + Guia</h2>
+              <h2 className="card-title">Desktop + CMD + Guia</h2>
             </header>
             <div className="card-body">
               <div>
                 <p className="small muted" style={{ margin: "0 0 6px" }}>
-                  Companion local (preferido)
+                  Desktop local (preferido)
                 </p>
                 <div className="assistant-block">
                   <p className="small muted" style={{ marginTop: 0 }}>
-                    Instale e abra o SitePulse Companion para manter o bridge ativo no Windows sem depender do projeto fonte.
+                    Instale e abra o SitePulse Desktop para manter o bridge ativo no Windows sem depender do projeto fonte.
                   </p>
                 </div>
               </div>

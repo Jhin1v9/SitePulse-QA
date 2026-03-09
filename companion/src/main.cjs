@@ -1,5 +1,6 @@
 const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const process = require("node:process");
 const { spawn } = require("node:child_process");
@@ -11,6 +12,7 @@ const BRIDGE_PORT = 47891;
 const HUB_HOST = "127.0.0.1";
 const HUB_PORT = 47892;
 const HUB_QUERY = "?autologin=1&desktop=1";
+const IS_SMOKE_MODE = process.argv.includes("--smoke-test") || process.env.SITEPULSE_DESKTOP_SMOKE === "1";
 const BOOTSTRAP_TRACE_FILE = process.env.APPDATA
   ? path.join(process.env.APPDATA, "sitepulse-desktop", "bootstrap.log")
   : path.join(process.cwd(), "sitepulse-desktop-bootstrap.log");
@@ -38,6 +40,12 @@ function writeBootstrapTrace(message) {
 }
 
 writeBootstrapTrace(`main loaded | pid=${process.pid} | exec=${process.execPath}`);
+
+if (IS_SMOKE_MODE) {
+  const smokeUserData = path.join(os.tmpdir(), "sitepulse-desktop-smoke");
+  app.setPath("userData", smokeUserData);
+  writeBootstrapTrace(`smoke userData override=${smokeUserData}`);
+}
 
 function getDesktopLogFile() {
   if (desktopLogFile) return desktopLogFile;
@@ -374,8 +382,28 @@ async function runSmokeTest() {
     throw new Error("hub_page_invalid");
   }
 
+  const auditRes = await fetch(`http://${BRIDGE_HOST}:${BRIDGE_PORT}/run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      baseUrl: "https://example.com",
+      mode: "desktop",
+      scope: "seo",
+      noServer: true,
+      headed: false,
+      fullAudit: false,
+    }),
+  });
+  const auditPayload = await auditRes.json().catch(() => null);
+  if (!auditRes.ok || !auditPayload?.ok) {
+    throw new Error(`desktop_audit_smoke_failed: ${auditPayload?.detail || auditPayload?.error || auditRes.status}`);
+  }
+
   pushLog("[smoke] bridge OK");
   pushLog("[smoke] hub OK");
+  pushLog("[smoke] auditoria curta OK");
   await stopHubServer();
   await stopBridge();
 }
@@ -429,7 +457,7 @@ app.whenReady().then(async () => {
   pushLog(`[desktop] userData=${app.getPath("userData")}`);
   launchOnLogin = app.getLoginItemSettings().openAtLogin;
 
-  if (process.argv.includes("--smoke-test") || process.env.SITEPULSE_DESKTOP_SMOKE === "1") {
+  if (IS_SMOKE_MODE) {
     try {
       await runSmokeTest();
       process.stdout.write("SITEPULSE_DESKTOP_SMOKE_OK\n");

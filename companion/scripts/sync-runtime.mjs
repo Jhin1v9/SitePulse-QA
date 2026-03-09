@@ -19,6 +19,9 @@ const targetWebDir = path.join(companionDir, "runtime-source", "web");
 
 const qaFilesToCopy = [
   "src",
+  "node_modules",
+  "package.json",
+  "package-lock.json",
   "audit.default.json",
   "audit.default.mobile.json",
   "audit.sitepulse-hub.json",
