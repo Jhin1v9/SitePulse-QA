@@ -49,6 +49,8 @@
               <button class="workspace-tab active" data-view="overview" type="button">Overview</button>
               <button class="workspace-tab" data-view="operations" type="button">Operations</button>
               <button class="workspace-tab" data-view="findings" type="button">Findings</button>
+              <button class="workspace-tab" data-view="seo" type="button">SEO</button>
+              <button class="workspace-tab" data-view="prompts" type="button">Prompts</button>
               <button class="workspace-tab" data-view="reports" type="button">Reports</button>
               <button class="workspace-tab" data-view="settings" type="button">Settings</button>
             </div>
@@ -311,7 +313,7 @@
               </section>
             </section>
 
-          <section class="view-panel" data-view-panel="findings">
+            <section class="view-panel" data-view-panel="findings">
             <section class="panel findings-toolbar">
               <div class="panel-head split-head">
                 <div>
@@ -429,6 +431,155 @@
                   </div>
                 </article>
               </div>
+            </section>
+            </section>
+
+          <section class="view-panel" data-view-panel="seo">
+            <section class="panel reports-summary-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">search performance</p>
+                  <h3>SEO command room</h3>
+                </div>
+                <div class="headline-status" id="seoWorkspaceHeadline">Run an audit to load SEO diagnostics.</div>
+              </div>
+
+              <div class="report-grid comparison-metrics-grid">
+                <article class="info-card ok">
+                  <span class="info-label">SEO score</span>
+                  <code id="seoWorkspaceScore">0</code>
+                </article>
+                <article class="info-card danger">
+                  <span class="info-label">Critical SEO issues</span>
+                  <code id="seoWorkspaceCritical">0</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">SEO issues total</span>
+                  <code id="seoWorkspaceTotal">0</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Pages analyzed</span>
+                  <code id="seoWorkspacePages">0</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">SEO delta</span>
+                  <code id="seoWorkspaceDelta">n/a</code>
+                </article>
+              </div>
+
+              <div class="action-row">
+                <button id="seoOnlyPreset" class="secondary" type="button">Use SEO-only profile</button>
+                <button id="copySeoDigest" type="button">Copy SEO digest</button>
+              </div>
+            </section>
+
+            <section class="reports-grid">
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">top recommendations</p>
+                    <h3>Priority SEO actions</h3>
+                  </div>
+                </div>
+                <ol id="seoRecommendationsList" class="steps-list">
+                  <li>Run an audit to load SEO recommendations.</li>
+                </ol>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">operator brief</p>
+                    <h3>SEO summary</h3>
+                  </div>
+                </div>
+                <div class="prompt-box" id="seoWorkspaceSummary">No SEO report loaded yet.</div>
+              </article>
+            </section>
+          </section>
+
+          <section class="view-panel" data-view-panel="prompts">
+            <section class="panel reports-summary-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">operator prompts</p>
+                  <h3>Prompt pack and replay</h3>
+                </div>
+                <div class="headline-status" id="promptWorkspaceHeadline">Run an audit to generate prompts and digests.</div>
+              </div>
+
+              <div class="action-row">
+                <button id="copyPromptPack" class="secondary" type="button">Copy prompt pack</button>
+                <button id="copyReplayCommandPrimary" type="button">Copy replay command</button>
+              </div>
+            </section>
+
+            <section class="prompt-workspace-grid">
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">fix prompt</p>
+                    <h3>Professional fix direction</h3>
+                  </div>
+                  <button id="copyQuickPromptPrimary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceFix">Run an audit to generate a professional fix prompt.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">replay command</p>
+                    <h3>Reproduce the run</h3>
+                  </div>
+                  <button id="copyReplayCommandSecondary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceReplay">Run an audit to generate a replay command.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">issue digest</p>
+                    <h3>Top failures</h3>
+                  </div>
+                  <button id="copyIssueDigestPrimary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceIssues">No issues are currently loaded in SitePulse Studio.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">comparison digest</p>
+                    <h3>Baseline delta</h3>
+                  </div>
+                  <button id="copyCompareDigestPrimary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceCompare">No baseline or previous run is available for comparison.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">route digest</p>
+                    <h3>Coverage by route</h3>
+                  </div>
+                  <button id="copyRouteDigestPrimary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceRoutes">No route coverage is currently loaded in SitePulse Studio.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">action digest</p>
+                    <h3>Coverage by action</h3>
+                  </div>
+                  <button id="copyActionDigestPrimary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceActions">No action coverage is currently loaded in SitePulse Studio.</div>
+              </article>
             </section>
           </section>
 
@@ -719,7 +870,7 @@
           <button id="dismissShortcuts" class="ghost" type="button">Close</button>
         </div>
         <div class="shortcut-grid">
-          <article><strong>Ctrl+1..5</strong><span>Switch between overview, operations, findings, reports and settings</span></article>
+          <article><strong>Ctrl+1..7</strong><span>Switch between overview, operations, findings, SEO, prompts, reports and settings</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>

@@ -509,6 +509,13 @@ select {
   align-items: start;
 }
 
+.prompt-workspace-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+}
+
 .settings-layout {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
@@ -1867,7 +1874,8 @@ button.xl {
   .workspace-header,
   .operations-grid,
   .findings-grid,
-  .reports-grid {
+  .reports-grid,
+  .prompt-workspace-grid {
     grid-template-columns: 1fr;
   }
 }

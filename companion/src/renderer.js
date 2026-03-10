@@ -40,6 +40,16 @@ const VIEW_META = {
     title: "Findings",
     description: "Triaging, visual quality, route coverage and action intent live here so the operator can work the queue without dashboard clutter.",
   },
+  seo: {
+    eyebrow: "search performance",
+    title: "SEO",
+    description: "Search-focused diagnostics, score deltas and priority recommendations live here as a dedicated workspace.",
+  },
+  prompts: {
+    eyebrow: "operator prompts",
+    title: "Prompts",
+    description: "Fix prompts, replay commands and reusable digests are separated here so operators can copy exactly what they need.",
+  },
   reports: {
     eyebrow: "evidence room",
     title: "Reports",
@@ -150,12 +160,37 @@ const stateEl = {
   compareResolvedIssuesList: document.getElementById("compareResolvedIssuesList"),
   comparePersistentIssuesList: document.getElementById("comparePersistentIssuesList"),
   compareRegressionIssuesList: document.getElementById("compareRegressionIssuesList"),
+  seoWorkspaceHeadline: document.getElementById("seoWorkspaceHeadline"),
+  seoWorkspaceScore: document.getElementById("seoWorkspaceScore"),
+  seoWorkspaceCritical: document.getElementById("seoWorkspaceCritical"),
+  seoWorkspaceTotal: document.getElementById("seoWorkspaceTotal"),
+  seoWorkspacePages: document.getElementById("seoWorkspacePages"),
+  seoWorkspaceDelta: document.getElementById("seoWorkspaceDelta"),
+  seoRecommendationsList: document.getElementById("seoRecommendationsList"),
+  seoWorkspaceSummary: document.getElementById("seoWorkspaceSummary"),
+  copySeoDigest: document.getElementById("copySeoDigest"),
+  seoOnlyPreset: document.getElementById("seoOnlyPreset"),
   pinCurrentBaseline: document.getElementById("pinCurrentBaseline"),
   clearBaseline: document.getElementById("clearBaseline"),
   copyCompareDigest: document.getElementById("copyCompareDigest"),
   evidenceHeadline: document.getElementById("evidenceHeadline"),
   evidenceGallery: document.getElementById("evidenceGallery"),
   quickPromptBox: document.getElementById("quickPromptBox"),
+  promptWorkspaceHeadline: document.getElementById("promptWorkspaceHeadline"),
+  promptWorkspaceFix: document.getElementById("promptWorkspaceFix"),
+  promptWorkspaceReplay: document.getElementById("promptWorkspaceReplay"),
+  promptWorkspaceIssues: document.getElementById("promptWorkspaceIssues"),
+  promptWorkspaceCompare: document.getElementById("promptWorkspaceCompare"),
+  promptWorkspaceRoutes: document.getElementById("promptWorkspaceRoutes"),
+  promptWorkspaceActions: document.getElementById("promptWorkspaceActions"),
+  copyPromptPack: document.getElementById("copyPromptPack"),
+  copyQuickPromptPrimary: document.getElementById("copyQuickPromptPrimary"),
+  copyReplayCommandPrimary: document.getElementById("copyReplayCommandPrimary"),
+  copyReplayCommandSecondary: document.getElementById("copyReplayCommandSecondary"),
+  copyIssueDigestPrimary: document.getElementById("copyIssueDigestPrimary"),
+  copyCompareDigestPrimary: document.getElementById("copyCompareDigestPrimary"),
+  copyRouteDigestPrimary: document.getElementById("copyRouteDigestPrimary"),
+  copyActionDigestPrimary: document.getElementById("copyActionDigestPrimary"),
   historyList: document.getElementById("historyList"),
   clearHistory: document.getElementById("clearHistory"),
   routeList: document.getElementById("routeList"),
@@ -729,7 +764,9 @@ function getMenuItems(menuName) {
     inspect: [
       { id: "inspect-operations", label: "Open Operations", hint: "Ctrl+2", action: () => switchView("operations") },
       { id: "inspect-findings", label: "Open Findings", hint: "Ctrl+3", action: () => switchView("findings") },
-      { id: "inspect-reports", label: "Open Reports", hint: "Ctrl+4", action: () => switchView("reports") },
+      { id: "inspect-seo", label: "Open SEO", hint: "Ctrl+4", action: () => switchView("seo") },
+      { id: "inspect-prompts", label: "Open Prompts", hint: "Ctrl+5", action: () => switchView("prompts") },
+      { id: "inspect-reports", label: "Open Reports", hint: "Ctrl+6", action: () => switchView("reports") },
     ],
     reports: [
       { id: "reports-evidence", label: "Open Latest Evidence", hint: "", action: () => openLatestEvidence() },
@@ -737,7 +774,7 @@ function getMenuItems(menuName) {
       { id: "reports-compare", label: "Copy Comparison Digest", hint: "", action: () => copyText(buildCompareDigest(visibleReport), "[studio] comparison digest copied.") },
     ],
     tools: [
-      { id: "tools-settings", label: "Open Settings", hint: "Ctrl+5", action: () => switchView("settings") },
+      { id: "tools-settings", label: "Open Settings", hint: "Ctrl+7", action: () => switchView("settings") },
       { id: "tools-start", label: "Start Engine", hint: "", action: () => startEngine() },
       { id: "tools-stop", label: "Stop Engine", hint: "", action: () => stopEngine() },
       { id: "tools-bridge", label: "Copy Bridge URL", hint: "", action: () => copyBridgeUrl() },
@@ -912,6 +949,30 @@ function buildActionDigest(report) {
     .slice(0, 20)
     .map((action, index) => `${index + 1}. ${action.route} | ${action.label} | expected=${action.expectedForUser || action.expectedFunction || "n/a"} | actual=${action.actualFunction || action.detail || action.statusLabel || "n/a"}`)
     .join("\n");
+}
+
+function buildSeoDigest(report) {
+  if (!report) {
+    return "No SEO report is currently loaded in SitePulse Studio.";
+  }
+
+  const lines = [
+    `Target: ${report.meta.baseUrl}`,
+    `SEO score: ${report.summary.seoScore}`,
+    `SEO critical issues: ${report.summary.seoCriticalIssues || 0}`,
+    `SEO issues total: ${report.summary.seoTotalIssues || 0}`,
+    `Pages analyzed: ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}`,
+  ];
+
+  const recommendations = Array.isArray(report.seo?.topRecommendations) ? report.seo.topRecommendations.filter(Boolean) : [];
+  if (recommendations.length) {
+    lines.push("Top recommendations:");
+    recommendations.slice(0, 8).forEach((item, index) => {
+      lines.push(`${index + 1}. ${item}`);
+    });
+  }
+
+  return lines.join("\n");
 }
 
 function issueSignature(issue) {
@@ -1616,6 +1677,52 @@ function renderPrompt(report) {
   stateEl.quickPromptBox.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
 }
 
+function renderSeoWorkspace(report, options = {}) {
+  const transient = options.transient === true;
+  if (!report) {
+    stateEl.seoWorkspaceHeadline.textContent = "Run an audit to load SEO diagnostics.";
+    stateEl.seoWorkspaceScore.textContent = "0";
+    stateEl.seoWorkspaceCritical.textContent = "0";
+    stateEl.seoWorkspaceTotal.textContent = "0";
+    stateEl.seoWorkspacePages.textContent = "0";
+    stateEl.seoWorkspaceDelta.textContent = "n/a";
+    stateEl.seoRecommendationsList.innerHTML = "<li>Run an audit to load SEO recommendations.</li>";
+    stateEl.seoWorkspaceSummary.textContent = "No SEO report loaded yet.";
+    return;
+  }
+
+  const reference = getReferenceSnapshot(report);
+  const comparison = reference?.snapshot?.report ? compareReports(report, reference.snapshot.report) : null;
+  const recommendations = Array.isArray(report.seo?.topRecommendations) ? report.seo.topRecommendations.filter(Boolean) : [];
+
+  stateEl.seoWorkspaceScore.textContent = String(report.summary.seoScore || 0);
+  stateEl.seoWorkspaceCritical.textContent = String(report.summary.seoCriticalIssues || 0);
+  stateEl.seoWorkspaceTotal.textContent = String(report.summary.seoTotalIssues || 0);
+  stateEl.seoWorkspacePages.textContent = String(report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0);
+  stateEl.seoWorkspaceDelta.textContent = comparison ? signedDelta(comparison.seoDelta) : "n/a";
+  stateEl.seoRecommendationsList.innerHTML = recommendations.length
+    ? recommendations.slice(0, 10).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No SEO recommendation was attached to this run.</li>";
+  stateEl.seoWorkspaceHeadline.textContent = transient === true
+    ? `Live SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}`
+    : `SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}`;
+  stateEl.seoWorkspaceSummary.textContent = recommendations.length
+    ? `The current run attached ${recommendations.length} SEO recommendation(s). Use this workspace when you want search work isolated from the rest of the board.`
+    : "No SEO recommendation was attached to this run. This usually means the current pass did not surface search-specific guidance beyond the score summary.";
+}
+
+function renderPromptWorkspace(report) {
+  stateEl.promptWorkspaceFix.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
+  stateEl.promptWorkspaceReplay.textContent = report?.meta?.replayCommand || report?.assistantGuide?.replayCommand || "Run an audit to generate a replay command.";
+  stateEl.promptWorkspaceIssues.textContent = buildIssueDigest(report);
+  stateEl.promptWorkspaceCompare.textContent = buildCompareDigest(report);
+  stateEl.promptWorkspaceRoutes.textContent = buildRouteDigest(report);
+  stateEl.promptWorkspaceActions.textContent = buildActionDigest(report);
+  stateEl.promptWorkspaceHeadline.textContent = report
+    ? "Prompt pack loaded from the current report. Copy only the artifact you need."
+    : "Run an audit to generate prompts and digests.";
+}
+
 function renderReportSummary(report, options = {}) {
   if (!report) {
     stateEl.currentTarget.textContent = "none";
@@ -1692,12 +1799,15 @@ function getCommandPaletteItems() {
     { id: "open-vault", label: "Open report vault", hint: "", description: "Open the reports folder in Explorer.", action: () => openReportsVault() },
     { id: "open-evidence", label: "Open latest evidence", hint: "", description: "Jump to the latest evidence artifact.", action: () => openLatestEvidence() },
     { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
+    { id: "copy-seo", label: "Copy SEO digest", hint: "", description: "Copy the current SEO summary and recommendation block.", action: () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
     { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
     { id: "switch-findings", label: "Go to findings", hint: "Ctrl+3", description: "Open the issue board, visual quality and coverage panels.", action: () => switchView("findings") },
-    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+4", description: "Open evidence, comparison and history.", action: () => switchView("reports") },
-    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+5", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
+    { id: "switch-seo", label: "Go to SEO", hint: "Ctrl+4", description: "Open the dedicated SEO workspace.", action: () => switchView("seo") },
+    { id: "switch-prompts", label: "Go to prompts", hint: "Ctrl+5", description: "Open prompt pack, replay and digest workspaces.", action: () => switchView("prompts") },
+    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+6", description: "Open evidence, comparison and history.", action: () => switchView("reports") },
+    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+7", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
@@ -1922,6 +2032,8 @@ function renderWorkspaceReport(report, options = {}) {
   renderIssues(report, { transient });
   renderCoverageExplorers(report);
   renderPrompt(report);
+  renderSeoWorkspace(report, { transient });
+  renderPromptWorkspace(report);
   renderEvidenceGallery(report, { transient });
   renderReportSummary(report, { transient });
   renderComparison(report, { transient });
@@ -1941,6 +2053,8 @@ function clearLiveReportState() {
   renderIssues(fallbackReport);
   renderCoverageExplorers(fallbackReport);
   renderPrompt(fallbackReport);
+  renderSeoWorkspace(fallbackReport);
+  renderPromptWorkspace(fallbackReport);
   renderEvidenceGallery(fallbackReport);
   renderReportSummary(fallbackReport);
   renderComparison(fallbackReport);
@@ -2345,10 +2459,37 @@ function bindButtons() {
   stateEl.copyReplayCommand.addEventListener("click", async () => copyText(stateEl.currentCommand.textContent, "[studio] replay command copied."));
   stateEl.copyQuickPrompt.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
   stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
+  stateEl.copyQuickPromptPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceFix.textContent, "[studio] fix prompt copied."));
+  stateEl.copyReplayCommandPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
+  stateEl.copyReplayCommandSecondary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
   stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
+  stateEl.copyIssueDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceIssues.textContent, "[studio] issue digest copied."));
   stateEl.copyRouteDigest.addEventListener("click", async () => copyText(buildRouteDigest(getVisibleReport()), "[studio] route digest copied."));
+  stateEl.copyRouteDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceRoutes.textContent, "[studio] route digest copied."));
   stateEl.copyActionDigest.addEventListener("click", async () => copyText(buildActionDigest(getVisibleReport()), "[studio] action digest copied."));
+  stateEl.copyActionDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceActions.textContent, "[studio] action digest copied."));
   stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
+  stateEl.copyCompareDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceCompare.textContent, "[studio] comparison digest copied."));
+  stateEl.copySeoDigest.addEventListener("click", async () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
+  stateEl.copyPromptPack.addEventListener("click", async () => copyText(
+    [
+      stateEl.promptWorkspaceFix.textContent,
+      "",
+      stateEl.promptWorkspaceReplay.textContent,
+      "",
+      stateEl.promptWorkspaceIssues.textContent,
+      "",
+      stateEl.promptWorkspaceCompare.textContent,
+    ].join("\n"),
+    "[studio] prompt pack copied.",
+  ));
+  stateEl.seoOnlyPreset.addEventListener("click", () => {
+    uiState.scope = "seo";
+    renderStaticSelections();
+    persistProfile();
+    switchView("overview");
+    showToast("SEO-only profile selected.", "ok");
+  });
   stateEl.pinCurrentBaseline.addEventListener("click", pinCurrentReportAsBaseline);
   stateEl.clearBaseline.addEventListener("click", clearBaseline);
   stateEl.clearLog.addEventListener("click", () => {
@@ -2542,14 +2683,16 @@ function bindKeyboardShortcuts() {
       return;
     }
 
-    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5"].includes(event.key)) {
+    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5", "6", "7"].includes(event.key)) {
       event.preventDefault();
       const map = {
         "1": "overview",
         "2": "operations",
         "3": "findings",
-        "4": "reports",
-        "5": "settings",
+        "4": "seo",
+        "5": "prompts",
+        "6": "reports",
+        "7": "settings",
       };
       switchView(map[event.key]);
       return;
