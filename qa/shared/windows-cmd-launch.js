@@ -14,10 +14,17 @@ export function stripAnsi(value) {
   return String(value || "").replace(/\u001b\[[0-9;]*m/g, "");
 }
 
-export function makePowerShellLaunchScript(argList, elevated) {
+function toPowerShellArray(values) {
+  return `@(${values.map((value) => `'${singleQuotedPowerShell(value)}'`).join(", ")})`;
+}
+
+export function makePowerShellLaunchScript(argList, elevated, workingDirectory = "") {
+  const normalizedArgs = Array.isArray(argList) ? argList.map((value) => String(value)) : [String(argList)];
+  const psArgs = toPowerShellArray(normalizedArgs);
+  const workingDirClause = workingDirectory ? ` -WorkingDirectory '${singleQuotedPowerShell(workingDirectory)}'` : "";
   const base = elevated
-    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`
-    : `Start-Process -FilePath 'cmd.exe' -ArgumentList '${singleQuotedPowerShell(argList)}' -ErrorAction Stop | Out-Null`;
+    ? `Start-Process -FilePath 'cmd.exe' -Verb RunAs -ArgumentList ${psArgs}${workingDirClause} -ErrorAction Stop | Out-Null`
+    : `Start-Process -FilePath 'cmd.exe' -ArgumentList ${psArgs}${workingDirClause} -ErrorAction Stop | Out-Null`;
 
   return [
     "$ErrorActionPreference = 'Stop'",

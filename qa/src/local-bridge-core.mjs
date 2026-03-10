@@ -168,6 +168,20 @@ function createLogger(logger) {
   return typeof logger === "function" ? logger : () => {};
 }
 
+async function writeCmdLaunchScript(options, command) {
+  const scriptName = "sitepulse-launch.cmd";
+  const scriptPath = path.join(options.qaDir, scriptName);
+  const scriptBody = [
+    "@echo off",
+    "setlocal",
+    "cd /d \"%~dp0\"",
+    command.shellRunner,
+    "",
+  ].join("\r\n");
+  await fs.writeFile(scriptPath, scriptBody, "utf8");
+  return { scriptName, scriptPath };
+}
+
 export async function startLocalBridgeServer(userOptions = {}) {
   const options = {
     host: userOptions.host || process.env.SITEPULSE_BRIDGE_HOST || "127.0.0.1",
@@ -287,8 +301,9 @@ export async function startLocalBridgeServer(userOptions = {}) {
     }
 
     const command = makeCommandParts(input, options);
-    const argList = `/k "cd /d \\"${safeQuoted(options.qaDir)}\\" && ${safeQuoted(command.shellRunner)}"`;
-    const psScript = makePowerShellLaunchScript(argList, input.elevated === true);
+    const launchScript = await writeCmdLaunchScript(options, command);
+    const argList = ["/d", "/k", launchScript.scriptName];
+    const psScript = makePowerShellLaunchScript(argList, input.elevated === true, options.qaDir);
     const launchResult = await runPowerShellLaunch(psScript);
 
     if (!launchResult.ok) {
@@ -301,6 +316,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
             : `O Windows nao conseguiu abrir a janela de CMD. Detalhe: ${launchResult.detail}`,
         mode: command.mode,
         recommendedCommand: command.recommendedCommand,
+        scriptPath: launchScript.scriptPath,
         recommendation:
           input.elevated === true
             ? "Clique novamente e aceite o UAC. Se continuar sem abrir nada, desmarque 'Executar como administrador (UAC)' ou rode o comando manualmente em um CMD admin."
@@ -319,6 +335,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
       mode: command.mode,
       command: psScript,
       recommendedCommand: command.recommendedCommand,
+      scriptPath: launchScript.scriptPath,
       recommendation:
         input.elevated === true
           ? "Se a janela nao vier para frente, procure o prompt UAC atras de outras janelas ou na barra de tarefas."
