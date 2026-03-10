@@ -625,7 +625,12 @@ try {
   await page.waitForFunction(() => document.querySelectorAll("[data-history-index]").length >= 2);
 
   await page.locator('[data-view="reports"]').click();
-  await page.waitForFunction(() => document.getElementById("compareIssueDelta")?.textContent?.trim() === "-2");
+  await page.waitForFunction(() => {
+    const issueDelta = document.getElementById("compareIssueDelta")?.textContent?.trim();
+    const seoDelta = document.getElementById("compareSeoDelta")?.textContent?.trim();
+    const headline = document.getElementById("compareHeadline")?.textContent?.trim() || "";
+    return issueDelta === "-2" && seoDelta === "+5" && !headline.toLowerCase().includes("live snapshot");
+  });
   const comparisonState = await page.evaluate(() => ({
     compareHeadline: document.getElementById("compareHeadline")?.textContent?.trim(),
     compareIssueDelta: document.getElementById("compareIssueDelta")?.textContent?.trim(),

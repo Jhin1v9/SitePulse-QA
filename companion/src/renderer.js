@@ -1391,6 +1391,7 @@ function collectReportEvidence(report) {
   });
   return evidence.sort((left, right) => {
     const variantScore = (item) => {
+      if (item?.variant === "fullpage") return 4;
       if (item?.variant === "context") return 3;
       if (item?.variant === "focus") return 2;
       return 1;

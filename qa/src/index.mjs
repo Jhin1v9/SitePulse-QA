@@ -2532,6 +2532,7 @@ function normalizeVisualAnalyzer(input) {
     evidenceFocusMinHeightPx: Number.isFinite(Number(config.evidenceFocusMinHeightPx))
       ? Math.max(120, Number(config.evidenceFocusMinHeightPx))
       : 240,
+    evidenceFullPage: config.evidenceFullPage !== false,
     maxSamples: Number.isFinite(Number(config.maxSamples))
       ? Math.max(3, Number(config.maxSamples))
       : 6,
@@ -3431,14 +3432,39 @@ async function captureSectionRuleEvidence(page, finding, reportDir, route, code)
         animations: "disabled",
       });
     });
-    return [{
+    const captured = [{
       type: "screenshot",
       path: outputPath,
       label: `${finding.id || finding.description || "section rule"} context`,
       route,
       code,
       variant: "context",
+      note: "Expanded capture with highlighted order/missing-section context.",
     }];
+    if (cfg?.visualAnalyzer?.evidenceFullPage !== false) {
+      const fullPagePath = path.join(evidenceDir, `${baseToken}-fullpage.png`);
+      try {
+        await withEvidenceOverlay(page, highlights, async () => {
+          await page.screenshot({
+            path: fullPagePath,
+            fullPage: true,
+            animations: "disabled",
+          });
+        });
+        captured.push({
+          type: "screenshot",
+          path: fullPagePath,
+          label: `${finding.id || finding.description || "section rule"} full page`,
+          route,
+          code,
+          variant: "fullpage",
+          note: "Full-page capture with the affected rule area highlighted.",
+        });
+      } catch {
+        // keep the issue even if the screenshot failed
+      }
+    }
+    return captured;
   } catch {
     return [];
   }
@@ -4154,6 +4180,30 @@ async function captureVisualFindingEvidence(page, finding, reportDir, route) {
         code: finding.code,
         variant: "focus",
         note: "Tighter crop of the primary visual defect.",
+      });
+    } catch {
+      // keep the issue even if the screenshot failed
+    }
+  }
+
+  if (cfg?.visualAnalyzer?.evidenceFullPage !== false) {
+    const fullPagePath = path.join(evidenceDir, `${evidenceStamp}-${routeToken}-${codeToken}-${safeLeadLabel}-fullpage.png`);
+    try {
+      await withEvidenceOverlay(page, highlights, async () => {
+        await page.screenshot({
+          path: fullPagePath,
+          fullPage: true,
+          animations: "disabled",
+        });
+      });
+      captured.push({
+        type: "screenshot",
+        path: fullPagePath,
+        label: `${leadLabel} full page`,
+        route,
+        code: finding.code,
+        variant: "fullpage",
+        note: "Full-page route capture with all highlighted visual problem areas.",
       });
     } catch {
       // keep the issue even if the screenshot failed
