@@ -1090,6 +1090,17 @@ function renderStaticSelections() {
   stateEl.currentDepth.textContent = currentDepthLabel();
 }
 
+function summarizeAuditError(detail) {
+  const normalized = String(detail || "")
+    .replace(/SPLIVE\s+\{.*$/gim, "")
+    .replace(/\[LIVE\].*$/gim, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "The engine failed to complete the run.";
+  if (normalized.length <= 180) return normalized;
+  return `${normalized.slice(0, 177).trimEnd()}...`;
+}
+
 function renderMissionBrief() {
   const bridgeRunning = uiState.companionState?.bridge?.running === true;
   const audit = uiState.companionState?.audit || {};
@@ -1759,7 +1770,7 @@ function renderAuditState(audit = {}) {
 
   if (status === "failed") {
     setChip(stateEl.auditChip, "audit failed", "bad");
-    stateEl.headlineStatus.textContent = audit.lastError || "The engine failed to complete the run.";
+    stateEl.headlineStatus.textContent = summarizeAuditError(audit.lastError);
     return;
   }
 

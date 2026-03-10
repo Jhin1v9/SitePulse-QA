@@ -41,6 +41,35 @@ function parseJsonTail(stdout) {
   return null;
 }
 
+function stripLiveTelemetry(text) {
+  return String(text || "")
+    .split(/\r?\n/)
+    .map((line) => line.trimEnd())
+    .filter((line) => line && !line.startsWith("SPLIVE ") && !line.startsWith("[LIVE] "))
+    .join("\n");
+}
+
+async function findLatestFinalReportJson(qaDir, startedMs) {
+  const reportsDir = path.join(qaDir, "reports");
+  try {
+    const entries = await fs.readdir(reportsDir, { withFileTypes: true });
+    const candidates = [];
+    for (const entry of entries) {
+      if (!entry.isFile()) continue;
+      if (!/sitepulse-report-final\.json$/i.test(entry.name)) continue;
+      const absolutePath = path.join(reportsDir, entry.name);
+      const stats = await fs.stat(absolutePath);
+      if (Number.isFinite(startedMs) && startedMs > 0 && stats.mtimeMs + 1500 < startedMs) continue;
+      candidates.push({ absolutePath, mtimeMs: stats.mtimeMs });
+    }
+    candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+    return candidates[0]?.absolutePath || "";
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "ENOENT") return "";
+    throw error;
+  }
+}
+
 function corsHeaders() {
   return {
     "Access-Control-Allow-Origin": "*",
@@ -308,10 +337,13 @@ export async function startLocalBridgeServer(userOptions = {}) {
     processLine("stderr", stderrBuffer);
 
     const parsed = parseJsonTail(stdout);
-    if (parsed?.jsonReport) {
-      const reportPath = path.isAbsolute(parsed.jsonReport)
+    const parsedReportPath = parsed?.jsonReport
+      ? path.isAbsolute(parsed.jsonReport)
         ? parsed.jsonReport
-        : path.resolve(options.qaDir, parsed.jsonReport);
+        : path.resolve(options.qaDir, parsed.jsonReport)
+      : "";
+    const reportPath = parsedReportPath || (await findLatestFinalReportJson(options.qaDir, startedMs));
+    if (reportPath) {
       const raw = await fs.readFile(reportPath, "utf8");
       const report = JSON.parse(raw);
       return {
@@ -331,7 +363,9 @@ export async function startLocalBridgeServer(userOptions = {}) {
       };
     }
 
-    const tail = [stderr, stdout.split("\n").slice(-40).join("\n")].filter(Boolean).join("\n");
+    const cleanStdoutTail = stripLiveTelemetry(stdout).split("\n").slice(-40).join("\n");
+    const cleanStderrTail = stripLiveTelemetry(stderr);
+    const tail = [cleanStderrTail, cleanStdoutTail].filter(Boolean).join("\n");
     return {
       ok: false,
       mode: command.mode,
