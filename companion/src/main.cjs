@@ -964,8 +964,10 @@ async function pathExists(targetPath) {
   }
 }
 
-async function ensureQaRuntimeIntegrity(sourceDir, targetDir) {
-  const requiredEntries = [
+const QA_RUNTIME_SIGNATURE_PATH = ".sitepulse-runtime-signature.json";
+
+function getQaRuntimeIntegrityEntries(sourceDir, targetDir) {
+  return [
     {
       label: "src",
       source: path.join(sourceDir, "src"),
@@ -985,9 +987,66 @@ async function ensureQaRuntimeIntegrity(sourceDir, targetDir) {
       probe: path.join(targetDir, "audit.default.json"),
     },
   ];
+}
 
+async function getQaRuntimeSignature(sourceDir) {
+  const relativePaths = [
+    "package.json",
+    "package-lock.json",
+    path.join("src", "index.mjs"),
+    path.join("src", "local-bridge-core.mjs"),
+    path.join("shared", "windows-cmd-launch.js"),
+    "audit.default.json",
+  ];
+
+  const files = [];
+  for (const relativePath of relativePaths) {
+    const absolutePath = path.join(sourceDir, relativePath);
+    try {
+      const stats = await fs.stat(absolutePath);
+      files.push({
+        path: relativePath.replace(/\\/g, "/"),
+        size: stats.size,
+        mtimeMs: Math.trunc(stats.mtimeMs),
+      });
+    } catch (error) {
+      if (error && typeof error === "object" && error.code === "ENOENT") continue;
+      throw error;
+    }
+  }
+
+  return JSON.stringify({ files });
+}
+
+async function readQaRuntimeSignature(targetDir) {
+  const signaturePath = path.join(targetDir, QA_RUNTIME_SIGNATURE_PATH);
+  try {
+    return await fs.readFile(signaturePath, "utf8");
+  } catch (error) {
+    if (error && typeof error === "object" && error.code === "ENOENT") {
+      return "";
+    }
+    throw error;
+  }
+}
+
+async function writeQaRuntimeSignature(targetDir, signature) {
+  const signaturePath = path.join(targetDir, QA_RUNTIME_SIGNATURE_PATH);
+  await fs.writeFile(signaturePath, signature, "utf8");
+}
+
+async function syncQaRuntimeInPlace(sourceDir, targetDir) {
+  const entries = await fs.readdir(sourceDir);
+  for (const entry of entries) {
+    const from = path.join(sourceDir, entry);
+    const to = path.join(targetDir, entry);
+    await copyPathRobust(from, to);
+  }
+}
+
+async function ensureQaRuntimeIntegrity(sourceDir, targetDir) {
   const repaired = [];
-  for (const entry of requiredEntries) {
+  for (const entry of getQaRuntimeIntegrityEntries(sourceDir, targetDir)) {
     if (await pathExists(entry.probe)) continue;
     await copyPathRobust(entry.source, entry.target);
     repaired.push(entry.label);
@@ -1001,20 +1060,18 @@ async function ensureQaRuntimeIntegrity(sourceDir, targetDir) {
 async function ensureQaRuntime() {
   const sourceDir = resolveBundledQaDir();
   const targetDir = path.join(app.getPath("userData"), "qa-runtime");
-  await fs.rm(targetDir, {
-    recursive: true,
-    force: true,
-    maxRetries: 12,
-    retryDelay: 250,
-  });
   await fs.mkdir(targetDir, { recursive: true });
-  const entries = await fs.readdir(sourceDir);
-  for (const entry of entries) {
-    const from = path.join(sourceDir, entry);
-    const to = path.join(targetDir, entry);
-    await copyPathRobust(from, to);
+
+  const sourceSignature = await getQaRuntimeSignature(sourceDir);
+  const targetSignature = await readQaRuntimeSignature(targetDir);
+  const needsSync = sourceSignature !== targetSignature;
+
+  if (needsSync) {
+    pushLog("[runtime] syncing QA runtime in place...");
+    await syncQaRuntimeInPlace(sourceDir, targetDir);
   }
   await ensureQaRuntimeIntegrity(sourceDir, targetDir);
+  await writeQaRuntimeSignature(targetDir, sourceSignature);
   qaRuntimeDir = targetDir;
   reportsDir = path.join(targetDir, "reports");
   await fs.mkdir(reportsDir, { recursive: true });
