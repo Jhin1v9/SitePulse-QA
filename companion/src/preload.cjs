@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
   openCmdWindow: (payload) => ipcRenderer.invoke("companion:open-cmd-window", payload),
   openReports: () => ipcRenderer.invoke("companion:open-reports"),
   openLatestEvidence: () => ipcRenderer.invoke("companion:open-latest-evidence"),
+  openArtifactFile: (filePath) => ipcRenderer.invoke("companion:open-artifact-file", filePath),
   openArtifactPath: (filePath) => ipcRenderer.invoke("companion:open-artifact-path", filePath),
   copyBridgeUrl: () => ipcRenderer.invoke("companion:copy-bridge-url"),
   copyText: (value) => ipcRenderer.invoke("companion:copy-text", value),

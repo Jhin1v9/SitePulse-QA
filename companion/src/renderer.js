@@ -179,6 +179,14 @@ const stateEl = {
   dismissCommandPalette: document.getElementById("dismissCommandPalette"),
   commandPaletteSearch: document.getElementById("commandPaletteSearch"),
   commandPaletteList: document.getElementById("commandPaletteList"),
+  evidenceLightbox: document.getElementById("evidenceLightbox"),
+  dismissEvidenceLightbox: document.getElementById("dismissEvidenceLightbox"),
+  evidenceLightboxTitle: document.getElementById("evidenceLightboxTitle"),
+  evidenceLightboxImage: document.getElementById("evidenceLightboxImage"),
+  evidenceLightboxMeta: document.getElementById("evidenceLightboxMeta"),
+  evidenceLightboxDetail: document.getElementById("evidenceLightboxDetail"),
+  evidenceOpenImage: document.getElementById("evidenceOpenImage"),
+  evidenceRevealImage: document.getElementById("evidenceRevealImage"),
   toastStack: document.getElementById("toastStack"),
 };
 
@@ -203,6 +211,7 @@ const uiState = {
   activeMenu: "",
   commandPaletteQuery: "",
   auditRequestInFlight: false,
+  activeEvidence: null,
 };
 
 function getVisibleReport() {
@@ -401,6 +410,40 @@ function showToast(message, tone = "ok") {
   window.setTimeout(() => {
     toast.remove();
   }, 3600);
+}
+
+function closeEvidencePreview() {
+  uiState.activeEvidence = null;
+  stateEl.evidenceLightbox.classList.add("hidden");
+  stateEl.evidenceLightboxImage.removeAttribute("src");
+  stateEl.evidenceLightboxTitle.textContent = "Evidence preview";
+  stateEl.evidenceLightboxMeta.textContent = "No evidence selected.";
+  stateEl.evidenceLightboxDetail.textContent = "Open a screenshot from the evidence room or issue board to inspect it here.";
+}
+
+function openEvidencePreview(item) {
+  if (!item?.path) {
+    showToast("This evidence item has no file attached.", "warn");
+    return;
+  }
+
+  uiState.activeEvidence = item;
+  stateEl.evidenceLightboxTitle.textContent = item.label || item.issueGroup || item.issueCode || "Evidence preview";
+  stateEl.evidenceLightboxMeta.textContent = [
+    item.issueRoute || item.route || "/",
+    item.issueCode || "",
+    item.variant ? `variant=${item.variant}` : "",
+    item.severity || "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+  stateEl.evidenceLightboxDetail.textContent =
+    item.note ||
+    item.detail ||
+    "Visual proof attached to the current issue.";
+  stateEl.evidenceLightboxImage.src = toFileSrc(item.path);
+  stateEl.evidenceLightboxImage.alt = item.label || "Evidence preview";
+  stateEl.evidenceLightbox.classList.remove("hidden");
 }
 
 async function syncAuthoritativeState() {
@@ -1346,7 +1389,21 @@ function collectReportEvidence(report) {
       });
     });
   });
-  return evidence;
+  return evidence.sort((left, right) => {
+    const variantScore = (item) => {
+      if (item?.variant === "context") return 3;
+      if (item?.variant === "focus") return 2;
+      return 1;
+    };
+    return variantScore(right) - variantScore(left);
+  });
+}
+
+function findEvidenceItemByPath(filePath) {
+  const target = String(filePath || "").trim();
+  if (!target) return null;
+  const report = getVisibleReport();
+  return collectReportEvidence(report).find((item) => String(item.path || "").trim() === target) || null;
 }
 
 function renderEvidenceGallery(report, options = {}) {
@@ -1371,18 +1428,34 @@ function renderEvidenceGallery(report, options = {}) {
     .map((item, index) => `
       <article class="evidence-card">
         <div class="evidence-preview-wrap">
-          <img class="evidence-preview" src="${escapeHtml(toFileSrc(item.path))}" alt="${escapeHtml(item.label || `evidence-${index + 1}`)}" loading="lazy" />
+          <img
+            class="evidence-preview"
+            src="${escapeHtml(toFileSrc(item.path))}"
+            alt="${escapeHtml(item.label || `evidence-${index + 1}`)}"
+            loading="lazy"
+            data-evidence-preview="true"
+            data-evidence-path="${escapeHtml(item.path)}"
+          />
         </div>
         <div class="evidence-meta">
           <div>
             <div class="nav-title">${escapeHtml(item.label || item.issueGroup || item.issueCode)}</div>
             <div class="history-meta">${escapeHtml(item.issueRoute || item.route || "/")} | ${escapeHtml(item.issueCode || "")}</div>
           </div>
-          <span class="severity-pill severity-${escapeHtml(item.severity || "low")}">${escapeHtml(item.severity || "info")}</span>
+          <div class="history-actions wrap">
+            ${item.variant ? `<span class="evidence-variant">${escapeHtml(item.variant)}</span>` : ""}
+            <span class="severity-pill severity-${escapeHtml(item.severity || "low")}">${escapeHtml(item.severity || "info")}</span>
+          </div>
         </div>
-        <div class="history-copy">${escapeHtml(item.detail || "Visual evidence attached to the current issue.")}</div>
-        <div class="history-actions">
-          <button type="button" data-artifact-path="${escapeHtml(item.path)}">Open file</button>
+        <div class="history-copy">${escapeHtml(item.note || item.detail || "Visual evidence attached to the current issue.")}</div>
+        <div class="history-actions wrap">
+          <button
+            type="button"
+            data-evidence-preview="true"
+            data-evidence-path="${escapeHtml(item.path)}"
+          >Inspect here</button>
+          <button type="button" data-artifact-file="${escapeHtml(item.path)}">Open image</button>
+          <button type="button" data-artifact-path="${escapeHtml(item.path)}">Reveal in folder</button>
         </div>
       </article>
     `)
@@ -1457,11 +1530,21 @@ function buildIssueCard(issue, actionContext) {
         ${evidence.map((item, index) => `
           <article class="issue-evidence-card">
             <div class="issue-evidence-preview-wrap">
-              <img class="issue-evidence-preview" src="${escapeHtml(toFileSrc(item.path))}" alt="${escapeHtml(item.label || `evidence-${index + 1}`)}" loading="lazy" />
+              <img
+                class="issue-evidence-preview"
+                src="${escapeHtml(toFileSrc(item.path))}"
+                alt="${escapeHtml(item.label || `evidence-${index + 1}`)}"
+                loading="lazy"
+                data-evidence-preview="true"
+                data-evidence-path="${escapeHtml(item.path)}"
+              />
             </div>
             <div class="issue-evidence-meta">
               <span>${escapeHtml(item.label || "Visual proof")}</span>
-              <button type="button" class="ghost small" data-artifact-path="${escapeHtml(item.path)}">Open</button>
+              <div class="history-actions wrap">
+                <button type="button" class="ghost small" data-evidence-preview="true" data-evidence-path="${escapeHtml(item.path)}">Inspect</button>
+                <button type="button" class="ghost small" data-artifact-path="${escapeHtml(item.path)}">Reveal</button>
+              </div>
             </div>
           </article>
         `).join("")}
@@ -2068,6 +2151,14 @@ async function exportCurrentReport() {
 }
 
 async function openLatestEvidence() {
+  const currentEvidence = collectReportEvidence(getVisibleReport());
+  if (currentEvidence.length) {
+    switchView("reports");
+    openEvidencePreview(currentEvidence[0]);
+    showToast("Latest evidence opened inside the studio.", "ok");
+    return;
+  }
+
   const result = await window.sitePulseCompanion.openLatestEvidence();
   if (!result?.ok) {
     appendLog(`[studio] latest evidence unavailable: ${result?.detail || result?.error || "unknown"}`);
@@ -2075,8 +2166,14 @@ async function openLatestEvidence() {
     return;
   }
 
-  appendLog(`[studio] latest evidence opened from ${result.path}`);
-  showToast("Latest evidence opened in Explorer.", "ok");
+  openEvidencePreview({
+    path: result.path,
+    label: "Latest evidence artifact",
+    detail: "This file was found as the latest visual artifact in the report vault.",
+    variant: "external",
+  });
+  appendLog(`[studio] latest evidence loaded from ${result.path}`);
+  showToast("Latest evidence loaded into the studio.", "ok");
 }
 
 async function openArtifactPath(filePath) {
@@ -2093,6 +2190,21 @@ async function openArtifactPath(filePath) {
   }
   appendLog(`[studio] artifact opened from ${result.path}`);
   showToast("Artifact opened in Explorer.", "ok");
+}
+
+async function openArtifactFile(filePath) {
+  const value = String(filePath || "").trim();
+  if (!value) {
+    showToast("No artifact file is attached to this item.", "warn");
+    return;
+  }
+  const result = await window.sitePulseCompanion.openArtifactFile(value);
+  if (!result?.ok) {
+    appendLog(`[studio] artifact file open failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Could not open the selected image.", "bad");
+    return;
+  }
+  appendLog(`[studio] artifact file opened from ${result.path}`);
 }
 
 async function startEngine() {
@@ -2269,6 +2381,18 @@ function bindButtons() {
       toggleCommandPalette(false);
     }
   });
+  stateEl.dismissEvidenceLightbox.addEventListener("click", closeEvidencePreview);
+  stateEl.evidenceLightbox.addEventListener("click", (event) => {
+    if (event.target === stateEl.evidenceLightbox) {
+      closeEvidencePreview();
+    }
+  });
+  stateEl.evidenceOpenImage.addEventListener("click", async () => {
+    await openArtifactFile(uiState.activeEvidence?.path || "");
+  });
+  stateEl.evidenceRevealImage.addEventListener("click", async () => {
+    await openArtifactPath(uiState.activeEvidence?.path || "");
+  });
   stateEl.commandPaletteList.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
@@ -2332,6 +2456,19 @@ function bindButtons() {
     container.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const preview = target.closest("[data-evidence-preview]");
+      if (preview instanceof HTMLElement) {
+        const item = findEvidenceItemByPath(preview.dataset.evidencePath || "");
+        if (item) {
+          openEvidencePreview(item);
+        }
+        return;
+      }
+      const openFileButton = target.closest("[data-artifact-file]");
+      if (openFileButton instanceof HTMLElement) {
+        await openArtifactFile(openFileButton.dataset.artifactFile || "");
+        return;
+      }
       const button = target.closest("[data-artifact-path]");
       if (!(button instanceof HTMLElement)) return;
       await openArtifactPath(button.dataset.artifactPath || "");
@@ -2346,6 +2483,11 @@ function bindKeyboardShortcuts() {
     const editing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || targetTag === "SELECT";
 
     if (event.key === "Escape") {
+      if (!stateEl.evidenceLightbox.classList.contains("hidden")) {
+        event.preventDefault();
+        closeEvidencePreview();
+        return;
+      }
       if (uiState.activeMenu) {
         event.preventDefault();
         hideMenuFlyout();

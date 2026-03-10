@@ -2495,6 +2495,7 @@ function normalizeVisualAnalyzer(input) {
   return {
     enabled: config.enabled !== false,
     waitMs: Number.isFinite(Number(config.waitMs)) ? Math.max(0, Number(config.waitMs)) : 900,
+    suppressConsentOverlays: config.suppressConsentOverlays !== false,
     overflowTolerancePx: Number.isFinite(Number(config.overflowTolerancePx))
       ? Math.max(0, Number(config.overflowTolerancePx))
       : 12,
@@ -2513,6 +2514,24 @@ function normalizeVisualAnalyzer(input) {
     minBlockHeightPx: Number.isFinite(Number(config.minBlockHeightPx))
       ? Math.max(40, Number(config.minBlockHeightPx))
       : 72,
+    evidencePaddingPx: Number.isFinite(Number(config.evidencePaddingPx))
+      ? Math.max(24, Number(config.evidencePaddingPx))
+      : 180,
+    evidenceFocusPaddingPx: Number.isFinite(Number(config.evidenceFocusPaddingPx))
+      ? Math.max(12, Number(config.evidenceFocusPaddingPx))
+      : 80,
+    evidenceMinWidthPx: Number.isFinite(Number(config.evidenceMinWidthPx))
+      ? Math.max(240, Number(config.evidenceMinWidthPx))
+      : 760,
+    evidenceMinHeightPx: Number.isFinite(Number(config.evidenceMinHeightPx))
+      ? Math.max(160, Number(config.evidenceMinHeightPx))
+      : 420,
+    evidenceFocusMinWidthPx: Number.isFinite(Number(config.evidenceFocusMinWidthPx))
+      ? Math.max(180, Number(config.evidenceFocusMinWidthPx))
+      : 420,
+    evidenceFocusMinHeightPx: Number.isFinite(Number(config.evidenceFocusMinHeightPx))
+      ? Math.max(120, Number(config.evidenceFocusMinHeightPx))
+      : 240,
     maxSamples: Number.isFinite(Number(config.maxSamples))
       ? Math.max(3, Number(config.maxSamples))
       : 6,
@@ -3344,7 +3363,7 @@ function formatSectionOrderDetail(finding) {
 
 async function captureSectionRuleEvidence(page, finding, reportDir, route, code) {
   if (!reportDir || !finding) return [];
-  const clip = await page.evaluate((payload) => {
+  const clipPayload = await page.evaluate((payload) => {
     const getRect = (selector) => {
       if (!selector) return null;
       const element = document.querySelector(selector);
@@ -3372,35 +3391,53 @@ async function captureSectionRuleEvidence(page, finding, reportDir, route, code)
       y: top,
       width: Math.max(1, right - left),
       height: Math.max(1, bottom - top),
+      highlights: boxes.map((item, index) => ({
+        x: item.x,
+        y: item.y,
+        width: Math.max(1, item.right - item.x),
+        height: Math.max(1, item.bottom - item.y),
+        label: index === 0 ? "before" : "after",
+      })),
     };
   }, {
     beforeSelector: finding.beforeSelector,
     afterSelector: finding.afterSelector,
   }).catch(() => null);
 
-  const normalized = normalizeClipBox(clip, await page.evaluate(() => ({
+  const metrics = await page.evaluate(() => ({
     width: Math.max(document.documentElement?.scrollWidth || 0, document.body?.scrollWidth || 0, window.innerWidth || 0),
     height: Math.max(document.documentElement?.scrollHeight || 0, document.body?.scrollHeight || 0, window.innerHeight || 0),
-  })).catch(() => ({ width: 0, height: 0 })));
-  if (!normalized) return [];
+  })).catch(() => ({ width: 0, height: 0 }));
+  const contextClip = expandClipBox(clipPayload, metrics, {
+    padding: 180,
+    minWidth: 820,
+    minHeight: 460,
+  });
+  if (!contextClip) return [];
 
   const evidenceDir = path.join(reportDir, "visual-evidence");
   await fs.mkdir(evidenceDir, { recursive: true });
   const routeToken = sanitizeFileToken(route === "/" ? "home" : route.replaceAll("/", "-"), "route");
-  const fileName = `${nowStamp()}-${routeToken}-${sanitizeFileToken(code, "visual")}-${sanitizeFileToken(finding.id || "rule", "rule")}.png`;
-  const outputPath = path.join(evidenceDir, fileName);
+  const baseToken = `${nowStamp()}-${routeToken}-${sanitizeFileToken(code, "visual")}-${sanitizeFileToken(finding.id || "rule", "rule")}`;
+  const outputPath = path.join(evidenceDir, `${baseToken}-context.png`);
   try {
-    await page.screenshot({
-      path: outputPath,
-      clip: normalized,
-      animations: "disabled",
+    const highlights = Array.isArray(clipPayload?.highlights)
+      ? buildEvidenceHighlightsFromSamples(clipPayload.highlights.map((item) => ({ clip: item, selector: item.label })), metrics)
+      : [];
+    await withEvidenceOverlay(page, highlights, async () => {
+      await page.screenshot({
+        path: outputPath,
+        clip: contextClip,
+        animations: "disabled",
+      });
     });
     return [{
       type: "screenshot",
       path: outputPath,
-      label: finding.id || finding.description || "section rule",
+      label: `${finding.id || finding.description || "section rule"} context`,
       route,
       code,
+      variant: "context",
     }];
   } catch {
     return [];
@@ -3708,6 +3745,331 @@ function normalizeClipBox(clip, pageMetrics = {}) {
   };
 }
 
+function mergeClipBoxes(clips = []) {
+  const valid = clips.filter((clip) => clip && typeof clip === "object");
+  if (!valid.length) return null;
+  const left = Math.min(...valid.map((clip) => Number(clip.x || 0)));
+  const top = Math.min(...valid.map((clip) => Number(clip.y || 0)));
+  const right = Math.max(...valid.map((clip) => Number(clip.x || 0) + Number(clip.width || 0)));
+  const bottom = Math.max(...valid.map((clip) => Number(clip.y || 0) + Number(clip.height || 0)));
+  return {
+    x: left,
+    y: top,
+    width: Math.max(1, right - left),
+    height: Math.max(1, bottom - top),
+  };
+}
+
+function expandClipBox(clip, pageMetrics = {}, options = {}) {
+  const normalized = normalizeClipBox(clip, pageMetrics);
+  if (!normalized) return null;
+
+  const pageWidth = Math.max(1, Number(pageMetrics.width || 0) || 1);
+  const pageHeight = Math.max(1, Number(pageMetrics.height || 0) || 1);
+  const padding = Math.max(0, Number(options.padding || 0) || 0);
+  const minWidth = Math.max(1, Number(options.minWidth || 0) || normalized.width);
+  const minHeight = Math.max(1, Number(options.minHeight || 0) || normalized.height);
+
+  let x = normalized.x - padding;
+  let y = normalized.y - padding;
+  let width = normalized.width + padding * 2;
+  let height = normalized.height + padding * 2;
+
+  if (width < minWidth) {
+    const delta = minWidth - width;
+    x -= delta / 2;
+    width = minWidth;
+  }
+  if (height < minHeight) {
+    const delta = minHeight - height;
+    y -= delta / 2;
+    height = minHeight;
+  }
+
+  return normalizeClipBox({ x, y, width, height }, { width: pageWidth, height: pageHeight });
+}
+
+function buildEvidenceHighlightsFromSamples(samples = [], pageMetrics = {}) {
+  return samples
+    .slice(0, 3)
+    .map((sample, index) => {
+      const clip = normalizeClipBox(sample?.clip, pageMetrics);
+      if (!clip) return null;
+      const label =
+        sample?.selector ||
+        (sample?.a && sample?.b ? `${sample.a} x ${sample.b}` : "") ||
+        `sample ${index + 1}`;
+      return {
+        ...clip,
+        label: String(label).slice(0, 120),
+      };
+    })
+    .filter(Boolean);
+}
+
+async function withEvidenceOverlay(page, highlights, work) {
+  if (!Array.isArray(highlights) || !highlights.length) {
+    return await work();
+  }
+
+  const overlayId = `sitepulse-evidence-overlay-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await page.evaluate(({ overlayId: id, items }) => {
+    const doc = document;
+    doc.getElementById(id)?.remove();
+
+    const pageWidth = Math.max(
+      doc.documentElement?.scrollWidth || 0,
+      doc.body?.scrollWidth || 0,
+      window.innerWidth || 0,
+    );
+    const pageHeight = Math.max(
+      doc.documentElement?.scrollHeight || 0,
+      doc.body?.scrollHeight || 0,
+      window.innerHeight || 0,
+    );
+
+    const root = doc.createElement("div");
+    root.id = id;
+    Object.assign(root.style, {
+      position: "absolute",
+      left: "0",
+      top: "0",
+      width: `${pageWidth}px`,
+      height: `${pageHeight}px`,
+      pointerEvents: "none",
+      zIndex: "2147483647",
+    });
+
+    items.forEach((item, index) => {
+      const box = doc.createElement("div");
+      Object.assign(box.style, {
+        position: "absolute",
+        left: `${item.x}px`,
+        top: `${item.y}px`,
+        width: `${Math.max(1, item.width)}px`,
+        height: `${Math.max(1, item.height)}px`,
+        border: index === 0 ? "3px solid #7ae2b3" : "3px solid #5ac0ff",
+        background: index === 0 ? "rgba(122, 226, 179, 0.12)" : "rgba(90, 192, 255, 0.1)",
+        boxShadow: "0 0 0 1px rgba(5, 9, 14, 0.86), 0 0 32px rgba(90, 192, 255, 0.24)",
+        borderRadius: "12px",
+      });
+
+      const tag = doc.createElement("div");
+      tag.textContent = item.label || `sample ${index + 1}`;
+      Object.assign(tag.style, {
+        position: "absolute",
+        left: "0",
+        top: "-28px",
+        maxWidth: "320px",
+        padding: "4px 10px",
+        borderRadius: "999px",
+        background: "rgba(8, 13, 20, 0.9)",
+        color: "#f3f5fa",
+        border: "1px solid rgba(255,255,255,0.12)",
+        font: '600 12px "Segoe UI", sans-serif',
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      });
+
+      box.appendChild(tag);
+      root.appendChild(box);
+    });
+
+    doc.body.appendChild(root);
+  }, { overlayId, items: highlights }).catch(() => undefined);
+
+  try {
+    return await work();
+  } finally {
+    await page.evaluate((overlayIdValue) => {
+      document.getElementById(overlayIdValue)?.remove();
+    }, overlayId).catch(() => undefined);
+  }
+}
+
+async function suppressConsentOverlays(page, cfg, args, route = "") {
+  if (cfg?.visualAnalyzer?.suppressConsentOverlays === false) return { clicked: 0, hidden: 0 };
+
+  const result = await page.evaluate(() => {
+    const consentNeedles = [
+      "cookie",
+      "cookies",
+      "consent",
+      "privacy",
+      "privacidade",
+      "privacidad",
+      "preferenc",
+      "gdpr",
+      "rgpd",
+      "onetrust",
+      "cookiebot",
+      "cookielaw",
+      "termly",
+      "usercentrics",
+    ];
+    const preferPhrases = [
+      "only necessary",
+      "only essential",
+      "necessary only",
+      "solo necesarias",
+      "sólo necesarias",
+      "so necessarias",
+      "só necessarias",
+      "nomes necessaries",
+      "only required",
+      "continue without accepting",
+      "reject",
+      "decline",
+      "close",
+      "dismiss",
+      "fechar",
+      "cerrar",
+      "tancar",
+      "accept all",
+      "accept",
+      "aceptar",
+      "aceito",
+      "aceitar",
+      "agree",
+      "allow all",
+      "ok",
+    ];
+
+    const describe = (el) => {
+      const bits = [];
+      if (el.id) bits.push(`#${String(el.id).slice(0, 42)}`);
+      const classes = String(el.className || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .join(".");
+      if (classes) bits.push(`.${classes}`);
+      return bits.join("") || el.tagName.toLowerCase();
+    };
+
+    const textFor = (el) => {
+      const label = [
+        el.textContent,
+        el.getAttribute?.("aria-label"),
+        el.getAttribute?.("title"),
+        el.getAttribute?.("data-testid"),
+        el.getAttribute?.("id"),
+        el.getAttribute?.("class"),
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return label.replace(/\s+/g, " ").trim().toLowerCase();
+    };
+
+    const visible = (el) => {
+      if (!(el instanceof Element)) return false;
+      const style = window.getComputedStyle(el);
+      if (!style) return false;
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width >= 1 && rect.height >= 1;
+    };
+
+    const overlayRoots = Array.from(document.querySelectorAll("body *"))
+      .filter((el) => visible(el))
+      .filter((el) => {
+        const style = window.getComputedStyle(el);
+        const text = textFor(el);
+        const rect = el.getBoundingClientRect();
+        const role = (el.getAttribute("role") || "").toLowerCase();
+        const attrHay = `${el.id || ""} ${el.className || ""} ${role} ${el.getAttribute("aria-label") || ""}`.toLowerCase();
+        const hasConsentSignal = consentNeedles.some((needle) => text.includes(needle) || attrHay.includes(needle));
+        const looksOverlay =
+          style.position === "fixed" ||
+          style.position === "sticky" ||
+          role === "dialog" ||
+          el.getAttribute("aria-modal") === "true";
+        const largeEnough = rect.width >= 220 && rect.height >= 48;
+        return hasConsentSignal && looksOverlay && largeEnough;
+      })
+      .slice(0, 16);
+
+    const clicks = [];
+    for (const root of overlayRoots) {
+      const controls = Array.from(root.querySelectorAll('button, [role="button"], a, input[type="button"], input[type="submit"]'))
+        .filter((el) => visible(el))
+        .map((el) => {
+          const text = textFor(el);
+          let score = 0;
+          preferPhrases.forEach((phrase, index) => {
+            if (text.includes(phrase)) {
+              score = Math.max(score, 160 - index);
+            }
+          });
+          return { el, text, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((left, right) => right.score - left.score);
+
+      if (!controls.length) continue;
+      const winner = controls[0];
+      try {
+        winner.el.click();
+        clicks.push(winner.text || describe(winner.el));
+      } catch {}
+    }
+
+    let hidden = 0;
+    for (const root of overlayRoots) {
+      if (!visible(root)) continue;
+      root.setAttribute("data-sitepulse-hidden-overlay", "true");
+      root.style.setProperty("display", "none", "important");
+      root.style.setProperty("visibility", "hidden", "important");
+      root.style.setProperty("pointer-events", "none", "important");
+      hidden += 1;
+    }
+
+    const genericBackdrops = Array.from(document.querySelectorAll('body *'))
+      .filter((el) => visible(el))
+      .filter((el) => {
+        const style = window.getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        const attrHay = `${el.id || ""} ${el.className || ""}`.toLowerCase();
+        return (
+          (style.position === "fixed" || style.position === "sticky") &&
+          rect.width >= window.innerWidth * 0.72 &&
+          rect.height >= 42 &&
+          consentNeedles.some((needle) => attrHay.includes(needle))
+        );
+      })
+      .slice(0, 6);
+
+    for (const backdrop of genericBackdrops) {
+      if (!visible(backdrop)) continue;
+      backdrop.setAttribute("data-sitepulse-hidden-overlay", "true");
+      backdrop.style.setProperty("display", "none", "important");
+      backdrop.style.setProperty("visibility", "hidden", "important");
+      backdrop.style.setProperty("pointer-events", "none", "important");
+      hidden += 1;
+    }
+
+    return {
+      clicked: clicks.length,
+      hidden,
+      clickedLabels: clicks.slice(0, 3),
+    };
+  }).catch(() => ({ clicked: 0, hidden: 0, clickedLabels: [] }));
+
+  if ((result.clicked || result.hidden) && args?.liveLog) {
+    emitLiveEvent(args, "overlay_suppressed", {
+      route,
+      action: "overlay_suppression",
+      detail: `clicked=${result.clicked} hidden=${result.hidden}${result.clickedLabels?.length ? ` labels=${result.clickedLabels.join(", ")}` : ""}`,
+    });
+  }
+
+  if (result.clicked || result.hidden) {
+    await page.waitForTimeout(180).catch(() => undefined);
+  }
+  return result;
+}
+
 async function captureVisualFindingEvidence(page, finding, reportDir, route) {
   if (!reportDir || !finding || !Array.isArray(finding.samples) || !finding.samples.length) {
     return [];
@@ -3733,36 +4095,65 @@ async function captureVisualFindingEvidence(page, finding, reportDir, route) {
   const codeToken = sanitizeFileToken(finding.code, "visual");
   const captured = [];
 
-  for (let index = 0; index < Math.min(finding.samples.length, 3); index += 1) {
-    const sample = finding.samples[index];
-    const clip = normalizeClipBox(sample?.clip, metrics);
-    if (!clip) continue;
+  const highlights = buildEvidenceHighlightsFromSamples(finding.samples, metrics);
+  const unionClip = mergeClipBoxes(highlights);
+  const contextClip = expandClipBox(unionClip, metrics, {
+    padding: finding.viewportWidth && finding.viewportWidth < 900 ? 120 : 180,
+    minWidth: finding.viewportWidth && finding.viewportWidth < 900 ? 560 : 760,
+    minHeight: finding.viewportWidth && finding.viewportWidth < 900 ? 320 : 420,
+  });
+  const focusClip = expandClipBox(highlights[0], metrics, {
+    padding: 80,
+    minWidth: 420,
+    minHeight: 240,
+  });
+  const evidenceStamp = nowStamp();
+  const leadSample = finding.samples[0];
+  const leadLabel = leadSample?.selector || leadSample?.a || leadSample?.b || finding.code;
+  const safeLeadLabel = sanitizeFileToken(leadLabel, "sample-1");
 
-    const label =
-      sample.selector ||
-      sample.a ||
-      sample.b ||
-      `${finding.code}-${index + 1}`;
-    const safeLabel = sanitizeFileToken(label, `sample-${index + 1}`);
-    const fileName = `${nowStamp()}-${routeToken}-${codeToken}-${safeLabel}.png`;
-    const outputPath = path.join(evidenceDir, fileName);
-
+  if (contextClip) {
+    const contextPath = path.join(evidenceDir, `${evidenceStamp}-${routeToken}-${codeToken}-${safeLeadLabel}-context.png`);
     try {
-      await page.screenshot({
-        path: outputPath,
-        clip,
-        animations: "disabled",
+      await withEvidenceOverlay(page, highlights, async () => {
+        await page.screenshot({
+          path: contextPath,
+          clip: contextClip,
+          animations: "disabled",
+        });
       });
       captured.push({
         type: "screenshot",
-        path: outputPath,
-        label: sample.selector
-          ? `${sample.selector}`
-          : sample.a && sample.b
-          ? `${sample.a} x ${sample.b}`
-          : `visual evidence ${index + 1}`,
+        path: contextPath,
+        label: `${leadLabel} context`,
         route,
         code: finding.code,
+        variant: "context",
+        note: "Expanded capture with highlighted problem area.",
+      });
+    } catch {
+      // keep the issue even if the screenshot failed
+    }
+  }
+
+  if (focusClip) {
+    const focusPath = path.join(evidenceDir, `${evidenceStamp}-${routeToken}-${codeToken}-${safeLeadLabel}-focus.png`);
+    try {
+      await withEvidenceOverlay(page, highlights.slice(0, 1), async () => {
+        await page.screenshot({
+          path: focusPath,
+          clip: focusClip,
+          animations: "disabled",
+        });
+      });
+      captured.push({
+        type: "screenshot",
+        path: focusPath,
+        label: `${leadLabel} focus`,
+        route,
+        code: finding.code,
+        variant: "focus",
+        note: "Tighter crop of the primary visual defect.",
       });
     } catch {
       // keep the issue even if the screenshot failed
@@ -4106,6 +4497,7 @@ async function discoverRoutes(page, cfg, args) {
         timeout: cfg.routeLoadTimeoutMs,
       });
       await page.waitForTimeout(250);
+      await suppressConsentOverlays(page, cfg, args, routePath);
     } catch {
       continue;
     }
@@ -4973,6 +5365,7 @@ async function run() {
           timeout: cfg.routeLoadTimeoutMs,
         });
         await page.waitForTimeout(300);
+        await suppressConsentOverlays(page, cfg, args, route);
       } catch (error) {
         routeResult.loadOk = false;
         emitLiveEvent(args, "route_error", {
@@ -5002,6 +5395,7 @@ async function run() {
       });
 
       if (shouldAuditExperience && (cfg.sectionOrderRules.length || cfg.visualAnalyzer?.enabled)) {
+        await suppressConsentOverlays(page, cfg, args, route);
         currentAction = "visual_layout_check";
         emitLiveEvent(args, "layout_check_start", {
           route,
@@ -5093,6 +5487,7 @@ async function run() {
 
       if (shouldAuditExperience && cfg.discoverMenuLinks) {
         await tryExpandNavigationMenus(page).catch(() => undefined);
+        await suppressConsentOverlays(page, cfg, args, route);
       }
       const discoveredActions = shouldAuditExperience ? await extractButtonLabels(page, baseOrigin) : [];
       const actionsToClick =
@@ -5222,6 +5617,7 @@ async function run() {
               timeout: cfg.routeLoadTimeoutMs,
             });
             await page.waitForTimeout(250);
+            await suppressConsentOverlays(page, cfg, args, route);
           }
 
           const beforeUrl = page.url();

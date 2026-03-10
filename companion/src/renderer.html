@@ -719,7 +719,7 @@
           <button id="dismissShortcuts" class="ghost" type="button">Close</button>
         </div>
         <div class="shortcut-grid">
-          <article><strong>Ctrl+1..4</strong><span>Switch between overview, findings, reports and settings</span></article>
+          <article><strong>Ctrl+1..5</strong><span>Switch between overview, operations, findings, reports and settings</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
@@ -746,6 +746,34 @@
           <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, go to findings..." />
         </label>
         <div id="commandPaletteList" class="explorer-list command-palette-list"></div>
+      </div>
+    </div>
+
+    <div id="evidenceLightbox" class="evidence-lightbox hidden">
+      <div class="evidence-lightbox-shell">
+        <div class="panel-head split-head">
+          <div>
+            <p class="eyebrow">visual inspection</p>
+            <h3 id="evidenceLightboxTitle">Evidence preview</h3>
+          </div>
+          <div class="action-row">
+            <button id="evidenceOpenImage" class="ghost" type="button">Open image</button>
+            <button id="evidenceRevealImage" class="ghost" type="button">Reveal in folder</button>
+            <button id="dismissEvidenceLightbox" class="ghost" type="button">Close</button>
+          </div>
+        </div>
+        <div class="evidence-lightbox-layout">
+          <div class="evidence-lightbox-stage">
+            <img id="evidenceLightboxImage" class="evidence-lightbox-image" alt="Evidence preview" />
+          </div>
+          <aside class="evidence-lightbox-side">
+            <article class="panel nested-panel evidence-lightbox-panel">
+              <p class="eyebrow">capture context</p>
+              <div id="evidenceLightboxMeta" class="history-meta">No evidence selected.</div>
+              <p id="evidenceLightboxDetail" class="history-copy">Open a screenshot from the evidence room or issue board to inspect it here.</p>
+            </article>
+          </aside>
+        </div>
       </div>
     </div>
 

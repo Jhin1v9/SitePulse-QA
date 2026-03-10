@@ -1123,10 +1123,7 @@ async function findLatestReportArtifact() {
         continue;
       }
       if (!entry.isFile()) continue;
-      if (
-        !/-sitepulse-(report-final\.json|report-final\.md|issues-final\.log|assistant-final\.txt)$/i.test(entry.name) &&
-        !/\.png$/i.test(entry.name)
-      ) {
+      if (!/\.png$/i.test(entry.name)) {
         continue;
       }
       const stats = await fs.stat(fullPath);
@@ -1644,7 +1641,6 @@ ipcMain.handle("companion:open-latest-evidence", async () => {
     if (!latest) {
       return { ok: false, error: "latest_evidence_missing" };
     }
-    shell.showItemInFolder(latest.path);
     return {
       ok: true,
       path: latest.path,
@@ -1653,6 +1649,24 @@ ipcMain.handle("companion:open-latest-evidence", async () => {
     const message = error instanceof Error ? error.message : String(error || "latest_evidence_failed");
     pushLog(`[reports] falha ao abrir evidencia recente: ${message}`);
     return { ok: false, error: "latest_evidence_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:open-artifact-file", async (_event, filePath) => {
+  try {
+    const target = String(filePath || "").trim();
+    if (!target) {
+      return { ok: false, error: "artifact_path_missing" };
+    }
+    await fs.access(target);
+    const openResult = await shell.openPath(target);
+    if (openResult) {
+      return { ok: false, error: "artifact_open_failed", detail: openResult };
+    }
+    return { ok: true, path: target };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "artifact_open_failed");
+    pushLog(`[reports] failed to open artifact file: ${message}`);
+    return { ok: false, error: "artifact_open_failed", detail: message };
   }
 });
 ipcMain.handle("companion:open-artifact-path", async (_event, filePath) => {
