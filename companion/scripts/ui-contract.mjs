@@ -38,6 +38,10 @@ const mockState = {
     lastError: "",
     usedFallback: false,
     lastSummary: null,
+    liveReport: null,
+    hasLiveReport: false,
+    timeline: [],
+    stageBoard: [],
     progress: {
       percentage: 0,
       phase: "idle",
@@ -72,12 +76,16 @@ const mockAuditResponse = {
       routesChecked: 12,
       buttonsChecked: 7,
       actionsMapped: 7,
-      totalIssues: 1,
+      totalIssues: 2,
       seoScore: 88,
       seoCriticalIssues: 0,
       seoTotalIssues: 2,
       buttonsNoEffect: 1,
       visualSectionOrderInvalid: 0,
+      visualLayoutOverflow: 0,
+      visualLayerOverlap: 0,
+      visualAlignmentDrift: 1,
+      visualQualityIssues: 1,
       consoleErrors: 0,
       durationMs: 5000,
     },
@@ -114,6 +122,26 @@ const mockAuditResponse = {
           likelyAreas: ["companion/src/renderer.js"],
         },
       },
+      {
+        id: "issue-2",
+        code: "VISUAL_ALIGNMENT_DRIFT",
+        severity: "low",
+        route: "/pricing",
+        action: "visual_quality:alignment",
+        detail: "pricing-section left=84px, drift=36px from the dominant content column.",
+        recommendedResolution: "Normalize the left gutter and max-width for the pricing section.",
+        assistantHint: {
+          priority: "P2",
+          firstChecks: ["Compare the pricing wrapper against the main content container", "Remove the isolated horizontal offset"],
+        },
+        diagnosis: {
+          laymanExplanation: "One section is visually shifted and breaks the page rhythm.",
+          technicalExplanation: "A major block does not align with the dominant content column used by the rest of the page.",
+          technicalChecks: ["Inspect container width, padding and margin-left on the pricing wrapper"],
+          commandHints: ["rg -n \"pricing|container|max-width|padding\" src"],
+          likelyAreas: ["src/components/pricing/**"],
+        },
+      },
     ],
     seo: {
       overallScore: 88,
@@ -121,27 +149,33 @@ const mockAuditResponse = {
     },
     assistantGuide: {
       status: "issues",
-      issueCount: 1,
-      immediateSteps: ["Reconnect the broken CTA.", "Re-run the desktop smoke after the fix."],
+      issueCount: 2,
+      immediateSteps: ["Reconnect the broken CTA.", "Normalize the pricing section alignment.", "Re-run the desktop smoke after the fix."],
       replayCommand: 'node src/index.mjs --config "audit.default.json" --base-url "https://example.com" --scope full --no-server',
-      quickStartPrompt: "Act as a senior engineer and fix the CTA no-effect failure first.",
+      quickStartPrompt: "Act as a senior engineer and fix the CTA no-effect failure first, then normalize the pricing alignment drift.",
     },
   },
 };
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
+page.on("pageerror", (error) => {
+  process.stderr.write(`PAGEERROR ${error?.stack || error?.message || error}\n`);
+});
 
 await page.addInitScript(
   ({ initialState, auditResponse }) => {
     localStorage.setItem("sitepulse-studio:onboarding-v1", JSON.stringify(true));
     localStorage.removeItem("sitepulse-studio:last-report-v1");
     localStorage.removeItem("sitepulse-studio:run-history-v1");
+    localStorage.removeItem("sitepulse-studio:baseline-v1");
+    localStorage.removeItem("sitepulse-studio:last-profile-v1");
 
     let currentState = structuredClone(initialState);
     const listeners = {
       log: [],
       state: [],
+      liveReport: [],
       window: [],
     };
 
@@ -193,7 +227,59 @@ await page.addInitScript(
           currentAction: "Primary CTA",
           lastEventType: "button_click_start",
         };
+        currentState.audit.timeline = [
+          {
+            id: `timeline-${runCount}-1`,
+            stage: "boot",
+            label: "Preparing runtime",
+            status: "done",
+            detail: "Runtime prepared and browser launch started.",
+            route: "",
+            action: "",
+            at: `2026-03-10T00:00:0${runCount}.000Z`,
+          },
+          {
+            id: `timeline-${runCount}-2`,
+            stage: "actions",
+            label: "Testing action",
+            status: "active",
+            detail: "Route 1/2 | action 1/1 | Primary CTA",
+            route: "/",
+            action: "Primary CTA",
+            at: `2026-03-10T00:00:0${runCount}.500Z`,
+          },
+        ];
+        currentState.audit.stageBoard = [
+          { id: "boot", label: "Runtime boot", status: "done", detail: "Runtime prepared and browser launch started.", evidenceCount: 1, route: "", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.000Z` },
+          { id: "discovery", label: "Route discovery", status: "done", detail: "Primary route map discovered.", evidenceCount: 1, route: "/", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.100Z` },
+          { id: "routes", label: "Route loading", status: "done", detail: "Home route loaded successfully.", evidenceCount: 1, route: "/", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.200Z` },
+          { id: "visual", label: "Visual validation", status: "idle", detail: "Waiting for this phase.", evidenceCount: 0, route: "", action: "", updatedAt: "" },
+          { id: "actions", label: "Action mapping", status: "active", detail: "Primary CTA is under test.", evidenceCount: 1, route: "/", action: "Primary CTA", updatedAt: `2026-03-10T00:00:0${runCount}.500Z` },
+          { id: "briefing", label: "Operator brief", status: "idle", detail: "Waiting for this phase.", evidenceCount: 0, route: "", action: "", updatedAt: "" },
+          { id: "finish", label: "Finalization", status: "idle", detail: "Waiting for this phase.", evidenceCount: 0, route: "", action: "", updatedAt: "" },
+        ];
         notifyState();
+        const partialReport = structuredClone(auditResponse.report);
+        partialReport.meta.startedAt = `2026-03-10T00:00:0${runCount}.000Z`;
+        partialReport.meta.finishedAt = "";
+        partialReport.meta.auditMode = payload.mode;
+        partialReport.meta.auditDepth = payload.fullAudit ? "deep" : "signal";
+        partialReport.summary.auditScope = payload.scope;
+        partialReport.summary.routesChecked = 4;
+        partialReport.summary.actionsMapped = 2;
+        partialReport.summary.buttonsChecked = 2;
+        partialReport.summary.totalIssues = runCount > 1 ? 0 : 2;
+        partialReport.summary.seoScore = 71;
+        partialReport.summary.visualAlignmentDrift = runCount > 1 ? 0 : 1;
+        partialReport.summary.visualQualityIssues = runCount > 1 ? 0 : 1;
+        partialReport.routeSweep = partialReport.routeSweep.slice(0, 1);
+        partialReport.actionSweep = partialReport.actionSweep.slice(0, 1);
+        partialReport.issues = runCount > 1 ? [] : partialReport.issues;
+        currentState.audit.liveReport = structuredClone(partialReport);
+        currentState.audit.hasLiveReport = true;
+        listeners.liveReport.forEach((callback) => callback(structuredClone(partialReport)));
+        notifyState();
+        await new Promise((resolve) => setTimeout(resolve, 80));
         const report = structuredClone(auditResponse.report);
         report.meta.startedAt = `2026-03-10T00:00:0${runCount}.000Z`;
         report.meta.finishedAt = `2026-03-10T00:00:1${runCount}.000Z`;
@@ -227,6 +313,30 @@ await page.addInitScript(
           depth: payload.fullAudit ? "deep" : "signal",
           durationMs: 5000,
           lastCommand: auditResponse.command,
+          liveReport: null,
+          hasLiveReport: false,
+          timeline: [
+            {
+              id: `timeline-${runCount}-3`,
+              stage: "finish",
+              label: "Run finished",
+              status: "done",
+              detail: runCount > 1 ? "Run completed clean." : "Run completed with 1 issue(s).",
+              route: "/pricing",
+              action: "Primary CTA",
+              at: `2026-03-10T00:00:1${runCount}.000Z`,
+            },
+            ...currentState.audit.timeline,
+          ],
+          stageBoard: [
+            { id: "boot", label: "Runtime boot", status: "done", detail: "Runtime prepared and browser launch started.", evidenceCount: 1, route: "", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.000Z` },
+            { id: "discovery", label: "Route discovery", status: "done", detail: "Primary route map discovered.", evidenceCount: 1, route: "/", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.100Z` },
+            { id: "routes", label: "Route loading", status: "done", detail: "Pricing route loaded successfully.", evidenceCount: 2, route: "/pricing", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.700Z` },
+            { id: "visual", label: "Visual validation", status: runCount > 1 ? "done" : "issue", detail: runCount > 1 ? "Visual pass completed without findings." : "CTA surface requires follow-up validation.", evidenceCount: 1, route: "/", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.750Z` },
+            { id: "actions", label: "Action mapping", status: runCount > 1 ? "done" : "issue", detail: runCount > 1 ? "CTA behavior validated after fix." : "Primary CTA produced no visible effect.", evidenceCount: 2, route: "/", action: "Primary CTA", updatedAt: `2026-03-10T00:00:0${runCount}.800Z` },
+            { id: "briefing", label: "Operator brief", status: "done", detail: "Immediate steps prepared for the operator.", evidenceCount: 1, route: "", action: "", updatedAt: `2026-03-10T00:00:0${runCount}.900Z` },
+            { id: "finish", label: "Finalization", status: "done", detail: runCount > 1 ? "Run completed clean." : "Run completed with 1 issue(s).", evidenceCount: 1, route: "", action: "", updatedAt: `2026-03-10T00:00:1${runCount}.000Z` },
+          ],
           progress: {
             percentage: 100,
             phase: "runner_finished",
@@ -250,6 +360,29 @@ await page.addInitScript(
         };
       },
       async openCmdWindow() {
+        currentState.audit.running = true;
+        currentState.audit.status = "running";
+        currentState.audit.baseUrl = "https://example.com";
+        currentState.audit.progress = {
+          ...currentState.audit.progress,
+          percentage: 18,
+          phase: "runner_ready",
+          phaseLabel: "CMD flow opened",
+          detail: "External CMD flow opened. Waiting for live checkpoints.",
+        };
+        notifyState();
+        setTimeout(() => {
+          currentState.audit.running = false;
+          currentState.audit.status = "clean";
+          currentState.audit.progress = {
+            ...currentState.audit.progress,
+            percentage: 100,
+            phase: "runner_finished",
+            phaseLabel: "Run finished",
+            detail: "Run completed clean.",
+          };
+          notifyState();
+        }, 120);
         listeners.log.forEach((callback) => callback("[studio] mocked cmd flow"));
         return { ok: true, message: "Mocked CMD flow launched." };
       },
@@ -296,6 +429,10 @@ await page.addInitScript(
         listeners.state.push(callback);
         return () => {};
       },
+      onLiveReport(callback) {
+        listeners.liveReport.push(callback);
+        return () => {};
+      },
       onWindowState(callback) {
         listeners.window.push(callback);
         setTimeout(() => callback({ focused: true, maximized: false, minimized: false }), 0);
@@ -332,11 +469,15 @@ try {
     fail("navigation stack is incomplete");
   }
 
-  if (navigationState.mainOverflowY !== "auto") {
+  if (!["auto", "scroll"].includes(navigationState.mainOverflowY)) {
     fail("main column overflow is not configured");
   }
 
-  if (navigationState.logOverflowY !== "auto" || navigationState.stepsOverflowY !== "auto" || navigationState.dnaOverflowY !== "auto") {
+  if (
+    !["auto", "scroll"].includes(navigationState.logOverflowY) ||
+    !["auto", "scroll"].includes(navigationState.stepsOverflowY) ||
+    !["auto", "scroll"].includes(navigationState.dnaOverflowY)
+  ) {
     fail("internal scroll surfaces are not configured");
   }
 
@@ -372,7 +513,11 @@ try {
   }
 
   await page.getByRole("button", { name: "Run deep audit" }).click();
-  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "1");
+  await page.waitForFunction(() => document.getElementById("reportsHeadline")?.textContent?.includes("Live snapshot"));
+  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "2");
+  await page.waitForFunction(() => document.querySelectorAll("#timelineList .timeline-entry").length >= 1);
+  await page.waitForFunction(() => document.querySelectorAll("#stageBoard .stage-card").length >= 4);
+  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "2");
   await page.waitForSelector('[data-view-panel="findings"].active');
   await page.waitForFunction(() => document.getElementById("auditProgressPercent")?.textContent?.trim() === "100%");
 
@@ -383,11 +528,18 @@ try {
     routeSignal: document.getElementById("buttonSignal")?.textContent?.trim(),
     routeCards: document.querySelectorAll("#routeList .explorer-item").length,
     actionCards: document.querySelectorAll("#actionList .explorer-item").length,
+    visualSignal: document.getElementById("visualSignal")?.textContent?.trim(),
+    visualAlignment: document.getElementById("visualAlignmentCount")?.textContent?.trim(),
+    visualHeadline: document.getElementById("visualQualityHeadline")?.textContent?.trim(),
     progressPercent: document.getElementById("auditProgressPercent")?.textContent?.trim(),
     progressLabel: document.getElementById("auditProgressLabel")?.textContent?.trim(),
+    reportsHeadline: document.getElementById("reportsHeadline")?.textContent?.trim(),
+    findingsHeadline: document.getElementById("findingsHeadline")?.textContent?.trim(),
+    timelineItems: document.querySelectorAll("#timelineList .timeline-entry").length,
+    stageItems: document.querySelectorAll("#stageBoard .stage-card").length,
   }));
 
-  if (findingsState.issuesMetric !== "1") {
+  if (findingsState.issuesMetric !== "2") {
     fail("issues metric did not update");
   }
 
@@ -403,12 +555,32 @@ try {
     fail("button signal did not reflect the mocked issue");
   }
 
+  if (findingsState.visualSignal !== "1" || findingsState.visualAlignment !== "1") {
+    fail("visual quality counters did not reflect the mocked visual issue");
+  }
+
+  if (!findingsState.visualHeadline?.includes("Alignment drift")) {
+    fail("visual quality headline did not surface the top visual issue");
+  }
+
   if (findingsState.routeCards < 1 || findingsState.actionCards < 1) {
     fail("coverage explorers were not populated");
   }
 
   if (findingsState.progressPercent !== "100%" || findingsState.progressLabel !== "Run finished") {
     fail("progress bar did not reflect the completed run");
+  }
+
+  if (!findingsState.reportsHeadline?.includes("stored snapshot")) {
+    fail("final report headline did not switch back from live snapshot");
+  }
+
+  if (!findingsState.findingsHeadline?.includes("Top visible finding")) {
+    fail("findings headline did not switch back to final issue messaging");
+  }
+
+  if (findingsState.timelineItems < 1 || findingsState.stageItems < 4) {
+    fail("execution timeline or stage board did not render");
   }
 
   await page.getByRole("button", { name: "Reports" }).click();
@@ -418,23 +590,32 @@ try {
 
   await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Run native audit" }).click();
-  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "0");
+  await page.waitForFunction(() => document.querySelectorAll("[data-history-index]").length >= 2);
 
   await page.getByRole("button", { name: "Reports" }).click();
-  await page.waitForFunction(() => document.getElementById("compareIssueDelta")?.textContent?.trim() === "-1");
+  await page.waitForFunction(() => document.getElementById("compareIssueDelta")?.textContent?.trim() === "-2");
   const comparisonState = await page.evaluate(() => ({
     compareHeadline: document.getElementById("compareHeadline")?.textContent?.trim(),
     compareIssueDelta: document.getElementById("compareIssueDelta")?.textContent?.trim(),
     compareSeoDelta: document.getElementById("compareSeoDelta")?.textContent?.trim(),
+    issuesMetric: document.getElementById("issuesMetric")?.textContent?.trim(),
     resolvedCount: document.querySelectorAll("#compareResolvedIssuesList .explorer-item").length,
+    persistentCount: document.querySelectorAll("#comparePersistentIssuesList .explorer-item").length,
+    regressionCount: document.querySelectorAll("#compareRegressionIssuesList .explorer-item").length,
+    persistentDelta: document.getElementById("comparePersistentDelta")?.textContent?.trim(),
+    regressionDelta: document.getElementById("compareRegressionDelta")?.textContent?.trim(),
   }));
 
   if (!comparisonState.compareHeadline?.includes("baseline")) {
     fail("comparison headline did not bind to baseline");
   }
 
-  if (comparisonState.compareIssueDelta !== "-1") {
+  if (comparisonState.compareIssueDelta !== "-2") {
     fail("comparison issue delta is incorrect");
+  }
+
+  if (comparisonState.issuesMetric !== "0") {
+    fail("clean follow-up run did not replace the visible issue count");
   }
 
   if (comparisonState.compareSeoDelta !== "+5") {
@@ -443,6 +624,14 @@ try {
 
   if (comparisonState.resolvedCount < 1) {
     fail("resolved comparison list was not populated");
+  }
+
+  if (comparisonState.persistentCount !== 0 || comparisonState.regressionCount !== 0) {
+    fail("comparison classification counts are incorrect");
+  }
+
+  if (comparisonState.persistentDelta !== "0" || comparisonState.regressionDelta !== "0") {
+    fail("comparison classification metrics are incorrect");
   }
 
   await page.keyboard.press("Control+K");
@@ -458,10 +647,11 @@ try {
 
   await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Open full CMD flow" }).click();
-  await page.waitForFunction(() => document.getElementById("headlineStatus")?.textContent?.includes("Mocked CMD flow launched."));
+  await page.waitForFunction(() => document.getElementById("auditChip")?.textContent?.toLowerCase().includes("audit running"));
 
   await page.getByRole("button", { name: "Settings" }).click();
   await page.waitForSelector('[data-view-panel="settings"].active');
+  await page.waitForFunction(() => document.getElementById("stopBridge") && !document.getElementById("stopBridge").disabled);
   await page.getByRole("button", { name: "Stop engine" }).click();
   await page.waitForFunction(() => document.getElementById("bridgeStatus")?.textContent?.trim() === "offline");
   await page.getByRole("button", { name: "Start engine" }).click();

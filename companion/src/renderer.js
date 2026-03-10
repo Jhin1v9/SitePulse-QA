@@ -1,4 +1,4 @@
-const STORAGE_KEYS = {
+﻿const STORAGE_KEYS = {
   lastReport: "sitepulse-studio:last-report-v1",
   lastProfile: "sitepulse-studio:last-profile-v1",
   runHistory: "sitepulse-studio:run-history-v1",
@@ -17,6 +17,9 @@ const ISSUE_GROUP = {
   CONSOLE_ERROR: "Console error",
   VISUAL_SECTION_ORDER_INVALID: "Visual order mismatch",
   VISUAL_SECTION_MISSING: "Missing section",
+  VISUAL_LAYOUT_OVERFLOW: "Layout overflow",
+  VISUAL_LAYER_OVERLAP: "Layer overlap",
+  VISUAL_ALIGNMENT_DRIFT: "Alignment drift",
 };
 
 const DEFAULT_TARGET = "https://example.com";
@@ -63,6 +66,9 @@ const stateEl = {
   auditProgressCounters: document.getElementById("auditProgressCounters"),
   auditProgressFill: document.getElementById("auditProgressFill"),
   auditProgressDetail: document.getElementById("auditProgressDetail"),
+  timelineHeadline: document.getElementById("timelineHeadline"),
+  timelineList: document.getElementById("timelineList"),
+  stageBoard: document.getElementById("stageBoard"),
   findingsHeadline: document.getElementById("findingsHeadline"),
   reportsHeadline: document.getElementById("reportsHeadline"),
   findingsSearch: document.getElementById("findingsSearch"),
@@ -82,6 +88,12 @@ const stateEl = {
   buttonSignal: document.getElementById("buttonSignal"),
   visualSignal: document.getElementById("visualSignal"),
   seoSignal: document.getElementById("seoSignal"),
+  visualOverflowCount: document.getElementById("visualOverflowCount"),
+  visualOverlapCount: document.getElementById("visualOverlapCount"),
+  visualAlignmentCount: document.getElementById("visualAlignmentCount"),
+  visualSectionsCount: document.getElementById("visualSectionsCount"),
+  visualQualityHeadline: document.getElementById("visualQualityHeadline"),
+  visualQualityDetail: document.getElementById("visualQualityDetail"),
   stepsList: document.getElementById("stepsList"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
@@ -98,8 +110,12 @@ const stateEl = {
   compareRiskDelta: document.getElementById("compareRiskDelta"),
   compareRouteDelta: document.getElementById("compareRouteDelta"),
   compareActionDelta: document.getElementById("compareActionDelta"),
+  compareRegressionDelta: document.getElementById("compareRegressionDelta"),
+  comparePersistentDelta: document.getElementById("comparePersistentDelta"),
   compareNewIssuesList: document.getElementById("compareNewIssuesList"),
   compareResolvedIssuesList: document.getElementById("compareResolvedIssuesList"),
+  comparePersistentIssuesList: document.getElementById("comparePersistentIssuesList"),
+  compareRegressionIssuesList: document.getElementById("compareRegressionIssuesList"),
   pinCurrentBaseline: document.getElementById("pinCurrentBaseline"),
   clearBaseline: document.getElementById("clearBaseline"),
   copyCompareDigest: document.getElementById("copyCompareDigest"),
@@ -133,6 +149,8 @@ const stateEl = {
 const uiState = {
   companionState: null,
   report: null,
+  liveReport: null,
+  liveReportKey: "",
   logs: ["[studio] waiting for engine telemetry"],
   mode: "desktop",
   scope: "full",
@@ -147,7 +165,26 @@ const uiState = {
   shortcutsOpen: false,
   commandPaletteOpen: false,
   commandPaletteQuery: "",
+  auditRequestInFlight: false,
 };
+
+function getVisibleReport() {
+  return uiState.liveReport || uiState.report;
+}
+
+function buildLiveReportKey(report) {
+  if (!report) return "";
+  return [
+    report.meta.generatedAt,
+    report.summary.totalIssues,
+    report.summary.routesChecked,
+    report.summary.actionsMapped,
+    report.summary.seoScore,
+    report.issues.length,
+    report.actions.length,
+    report.routes.length,
+  ].join("|");
+}
 
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
@@ -310,6 +347,17 @@ function showToast(message, tone = "ok") {
   }, 3600);
 }
 
+async function syncAuthoritativeState() {
+  try {
+    const payload = await window.sitePulseCompanion.getState();
+    renderCompanionState(payload);
+    return payload;
+  } catch (error) {
+    appendLog(`[studio] authoritative state sync failed: ${error?.message || error}`);
+    return null;
+  }
+}
+
 function deriveGeneratedAt(meta = {}) {
   return meta.generatedAt || meta.finishedAt || meta.startedAt || new Date().toISOString();
 }
@@ -423,7 +471,21 @@ function normalizeReport(raw) {
       buttonsChecked: toNumber(summary.buttonsChecked, actions.length),
       totalIssues: toNumber(summary.totalIssues, issues.length),
       actionsMapped: toNumber(summary.actionsMapped, actions.length || summary.buttonsChecked),
-      visualSectionOrderInvalid: toNumber(summary.visualSectionOrderInvalid, 0),
+      visualSectionOrderInvalid: toNumber(summary.visualSectionOrderInvalid, countByCode(issues, ["VISUAL_SECTION_ORDER_INVALID"])),
+      visualSectionMissing: toNumber(summary.visualSectionMissing, countByCode(issues, ["VISUAL_SECTION_MISSING"])),
+      visualLayoutOverflow: toNumber(summary.visualLayoutOverflow, countByCode(issues, ["VISUAL_LAYOUT_OVERFLOW"])),
+      visualLayerOverlap: toNumber(summary.visualLayerOverlap, countByCode(issues, ["VISUAL_LAYER_OVERLAP"])),
+      visualAlignmentDrift: toNumber(summary.visualAlignmentDrift, countByCode(issues, ["VISUAL_ALIGNMENT_DRIFT"])),
+      visualQualityIssues: toNumber(
+        summary.visualQualityIssues,
+        countByCode(issues, [
+          "VISUAL_SECTION_ORDER_INVALID",
+          "VISUAL_SECTION_MISSING",
+          "VISUAL_LAYOUT_OVERFLOW",
+          "VISUAL_LAYER_OVERLAP",
+          "VISUAL_ALIGNMENT_DRIFT",
+        ]),
+      ),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
       consoleErrors: toNumber(summary.consoleErrors, 0),
       seoScore: toNumber(summary.seoScore, seo.overallScore),
@@ -511,6 +573,21 @@ function currentDepthLabel(depth = uiState.depth) {
   return normalizeDepth(depth) === "deep" ? "deep crawl" : "signal sweep";
 }
 
+function currentScopeLabel(scope = uiState.scope) {
+  const normalized = normalizeScope(scope);
+  if (normalized === "seo") return "SEO only";
+  if (normalized === "experience") return "UX only";
+  return "Full stack";
+}
+
+function auditStatusLabel(status = "idle") {
+  if (status === "running") return "running";
+  if (status === "issues") return "issues detected";
+  if (status === "clean") return "clean run";
+  if (status === "failed") return "failed";
+  return "idle";
+}
+
 function updateSegmentButtons(buttons, fieldName, activeValue) {
   buttons.forEach((button) => {
     button.classList.toggle("active", button.dataset[fieldName] === activeValue);
@@ -575,7 +652,7 @@ function createCompactStoredReport(report, limits = {}) {
 
 function buildIssueDigest(report) {
   if (!report || !report.issues.length) {
-    return "No issues are loaded in SitePulse Studio.";
+    return "No issues are currently loaded in SitePulse Studio.";
   }
 
   return report.issues
@@ -586,7 +663,7 @@ function buildIssueDigest(report) {
 
 function buildRouteDigest(report) {
   if (!report || !report.routes.length) {
-    return "No route coverage is loaded in SitePulse Studio.";
+    return "No route coverage is currently loaded in SitePulse Studio.";
   }
 
   return report.routes
@@ -597,7 +674,7 @@ function buildRouteDigest(report) {
 
 function buildActionDigest(report) {
   if (!report || !report.actions.length) {
-    return "No action coverage is loaded in SitePulse Studio.";
+    return "No action coverage is currently loaded in SitePulse Studio.";
   }
 
   return report.actions
@@ -648,6 +725,19 @@ function compareReports(currentReport, referenceReport) {
   const resolvedIssues = [...referenceIssues.entries()]
     .filter(([signature]) => !currentIssues.has(signature))
     .map(([, issue]) => issue);
+  const persistentIssues = [...currentIssues.entries()]
+    .filter(([signature]) => referenceIssues.has(signature))
+    .map(([, issue]) => issue);
+  const escalatedIssues = [...currentIssues.entries()]
+    .filter(([signature]) => referenceIssues.has(signature))
+    .map(([signature, issue]) => ({
+      current: issue,
+      previous: referenceIssues.get(signature),
+    }))
+    .filter(({ current, previous }) => severityRank(current.severity) > severityRank(previous?.severity || "low"))
+    .map(({ current }) => current);
+  const criticalRegressions = [...newIssues, ...escalatedIssues]
+    .filter((issue, index, list) => issue.severity === "high" && list.findIndex((candidate) => issueSignature(candidate) === issueSignature(issue)) === index);
 
   return {
     issueDelta: currentReport.summary.totalIssues - referenceReport.summary.totalIssues,
@@ -657,6 +747,8 @@ function compareReports(currentReport, referenceReport) {
     actionDelta: currentReport.summary.actionsMapped - referenceReport.summary.actionsMapped,
     newIssues,
     resolvedIssues,
+    persistentIssues,
+    criticalRegressions,
   };
 }
 
@@ -672,29 +764,45 @@ function buildCompareDigest(report) {
 
   const comparison = compareReports(report, reference.snapshot.report);
   if (!comparison) {
-    return "Comparison data is unavailable.";
+    return "Comparison data is not available.";
   }
 
   const lines = [
     `Current target: ${report.meta.baseUrl}`,
-    `Compared against: ${reference.label}`,
+    `Compared with: ${reference.label}`,
     `Issue delta: ${signedDelta(comparison.issueDelta)}`,
     `SEO delta: ${signedDelta(comparison.seoDelta)}`,
     `Risk delta: ${signedDelta(comparison.riskDelta)}`,
     `Route delta: ${signedDelta(comparison.routeDelta)}`,
     `Action delta: ${signedDelta(comparison.actionDelta)}`,
+    `Critical regressions: ${comparison.criticalRegressions.length}`,
+    `Persistent issues: ${comparison.persistentIssues.length}`,
   ];
 
   if (comparison.newIssues.length) {
-    lines.push("New findings:");
+    lines.push("New issues:");
     comparison.newIssues.slice(0, 6).forEach((issue, index) => {
       lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
     });
   }
 
   if (comparison.resolvedIssues.length) {
-    lines.push("Resolved findings:");
+    lines.push("Resolved issues:");
     comparison.resolvedIssues.slice(0, 6).forEach((issue, index) => {
+      lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
+    });
+  }
+
+  if (comparison.persistentIssues.length) {
+    lines.push("Persistent issues:");
+    comparison.persistentIssues.slice(0, 6).forEach((issue, index) => {
+      lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
+    });
+  }
+
+  if (comparison.criticalRegressions.length) {
+    lines.push("Critical regressions:");
+    comparison.criticalRegressions.slice(0, 6).forEach((issue, index) => {
       lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
     });
   }
@@ -747,37 +855,42 @@ function renderStaticSelections() {
   updateSegmentButtons(stateEl.depthButtons, "depth", uiState.depth);
   updateSegmentButtons(stateEl.severityFilterButtons, "issueFilter", uiState.issueFilter);
   stateEl.currentMode.textContent = uiState.mode;
-  stateEl.currentScope.textContent = uiState.scope;
+  stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel();
 }
 
 function renderMissionBrief() {
   const bridgeRunning = uiState.companionState?.bridge?.running === true;
   const audit = uiState.companionState?.audit || {};
+  const visibleReport = getVisibleReport();
 
   if (!bridgeRunning) {
-    stateEl.missionBrief.textContent = "The local engine is offline. Start the engine before relying on the board.";
+    stateEl.missionBrief.textContent = "The local engine is offline. Start the engine before trusting the board.";
     return;
   }
 
   if (audit.running === true) {
-    stateEl.missionBrief.textContent = `Audit running against ${audit.baseUrl || "the selected target"}. Follow the live log while the engine builds evidence.`;
+    if (visibleReport) {
+      stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. The live snapshot currently shows ${visibleReport.summary.totalIssues} issue(s), ${visibleReport.summary.routesChecked} route(s) and SEO ${visibleReport.summary.seoScore}.`;
+      return;
+    }
+    stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. Follow the live log while the engine produces evidence.`;
     return;
   }
 
-  if (!uiState.report) {
-    stateEl.missionBrief.textContent = "SitePulse Studio is ready. Define a target and start the first audit run.";
+  if (!visibleReport) {
+    stateEl.missionBrief.textContent = "SitePulse Studio is ready. Define a target and start the first audit.";
     return;
   }
 
-  const topIssue = uiState.report.issues[0];
+  const topIssue = visibleReport.issues[0];
   if (!topIssue) {
-    stateEl.missionBrief.textContent = `Latest run finished clean for ${uiState.report.meta.baseUrl}. Treat this as a baseline and re-run after every structural change.`;
+    stateEl.missionBrief.textContent = `The latest run finished clean on ${visibleReport.meta.baseUrl}. Treat it as the regression baseline and run again after each structural change.`;
     return;
   }
 
   const route = topIssue.route === "/" ? "home route" : topIssue.route;
-  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. Resolve high-impact failures before the next validation pass.`;
+  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. Resolve the highest-impact failures before the next validation pass.`;
 }
 
 function renderMetrics(report) {
@@ -813,8 +926,48 @@ function renderSignals(report) {
   stateEl.runtimeSignal.textContent = String(countByCode(issues, ["JS_RUNTIME_ERROR", "CONSOLE_ERROR"]));
   stateEl.networkSignal.textContent = String(countByCode(issues, ["HTTP_4XX", "HTTP_5XX", "NET_REQUEST_FAILED"]));
   stateEl.buttonSignal.textContent = String(countByCode(issues, ["BTN_CLICK_ERROR", "BTN_NO_EFFECT"]));
-  stateEl.visualSignal.textContent = String(countByCode(issues, ["VISUAL_SECTION_ORDER_INVALID", "VISUAL_SECTION_MISSING"]));
+  stateEl.visualSignal.textContent = String(countByCode(issues, [
+    "VISUAL_SECTION_ORDER_INVALID",
+    "VISUAL_SECTION_MISSING",
+    "VISUAL_LAYOUT_OVERFLOW",
+    "VISUAL_LAYER_OVERLAP",
+    "VISUAL_ALIGNMENT_DRIFT",
+  ]));
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
+}
+
+function renderVisualQuality(report) {
+  if (!report) {
+    stateEl.visualOverflowCount.textContent = "0";
+    stateEl.visualOverlapCount.textContent = "0";
+    stateEl.visualAlignmentCount.textContent = "0";
+    stateEl.visualSectionsCount.textContent = "0";
+    stateEl.visualQualityHeadline.textContent = "No visual evidence yet.";
+    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.";
+    return;
+  }
+
+  const summary = report.summary || {};
+  const total = Number(summary.visualQualityIssues || 0);
+  const sectionRuleIssues = Number(summary.visualSectionOrderInvalid || 0) + Number(summary.visualSectionMissing || 0);
+  stateEl.visualOverflowCount.textContent = String(summary.visualLayoutOverflow || 0);
+  stateEl.visualOverlapCount.textContent = String(summary.visualLayerOverlap || 0);
+  stateEl.visualAlignmentCount.textContent = String(summary.visualAlignmentDrift || 0);
+  stateEl.visualSectionsCount.textContent = String(sectionRuleIssues);
+
+  const lead = report.issues.find((issue) => issue.code.startsWith("VISUAL_"));
+  if (!lead) {
+    stateEl.visualQualityHeadline.textContent = total > 0
+      ? `${total} visual issue(s) classified.`
+      : "No visual quality issues detected in the current report.";
+    stateEl.visualQualityDetail.textContent = total > 0
+      ? "Open Findings to inspect route-level visual evidence."
+      : "Layout spacing, block alignment and section ordering look stable in this pass.";
+    return;
+  }
+
+  stateEl.visualQualityHeadline.textContent = `${lead.group} on ${lead.route || "current route"}.`;
+  stateEl.visualQualityDetail.textContent = lead.detail || "The visual analyzer detected a layout consistency problem.";
 }
 
 function renderSteps(report) {
@@ -833,7 +986,7 @@ function renderSteps(report) {
   stateEl.stepsList.innerHTML = steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
 }
 
-function renderIssueMeta(report, filteredIssues) {
+function renderIssueMeta(report, filteredIssues, options = {}) {
   if (!report) {
     stateEl.issueMetaPills.innerHTML = "";
     stateEl.findingsHeadline.textContent = "Use this board to drive the fix sequence.";
@@ -853,16 +1006,25 @@ function renderIssueMeta(report, filteredIssues) {
 
   const lead = filteredIssues[0];
   if (!lead) {
-    stateEl.findingsHeadline.textContent = "No issues for the active filter. Either the report is clean or this severity band is empty.";
+    stateEl.findingsHeadline.textContent = options.transient === true
+      ? "The live snapshot is active. No issues match the current filter."
+      : "No issues for the active filter. Either the report is clean or this severity band is empty.";
     return;
   }
 
-  stateEl.findingsHeadline.textContent = `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Fix this band before moving down.`;
+  if (options.transient === true) {
+    const audit = uiState.companionState?.audit || {};
+    const stateLead = audit.running === true ? "Live snapshot" : "Partial snapshot";
+    stateEl.findingsHeadline.textContent = `${stateLead}: ${filteredIssues.length} visible issue(s) right now. Final classification settles when the run finishes.`;
+    return;
+  }
+
+  stateEl.findingsHeadline.textContent = `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Clear this band before moving to the next one.`;
 }
 
 function renderIssueGroups(report, filteredIssues) {
   if (!report || !filteredIssues.length) {
-    stateEl.issueGroupGrid.innerHTML = '<article class="empty-state">No findings loaded yet.</article>';
+    stateEl.issueGroupGrid.innerHTML = '<article class="empty-state">No issues loaded yet.</article>';
     return;
   }
 
@@ -948,8 +1110,8 @@ function renderCoverageExplorers(report) {
             </div>
             <span class="pill">${escapeHtml(action.statusLabel || action.status || "mapped")}</span>
           </div>
-          <code>${escapeHtml(action.expectedForUser || action.expectedFunction || "Expected behavior not described in this run.")}</code>
-          <div class="history-copy">${escapeHtml(action.actualFunction || action.detail || "No actual behavior captured for this action.")}</div>
+          <code>${escapeHtml(action.expectedForUser || action.expectedFunction || "Expected behavior was not described in this run.")}</code>
+          <div class="history-copy">${escapeHtml(action.actualFunction || action.detail || "No actual behavior was captured for this action.")}</div>
         </article>
       `)
       .join("");
@@ -979,7 +1141,7 @@ function renderCompareIssueList(element, issues, emptyText) {
     .join("");
 }
 
-function renderComparison(report) {
+function renderComparison(report, options = {}) {
   if (!report) {
     stateEl.compareHeadline.textContent = "Run two audits to unlock comparison.";
     stateEl.compareIssueDelta.textContent = "n/a";
@@ -987,33 +1149,49 @@ function renderComparison(report) {
     stateEl.compareRiskDelta.textContent = "n/a";
     stateEl.compareRouteDelta.textContent = "n/a";
     stateEl.compareActionDelta.textContent = "n/a";
+    stateEl.compareRegressionDelta.textContent = "n/a";
+    stateEl.comparePersistentDelta.textContent = "n/a";
     renderCompareIssueList(stateEl.compareNewIssuesList, [], "No comparison baseline yet.");
     renderCompareIssueList(stateEl.compareResolvedIssuesList, [], "No comparison baseline yet.");
+    renderCompareIssueList(stateEl.comparePersistentIssuesList, [], "No comparison baseline yet.");
+    renderCompareIssueList(stateEl.compareRegressionIssuesList, [], "No comparison baseline yet.");
     return;
   }
 
   const reference = getReferenceSnapshot(report);
   if (!reference?.snapshot?.report) {
-    stateEl.compareHeadline.textContent = "Pin a baseline or keep two runs in history to compare drift.";
+    stateEl.compareHeadline.textContent = options.transient === true
+      ? "The live snapshot is active. Pin a baseline or keep two runs in history to compare drift."
+      : "Pin a baseline or keep two runs in history to compare drift.";
     stateEl.compareIssueDelta.textContent = "n/a";
     stateEl.compareSeoDelta.textContent = "n/a";
     stateEl.compareRiskDelta.textContent = "n/a";
     stateEl.compareRouteDelta.textContent = "n/a";
     stateEl.compareActionDelta.textContent = "n/a";
-    renderCompareIssueList(stateEl.compareNewIssuesList, [], "No baseline is available yet.");
-    renderCompareIssueList(stateEl.compareResolvedIssuesList, [], "No baseline is available yet.");
+    stateEl.compareRegressionDelta.textContent = "n/a";
+    stateEl.comparePersistentDelta.textContent = "n/a";
+    renderCompareIssueList(stateEl.compareNewIssuesList, [], "No baseline available yet.");
+    renderCompareIssueList(stateEl.compareResolvedIssuesList, [], "No baseline available yet.");
+    renderCompareIssueList(stateEl.comparePersistentIssuesList, [], "No baseline available yet.");
+    renderCompareIssueList(stateEl.compareRegressionIssuesList, [], "No baseline available yet.");
     return;
   }
 
   const comparison = compareReports(report, reference.snapshot.report);
-  stateEl.compareHeadline.textContent = `Comparing current run against ${reference.label}.`;
+  stateEl.compareHeadline.textContent = options.transient === true
+    ? `Comparing the live snapshot with ${reference.label}. Values may still change before completion.`
+    : `Comparing the current run with ${reference.label}.`;
   stateEl.compareIssueDelta.textContent = signedDelta(comparison.issueDelta);
   stateEl.compareSeoDelta.textContent = signedDelta(comparison.seoDelta);
   stateEl.compareRiskDelta.textContent = signedDelta(comparison.riskDelta);
   stateEl.compareRouteDelta.textContent = signedDelta(comparison.routeDelta);
   stateEl.compareActionDelta.textContent = signedDelta(comparison.actionDelta);
-  renderCompareIssueList(stateEl.compareNewIssuesList, comparison.newIssues, "No new findings versus the reference run.");
-  renderCompareIssueList(stateEl.compareResolvedIssuesList, comparison.resolvedIssues, "No findings were cleared versus the reference run.");
+  stateEl.compareRegressionDelta.textContent = String(comparison.criticalRegressions.length);
+  stateEl.comparePersistentDelta.textContent = String(comparison.persistentIssues.length);
+  renderCompareIssueList(stateEl.compareNewIssuesList, comparison.newIssues, "No new issues versus the reference run.");
+  renderCompareIssueList(stateEl.compareResolvedIssuesList, comparison.resolvedIssues, "No issues were resolved versus the reference run.");
+  renderCompareIssueList(stateEl.comparePersistentIssuesList, comparison.persistentIssues, "No issues persisted from the reference run.");
+  renderCompareIssueList(stateEl.compareRegressionIssuesList, comparison.criticalRegressions, "No critical regression was detected.");
 }
 
 function buildIssueCard(issue, actionContext) {
@@ -1049,7 +1227,7 @@ function buildIssueCard(issue, actionContext) {
   `;
 }
 
-function renderIssues(report) {
+function renderIssues(report, options = {}) {
   if (!report) {
     stateEl.issuesList.innerHTML = '<article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>';
     renderIssueMeta(null, []);
@@ -1058,7 +1236,7 @@ function renderIssues(report) {
   }
 
   const filteredIssues = getFilteredIssues(report);
-  renderIssueMeta(report, filteredIssues);
+  renderIssueMeta(report, filteredIssues, options);
   renderIssueGroups(report, filteredIssues);
 
   if (!filteredIssues.length) {
@@ -1076,11 +1254,11 @@ function renderPrompt(report) {
   stateEl.quickPromptBox.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
 }
 
-function renderReportSummary(report) {
+function renderReportSummary(report, options = {}) {
   if (!report) {
     stateEl.currentTarget.textContent = "none";
     stateEl.currentMode.textContent = uiState.mode;
-    stateEl.currentScope.textContent = uiState.scope;
+  stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
     stateEl.currentDepth.textContent = currentDepthLabel();
     stateEl.currentDuration.textContent = "0s";
     stateEl.currentCommand.textContent = "Run an audit to generate a replay command.";
@@ -1093,10 +1271,18 @@ function renderReportSummary(report) {
   const reportDepth = normalizeDepth(report.meta.auditDepth || audit.depth || uiState.depth);
   stateEl.currentTarget.textContent = report.meta.baseUrl;
   stateEl.currentMode.textContent = reportMode;
-  stateEl.currentScope.textContent = report.summary.auditScope || audit.scope || uiState.scope;
+  stateEl.currentScope.textContent = currentScopeLabel(report.summary.auditScope || audit.scope || uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel(reportDepth);
-  stateEl.currentDuration.textContent = formatDuration(audit.durationMs || report.summary.durationMs || 0);
+  const liveDurationMs = audit.running === true && audit.startedAt
+    ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime())
+    : (audit.durationMs || report.summary.durationMs || 0);
+  stateEl.currentDuration.textContent = formatDuration(liveDurationMs);
   stateEl.currentCommand.textContent = audit.lastCommand || report.meta.replayCommand || report.assistantGuide.replayCommand || "Run an audit to generate a replay command.";
+  if (options.transient === true) {
+    const lead = audit.running === true ? "Live snapshot" : "Partial snapshot";
+    stateEl.reportsHeadline.textContent = `${lead} | ${report.summary.totalIssues} issue(s) so far | ${report.summary.routesChecked} route(s) | SEO ${report.summary.seoScore}`;
+    return;
+  }
   stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)}`;
 }
 
@@ -1142,7 +1328,7 @@ function getCommandPaletteItems() {
     { id: "export-report", label: "Export current report", hint: "Ctrl+S", description: "Save the current report snapshot to disk.", action: () => exportCurrentReport() },
     { id: "open-vault", label: "Open report vault", hint: "", description: "Open the reports folder in Explorer.", action: () => openReportsVault() },
     { id: "open-evidence", label: "Open latest evidence", hint: "", description: "Jump to the latest evidence artifact.", action: () => openLatestEvidence() },
-    { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(uiState.report), "[studio] comparison digest copied.") },
+    { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open mission control and execution profile.", action: () => switchView("overview") },
     { id: "switch-findings", label: "Go to findings", hint: "Ctrl+2", description: "Open the issue board and filters.", action: () => switchView("findings") },
@@ -1194,18 +1380,24 @@ function pushHistory(report) {
 
 function renderAuditState(audit = {}) {
   const status = String(audit.status || "idle");
-  const busy = audit.running === true;
+  const pending = uiState.auditRequestInFlight === true && audit.running !== true;
+  const busy = audit.running === true || pending;
 
-  stateEl.auditStatus.textContent = status;
+  stateEl.auditStatus.textContent = auditStatusLabel(status);
   stateEl.runAudit.disabled = busy;
   stateEl.runCmd.disabled = busy;
   stateEl.quickAuditButton.disabled = busy;
   stateEl.deepAuditButton.disabled = busy;
   stateEl.startBridge.disabled = busy || uiState.companionState?.bridge?.running === true;
   stateEl.stopBridge.disabled = busy || uiState.companionState?.bridge?.running !== true;
-  stateEl.runAudit.textContent = busy ? "Audit running..." : "Run native audit";
+  stateEl.runAudit.textContent = busy ? (audit.running === true ? "Audit running..." : "Starting audit...") : "Run native audit";
 
   if (busy) {
+    if (pending) {
+      setChip(stateEl.auditChip, "audit starting", "warn");
+      stateEl.headlineStatus.textContent = "Handing the run to the local engine and waiting for live telemetry.";
+      return;
+    }
     const percentage = Math.max(0, Math.min(100, toNumber(audit?.progress?.percentage, 0)));
     setChip(stateEl.auditChip, "audit running", "warn");
     stateEl.headlineStatus.textContent = `Engine is auditing ${audit.baseUrl || "the selected target"} · ${percentage}% complete.`;
@@ -1266,6 +1458,103 @@ function renderAuditProgress(audit = {}) {
   stateEl.auditProgressFill.style.width = `${percentage}%`;
 }
 
+function renderExecutionState(audit = {}) {
+  const timeline = Array.isArray(audit.timeline) ? audit.timeline : [];
+  const stageBoard = Array.isArray(audit.stageBoard) ? audit.stageBoard : [];
+  const busy = audit.running === true;
+
+  stateEl.timelineHeadline.textContent = busy
+    ? "The engine is moving through phases and updating evidence as each step finishes."
+    : timeline.length
+      ? "Latest execution trail from the most recent run."
+      : "The workstation will register each engine phase as evidence appears.";
+
+  if (!timeline.length) {
+    stateEl.timelineList.innerHTML = '<article class="empty-state">Run an audit to populate the execution timeline.</article>';
+  } else {
+    stateEl.timelineList.innerHTML = timeline
+      .slice(0, 14)
+      .map((entry) => `
+        <article class="timeline-entry timeline-${escapeHtml(entry.status || "active")}">
+          <div class="timeline-top">
+            <div>
+              <div class="nav-title">${escapeHtml(entry.label || "Engine event")}</div>
+              <div class="history-meta">${escapeHtml(formatLocalDate(entry.at || new Date().toISOString()))}${entry.route ? ` | ${escapeHtml(entry.route)}` : ""}${entry.action ? ` | ${escapeHtml(entry.action)}` : ""}</div>
+            </div>
+            <span class="pill ${entry.status === "failed" ? "bad" : entry.status === "issue" ? "warn" : entry.status === "done" ? "ok" : ""}">${escapeHtml(entry.status || "active")}</span>
+          </div>
+          <div class="history-copy">${escapeHtml(entry.detail || "No detail captured for this phase.")}</div>
+        </article>
+      `)
+      .join("");
+  }
+
+  if (!stageBoard.length) {
+    stateEl.stageBoard.innerHTML = '<article class="empty-state">Stage evidence will appear here during execution.</article>';
+    return;
+  }
+
+  stateEl.stageBoard.innerHTML = stageBoard
+    .map((stage) => `
+      <article class="stage-card stage-${escapeHtml(stage.status || "idle")}">
+        <div class="stage-card-top">
+          <div>
+            <div class="nav-title">${escapeHtml(stage.label)}</div>
+            <div class="history-meta">${escapeHtml(stage.updatedAt ? formatLocalDate(stage.updatedAt) : "not reached yet")}</div>
+          </div>
+          <span class="pill ${stage.status === "failed" ? "bad" : stage.status === "issue" ? "warn" : stage.status === "done" ? "ok" : stage.status === "active" ? "" : ""}">${escapeHtml(stage.status || "idle")}</span>
+        </div>
+        <div class="history-copy">${escapeHtml(stage.detail || "Waiting for this phase.")}</div>
+        <div class="stage-evidence-row">
+          <span>evidence ${escapeHtml(String(stage.evidenceCount || 0))}</span>
+          <span>${escapeHtml(stage.route || stage.action || "no route/action yet")}</span>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderWorkspaceReport(report, options = {}) {
+  const transient = options.transient === true;
+  if (transient) {
+    uiState.liveReport = report;
+  } else {
+    uiState.report = report;
+    uiState.liveReport = null;
+    uiState.liveReportKey = "";
+  }
+
+  renderMetrics(report);
+  renderSignals(report);
+  renderVisualQuality(report);
+  renderSteps(report);
+  renderRouteFilterOptions(report);
+  renderIssues(report, { transient });
+  renderCoverageExplorers(report);
+  renderPrompt(report);
+  renderReportSummary(report, { transient });
+  renderComparison(report, { transient });
+  renderMissionBrief();
+}
+
+function clearLiveReportState() {
+  if (!uiState.liveReport) return;
+  uiState.liveReport = null;
+  uiState.liveReportKey = "";
+  const fallbackReport = getVisibleReport();
+  renderMetrics(fallbackReport);
+  renderSignals(fallbackReport);
+  renderVisualQuality(fallbackReport);
+  renderSteps(fallbackReport);
+  renderRouteFilterOptions(fallbackReport);
+  renderIssues(fallbackReport);
+  renderCoverageExplorers(fallbackReport);
+  renderPrompt(fallbackReport);
+  renderReportSummary(fallbackReport);
+  renderComparison(fallbackReport);
+  renderMissionBrief();
+}
+
 function renderCompanionState(payload) {
   uiState.companionState = payload;
   stateEl.serviceName.textContent = payload?.serviceName || "SitePulse Studio";
@@ -1283,22 +1572,50 @@ function renderCompanionState(payload) {
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});
   renderAuditProgress(payload?.audit || {});
+  renderExecutionState(payload?.audit || {});
+  const livePayload = payload?.audit?.liveReport && typeof payload.audit.liveReport === "object" ? payload.audit.liveReport : null;
+  if (livePayload) {
+    const liveReport = normalizeReport(livePayload);
+    liveReport.meta.auditMode = normalizeMode(payload?.audit?.mode || liveReport.meta.auditMode);
+    liveReport.meta.auditDepth = normalizeDepth(payload?.audit?.depth || liveReport.meta.auditDepth);
+    liveReport.summary.auditScope = normalizeScope(payload?.audit?.scope || liveReport.summary.auditScope);
+
+    if (payload?.audit?.running !== true && String(liveReport.meta.finishedAt || "").trim()) {
+      clearLiveReportState();
+      persistLastReport(liveReport);
+      pushHistory(liveReport);
+      renderAllReportState(liveReport);
+      return;
+    }
+
+    const liveKey = buildLiveReportKey(liveReport);
+    if (liveKey !== uiState.liveReportKey) {
+      uiState.liveReportKey = liveKey;
+      renderLiveReportState(liveReport);
+      return;
+    }
+    renderMissionBrief();
+    renderReportSummary(getVisibleReport(), { transient: true });
+    return;
+  }
+
+  if (payload?.audit?.hasLiveReport === true && uiState.liveReport) {
+    renderMissionBrief();
+    renderReportSummary(getVisibleReport(), { transient: true });
+    return;
+  }
+
+  clearLiveReportState();
   renderMissionBrief();
-  renderReportSummary(uiState.report);
+  renderReportSummary(getVisibleReport());
 }
 
 function renderAllReportState(report) {
-  uiState.report = report;
-  renderMetrics(report);
-  renderSignals(report);
-  renderSteps(report);
-  renderRouteFilterOptions(report);
-  renderIssues(report);
-  renderCoverageExplorers(report);
-  renderPrompt(report);
-  renderReportSummary(report);
-  renderComparison(report);
-  renderMissionBrief();
+  renderWorkspaceReport(report, { transient: false });
+}
+
+function renderLiveReportState(report) {
+  renderWorkspaceReport(report, { transient: true });
 }
 
 async function copyText(value, successMessage) {
@@ -1314,6 +1631,11 @@ async function copyText(value, successMessage) {
 }
 
 async function handleAuditRun(forceDepth = null) {
+  if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
+    showToast("An audit is already in progress.", "warn");
+    return;
+  }
+
   if (forceDepth) {
     uiState.depth = forceDepth;
     renderStaticSelections();
@@ -1326,31 +1648,45 @@ async function handleAuditRun(forceDepth = null) {
     return;
   }
 
-  const payload = await window.sitePulseCompanion.runAudit(input);
-  if (!payload?.ok || !payload?.report) {
-    const detail = payload?.detail || payload?.error || "audit_failed";
-    appendLog(`[studio] audit failed: ${detail}`);
-    stateEl.headlineStatus.textContent = detail;
-    showToast("The audit failed. Review the live log and fix the root cause.", "bad");
-    return;
-  }
+  uiState.auditRequestInFlight = true;
+  renderAuditState(uiState.companionState?.audit || {});
 
-  const report = normalizeReport(payload.report);
-  report.meta.auditMode = input.mode;
-  report.meta.auditDepth = input.fullAudit ? "deep" : "signal";
-  persistLastReport(report);
-  pushHistory(report);
-  renderAllReportState(report);
-  stateEl.currentCommand.textContent = payload.command || report.meta.replayCommand || report.assistantGuide.replayCommand;
-  if (payload.usedFallback === true) {
-    appendLog("[studio] run completed with fallback mode active.");
-    showToast("Audit finished with fallback mode active.", "warn");
+  try {
+    const payload = await window.sitePulseCompanion.runAudit(input);
+    if (!payload?.ok || !payload?.report) {
+      const detail = payload?.detail || payload?.error || "audit_failed";
+      appendLog(`[studio] audit failed: ${detail}`);
+      stateEl.headlineStatus.textContent = detail;
+      showToast("The audit failed. Review the live log and fix the root cause.", "bad");
+      return;
+    }
+
+    const report = normalizeReport(payload.report);
+    report.meta.auditMode = input.mode;
+    report.meta.auditDepth = input.fullAudit ? "deep" : "signal";
+    persistLastReport(report);
+    pushHistory(report);
+    renderAllReportState(report);
+    stateEl.currentCommand.textContent = payload.command || report.meta.replayCommand || report.assistantGuide.replayCommand;
+    await syncAuthoritativeState();
+    if (payload.usedFallback === true) {
+      appendLog("[studio] run completed with fallback mode active.");
+      showToast("Audit finished with fallback mode active.", "warn");
+    }
+    showToast(report.summary.totalIssues > 0 ? "Audit finished with findings." : "Audit finished clean.", report.summary.totalIssues > 0 ? "warn" : "ok");
+    switchView(report.summary.totalIssues > 0 ? "findings" : "reports");
+  } finally {
+    uiState.auditRequestInFlight = false;
+    renderAuditState(uiState.companionState?.audit || {});
   }
-  showToast(report.summary.totalIssues > 0 ? "Audit finished with findings." : "Audit finished clean.", report.summary.totalIssues > 0 ? "warn" : "ok");
-  switchView(report.summary.totalIssues > 0 ? "findings" : "reports");
 }
 
 async function openCmdWindow() {
+  if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
+    showToast("An audit is already in progress.", "warn");
+    return;
+  }
+
   const input = collectRunInput(true);
   if (!input.baseUrl) {
     stateEl.headlineStatus.textContent = "Target URL is required before opening the CMD flow.";
@@ -1358,21 +1694,29 @@ async function openCmdWindow() {
     return;
   }
 
-  const payload = await window.sitePulseCompanion.openCmdWindow(input);
-  if (payload?.ok) {
-    appendLog(`[studio] ${payload.message || "cmd flow requested."}`);
-    stateEl.headlineStatus.textContent = payload.message || "CMD flow requested.";
-    showToast(payload.message || "CMD flow requested.", "ok");
-    if (payload.recommendedCommand) {
-      stateEl.currentCommand.textContent = payload.recommendedCommand;
-    }
-    return;
-  }
+  uiState.auditRequestInFlight = true;
+  renderAuditState(uiState.companionState?.audit || {});
 
-  const detail = payload?.detail || payload?.error || "cmd_launch_failed";
-  appendLog(`[studio] cmd flow failed: ${detail}`);
-  stateEl.headlineStatus.textContent = detail;
-  showToast("CMD flow failed to open.", "bad");
+  try {
+    const payload = await window.sitePulseCompanion.openCmdWindow(input);
+    if (payload?.ok) {
+      appendLog(`[studio] ${payload.message || "cmd flow requested."}`);
+      stateEl.headlineStatus.textContent = payload.message || "CMD flow requested.";
+      showToast(payload.message || "CMD flow requested.", "ok");
+      if (payload.recommendedCommand) {
+        stateEl.currentCommand.textContent = payload.recommendedCommand;
+      }
+      return;
+    }
+
+    const detail = payload?.detail || payload?.error || "cmd_launch_failed";
+    appendLog(`[studio] cmd flow failed: ${detail}`);
+    stateEl.headlineStatus.textContent = detail;
+    showToast("CMD flow failed to open.", "bad");
+  } finally {
+    uiState.auditRequestInFlight = false;
+    renderAuditState(uiState.companionState?.audit || {});
+  }
 }
 
 async function openReportsVault() {
@@ -1407,12 +1751,13 @@ async function loadReportFromFile() {
 }
 
 async function exportCurrentReport() {
-  if (!uiState.report) {
+  const report = getVisibleReport();
+  if (!report) {
     showToast("No report is loaded yet.", "warn");
     return;
   }
 
-  const payload = await window.sitePulseCompanion.exportReportFile(uiState.report);
+  const payload = await window.sitePulseCompanion.exportReportFile(report);
   if (!payload?.ok) {
     if (payload?.error !== "file_save_cancelled") {
       appendLog(`[studio] export failed: ${payload?.detail || payload?.error || "unknown"}`);
@@ -1458,15 +1803,15 @@ function pinCurrentReportAsBaseline() {
   const snapshot = createReportSnapshot(createCompactStoredReport(uiState.report, { issueLimit: 120, actionLimit: 80, routeLimit: 60 }));
   persistBaseline(snapshot);
   renderHistory();
-  renderComparison(uiState.report);
+  renderComparison(getVisibleReport());
   appendLog(`[studio] baseline pinned from ${snapshot.baseUrl} at ${snapshot.stamp}`);
-  showToast("Current report pinned as comparison baseline.", "ok");
+  showToast("Current report pinned as the comparison baseline.", "ok");
 }
 
 function clearBaseline() {
   persistBaseline(null);
   renderHistory();
-  renderComparison(uiState.report);
+  renderComparison(getVisibleReport());
   appendLog("[studio] comparison baseline cleared.");
   showToast("Comparison baseline cleared.", "warn");
 }
@@ -1515,18 +1860,18 @@ function bindSelectionEvents() {
     button.addEventListener("click", () => {
       uiState.issueFilter = button.dataset.issueFilter || "all";
       renderStaticSelections();
-      renderIssues(uiState.report);
+      renderIssues(getVisibleReport());
     });
   });
 
   stateEl.findingsSearch.addEventListener("input", () => {
     uiState.findingsSearch = stateEl.findingsSearch.value.trim();
-    renderIssues(uiState.report);
+    renderIssues(getVisibleReport());
   });
 
   stateEl.findingsRouteFilter.addEventListener("change", () => {
     uiState.findingsRoute = stateEl.findingsRouteFilter.value || "all";
-    renderIssues(uiState.report);
+    renderIssues(getVisibleReport());
   });
 
   stateEl.commandPaletteSearch.addEventListener("input", () => {
@@ -1563,10 +1908,10 @@ function bindButtons() {
   stateEl.copyReplayCommand.addEventListener("click", async () => copyText(stateEl.currentCommand.textContent, "[studio] replay command copied."));
   stateEl.copyQuickPrompt.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
   stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
-  stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(uiState.report), "[studio] issue digest copied."));
-  stateEl.copyRouteDigest.addEventListener("click", async () => copyText(buildRouteDigest(uiState.report), "[studio] route digest copied."));
-  stateEl.copyActionDigest.addEventListener("click", async () => copyText(buildActionDigest(uiState.report), "[studio] action digest copied."));
-  stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(uiState.report), "[studio] comparison digest copied."));
+  stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
+  stateEl.copyRouteDigest.addEventListener("click", async () => copyText(buildRouteDigest(getVisibleReport()), "[studio] route digest copied."));
+  stateEl.copyActionDigest.addEventListener("click", async () => copyText(buildActionDigest(getVisibleReport()), "[studio] action digest copied."));
+  stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
   stateEl.pinCurrentBaseline.addEventListener("click", pinCurrentReportAsBaseline);
   stateEl.clearBaseline.addEventListener("click", clearBaseline);
   stateEl.clearLog.addEventListener("click", () => {
@@ -1639,7 +1984,7 @@ function bindButtons() {
     if (action === "baseline") {
       persistBaseline(snapshot);
       renderHistory();
-      renderComparison(uiState.report);
+      renderComparison(getVisibleReport());
       appendLog(`[studio] baseline set from history snapshot ${snapshot.baseUrl}.`);
       showToast("History snapshot set as baseline.", "ok");
       return;
@@ -1755,6 +2100,18 @@ function bindRuntimeEvents() {
     renderCompanionState(payload);
   });
 
+  window.sitePulseCompanion.onLiveReport((report) => {
+    const nextState = {
+      ...(uiState.companionState || {}),
+      audit: {
+        ...(uiState.companionState?.audit || {}),
+        liveReport: report && typeof report === "object" ? report : null,
+        hasLiveReport: !!report,
+      },
+    };
+    renderCompanionState(nextState);
+  });
+
   window.sitePulseCompanion.onWindowState((payload) => {
     stateEl.winMaximize.textContent = payload?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
   });
@@ -1794,3 +2151,5 @@ async function bootstrap() {
 bootstrap().catch((error) => {
   appendLog(`[studio] bootstrap failed: ${error?.message || error}`);
 });
+
+

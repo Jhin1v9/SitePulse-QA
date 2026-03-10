@@ -32,6 +32,32 @@ async function removePathSafe(targetPath) {
   });
 }
 
+async function copyPathSafe(from, to, options = {}) {
+  const retries = Number.isFinite(options.retries) ? options.retries : 4;
+  let lastError = null;
+
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      await fs.cp(from, to, {
+        recursive: true,
+        force: true,
+        verbatimSymlinks: true,
+      });
+      return;
+    } catch (error) {
+      lastError = error;
+      const code = error && typeof error === "object" ? error.code : "";
+      const retryable = ["ENOENT", "EPERM", "EBUSY"].includes(code);
+      if (!retryable || attempt === retries) {
+        throw lastError;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
+
+  throw lastError;
+}
+
 async function syncQaRuntime() {
   await removePathSafe(targetQaDir);
   await fs.mkdir(targetQaDir, { recursive: true });
@@ -40,7 +66,7 @@ async function syncQaRuntime() {
     const from = path.join(sourceQaDir, entry);
     const to = path.join(targetQaDir, entry);
     await removePathSafe(to);
-    await fs.cp(from, to, { recursive: true, force: true });
+    await copyPathSafe(from, to);
   }
 
   const manifest = {

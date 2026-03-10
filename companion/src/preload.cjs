@@ -28,6 +28,11 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
     ipcRenderer.on("companion:state", wrapped);
     return () => ipcRenderer.removeListener("companion:state", wrapped);
   },
+  onLiveReport: (callback) => {
+    const wrapped = (_event, payload) => callback(payload);
+    ipcRenderer.on("companion:live-report", wrapped);
+    return () => ipcRenderer.removeListener("companion:live-report", wrapped);
+  },
   onWindowState: (callback) => {
     const wrapped = (_event, payload) => callback(payload);
     ipcRenderer.on("companion:window-state", wrapped);

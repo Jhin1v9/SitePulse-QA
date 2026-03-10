@@ -205,6 +205,33 @@
               </article>
             </section>
 
+            <section class="execution-grid">
+              <article class="panel timeline-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">execution timeline</p>
+                    <h3>Live protocol</h3>
+                  </div>
+                  <div class="headline-status" id="timelineHeadline">The workstation will register each engine phase as evidence appears.</div>
+                </div>
+                <div id="timelineList" class="timeline-list">
+                  <article class="empty-state">Run an audit to populate the execution timeline.</article>
+                </div>
+              </article>
+
+              <article class="panel stage-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">evidence by stage</p>
+                    <h3>Engine stage board</h3>
+                  </div>
+                </div>
+                <div id="stageBoard" class="stage-board">
+                  <article class="empty-state">Stage evidence will appear here during execution.</article>
+                </div>
+              </article>
+            </section>
+
             <section class="analysis-grid">
               <article class="panel signals-panel">
                 <div class="panel-head">
@@ -218,9 +245,28 @@
                   <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
                   <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
                   <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
-                  <div class="signal-item"><span>Visual order</span><strong id="visualSignal">0</strong></div>
+                  <div class="signal-item"><span>Visual quality</span><strong id="visualSignal">0</strong></div>
                   <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
                 </div>
+              </article>
+
+              <article class="panel visual-quality-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">visual quality</p>
+                    <h3>Layout discipline</h3>
+                  </div>
+                </div>
+                <div class="signal-grid visual-quality-grid">
+                  <div class="signal-item"><span>Overflow</span><strong id="visualOverflowCount">0</strong></div>
+                  <div class="signal-item"><span>Overlap</span><strong id="visualOverlapCount">0</strong></div>
+                  <div class="signal-item"><span>Alignment drift</span><strong id="visualAlignmentCount">0</strong></div>
+                  <div class="signal-item"><span>Section rules</span><strong id="visualSectionsCount">0</strong></div>
+                </div>
+                <div class="headline-status" id="visualQualityHeadline">No visual evidence yet.</div>
+                <p class="panel-copy" id="visualQualityDetail">
+                  Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.
+                </p>
               </article>
 
               <article class="panel steps-panel">
@@ -279,7 +325,7 @@
                 </div>
               </div>
               <div id="issueGroupGrid" class="group-grid">
-                <article class="empty-state">No findings loaded yet.</article>
+                <article class="empty-state">No issues loaded yet.</article>
               </div>
             </section>
 
@@ -331,7 +377,7 @@
             <section class="panel comparison-panel">
               <div class="panel-head split-head">
                 <div>
-                  <p class="eyebrow">comparison brief</p>
+                  <p class="eyebrow">comparison</p>
                   <h3>Delta against baseline</h3>
                 </div>
                 <div class="headline-status" id="compareHeadline">Run two audits to unlock comparison.</div>
@@ -358,14 +404,22 @@
                   <span class="info-label">Action delta</span>
                   <code id="compareActionDelta">n/a</code>
                 </article>
+                <article class="info-card danger">
+                  <span class="info-label">Critical regressions</span>
+                  <code id="compareRegressionDelta">n/a</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Persistent issues</span>
+                  <code id="comparePersistentDelta">n/a</code>
+                </article>
               </div>
 
-              <div class="dual-grid comparison-dual-grid">
+              <div class="comparison-quad-grid">
                 <article class="panel nested-panel compare-list-panel">
                   <div class="panel-head split-head">
                     <div>
                       <p class="eyebrow">new pressure</p>
-                      <h3>New findings vs baseline</h3>
+                      <h3>New issues vs baseline</h3>
                     </div>
                   </div>
                   <div id="compareNewIssuesList" class="explorer-list comparison-list">
@@ -377,10 +431,34 @@
                   <div class="panel-head split-head">
                     <div>
                       <p class="eyebrow">resolved work</p>
-                      <h3>Findings cleared since baseline</h3>
+                      <h3>Issues resolved since baseline</h3>
                     </div>
                   </div>
                   <div id="compareResolvedIssuesList" class="explorer-list comparison-list">
+                    <article class="empty-state">No comparison baseline yet.</article>
+                  </div>
+                </article>
+
+                <article class="panel nested-panel compare-list-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">persistent pressure</p>
+                      <h3>Unresolved persistent issues</h3>
+                    </div>
+                  </div>
+                  <div id="comparePersistentIssuesList" class="explorer-list comparison-list">
+                    <article class="empty-state">No comparison baseline yet.</article>
+                  </div>
+                </article>
+
+                <article class="panel nested-panel compare-list-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">critical regression</p>
+                      <h3>New or escalated high-risk failures</h3>
+                    </div>
+                  </div>
+                  <div id="compareRegressionIssuesList" class="explorer-list comparison-list">
                     <article class="empty-state">No comparison baseline yet.</article>
                   </div>
                 </article>
@@ -389,7 +467,7 @@
               <div class="action-row">
                 <button id="pinCurrentBaseline" type="button">Pin current as baseline</button>
                 <button id="clearBaseline" type="button">Clear baseline</button>
-                <button id="copyCompareDigest" type="button">Copy compare digest</button>
+                <button id="copyCompareDigest" type="button">Copy comparison digest</button>
               </div>
             </section>
 
@@ -414,7 +492,7 @@
                   <button id="clearHistory" class="ghost" type="button">Clear history</button>
                 </div>
                 <div id="historyList" class="history-list">
-                  <article class="empty-state">No stored run snapshots yet.</article>
+                  <article class="empty-state">No stored snapshots yet.</article>
                 </div>
               </article>
             </section>
@@ -424,7 +502,7 @@
                 <div class="panel-head split-head">
                   <div>
                     <p class="eyebrow">route explorer</p>
-                    <h3>Routes that were actually checked</h3>
+                    <h3>Routes actually checked</h3>
                   </div>
                   <button id="copyRouteDigest" class="ghost" type="button">Copy route digest</button>
                 </div>
@@ -453,7 +531,7 @@
               <div class="panel-head split-head">
                 <div>
                   <p class="eyebrow">system controls</p>
-                  <h3>Desktop engine configuration</h3>
+                  <h3>Desktop engine settings</h3>
                 </div>
                 <button id="revealOnboarding" class="ghost" type="button">Show onboarding</button>
               </div>
@@ -468,7 +546,7 @@
                   <strong id="bridgeStatus">offline</strong>
                 </article>
                 <article class="setting-card">
-                  <span class="info-label">Audit state</span>
+                  <span class="info-label">Audit status</span>
                   <strong id="auditStatus">idle</strong>
                 </article>
                 <article class="setting-card">
@@ -541,14 +619,14 @@
           <section class="panel profile-panel">
             <div class="panel-head">
               <div>
-                <p class="eyebrow">platform DNA</p>
+                <p class="eyebrow">product DNA</p>
                 <h3>Why this product exists</h3>
               </div>
             </div>
             <ul class="dna-list">
               <li>Detect runtime, visual and SEO regressions in one run.</li>
               <li>Translate technical failure into action for operators and developers.</li>
-              <li>Preserve evidence, replay commands and issue history for every pass.</li>
+              <li>Preserve evidence, replay commands and issue history in every run.</li>
               <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
             </ul>
           </section>
@@ -556,7 +634,7 @@
           <section class="panel log-panel">
             <div class="panel-head split-head">
               <div>
-                <p class="eyebrow">activity feed</p>
+                <p class="eyebrow">live activity</p>
                 <h3>Live engine log</h3>
               </div>
               <button id="clearLog" class="ghost" type="button">Clear</button>
@@ -570,27 +648,27 @@
     <div id="onboardingOverlay" class="onboarding-overlay hidden">
       <div class="onboarding-card">
         <p class="eyebrow">welcome to sitepulse studio</p>
-        <h2>Professional software starts with a professional operating loop.</h2>
+        <h2>Professional software starts with a professional operating flow.</h2>
         <p class="muted">
-          This program is built to scan real products, expose failure signals, preserve evidence and guide the fix sequence without reducing the work to vague dashboards.
+          This program is built to audit real products, expose failure signals, preserve evidence and guide the fix sequence without reducing everything to vague dashboards.
         </p>
         <div class="onboarding-grid">
           <article>
-            <h3>1. Configure target</h3>
-            <p>Choose desktop or mobile, full stack or SEO-only, then define how deep the run should go.</p>
+            <h3>1. Configure the target</h3>
+            <p>Choose desktop or mobile, full audit or SEO-only, then set the run depth.</p>
           </article>
           <article>
-            <h3>2. Run engine</h3>
-            <p>Use the native engine for evidence and keep CMD available when a full manual replay is needed.</p>
+            <h3>2. Run the engine</h3>
+            <p>Use the native engine to collect evidence and keep CMD available when you need the full manual replay path.</p>
           </article>
           <article>
             <h3>3. Fix by priority</h3>
-            <p>Use the findings board, replay command and prompt pack to eliminate high-impact failures first.</p>
+            <p>Use the issue board, replay command and prompt pack to remove the highest-impact failures first.</p>
           </article>
         </div>
         <div class="action-row">
-          <button id="dismissOnboarding" class="primary" type="button">Enter studio</button>
-          <button id="startTourAudit" class="secondary" type="button">Preset first audit</button>
+          <button id="dismissOnboarding" class="primary" type="button">Enter the studio</button>
+          <button id="startTourAudit" class="secondary" type="button">Prepare first audit</button>
         </div>
       </div>
     </div>
@@ -605,14 +683,14 @@
           <button id="dismissShortcuts" class="ghost" type="button">Close</button>
         </div>
         <div class="shortcut-grid">
-          <article><strong>Ctrl+1..4</strong><span>Switch overview, findings, reports and settings</span></article>
+          <article><strong>Ctrl+1..4</strong><span>Switch between overview, findings, reports and settings</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
           <article><strong>Ctrl+Shift+C</strong><span>Open the full CMD flow</span></article>
           <article><strong>Ctrl+O</strong><span>Load a report file into the desktop board</span></article>
           <article><strong>Ctrl+S</strong><span>Export the current report snapshot</span></article>
-          <article><strong>Ctrl+F</strong><span>Focus findings search when working in the issue board</span></article>
+          <article><strong>Ctrl+F</strong><span>Focus the findings search while working the issue board</span></article>
           <article><strong>?</strong><span>Open or close this shortcuts panel</span></article>
         </div>
       </div>
@@ -623,13 +701,13 @@
         <div class="panel-head split-head">
           <div>
             <p class="eyebrow">command palette</p>
-            <h3>Run workstation actions directly</h3>
+            <h3>Execute workstation actions directly</h3>
           </div>
           <button id="dismissCommandPalette" class="ghost" type="button">Close</button>
         </div>
         <label class="toolbar-field">
           <span class="field-label">Search commands</span>
-          <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, switch findings..." />
+          <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, go to findings..." />
         </label>
         <div id="commandPaletteList" class="explorer-list command-palette-list"></div>
       </div>

@@ -54,6 +54,9 @@ const CODE = {
   CONSOLE_ERROR: "CONSOLE_ERROR",
   VISUAL_SECTION_ORDER_INVALID: "VISUAL_SECTION_ORDER_INVALID",
   VISUAL_SECTION_MISSING: "VISUAL_SECTION_MISSING",
+  VISUAL_LAYOUT_OVERFLOW: "VISUAL_LAYOUT_OVERFLOW",
+  VISUAL_LAYER_OVERLAP: "VISUAL_LAYER_OVERLAP",
+  VISUAL_ALIGNMENT_DRIFT: "VISUAL_ALIGNMENT_DRIFT",
 };
 
 const ACTION_STATUS = {
@@ -147,6 +150,30 @@ const ISSUE_GUIDE = {
       "Uma parte importante da pagina nao apareceu quando deveria.",
     recommendation:
       "Validar condicoes de exibicao, IDs/seletores, dados de configuracao e flags mobile/desktop para garantir renderizacao consistente.",
+  },
+  [CODE.VISUAL_LAYOUT_OVERFLOW]: {
+    technical:
+      "Um bloco visual excedeu a largura util do viewport e esta vazando horizontalmente ou cortando a composicao.",
+    layman:
+      "Parte da interface esta saindo para fora da tela ou ficando espremida de um jeito errado.",
+    recommendation:
+      "Revisar widths/min-widths, containers, imagens e widgets fixos para impedir overflow horizontal e manter o layout dentro do viewport.",
+  },
+  [CODE.VISUAL_LAYER_OVERLAP]: {
+    technical:
+      "Dois blocos visuais relevantes estao ocupando a mesma area renderizada, sugerindo colisao de camadas ou empilhamento incorreto.",
+    layman:
+      "Um elemento esta ficando em cima do outro de um jeito que atrapalha a leitura ou o uso da tela.",
+    recommendation:
+      "Corrigir stacking, offsets, alturas e posicionamento para impedir que cards, secoes ou overlays cubram conteudo principal.",
+  },
+  [CODE.VISUAL_ALIGNMENT_DRIFT]: {
+    technical:
+      "Blocos principais da pagina perderam alinhamento estrutural e sairam do eixo dominante do layout.",
+    layman:
+      "Algumas partes grandes da interface parecem tortas ou fora do mesmo padrao visual da pagina.",
+    recommendation:
+      "Padronizar grid, margins, max-width e alinhamento dos blocos principais para manter consistencia visual entre secoes.",
   },
 };
 
@@ -315,6 +342,57 @@ const ISSUE_PLAYBOOK = {
       "src/components/sections/**",
       "src/lib/section-flow.ts",
       "data/site-config.local.json",
+    ],
+  },
+  [CODE.VISUAL_LAYOUT_OVERFLOW]: {
+    priority: "P1",
+    firstChecks: [
+      "Identificar qual bloco esta ultrapassando o viewport horizontal ou verticalmente.",
+      "Revisar widths fixos, translateX, negative margins e wrappers sem max-width.",
+      "Confirmar que containers com carrossel ou grid tratam overflow sem empurrar o layout.",
+    ],
+    commandHints: [
+      "rg -n \"overflow|max-width|min-width|translateX|margin-left|margin-right|100vw|calc\\(\" src",
+      "rg -n \"carousel|slider|marquee|grid-cols|flex-nowrap|whitespace-nowrap\" src",
+    ],
+    likelyAreas: [
+      "src/components/**",
+      "src/app/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_LAYER_OVERLAP]: {
+    priority: "P1",
+    firstChecks: [
+      "Localizar quais blocos estao ocupando a mesma area visual sem intencao clara.",
+      "Revisar z-index, positioning, negative margins e overlays persistentes.",
+      "Garantir spacing vertical/horizontal entre cards, secoes e sidebars.",
+    ],
+    commandHints: [
+      "rg -n \"z-index|position:\\s*(absolute|fixed|sticky|relative)|inset|top:|left:|right:|bottom:\" src",
+      "rg -n \"margin-top|margin-bottom|translateY|translateX|-mt-|-mb-\" src",
+    ],
+    likelyAreas: [
+      "src/components/layout/**",
+      "src/components/sections/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_ALIGNMENT_DRIFT]: {
+    priority: "P2",
+    firstChecks: [
+      "Comparar alinhamento horizontal dos blocos principais ao longo da pagina.",
+      "Padronizar container, gutters e max-width entre secoes equivalentes.",
+      "Remover deslocamentos isolados que quebram a coluna principal.",
+    ],
+    commandHints: [
+      "rg -n \"container|max-width|mx-auto|padding-inline|px-|pl-|pr-|left:\" src",
+      "rg -n \"section|wrapper|content|shell|layout\" src/components src/app",
+    ],
+    likelyAreas: [
+      "src/components/layout/**",
+      "src/components/sections/**",
+      "src/styles/**",
     ],
   },
 };
@@ -2404,6 +2482,35 @@ function normalizeSectionOrderRules(rules) {
   });
 }
 
+function normalizeVisualAnalyzer(input) {
+  const config = input && typeof input === "object" ? input : {};
+  return {
+    enabled: config.enabled !== false,
+    waitMs: Number.isFinite(Number(config.waitMs)) ? Math.max(0, Number(config.waitMs)) : 900,
+    overflowTolerancePx: Number.isFinite(Number(config.overflowTolerancePx))
+      ? Math.max(0, Number(config.overflowTolerancePx))
+      : 12,
+    overlapMinAreaPx: Number.isFinite(Number(config.overlapMinAreaPx))
+      ? Math.max(200, Number(config.overlapMinAreaPx))
+      : 1800,
+    overlapRatioThreshold: Number.isFinite(Number(config.overlapRatioThreshold))
+      ? Math.max(0.02, Math.min(0.8, Number(config.overlapRatioThreshold)))
+      : 0.12,
+    alignmentTolerancePx: Number.isFinite(Number(config.alignmentTolerancePx))
+      ? Math.max(4, Number(config.alignmentTolerancePx))
+      : 28,
+    minBlockWidthPx: Number.isFinite(Number(config.minBlockWidthPx))
+      ? Math.max(120, Number(config.minBlockWidthPx))
+      : 240,
+    minBlockHeightPx: Number.isFinite(Number(config.minBlockHeightPx))
+      ? Math.max(40, Number(config.minBlockHeightPx))
+      : 72,
+    maxSamples: Number.isFinite(Number(config.maxSamples))
+      ? Math.max(3, Number(config.maxSamples))
+      : 6,
+  };
+}
+
 function normalizeConfig(config, configDir) {
   if (!config || typeof config !== "object") {
     throw new Error("Config invalida: JSON vazio ou incorreto.");
@@ -2448,6 +2555,7 @@ function normalizeConfig(config, configDir) {
       ? Math.max(0, Number(config.sectionOrderWaitMs))
       : 1400,
     sectionOrderRules: normalizeSectionOrderRules(config.sectionOrderRules ?? []),
+    visualAnalyzer: normalizeVisualAnalyzer(config.visualAnalyzer),
     autoDiscoverRoutes: config.autoDiscoverRoutes !== false,
     discoverFromSitemap: config.discoverFromSitemap !== false,
     discoverMenuLinks: config.discoverMenuLinks !== false,
@@ -2608,7 +2716,9 @@ function severityFromCode(code) {
   if (
     code === CODE.BTN_CLICK_ERROR ||
     code === CODE.NET_REQUEST_FAILED ||
-    code === CODE.VISUAL_SECTION_MISSING
+    code === CODE.VISUAL_SECTION_MISSING ||
+    code === CODE.VISUAL_LAYOUT_OVERFLOW ||
+    code === CODE.VISUAL_LAYER_OVERLAP
   ) {
     return "medium";
   }
@@ -3198,6 +3308,262 @@ function formatSectionOrderDetail(finding) {
   ].join(" | ");
 }
 
+function formatVisualAnalyzerDetail(finding) {
+  if (finding.code === CODE.VISUAL_LAYOUT_OVERFLOW) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.selector} (${item.side}, delta=${item.delta}px, rect=${item.left}-${item.right})`)
+      .join(" ; ");
+    return [
+      `Detectado overflow visual em ${finding.count || samples.length} bloco(s).`,
+      sampleText || "Nenhum exemplo detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  if (finding.code === CODE.VISUAL_LAYER_OVERLAP) {
+    const pairs = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const pairText = pairs
+      .map((item) => `${item.a} x ${item.b} (area=${item.area}px, ratio=${item.ratio})`)
+      .join(" ; ");
+    return [
+      `Detectada sobreposicao visual relevante em ${finding.count || pairs.length} par(es) de blocos.`,
+      pairText || "Nenhum par detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  if (finding.code === CODE.VISUAL_ALIGNMENT_DRIFT) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.selector} (left=${item.left}px, drift=${item.drift}px)`)
+      .join(" ; ");
+    return [
+      `Detectado drift de alinhamento em ${finding.count || samples.length} bloco(s) principais.`,
+      `Baseline left=${finding.baselineLeft}px.`,
+      sampleText || "Nenhum bloco detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  return String(finding.detail || "Inconsistencia visual detectada.");
+}
+
+async function runVisualInterfaceChecks(page, route, cfg) {
+  const visualCfg = cfg.visualAnalyzer;
+  if (!visualCfg?.enabled) return [];
+
+  if (visualCfg.waitMs > 0) {
+    await page.waitForTimeout(visualCfg.waitMs);
+  }
+
+  const findings = await page.evaluate((settings) => {
+    const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+    const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+    const round = (value) => Number(Number(value).toFixed(2));
+
+    const isVisible = (el) => {
+      if (!(el instanceof Element)) return false;
+      const style = window.getComputedStyle(el);
+      if (!style) return false;
+      if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width >= 1 && rect.height >= 1;
+    };
+
+    const isSmallFixedWidget = (el, rect) => {
+      const style = window.getComputedStyle(el);
+      return style.position === "fixed" && rect.width <= 220 && rect.height <= 220;
+    };
+
+    const hasHorizontalScrollAncestor = (el) => {
+      let current = el.parentElement;
+      while (current) {
+        const style = window.getComputedStyle(current);
+        if (/(auto|scroll|overlay)/i.test(style.overflowX || "")) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    const describe = (el) => {
+      const parts = [el.tagName.toLowerCase()];
+      if (el.id) parts.push(`#${String(el.id).slice(0, 40)}`);
+      const testId = el.getAttribute("data-testid") || el.getAttribute("data-test") || el.getAttribute("data-qa");
+      if (testId) parts.push(`[data=${String(testId).slice(0, 40)}]`);
+      const classes = String(el.className || "")
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((item) => `.${item.slice(0, 24)}`);
+      parts.push(...classes);
+      return parts.join("");
+    };
+
+    const candidates = Array.from(
+      document.querySelectorAll(
+        [
+          "body > header",
+          "body > main",
+          "body > footer",
+          "body > section",
+          "body > article",
+          "body > aside",
+          "body > nav",
+          "main > *",
+          '[role="main"] > *',
+          "[data-section]",
+          "[data-testid]",
+          ".panel",
+          ".card",
+          "section",
+          "article",
+          "aside",
+        ].join(","),
+      ),
+    );
+
+    const majorBlocks = candidates
+      .filter((el) => isVisible(el))
+      .map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          el,
+          selector: describe(el),
+          top: round(rect.top + window.scrollY),
+          left: round(rect.left),
+          right: round(rect.right),
+          width: round(rect.width),
+          height: round(rect.height),
+          fixed: window.getComputedStyle(el).position === "fixed",
+        };
+      })
+      .filter((item) =>
+        item.width >= settings.minBlockWidthPx &&
+        item.height >= settings.minBlockHeightPx &&
+        item.selector !== "body" &&
+        item.selector !== "main"
+      )
+      .sort((a, b) => (a.top - b.top) || (b.width * b.height - a.width * a.height));
+
+    const overflow = [];
+    for (const el of Array.from(document.body.querySelectorAll("*"))) {
+      if (!(el instanceof Element) || !isVisible(el)) continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 24 || rect.height < 24) continue;
+      if (isSmallFixedWidget(el, rect) || hasHorizontalScrollAncestor(el)) continue;
+
+      const leftOverflow = rect.left < 0 - settings.overflowTolerancePx;
+      const rightOverflow = rect.right > viewportWidth + settings.overflowTolerancePx;
+      if (!leftOverflow && !rightOverflow) continue;
+
+      overflow.push({
+        selector: describe(el),
+        side: leftOverflow ? "left" : "right",
+        delta: round(leftOverflow ? Math.abs(rect.left) : Math.abs(rect.right - viewportWidth)),
+        left: round(rect.left),
+        right: round(rect.right),
+      });
+      if (overflow.length >= settings.maxSamples) break;
+    }
+
+    const overlap = [];
+    const pairCap = Math.min(majorBlocks.length, 18);
+    for (let index = 0; index < pairCap; index += 1) {
+      const first = majorBlocks[index];
+      if (first.fixed) continue;
+      for (let secondIndex = index + 1; secondIndex < pairCap; secondIndex += 1) {
+        const second = majorBlocks[secondIndex];
+        if (second.fixed) continue;
+        if (first.el.contains(second.el) || second.el.contains(first.el)) continue;
+        if (Math.abs(first.top - second.top) > Math.max(first.height, second.height) + 80) continue;
+
+        const overlapWidth = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+        const overlapHeight =
+          Math.min(first.top + first.height, second.top + second.height) -
+          Math.max(first.top, second.top);
+        if (overlapWidth <= 0 || overlapHeight <= 0) continue;
+
+        const area = overlapWidth * overlapHeight;
+        const smallerArea = Math.min(first.width * first.height, second.width * second.height);
+        const ratio = smallerArea > 0 ? area / smallerArea : 0;
+        if (area < settings.overlapMinAreaPx || ratio < settings.overlapRatioThreshold) continue;
+
+        overlap.push({
+          a: first.selector,
+          b: second.selector,
+          area: round(area),
+          ratio: round(ratio),
+        });
+        if (overlap.length >= settings.maxSamples) break;
+      }
+      if (overlap.length >= settings.maxSamples) break;
+    }
+
+    const stackedBlocks = majorBlocks
+      .filter((item) =>
+        !item.fixed &&
+        item.width >= viewportWidth * 0.45 &&
+        item.height >= settings.minBlockHeightPx
+      )
+      .sort((a, b) => a.top - b.top);
+
+    let baselineLeft = null;
+    const alignment = [];
+    if (stackedBlocks.length >= 3) {
+      const lefts = [...stackedBlocks].map((item) => item.left).sort((a, b) => a - b);
+      baselineLeft = round(lefts[Math.floor(lefts.length / 2)]);
+      for (const block of stackedBlocks) {
+        const drift = round(Math.abs(block.left - baselineLeft));
+        if (drift <= settings.alignmentTolerancePx) continue;
+        alignment.push({
+          selector: block.selector,
+          left: block.left,
+          drift,
+        });
+        if (alignment.length >= settings.maxSamples) break;
+      }
+    }
+
+    return { viewportWidth, viewportHeight, overflow, overlap, alignment, baselineLeft };
+  }, visualCfg);
+
+  const issues = [];
+  if (findings.overflow?.length) {
+    issues.push({
+      code: CODE.VISUAL_LAYOUT_OVERFLOW,
+      route,
+      action: "visual_quality:overflow",
+      count: findings.overflow.length,
+      samples: findings.overflow,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.overlap?.length) {
+    issues.push({
+      code: CODE.VISUAL_LAYER_OVERLAP,
+      route,
+      action: "visual_quality:overlap",
+      count: findings.overlap.length,
+      samples: findings.overlap,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.alignment?.length) {
+    issues.push({
+      code: CODE.VISUAL_ALIGNMENT_DRIFT,
+      route,
+      action: "visual_quality:alignment",
+      count: findings.alignment.length,
+      samples: findings.alignment,
+      baselineLeft: findings.baselineLeft,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+
+  return issues;
+}
+
 async function runSectionOrderChecks(page, route, cfg) {
   const rules = cfg.sectionOrderRules.filter((rule) => routeMatchesRule(route, rule));
   if (!rules.length) return [];
@@ -3777,6 +4143,15 @@ function summarize(report) {
     consoleErrors: count(CODE.CONSOLE_ERROR),
     visualSectionOrderInvalid: count(CODE.VISUAL_SECTION_ORDER_INVALID),
     visualSectionMissing: count(CODE.VISUAL_SECTION_MISSING),
+    visualLayoutOverflow: count(CODE.VISUAL_LAYOUT_OVERFLOW),
+    visualLayerOverlap: count(CODE.VISUAL_LAYER_OVERLAP),
+    visualAlignmentDrift: count(CODE.VISUAL_ALIGNMENT_DRIFT),
+    visualQualityIssues:
+      count(CODE.VISUAL_SECTION_ORDER_INVALID) +
+      count(CODE.VISUAL_SECTION_MISSING) +
+      count(CODE.VISUAL_LAYOUT_OVERFLOW) +
+      count(CODE.VISUAL_LAYER_OVERLAP) +
+      count(CODE.VISUAL_ALIGNMENT_DRIFT),
     seoScore: Number(report?.seo?.overallScore ?? 0),
     seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
     seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
@@ -4418,7 +4793,7 @@ async function run() {
         totalRoutes: cfg.routes.length,
       });
 
-      if (shouldAuditExperience && cfg.sectionOrderRules.length) {
+      if (shouldAuditExperience && (cfg.sectionOrderRules.length || cfg.visualAnalyzer?.enabled)) {
         currentAction = "visual_layout_check";
         emitLiveEvent(args, "layout_check_start", {
           route,
@@ -4426,7 +4801,10 @@ async function run() {
           routeIndex: routeIndex + 1,
           totalRoutes: cfg.routes.length,
         });
-        const findings = await runSectionOrderChecks(page, route, cfg);
+        const findings = [
+          ...(cfg.sectionOrderRules.length ? await runSectionOrderChecks(page, route, cfg) : []),
+          ...(cfg.visualAnalyzer?.enabled ? await runVisualInterfaceChecks(page, route, cfg) : []),
+        ];
         for (const finding of findings) {
           if (finding.status === "missing") {
             emitLiveEvent(args, "layout_check_issue", {
@@ -4460,6 +4838,27 @@ async function run() {
               route,
               action: `layout_rule:${finding.id}`,
               detail: formatSectionOrderDetail(finding),
+              url: page.url(),
+            });
+          } else if (
+            finding.code === CODE.VISUAL_LAYOUT_OVERFLOW ||
+            finding.code === CODE.VISUAL_LAYER_OVERLAP ||
+            finding.code === CODE.VISUAL_ALIGNMENT_DRIFT
+          ) {
+            emitLiveEvent(args, "layout_check_issue", {
+              route,
+              action: finding.action,
+              rule: finding.code,
+              status: "visual_quality_issue",
+              routeIndex: routeIndex + 1,
+              totalRoutes: cfg.routes.length,
+            });
+            pushIssue(report, {
+              code: finding.code,
+              severity: severityFromCode(finding.code),
+              route,
+              action: finding.action,
+              detail: formatVisualAnalyzerDetail(finding),
               url: page.url(),
             });
           }

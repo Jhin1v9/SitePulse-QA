@@ -185,15 +185,22 @@ function tryParseLiveEvent(line) {
 async function writeCmdLaunchScript(options, command) {
   const scriptName = "sitepulse-launch.cmd";
   const scriptPath = path.join(options.qaDir, scriptName);
+  const stateFile = path.join(options.qaDir, "reports", command.mode === "mobile" ? "default-mobile-cmd-state.txt" : "default-cmd-state.txt");
+  await fs.mkdir(path.dirname(stateFile), { recursive: true });
+  await fs.rm(stateFile, { force: true }).catch(() => undefined);
   const scriptBody = [
     "@echo off",
     "setlocal",
     "cd /d \"%~dp0\"",
+    `> "${safeQuoted(stateFile)}" echo running`,
     command.shellRunner,
+    "set EXITCODE=%ERRORLEVEL%",
+    `> "${safeQuoted(stateFile)}" echo finished^|%EXITCODE%`,
+    "exit /b %EXITCODE%",
     "",
   ].join("\r\n");
   await fs.writeFile(scriptPath, scriptBody, "utf8");
-  return { scriptName, scriptPath };
+  return { scriptName, scriptPath, stateFile };
 }
 
 export async function startLocalBridgeServer(userOptions = {}) {
@@ -368,6 +375,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
         mode: command.mode,
         recommendedCommand: command.recommendedCommand,
         scriptPath: launchScript.scriptPath,
+        stateFile: launchScript.stateFile,
         recommendation:
           input.elevated === true
             ? "Clique novamente e aceite o UAC. Se continuar sem abrir nada, desmarque 'Executar como administrador (UAC)' ou rode o comando manualmente em um CMD admin."
@@ -387,6 +395,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
       command: psScript,
       recommendedCommand: command.recommendedCommand,
       scriptPath: launchScript.scriptPath,
+      stateFile: launchScript.stateFile,
       recommendation:
         input.elevated === true
           ? "Se a janela nao vier para frente, procure o prompt UAC atras de outras janelas ou na barra de tarefas."
