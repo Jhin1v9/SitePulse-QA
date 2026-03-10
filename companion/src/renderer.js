@@ -24,6 +24,34 @@ const ISSUE_GROUP = {
 
 const DEFAULT_TARGET = "https://example.com";
 
+const VIEW_META = {
+  overview: {
+    eyebrow: "mission control",
+    title: "Overview",
+    description: "Configure the target, define execution depth and prepare the run before moving into live operations.",
+  },
+  operations: {
+    eyebrow: "live operations",
+    title: "Operations",
+    description: "Follow the engine while it runs: progress, live protocol, stage evidence and runtime logs stay in one operational surface.",
+  },
+  findings: {
+    eyebrow: "fix sequence",
+    title: "Findings",
+    description: "Triaging, visual quality, route coverage and action intent live here so the operator can work the queue without dashboard clutter.",
+  },
+  reports: {
+    eyebrow: "evidence room",
+    title: "Reports",
+    description: "Replay commands, baselines, evidence and run history are grouped here as a reusable proof package.",
+  },
+  settings: {
+    eyebrow: "system controls",
+    title: "Settings",
+    description: "Runtime paths, engine lifecycle and workstation policy are isolated from the audit workflow.",
+  },
+};
+
 const stateEl = {
   serviceName: document.getElementById("serviceName"),
   bridgeStatus: document.getElementById("bridgeStatus"),
@@ -49,6 +77,7 @@ const stateEl = {
   scopeButtons: Array.from(document.querySelectorAll("[data-scope]")),
   depthButtons: Array.from(document.querySelectorAll("[data-depth]")),
   severityFilterButtons: Array.from(document.querySelectorAll("[data-issue-filter]")),
+  menuButtons: Array.from(document.querySelectorAll("[data-menu-action]")),
   navButtons: Array.from(document.querySelectorAll("[data-view]")),
   viewPanels: Array.from(document.querySelectorAll("[data-view-panel]")),
   noServer: document.getElementById("noServer"),
@@ -60,10 +89,15 @@ const stateEl = {
   copyQuickPrompt: document.getElementById("copyQuickPrompt"),
   copyQuickPromptSecondary: document.getElementById("copyQuickPromptSecondary"),
   openCommandPalette: document.getElementById("openCommandPalette"),
+  menuFlyout: document.getElementById("menuFlyout"),
+  workspaceEyebrow: document.getElementById("workspaceEyebrow"),
+  workspaceTitle: document.getElementById("workspaceTitle"),
+  workspaceDescription: document.getElementById("workspaceDescription"),
   headlineStatus: document.getElementById("headlineStatus"),
   auditProgressLabel: document.getElementById("auditProgressLabel"),
   auditProgressPercent: document.getElementById("auditProgressPercent"),
   auditProgressCounters: document.getElementById("auditProgressCounters"),
+  auditProgressEta: document.getElementById("auditProgressEta"),
   auditProgressFill: document.getElementById("auditProgressFill"),
   auditProgressDetail: document.getElementById("auditProgressDetail"),
   timelineHeadline: document.getElementById("timelineHeadline"),
@@ -119,6 +153,8 @@ const stateEl = {
   pinCurrentBaseline: document.getElementById("pinCurrentBaseline"),
   clearBaseline: document.getElementById("clearBaseline"),
   copyCompareDigest: document.getElementById("copyCompareDigest"),
+  evidenceHeadline: document.getElementById("evidenceHeadline"),
+  evidenceGallery: document.getElementById("evidenceGallery"),
   quickPromptBox: document.getElementById("quickPromptBox"),
   historyList: document.getElementById("historyList"),
   clearHistory: document.getElementById("clearHistory"),
@@ -164,6 +200,7 @@ const uiState = {
   onboardingDismissed: loadOnboardingState(),
   shortcutsOpen: false,
   commandPaletteOpen: false,
+  activeMenu: "",
   commandPaletteQuery: "",
   auditRequestInFlight: false,
 };
@@ -210,6 +247,23 @@ function formatDuration(durationMs) {
   return `${hours}h ${minutesRemain}m`;
 }
 
+function toFileSrc(filePath) {
+  const value = String(filePath || "").trim();
+  if (!value) return "";
+  return encodeURI(`file:///${value.replace(/\\/g, "/")}`);
+}
+
+function median(values) {
+  const list = [...values]
+    .map((value) => toNumber(value, 0))
+    .filter((value) => value > 0)
+    .sort((left, right) => left - right);
+  if (!list.length) return 0;
+  const middle = Math.floor(list.length / 2);
+  if (list.length % 2 === 1) return list[middle];
+  return Math.round((list[middle - 1] + list[middle]) / 2);
+}
+
 function shortPath(value) {
   const text = String(value || "n/a");
   return text.length > 84 ? `...${text.slice(-81)}` : text;
@@ -231,7 +285,7 @@ function normalizeDepth(value) {
 function parseSeverity(value, code = "") {
   if (value === "high" || value === "medium" || value === "low") return value;
   if (["HTTP_5XX", "JS_RUNTIME_ERROR", "VISUAL_SECTION_ORDER_INVALID", "ROUTE_LOAD_FAIL"].includes(code)) return "high";
-  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING"].includes(code)) return "medium";
+  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING", "VISUAL_LAYOUT_OVERFLOW", "VISUAL_LAYER_OVERLAP"].includes(code)) return "medium";
   return "low";
 }
 
@@ -319,6 +373,7 @@ function persistOnboardingState(value) {
 function toggleShortcutsOverlay(forceOpen = null) {
   uiState.shortcutsOpen = forceOpen === null ? !uiState.shortcutsOpen : forceOpen === true;
   stateEl.shortcutsOverlay.classList.toggle("hidden", !uiState.shortcutsOpen);
+  if (uiState.shortcutsOpen) hideMenuFlyout();
 }
 
 function toggleCommandPalette(forceOpen = null) {
@@ -333,6 +388,7 @@ function toggleCommandPalette(forceOpen = null) {
     uiState.commandPaletteQuery = "";
     stateEl.commandPaletteSearch.value = "";
   }
+  if (uiState.commandPaletteOpen) hideMenuFlyout();
   renderCommandPalette();
 }
 
@@ -376,6 +432,16 @@ function normalizeDiagnosis(diagnosis = {}) {
   };
 }
 
+function normalizeEvidenceItem(item = {}) {
+  return {
+    type: String(item.type || "evidence"),
+    path: String(item.path || ""),
+    label: String(item.label || ""),
+    route: String(item.route || "/"),
+    code: String(item.code || ""),
+  };
+}
+
 function normalizeIssue(item, index) {
   const issue = item && typeof item === "object" ? item : {};
   const code = String(issue.code || "UNKNOWN");
@@ -390,6 +456,7 @@ function normalizeIssue(item, index) {
     group: ISSUE_GROUP[code] || "Other issue",
     assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
     diagnosis: normalizeDiagnosis(issue.diagnosis && typeof issue.diagnosis === "object" ? issue.diagnosis : {}),
+    evidence: Array.isArray(issue.evidence) ? issue.evidence.map(normalizeEvidenceItem).filter((item) => item.path) : [],
   };
 }
 
@@ -515,6 +582,7 @@ function createReportSnapshot(report) {
     mode: report.meta.auditMode || "desktop",
     scope: report.summary.auditScope,
     depth: report.meta.auditDepth || "signal",
+    durationMs: report.summary.durationMs || 0,
     risk: scoreFromIssues(report.issues),
     topIssue: report.issues[0]
       ? {
@@ -594,18 +662,114 @@ function updateSegmentButtons(buttons, fieldName, activeValue) {
   });
 }
 
+function renderWorkspaceHeader(viewName) {
+  const meta = VIEW_META[viewName] || VIEW_META.overview;
+  if (stateEl.workspaceEyebrow) stateEl.workspaceEyebrow.textContent = meta.eyebrow;
+  if (stateEl.workspaceTitle) stateEl.workspaceTitle.textContent = meta.title;
+  if (stateEl.workspaceDescription) stateEl.workspaceDescription.textContent = meta.description;
+}
+
+function getMenuItems(menuName) {
+  const visibleReport = getVisibleReport();
+  return {
+    file: [
+      { id: "file-load", label: "Load Report File", hint: "Ctrl+O", action: () => loadReportFromFile() },
+      { id: "file-export", label: "Export Current Report", hint: "Ctrl+S", action: () => exportCurrentReport() },
+      { id: "file-vault", label: "Open Report Vault", hint: "", action: () => openReportsVault() },
+    ],
+    run: [
+      { id: "run-native", label: "Run Native Audit", hint: "Ctrl+Enter", action: () => handleAuditRun() },
+      { id: "run-quick", label: "Run Quick Audit", hint: "", action: () => handleAuditRun("signal") },
+      { id: "run-deep", label: "Run Deep Audit", hint: "Ctrl+Shift+Enter", action: () => handleAuditRun("deep") },
+      { id: "run-cmd", label: "Open Full CMD Flow", hint: "Ctrl+Shift+C", action: () => openCmdWindow() },
+    ],
+    inspect: [
+      { id: "inspect-operations", label: "Open Operations", hint: "Ctrl+2", action: () => switchView("operations") },
+      { id: "inspect-findings", label: "Open Findings", hint: "Ctrl+3", action: () => switchView("findings") },
+      { id: "inspect-reports", label: "Open Reports", hint: "Ctrl+4", action: () => switchView("reports") },
+    ],
+    reports: [
+      { id: "reports-evidence", label: "Open Latest Evidence", hint: "", action: () => openLatestEvidence() },
+      { id: "reports-baseline", label: "Pin Current As Baseline", hint: "", action: () => pinCurrentReportAsBaseline() },
+      { id: "reports-compare", label: "Copy Comparison Digest", hint: "", action: () => copyText(buildCompareDigest(visibleReport), "[studio] comparison digest copied.") },
+    ],
+    tools: [
+      { id: "tools-settings", label: "Open Settings", hint: "Ctrl+5", action: () => switchView("settings") },
+      { id: "tools-start", label: "Start Engine", hint: "", action: () => startEngine() },
+      { id: "tools-stop", label: "Stop Engine", hint: "", action: () => stopEngine() },
+      { id: "tools-bridge", label: "Copy Bridge URL", hint: "", action: () => copyBridgeUrl() },
+    ],
+    help: [
+      { id: "help-onboarding", label: "Show Onboarding", hint: "", action: () => revealOnboarding() },
+      { id: "help-shortcuts", label: "Show Shortcuts", hint: "?", action: () => toggleShortcutsOverlay(true) },
+      { id: "help-palette", label: "Open Command Palette", hint: "Ctrl+K", action: () => toggleCommandPalette(true) },
+    ],
+  }[menuName] || [];
+}
+
+function hideMenuFlyout() {
+  uiState.activeMenu = "";
+  if (!stateEl.menuFlyout) return;
+  stateEl.menuFlyout.classList.add("hidden");
+  stateEl.menuFlyout.innerHTML = "";
+  stateEl.menuButtons.forEach((button) => button.classList.remove("active"));
+}
+
+function showMenuFlyout(menuName, anchor) {
+  if (!stateEl.menuFlyout || !(anchor instanceof HTMLElement)) return;
+  const items = getMenuItems(menuName);
+  if (!items.length) {
+    hideMenuFlyout();
+    return;
+  }
+
+  uiState.activeMenu = menuName;
+  stateEl.menuButtons.forEach((button) => button.classList.toggle("active", button.dataset.menuAction === menuName));
+  stateEl.menuFlyout.innerHTML = items
+    .map((item) => `
+      <button class="menu-item" type="button" data-menu-item="${escapeHtml(item.id)}">
+        <span>${escapeHtml(item.label)}</span>
+        ${item.hint ? `<code>${escapeHtml(item.hint)}</code>` : ""}
+      </button>
+    `)
+    .join("");
+  stateEl.menuFlyout.classList.remove("hidden");
+  const rect = anchor.getBoundingClientRect();
+  stateEl.menuFlyout.style.left = `${Math.round(rect.left)}px`;
+  stateEl.menuFlyout.style.top = `${Math.round(rect.bottom + 8)}px`;
+}
+
+async function executeMenuAction(menuName, itemId) {
+  const item = getMenuItems(menuName).find((entry) => entry.id === itemId);
+  hideMenuFlyout();
+  if (!item) return;
+  await item.action();
+}
+
 function switchView(viewName) {
-  uiState.activeView = viewName;
+  const nextView = VIEW_META[viewName] ? viewName : "overview";
+  uiState.activeView = nextView;
+  hideMenuFlyout();
   stateEl.navButtons.forEach((button) => {
-    button.classList.toggle("active", button.dataset.view === viewName);
+    button.classList.toggle("active", button.dataset.view === nextView);
   });
   stateEl.viewPanels.forEach((panel) => {
-    panel.classList.toggle("active", panel.dataset.viewPanel === viewName);
+    panel.classList.toggle("active", panel.dataset.viewPanel === nextView);
   });
+  renderWorkspaceHeader(nextView);
+  const workspaceBody = document.querySelector(".workspace-body");
+  if (workspaceBody instanceof HTMLElement) {
+    workspaceBody.scrollTop = 0;
+  }
 }
 
 function renderOnboarding() {
   stateEl.onboardingOverlay.classList.toggle("hidden", uiState.onboardingDismissed);
+}
+
+function revealOnboarding() {
+  persistOnboardingState(false);
+  renderOnboarding();
 }
 
 function renderLogs() {
@@ -633,6 +797,30 @@ function collectRunInput(forceFullAudit = null) {
     fullAudit: forceFullAudit === null ? uiState.depth === "deep" : forceFullAudit,
     elevated: stateEl.elevated.checked,
   };
+}
+
+function estimateRunDurationMs(profile = {}) {
+  const history = Array.isArray(uiState.history) ? uiState.history : [];
+  const matching = history.filter((item) => {
+    if (!item?.report?.summary?.durationMs) return false;
+    if (profile.baseUrl && item.baseUrl !== profile.baseUrl) return false;
+    if (profile.mode && item.mode !== profile.mode) return false;
+    if (profile.scope && item.scope !== profile.scope) return false;
+    if (profile.depth && item.depth !== profile.depth) return false;
+    return true;
+  });
+
+  const preferred = matching.length
+    ? matching
+    : history.filter((item) => {
+        if (!item?.report?.summary?.durationMs) return false;
+        if (profile.mode && item.mode !== profile.mode) return false;
+        if (profile.scope && item.scope !== profile.scope) return false;
+        if (profile.depth && item.depth !== profile.depth) return false;
+        return true;
+      });
+
+  return median(preferred.slice(0, 6).map((item) => item.durationMs || item.report?.summary?.durationMs || 0));
 }
 
 function createCompactStoredReport(report, limits = {}) {
@@ -863,6 +1051,7 @@ function renderMissionBrief() {
   const bridgeRunning = uiState.companionState?.bridge?.running === true;
   const audit = uiState.companionState?.audit || {};
   const visibleReport = getVisibleReport();
+  const evidenceCount = visibleReport ? collectReportEvidence(visibleReport).length : 0;
 
   if (!bridgeRunning) {
     stateEl.missionBrief.textContent = "The local engine is offline. Start the engine before trusting the board.";
@@ -871,7 +1060,7 @@ function renderMissionBrief() {
 
   if (audit.running === true) {
     if (visibleReport) {
-      stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. The live snapshot currently shows ${visibleReport.summary.totalIssues} issue(s), ${visibleReport.summary.routesChecked} route(s) and SEO ${visibleReport.summary.seoScore}.`;
+      stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. The live snapshot currently shows ${visibleReport.summary.totalIssues} issue(s), ${visibleReport.summary.routesChecked} route(s), SEO ${visibleReport.summary.seoScore} and ${evidenceCount} evidence file(s).`;
       return;
     }
     stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. Follow the live log while the engine produces evidence.`;
@@ -890,7 +1079,7 @@ function renderMissionBrief() {
   }
 
   const route = topIssue.route === "/" ? "home route" : topIssue.route;
-  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. Resolve the highest-impact failures before the next validation pass.`;
+  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. ${evidenceCount > 0 ? `There are ${evidenceCount} captured evidence file(s) attached to the run.` : "No screenshot proof was attached to this run."} Resolve the highest-impact failures before the next validation pass.`;
 }
 
 function renderMetrics(report) {
@@ -1141,6 +1330,65 @@ function renderCompareIssueList(element, issues, emptyText) {
     .join("");
 }
 
+function collectReportEvidence(report) {
+  if (!report?.issues?.length) return [];
+  const evidence = [];
+  report.issues.forEach((issue) => {
+    (issue.evidence || []).forEach((item) => {
+      if (!item?.path) return;
+      evidence.push({
+        ...item,
+        issueCode: issue.code,
+        issueGroup: issue.group,
+        issueRoute: issue.route,
+        severity: issue.severity,
+        detail: issue.detail,
+      });
+    });
+  });
+  return evidence;
+}
+
+function renderEvidenceGallery(report, options = {}) {
+  if (!report) {
+    stateEl.evidenceHeadline.textContent = "Run an audit to capture visual evidence.";
+    stateEl.evidenceGallery.innerHTML = '<article class="empty-state">Visual screenshots will appear here when the engine detects layout problems.</article>';
+    return;
+  }
+
+  const evidence = collectReportEvidence(report);
+  if (!evidence.length) {
+    stateEl.evidenceHeadline.textContent = options.transient === true
+      ? "The live snapshot has no visual screenshots yet."
+      : "No visual screenshot evidence is attached to this report.";
+    stateEl.evidenceGallery.innerHTML = '<article class="empty-state">No screenshot proof was attached to the current report.</article>';
+    return;
+  }
+
+  stateEl.evidenceHeadline.textContent = `${evidence.length} screenshot${evidence.length === 1 ? "" : "s"} attached to the current run.`;
+  stateEl.evidenceGallery.innerHTML = evidence
+    .slice(0, 8)
+    .map((item, index) => `
+      <article class="evidence-card">
+        <div class="evidence-preview-wrap">
+          <img class="evidence-preview" src="${escapeHtml(toFileSrc(item.path))}" alt="${escapeHtml(item.label || `evidence-${index + 1}`)}" loading="lazy" />
+        </div>
+        <div class="evidence-meta">
+          <div>
+            <div class="nav-title">${escapeHtml(item.label || item.issueGroup || item.issueCode)}</div>
+            <div class="history-meta">${escapeHtml(item.issueRoute || item.route || "/")} | ${escapeHtml(item.issueCode || "")}</div>
+          </div>
+          <span class="severity-pill severity-${escapeHtml(item.severity || "low")}">${escapeHtml(item.severity || "info")}</span>
+        </div>
+        <div class="history-copy">${escapeHtml(item.detail || "Visual evidence attached to the current issue.")}</div>
+        <div class="history-actions">
+          <button type="button" data-artifact-path="${escapeHtml(item.path)}">Open file</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
 function renderComparison(report, options = {}) {
   if (!report) {
     stateEl.compareHeadline.textContent = "Run two audits to unlock comparison.";
@@ -1202,6 +1450,24 @@ function buildIssueCard(issue, actionContext) {
   const whyItMatters = issue.diagnosis.laymanExplanation || issue.diagnosis.technicalExplanation || "This issue can reduce trust, break navigation or hide failures from operators.";
   const technicalLead = issue.diagnosis.technicalChecks[0] || issue.diagnosis.likelyAreas[0] || "";
   const commands = issue.diagnosis.commandHints.slice(0, 2);
+  const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
+  const evidenceMarkup = evidence.length
+    ? `
+      <div class="issue-evidence-strip">
+        ${evidence.map((item, index) => `
+          <article class="issue-evidence-card">
+            <div class="issue-evidence-preview-wrap">
+              <img class="issue-evidence-preview" src="${escapeHtml(toFileSrc(item.path))}" alt="${escapeHtml(item.label || `evidence-${index + 1}`)}" loading="lazy" />
+            </div>
+            <div class="issue-evidence-meta">
+              <span>${escapeHtml(item.label || "Visual proof")}</span>
+              <button type="button" class="ghost small" data-artifact-path="${escapeHtml(item.path)}">Open</button>
+            </div>
+          </article>
+        `).join("")}
+      </div>
+    `
+    : "";
 
   return `
     <article class="issue-card">
@@ -1223,6 +1489,7 @@ function buildIssueCard(issue, actionContext) {
       ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
       ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
       ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
+      ${evidenceMarkup}
     </article>
   `;
 }
@@ -1276,14 +1543,15 @@ function renderReportSummary(report, options = {}) {
   const liveDurationMs = audit.running === true && audit.startedAt
     ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime())
     : (audit.durationMs || report.summary.durationMs || 0);
+  const evidenceCount = collectReportEvidence(report).length;
   stateEl.currentDuration.textContent = formatDuration(liveDurationMs);
   stateEl.currentCommand.textContent = audit.lastCommand || report.meta.replayCommand || report.assistantGuide.replayCommand || "Run an audit to generate a replay command.";
   if (options.transient === true) {
     const lead = audit.running === true ? "Live snapshot" : "Partial snapshot";
-    stateEl.reportsHeadline.textContent = `${lead} | ${report.summary.totalIssues} issue(s) so far | ${report.summary.routesChecked} route(s) | SEO ${report.summary.seoScore}`;
+    stateEl.reportsHeadline.textContent = `${lead} | ${report.summary.totalIssues} issue(s) so far | ${report.summary.routesChecked} route(s) | SEO ${report.summary.seoScore} | evidence ${evidenceCount}`;
     return;
   }
-  stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)}`;
+  stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)} | evidence ${evidenceCount}`;
 }
 
 function renderHistory() {
@@ -1330,10 +1598,11 @@ function getCommandPaletteItems() {
     { id: "open-evidence", label: "Open latest evidence", hint: "", description: "Jump to the latest evidence artifact.", action: () => openLatestEvidence() },
     { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
-    { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open mission control and execution profile.", action: () => switchView("overview") },
-    { id: "switch-findings", label: "Go to findings", hint: "Ctrl+2", description: "Open the issue board and filters.", action: () => switchView("findings") },
-    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+3", description: "Open evidence, comparison and history.", action: () => switchView("reports") },
-    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+4", description: "Open engine controls and paths.", action: () => switchView("settings") },
+    { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
+    { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
+    { id: "switch-findings", label: "Go to findings", hint: "Ctrl+3", description: "Open the issue board, visual quality and coverage panels.", action: () => switchView("findings") },
+    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+4", description: "Open evidence, comparison and history.", action: () => switchView("reports") },
+    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+5", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
@@ -1451,9 +1720,35 @@ function renderAuditProgress(audit = {}) {
     counters = "Run stopped with failure.";
   }
 
+  let etaText = "ETA calibrating";
+  if (audit.running) {
+    const elapsedMs = audit.startedAt ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime()) : 0;
+    const historyEstimateMs = estimateRunDurationMs({
+      baseUrl: audit.baseUrl,
+      mode: audit.mode,
+      scope: audit.scope,
+      depth: audit.depth,
+    });
+    const progressEstimateMs = percentage >= 10 && elapsedMs > 0
+      ? Math.round(elapsedMs / Math.max(percentage / 100, 0.1))
+      : 0;
+    const totalEstimateMs = median([historyEstimateMs, progressEstimateMs].filter((value) => value > 0));
+    if (totalEstimateMs > 0) {
+      const remainingMs = Math.max(0, totalEstimateMs - elapsedMs);
+      etaText = remainingMs > 0 ? `ETA ${formatDuration(remainingMs)}` : "Ending soon";
+    } else if (elapsedMs > 0) {
+      etaText = `Elapsed ${formatDuration(elapsedMs)}`;
+    }
+  } else if (audit.status === "clean" || audit.status === "issues") {
+    etaText = "Completed";
+  } else if (audit.status === "failed") {
+    etaText = "Interrupted";
+  }
+
   stateEl.auditProgressLabel.textContent = phaseLabel;
   stateEl.auditProgressPercent.textContent = `${percentage}%`;
   stateEl.auditProgressCounters.textContent = counters;
+  stateEl.auditProgressEta.textContent = etaText;
   stateEl.auditProgressDetail.textContent = detail;
   stateEl.auditProgressFill.style.width = `${percentage}%`;
 }
@@ -1532,6 +1827,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderIssues(report, { transient });
   renderCoverageExplorers(report);
   renderPrompt(report);
+  renderEvidenceGallery(report, { transient });
   renderReportSummary(report, { transient });
   renderComparison(report, { transient });
   renderMissionBrief();
@@ -1550,6 +1846,7 @@ function clearLiveReportState() {
   renderIssues(fallbackReport);
   renderCoverageExplorers(fallbackReport);
   renderPrompt(fallbackReport);
+  renderEvidenceGallery(fallbackReport);
   renderReportSummary(fallbackReport);
   renderComparison(fallbackReport);
   renderMissionBrief();
@@ -1782,6 +2079,22 @@ async function openLatestEvidence() {
   showToast("Latest evidence opened in Explorer.", "ok");
 }
 
+async function openArtifactPath(filePath) {
+  const value = String(filePath || "").trim();
+  if (!value) {
+    showToast("No artifact path is attached to this item.", "warn");
+    return;
+  }
+  const result = await window.sitePulseCompanion.openArtifactPath(value);
+  if (!result?.ok) {
+    appendLog(`[studio] artifact open failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Could not open the selected artifact.", "bad");
+    return;
+  }
+  appendLog(`[studio] artifact opened from ${result.path}`);
+  showToast("Artifact opened in Explorer.", "ok");
+}
+
 async function startEngine() {
   const result = await window.sitePulseCompanion.startBridge();
   appendLog(result.ok ? "[studio] engine started." : `[studio] engine start failed: ${result.detail || result.error || "unknown"}`);
@@ -1925,10 +2238,7 @@ function bindButtons() {
     renderHistory();
     showToast("Run history cleared.", "warn");
   });
-  stateEl.revealOnboarding.addEventListener("click", () => {
-    persistOnboardingState(false);
-    renderOnboarding();
-  });
+  stateEl.revealOnboarding.addEventListener("click", revealOnboarding);
   stateEl.dismissOnboarding.addEventListener("click", () => {
     persistOnboardingState(true);
     renderOnboarding();
@@ -1936,6 +2246,17 @@ function bindButtons() {
   stateEl.startTourAudit.addEventListener("click", applyPresetFirstAudit);
   stateEl.openShortcuts.addEventListener("click", () => toggleShortcutsOverlay());
   stateEl.openCommandPalette.addEventListener("click", () => toggleCommandPalette());
+  stateEl.menuButtons.forEach((button) => {
+    button.addEventListener("click", (event) => {
+      const menuName = button.dataset.menuAction || "";
+      if (!menuName) return;
+      if (uiState.activeMenu === menuName) {
+        hideMenuFlyout();
+        return;
+      }
+      showMenuFlyout(menuName, event.currentTarget);
+    });
+  });
   stateEl.dismissShortcuts.addEventListener("click", () => toggleShortcutsOverlay(false));
   stateEl.shortcutsOverlay.addEventListener("click", (event) => {
     if (event.target === stateEl.shortcutsOverlay) {
@@ -1954,6 +2275,19 @@ function bindButtons() {
     const button = target.closest("[data-command-id]");
     if (!(button instanceof HTMLElement)) return;
     await executeCommandPaletteAction(button.dataset.commandId);
+  });
+  stateEl.menuFlyout?.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-menu-item]");
+    if (!(button instanceof HTMLElement)) return;
+    await executeMenuAction(uiState.activeMenu, button.dataset.menuItem || "");
+  });
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    if (target.closest("[data-menu-action]") || target.closest("#menuFlyout")) return;
+    hideMenuFlyout();
   });
   stateEl.launchOnLogin.addEventListener("change", async () => {
     const result = await window.sitePulseCompanion.setLaunchOnLogin(stateEl.launchOnLogin.checked);
@@ -1994,6 +2328,15 @@ function bindButtons() {
     appendLog(`[studio] loaded snapshot ${snapshot.baseUrl} from history.`);
     showToast("Stored snapshot loaded.", "ok");
   });
+  [stateEl.issuesList, stateEl.evidenceGallery].forEach((container) => {
+    container.addEventListener("click", async (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest("[data-artifact-path]");
+      if (!(button instanceof HTMLElement)) return;
+      await openArtifactPath(button.dataset.artifactPath || "");
+    });
+  });
 }
 
 function bindKeyboardShortcuts() {
@@ -2003,6 +2346,11 @@ function bindKeyboardShortcuts() {
     const editing = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || targetTag === "SELECT";
 
     if (event.key === "Escape") {
+      if (uiState.activeMenu) {
+        event.preventDefault();
+        hideMenuFlyout();
+        return;
+      }
       if (uiState.commandPaletteOpen) {
         event.preventDefault();
         toggleCommandPalette(false);
@@ -2040,13 +2388,14 @@ function bindKeyboardShortcuts() {
       return;
     }
 
-    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4"].includes(event.key)) {
+    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5"].includes(event.key)) {
       event.preventDefault();
       const map = {
         "1": "overview",
-        "2": "findings",
-        "3": "reports",
-        "4": "settings",
+        "2": "operations",
+        "3": "findings",
+        "4": "reports",
+        "5": "settings",
       };
       switchView(map[event.key]);
       return;

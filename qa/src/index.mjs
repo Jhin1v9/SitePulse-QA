@@ -413,6 +413,14 @@ function normalizeText(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
 }
 
+function sanitizeFileToken(value, fallback = "item") {
+  const normalized = normalizeText(String(value ?? ""))
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || fallback;
+}
+
 function escapeLocatorAttr(value) {
   return String(value ?? "")
     .replace(/\\/g, "\\\\")
@@ -2617,6 +2625,13 @@ function buildIssueFixPrompt(issue) {
       lines.push(`- ${check}`);
     }
   }
+  if (Array.isArray(issue.evidence) && issue.evidence.length) {
+    lines.push("");
+    lines.push("Evidencias capturadas:");
+    for (const evidence of issue.evidence.slice(0, 4)) {
+      lines.push(`- ${evidence.label || "evidence"} | ${evidence.path}`);
+    }
+  }
 
   return lines.join("\n");
 }
@@ -2642,6 +2657,7 @@ function createIssueLogEntry(issue) {
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
     diagnosis: issue.diagnosis,
+    evidence: issue.evidence,
   };
 }
 
@@ -2667,6 +2683,17 @@ function hydrateIssue(rawIssue) {
       rawIssue.laymanExplanation ?? diagnosis.laymanExplanation ?? guide.layman,
     recommendedResolution:
       rawIssue.recommendedResolution ?? diagnosis.recommendedResolution ?? guide.recommendation,
+    evidence: Array.isArray(rawIssue.evidence)
+      ? rawIssue.evidence
+          .map((item) => ({
+            type: String(item?.type || "evidence"),
+            path: String(item?.path || ""),
+            label: String(item?.label || ""),
+            route: String(item?.route || rawIssue.route || "/"),
+            code: String(item?.code || rawIssue.code || ""),
+          }))
+          .filter((item) => item.path)
+      : [],
   };
 
   issue.assistantHint =
@@ -2695,6 +2722,7 @@ function mkIssue(input) {
     action: input.action ?? "",
     detail: input.detail,
     url: input.url ?? "",
+    evidence: input.evidence ?? [],
   });
 }
 
@@ -2888,6 +2916,9 @@ function toAssistantBrief(report) {
     for (const issue of guide.topIssues) {
       lines.push(`- [${issue.code}] (${issue.severity}) ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}`);
       lines.push(`  detalhe: ${issue.detail}`);
+      if (issue.evidence?.length) {
+        lines.push(`  evidencias: ${issue.evidence.map((item) => item.path).join(" | ")}`);
+      }
       if (issue.diagnosis?.title) {
         lines.push(`  diagnostico: ${issue.diagnosis.title} [${issue.diagnosis.subtype}]`);
       }
@@ -3196,6 +3227,9 @@ function toMarkdown(report) {
     for (const issue of report.issues) {
       const issuePrompt = issue.recommendedPrompt ?? buildIssueFixPrompt(issue);
       lines.push(`- [${issue.code}] (${issue.severity}) ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}: ${issue.detail}`);
+      if (issue.evidence?.length) {
+        lines.push(`  - Evidencias: ${issue.evidence.map((item) => item.path).join(" | ")}`);
+      }
       if (issue.diagnosis?.title) {
         lines.push(`  - Classificacao: ${issue.diagnosis.title} [${issue.diagnosis.subtype}]`);
       }
@@ -3306,6 +3340,71 @@ function formatSectionOrderDetail(finding) {
     `Regra ${finding.id} (${finding.description || "sem descricao"}) violada.`,
     `${finding.beforeSelector} top=${finding.before.top} precisa vir antes de ${finding.afterSelector} top=${finding.after.top}.`,
   ].join(" | ");
+}
+
+async function captureSectionRuleEvidence(page, finding, reportDir, route, code) {
+  if (!reportDir || !finding) return [];
+  const clip = await page.evaluate((payload) => {
+    const getRect = (selector) => {
+      if (!selector) return null;
+      const element = document.querySelector(selector);
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return null;
+      return {
+        x: Math.max(0, rect.left + window.scrollX),
+        y: Math.max(0, rect.top + window.scrollY),
+        right: rect.right + window.scrollX,
+        bottom: rect.bottom + window.scrollY,
+      };
+    };
+
+    const before = getRect(payload.beforeSelector);
+    const after = getRect(payload.afterSelector);
+    const boxes = [before, after].filter(Boolean);
+    if (!boxes.length) return null;
+    const left = Math.min(...boxes.map((item) => item.x));
+    const top = Math.min(...boxes.map((item) => item.y));
+    const right = Math.max(...boxes.map((item) => item.right));
+    const bottom = Math.max(...boxes.map((item) => item.bottom));
+    return {
+      x: left,
+      y: top,
+      width: Math.max(1, right - left),
+      height: Math.max(1, bottom - top),
+    };
+  }, {
+    beforeSelector: finding.beforeSelector,
+    afterSelector: finding.afterSelector,
+  }).catch(() => null);
+
+  const normalized = normalizeClipBox(clip, await page.evaluate(() => ({
+    width: Math.max(document.documentElement?.scrollWidth || 0, document.body?.scrollWidth || 0, window.innerWidth || 0),
+    height: Math.max(document.documentElement?.scrollHeight || 0, document.body?.scrollHeight || 0, window.innerHeight || 0),
+  })).catch(() => ({ width: 0, height: 0 })));
+  if (!normalized) return [];
+
+  const evidenceDir = path.join(reportDir, "visual-evidence");
+  await fs.mkdir(evidenceDir, { recursive: true });
+  const routeToken = sanitizeFileToken(route === "/" ? "home" : route.replaceAll("/", "-"), "route");
+  const fileName = `${nowStamp()}-${routeToken}-${sanitizeFileToken(code, "visual")}-${sanitizeFileToken(finding.id || "rule", "rule")}.png`;
+  const outputPath = path.join(evidenceDir, fileName);
+  try {
+    await page.screenshot({
+      path: outputPath,
+      clip: normalized,
+      animations: "disabled",
+    });
+    return [{
+      type: "screenshot",
+      path: outputPath,
+      label: finding.id || finding.description || "section rule",
+      route,
+      code,
+    }];
+  } catch {
+    return [];
+  }
 }
 
 function formatVisualAnalyzerDetail(finding) {
@@ -3432,6 +3531,12 @@ async function runVisualInterfaceChecks(page, route, cfg) {
           right: round(rect.right),
           width: round(rect.width),
           height: round(rect.height),
+          clip: {
+            x: round(Math.max(0, rect.left + window.scrollX)),
+            y: round(Math.max(0, rect.top + window.scrollY)),
+            width: round(Math.max(1, rect.width)),
+            height: round(Math.max(1, rect.height)),
+          },
           fixed: window.getComputedStyle(el).position === "fixed",
         };
       })
@@ -3460,6 +3565,12 @@ async function runVisualInterfaceChecks(page, route, cfg) {
         delta: round(leftOverflow ? Math.abs(rect.left) : Math.abs(rect.right - viewportWidth)),
         left: round(rect.left),
         right: round(rect.right),
+        clip: {
+          x: round(Math.max(0, rect.left + window.scrollX)),
+          y: round(Math.max(0, rect.top + window.scrollY)),
+          width: round(Math.max(1, Math.min(rect.width, viewportWidth))),
+          height: round(Math.max(1, rect.height)),
+        },
       });
       if (overflow.length >= settings.maxSamples) break;
     }
@@ -3491,6 +3602,17 @@ async function runVisualInterfaceChecks(page, route, cfg) {
           b: second.selector,
           area: round(area),
           ratio: round(ratio),
+          clip: {
+            x: round(Math.max(0, Math.min(first.left, second.left) + window.scrollX)),
+            y: round(Math.max(0, Math.min(first.top, second.top))),
+            width: round(Math.max(1, Math.max(first.right, second.right) - Math.min(first.left, second.left))),
+            height: round(
+              Math.max(
+                1,
+                Math.max(first.top + first.height, second.top + second.height) - Math.min(first.top, second.top),
+              ),
+            ),
+          },
         });
         if (overlap.length >= settings.maxSamples) break;
       }
@@ -3517,6 +3639,7 @@ async function runVisualInterfaceChecks(page, route, cfg) {
           selector: block.selector,
           left: block.left,
           drift,
+          clip: block.clip,
         });
         if (alignment.length >= settings.maxSamples) break;
       }
@@ -3562,6 +3685,91 @@ async function runVisualInterfaceChecks(page, route, cfg) {
   }
 
   return issues;
+}
+
+function normalizeClipBox(clip, pageMetrics = {}) {
+  if (!clip || typeof clip !== "object") return null;
+  const pageWidth = Math.max(1, Number(pageMetrics.width || 0) || 1);
+  const pageHeight = Math.max(1, Number(pageMetrics.height || 0) || 1);
+  const x = Math.max(0, Number(clip.x || 0));
+  const y = Math.max(0, Number(clip.y || 0));
+  const width = Math.max(1, Number(clip.width || 0));
+  const height = Math.max(1, Number(clip.height || 0));
+  if (!Number.isFinite(x + y + width + height)) return null;
+  const clippedX = Math.min(x, pageWidth - 1);
+  const clippedY = Math.min(y, pageHeight - 1);
+  const clippedWidth = Math.max(1, Math.min(width, pageWidth - clippedX));
+  const clippedHeight = Math.max(1, Math.min(height, pageHeight - clippedY));
+  return {
+    x: Number(clippedX.toFixed(2)),
+    y: Number(clippedY.toFixed(2)),
+    width: Number(clippedWidth.toFixed(2)),
+    height: Number(clippedHeight.toFixed(2)),
+  };
+}
+
+async function captureVisualFindingEvidence(page, finding, reportDir, route) {
+  if (!reportDir || !finding || !Array.isArray(finding.samples) || !finding.samples.length) {
+    return [];
+  }
+
+  const metrics = await page.evaluate(() => ({
+    width: Math.max(
+      document.documentElement?.scrollWidth || 0,
+      document.body?.scrollWidth || 0,
+      window.innerWidth || 0,
+    ),
+    height: Math.max(
+      document.documentElement?.scrollHeight || 0,
+      document.body?.scrollHeight || 0,
+      window.innerHeight || 0,
+    ),
+  })).catch(() => ({ width: 0, height: 0 }));
+
+  const evidenceDir = path.join(reportDir, "visual-evidence");
+  await fs.mkdir(evidenceDir, { recursive: true });
+
+  const routeToken = sanitizeFileToken(route === "/" ? "home" : route.replaceAll("/", "-"), "route");
+  const codeToken = sanitizeFileToken(finding.code, "visual");
+  const captured = [];
+
+  for (let index = 0; index < Math.min(finding.samples.length, 3); index += 1) {
+    const sample = finding.samples[index];
+    const clip = normalizeClipBox(sample?.clip, metrics);
+    if (!clip) continue;
+
+    const label =
+      sample.selector ||
+      sample.a ||
+      sample.b ||
+      `${finding.code}-${index + 1}`;
+    const safeLabel = sanitizeFileToken(label, `sample-${index + 1}`);
+    const fileName = `${nowStamp()}-${routeToken}-${codeToken}-${safeLabel}.png`;
+    const outputPath = path.join(evidenceDir, fileName);
+
+    try {
+      await page.screenshot({
+        path: outputPath,
+        clip,
+        animations: "disabled",
+      });
+      captured.push({
+        type: "screenshot",
+        path: outputPath,
+        label: sample.selector
+          ? `${sample.selector}`
+          : sample.a && sample.b
+          ? `${sample.a} x ${sample.b}`
+          : `visual evidence ${index + 1}`,
+        route,
+        code: finding.code,
+      });
+    } catch {
+      // keep the issue even if the screenshot failed
+    }
+  }
+
+  return captured;
 }
 
 async function runSectionOrderChecks(page, route, cfg) {
@@ -4807,6 +5015,13 @@ async function run() {
         ];
         for (const finding of findings) {
           if (finding.status === "missing") {
+            const evidence = await captureSectionRuleEvidence(
+              page,
+              finding,
+              cfg.reportDir,
+              route,
+              CODE.VISUAL_SECTION_MISSING,
+            );
             emitLiveEvent(args, "layout_check_issue", {
               route,
               action: `layout_rule:${finding.id}`,
@@ -4822,8 +5037,16 @@ async function run() {
               action: `layout_rule:${finding.id}`,
               detail: formatSectionMissingDetail(finding),
               url: page.url(),
+              evidence,
             });
           } else if (finding.status === "order_invalid") {
+            const evidence = await captureSectionRuleEvidence(
+              page,
+              finding,
+              cfg.reportDir,
+              route,
+              CODE.VISUAL_SECTION_ORDER_INVALID,
+            );
             emitLiveEvent(args, "layout_check_issue", {
               route,
               action: `layout_rule:${finding.id}`,
@@ -4839,12 +5062,14 @@ async function run() {
               action: `layout_rule:${finding.id}`,
               detail: formatSectionOrderDetail(finding),
               url: page.url(),
+              evidence,
             });
           } else if (
             finding.code === CODE.VISUAL_LAYOUT_OVERFLOW ||
             finding.code === CODE.VISUAL_LAYER_OVERLAP ||
             finding.code === CODE.VISUAL_ALIGNMENT_DRIFT
           ) {
+            const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route);
             emitLiveEvent(args, "layout_check_issue", {
               route,
               action: finding.action,
@@ -4860,6 +5085,7 @@ async function run() {
               action: finding.action,
               detail: formatVisualAnalyzerDetail(finding),
               url: page.url(),
+              evidence,
             });
           }
         }

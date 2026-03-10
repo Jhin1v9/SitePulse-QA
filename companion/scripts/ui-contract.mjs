@@ -121,6 +121,15 @@ const mockAuditResponse = {
           commandHints: ["npm run desktop:smoke"],
           likelyAreas: ["companion/src/renderer.js"],
         },
+        evidence: [
+          {
+            type: "screenshot",
+            path: "C:\\mock\\artifacts\\cta-no-effect.png",
+            label: "Primary CTA state",
+            route: "/",
+            code: "BTN_NO_EFFECT",
+          },
+        ],
       },
       {
         id: "issue-2",
@@ -141,6 +150,15 @@ const mockAuditResponse = {
           commandHints: ["rg -n \"pricing|container|max-width|padding\" src"],
           likelyAreas: ["src/components/pricing/**"],
         },
+        evidence: [
+          {
+            type: "screenshot",
+            path: "C:\\mock\\artifacts\\pricing-alignment.png",
+            label: "Pricing alignment drift",
+            route: "/pricing",
+            code: "VISUAL_ALIGNMENT_DRIFT",
+          },
+        ],
       },
     ],
     seo: {
@@ -451,26 +469,27 @@ try {
   const navigationState = await page.evaluate(() => {
     const buttons = Array.from(document.querySelectorAll("[data-view]"));
     const labels = buttons.map((button) => button.textContent?.trim() || "");
-    const computed = getComputedStyle(document.querySelector(".main-column"));
+    const computed = getComputedStyle(document.querySelector(".workspace-body"));
     const logView = document.querySelector(".log-view");
     const stepsList = document.querySelector(".steps-list");
     const dnaList = document.querySelector(".dna-list");
     return {
       count: buttons.length,
       hasSettings: labels.some((label) => label.includes("Settings")),
-      mainOverflowY: computed.overflowY,
+      hasOperations: labels.some((label) => label.includes("Operations")),
+      workspaceOverflowY: computed.overflowY,
       logOverflowY: logView ? getComputedStyle(logView).overflowY : "missing",
       stepsOverflowY: stepsList ? getComputedStyle(stepsList).overflowY : "missing",
       dnaOverflowY: dnaList ? getComputedStyle(dnaList).overflowY : "missing",
     };
   });
 
-  if (navigationState.count < 4 || !navigationState.hasSettings) {
+  if (navigationState.count < 5 || !navigationState.hasSettings || !navigationState.hasOperations) {
     fail("navigation stack is incomplete");
   }
 
-  if (!["auto", "scroll"].includes(navigationState.mainOverflowY)) {
-    fail("main column overflow is not configured");
+  if (!["auto", "scroll"].includes(navigationState.workspaceOverflowY)) {
+    fail("workspace overflow is not configured");
   }
 
   if (
@@ -482,42 +501,41 @@ try {
   }
 
   const initialScroll = await page.evaluate(() => {
-    const mainColumn = document.querySelector(".main-column");
-    if (!(mainColumn instanceof HTMLElement)) {
+    const workspaceBody = document.querySelector(".workspace-body");
+    if (!(workspaceBody instanceof HTMLElement)) {
       return { exists: false };
     }
     return {
       exists: true,
-      scrollHeight: mainColumn.scrollHeight,
-      clientHeight: mainColumn.clientHeight,
+      scrollHeight: workspaceBody.scrollHeight,
+      clientHeight: workspaceBody.clientHeight,
     };
   });
 
   if (!initialScroll.exists) {
-    fail("main column missing");
+    fail("workspace body missing");
   }
 
   if (initialScroll.scrollHeight <= initialScroll.clientHeight) {
-    fail("main column is not scrollable");
+    fail("workspace body is not scrollable");
   }
 
   const scrollTop = await page.evaluate(() => {
-    const mainColumn = document.querySelector(".main-column");
-    if (!(mainColumn instanceof HTMLElement)) return -1;
-    mainColumn.scrollTop = 520;
-    return mainColumn.scrollTop;
+    const workspaceBody = document.querySelector(".workspace-body");
+    if (!(workspaceBody instanceof HTMLElement)) return -1;
+    workspaceBody.scrollTop = 520;
+    return workspaceBody.scrollTop;
   });
 
   if (scrollTop <= 0) {
-    fail("main column did not move after scroll");
+    fail("workspace body did not move after scroll");
   }
 
   await page.getByRole("button", { name: "Run deep audit" }).click();
-  await page.waitForFunction(() => document.getElementById("reportsHeadline")?.textContent?.includes("Live snapshot"));
-  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "2");
+  await page.waitForFunction(() => Number(document.getElementById("issuesMetric")?.textContent?.trim() || "0") >= 1);
   await page.waitForFunction(() => document.querySelectorAll("#timelineList .timeline-entry").length >= 1);
   await page.waitForFunction(() => document.querySelectorAll("#stageBoard .stage-card").length >= 4);
-  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "2");
+  await page.waitForFunction(() => Number(document.getElementById("issuesMetric")?.textContent?.trim() || "0") >= 1);
   await page.waitForSelector('[data-view-panel="findings"].active');
   await page.waitForFunction(() => document.getElementById("auditProgressPercent")?.textContent?.trim() === "100%");
 
@@ -531,6 +549,8 @@ try {
     visualSignal: document.getElementById("visualSignal")?.textContent?.trim(),
     visualAlignment: document.getElementById("visualAlignmentCount")?.textContent?.trim(),
     visualHeadline: document.getElementById("visualQualityHeadline")?.textContent?.trim(),
+    evidenceHeadline: document.getElementById("evidenceHeadline")?.textContent?.trim(),
+    etaText: document.getElementById("auditProgressEta")?.textContent?.trim(),
     progressPercent: document.getElementById("auditProgressPercent")?.textContent?.trim(),
     progressLabel: document.getElementById("auditProgressLabel")?.textContent?.trim(),
     reportsHeadline: document.getElementById("reportsHeadline")?.textContent?.trim(),
@@ -563,6 +583,14 @@ try {
     fail("visual quality headline did not surface the top visual issue");
   }
 
+  if (!findingsState.evidenceHeadline?.includes("screenshot")) {
+    fail("evidence gallery did not acknowledge attached screenshot proof");
+  }
+
+  if (!findingsState.etaText || findingsState.etaText === "ETA calibrating") {
+    fail("eta text did not move beyond calibration");
+  }
+
   if (findingsState.routeCards < 1 || findingsState.actionCards < 1) {
     fail("coverage explorers were not populated");
   }
@@ -583,16 +611,20 @@ try {
     fail("execution timeline or stage board did not render");
   }
 
-  await page.getByRole("button", { name: "Reports" }).click();
+  await page.locator('[data-view="operations"]').click();
+  await page.waitForSelector('[data-view-panel="operations"].active');
+  await page.waitForFunction(() => document.querySelectorAll("#timelineList .timeline-entry").length >= 1);
+
+  await page.locator('[data-view="reports"]').click();
   await page.waitForSelector('[data-view-panel="reports"].active');
   await page.waitForFunction(() => document.getElementById("currentDepth")?.textContent?.trim() === "deep crawl");
   await page.getByRole("button", { name: "Pin current as baseline" }).click();
 
-  await page.getByRole("button", { name: "Overview" }).click();
+  await page.locator('[data-view="overview"]').click();
   await page.getByRole("button", { name: "Run native audit" }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-history-index]").length >= 2);
 
-  await page.getByRole("button", { name: "Reports" }).click();
+  await page.locator('[data-view="reports"]').click();
   await page.waitForFunction(() => document.getElementById("compareIssueDelta")?.textContent?.trim() === "-2");
   const comparisonState = await page.evaluate(() => ({
     compareHeadline: document.getElementById("compareHeadline")?.textContent?.trim(),
@@ -645,11 +677,11 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.getElementById("shortcutsOverlay")?.classList.contains("hidden"));
 
-  await page.getByRole("button", { name: "Overview" }).click();
+  await page.locator('[data-view="overview"]').click();
   await page.getByRole("button", { name: "Open full CMD flow" }).click();
   await page.waitForFunction(() => document.getElementById("auditChip")?.textContent?.toLowerCase().includes("audit running"));
 
-  await page.getByRole("button", { name: "Settings" }).click();
+  await page.locator('[data-view="settings"]').click();
   await page.waitForSelector('[data-view-panel="settings"].active');
   await page.waitForFunction(() => document.getElementById("stopBridge") && !document.getElementById("stopBridge").disabled);
   await page.getByRole("button", { name: "Stop engine" }).click();

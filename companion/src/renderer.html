@@ -34,81 +34,68 @@
       </header>
 
       <main class="shell-grid">
-        <aside class="nav-column">
-          <section class="panel brand-panel">
-            <p class="eyebrow">product stance</p>
-            <h2>Control room for digital quality.</h2>
-            <p class="muted">
-              This program is designed to run operations, detect risk, store evidence and guide fixes with the engine close to the metal.
-            </p>
-          </section>
-
-          <nav class="panel nav-panel">
-            <p class="eyebrow">navigation</p>
-            <div class="nav-stack">
-              <button class="nav-btn active" data-view="overview" type="button">
-                <span class="nav-title">Overview</span>
-                <span class="nav-desc">Mission control, setup and live metrics</span>
-              </button>
-              <button class="nav-btn" data-view="findings" type="button">
-                <span class="nav-title">Findings</span>
-                <span class="nav-desc">Issue board, signals and route problems</span>
-              </button>
-              <button class="nav-btn" data-view="reports" type="button">
-                <span class="nav-title">Reports</span>
-                <span class="nav-desc">Replay command, prompt pack and run history</span>
-              </button>
-              <button class="nav-btn" data-view="settings" type="button">
-                <span class="nav-title">Settings</span>
-                <span class="nav-desc">Engine controls, startup and runtime paths</span>
-              </button>
+        <section class="workspace-shell">
+          <section class="workbench-bar">
+            <div class="menu-strip">
+              <button class="menu-btn" data-menu-action="file" type="button">File</button>
+              <button class="menu-btn" data-menu-action="run" type="button">Run</button>
+              <button class="menu-btn" data-menu-action="inspect" type="button">Inspect</button>
+              <button class="menu-btn" data-menu-action="reports" type="button">Reports</button>
+              <button class="menu-btn" data-menu-action="tools" type="button">Tools</button>
+              <button class="menu-btn" data-menu-action="help" type="button">Help</button>
             </div>
-          </nav>
 
-          <section class="panel quick-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">one-click actions</p>
-                <h3>Fast operations</h3>
-              </div>
+            <div class="workspace-tabbar">
+              <button class="workspace-tab active" data-view="overview" type="button">Overview</button>
+              <button class="workspace-tab" data-view="operations" type="button">Operations</button>
+              <button class="workspace-tab" data-view="findings" type="button">Findings</button>
+              <button class="workspace-tab" data-view="reports" type="button">Reports</button>
+              <button class="workspace-tab" data-view="settings" type="button">Settings</button>
             </div>
-            <div class="action-row stack">
-              <button id="quickAuditButton" class="primary" type="button">Run quick audit</button>
-              <button id="deepAuditButton" class="secondary" type="button">Run deep audit</button>
-              <button id="loadReportFile" type="button">Load report file</button>
-              <button id="exportCurrentReport" type="button">Export current report</button>
-              <button id="openLatestEvidence" type="button">Open latest evidence</button>
-              <button id="openReports" type="button">Open report vault</button>
-              <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
+
+            <div class="workbench-utility">
+              <span class="utility-hint">Ctrl+K for command palette</span>
             </div>
           </section>
-        </aside>
 
-        <section class="main-column">
-          <section class="view-panel active" data-view-panel="overview">
-            <section class="panel hero-panel">
-              <div>
-                <p class="eyebrow">mission control</p>
-                <h2>Audit a real product, not just a front page.</h2>
-                <p class="muted">
-                  Route load, runtime breakage, button intent, network failures, visual order and SEO are treated as one operational system.
-                </p>
-              </div>
-              <div class="hero-badges">
-                <span class="badge">runtime aware</span>
-                <span class="badge">evidence driven</span>
-                <span class="badge">fix oriented</span>
-              </div>
-            </section>
+          <div id="menuFlyout" class="menu-flyout hidden"></div>
 
-            <section class="panel control-panel">
-              <div class="panel-head split-head">
-                <div>
-                  <p class="eyebrow">audit setup</p>
-                  <h3>Execution profile</h3>
+          <header class="panel workspace-header">
+            <div class="workspace-copy">
+              <p class="eyebrow" id="workspaceEyebrow">mission control</p>
+              <h2 id="workspaceTitle">Overview</h2>
+              <p class="muted" id="workspaceDescription">
+                Configure the target, define execution depth and prepare the run before moving into live operations.
+              </p>
+            </div>
+            <div class="workspace-summary">
+              <div class="workspace-summary-item">
+                <span class="info-label">Mission brief</span>
+                <div id="missionBrief" class="brief-copy">
+                  SitePulse Studio is ready. Define a target and start the first audit run.
                 </div>
+              </div>
+              <div class="workspace-summary-item workspace-summary-item-compact">
+                <span class="info-label">Run status</span>
                 <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
               </div>
+            </div>
+          </header>
+
+          <section class="workspace-body">
+            <section class="view-panel active" data-view-panel="overview">
+              <section class="panel control-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">audit setup</p>
+                    <h3>Execution profile</h3>
+                  </div>
+                  <div class="hero-badges">
+                    <span class="badge">runtime aware</span>
+                    <span class="badge">evidence driven</span>
+                    <span class="badge">fix oriented</span>
+                  </div>
+                </div>
 
               <label class="field-block">
                 <span class="field-label">Target URL</span>
@@ -164,22 +151,6 @@
                 <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
               </div>
 
-              <section class="progress-panel">
-                <div class="progress-top">
-                  <div>
-                    <span class="field-label">Run progress</span>
-                    <strong id="auditProgressLabel">Ready</strong>
-                  </div>
-                  <div class="progress-meta">
-                    <strong id="auditProgressPercent">0%</strong>
-                    <span id="auditProgressCounters">Waiting for the next run.</span>
-                  </div>
-                </div>
-                <div class="progress-track" aria-hidden="true">
-                  <div id="auditProgressFill" class="progress-fill"></div>
-                </div>
-                <div id="auditProgressDetail" class="progress-detail">The engine will show the current phase while it audits.</div>
-              </section>
             </section>
 
             <section class="metrics-grid">
@@ -205,83 +176,140 @@
               </article>
             </section>
 
-            <section class="execution-grid">
-              <article class="panel timeline-panel">
-                <div class="panel-head split-head">
-                  <div>
-                    <p class="eyebrow">execution timeline</p>
-                    <h3>Live protocol</h3>
+              <section class="overview-grid">
+                <article class="panel overview-launchpad-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">program actions</p>
+                      <h3>Launchpad</h3>
+                    </div>
                   </div>
-                  <div class="headline-status" id="timelineHeadline">The workstation will register each engine phase as evidence appears.</div>
-                </div>
-                <div id="timelineList" class="timeline-list">
-                  <article class="empty-state">Run an audit to populate the execution timeline.</article>
-                </div>
-              </article>
+                  <div class="action-row stack">
+                    <button id="quickAuditButton" class="primary" type="button">Run quick audit</button>
+                    <button id="deepAuditButton" class="secondary" type="button">Run deep audit</button>
+                    <button id="loadReportFile" type="button">Load report file</button>
+                    <button id="exportCurrentReport" type="button">Export current report</button>
+                    <button id="openLatestEvidence" type="button">Open latest evidence</button>
+                    <button id="openReports" type="button">Open report vault</button>
+                    <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
+                  </div>
+                </article>
 
-              <article class="panel stage-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">evidence by stage</p>
-                    <h3>Engine stage board</h3>
+                <article class="panel overview-watch-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">system watch</p>
+                      <h3>Runtime health</h3>
+                    </div>
                   </div>
-                </div>
-                <div id="stageBoard" class="stage-board">
-                  <article class="empty-state">Stage evidence will appear here during execution.</article>
-                </div>
-              </article>
+                  <div class="rail-status-grid">
+                    <article class="stat-tile">
+                      <span class="info-label">Audit</span>
+                      <strong id="auditStatus">idle</strong>
+                    </article>
+                    <article class="stat-tile">
+                      <span class="info-label">Bridge</span>
+                      <strong id="bridgeStatus">offline</strong>
+                    </article>
+                    <article class="stat-tile">
+                      <span class="info-label">Version</span>
+                      <strong id="versionText">1.0.0</strong>
+                    </article>
+                    <article class="stat-tile">
+                      <span class="info-label">Service</span>
+                      <strong id="serviceName">SitePulse Studio</strong>
+                    </article>
+                  </div>
+                </article>
+
+                <article class="panel overview-brief-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">operator guide</p>
+                      <h3>Next actions</h3>
+                    </div>
+                  </div>
+                  <ol id="stepsList" class="steps-list">
+                    <li>Run an audit to generate the first operating brief.</li>
+                  </ol>
+                </article>
+
+                <article class="panel overview-summary-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">product DNA</p>
+                      <h3>Why this product exists</h3>
+                    </div>
+                  </div>
+                  <ul class="dna-list">
+                    <li>Detect runtime, visual and SEO regressions in one run.</li>
+                    <li>Translate technical failure into action for operators and developers.</li>
+                    <li>Preserve evidence, replay commands and issue history in every run.</li>
+                    <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
+                  </ul>
+                </article>
+              </section>
             </section>
 
-            <section class="analysis-grid">
-              <article class="panel signals-panel">
-                <div class="panel-head">
+            <section class="view-panel" data-view-panel="operations">
+              <section class="panel progress-panel operations-progress-panel">
+                <div class="progress-top">
                   <div>
-                    <p class="eyebrow">micro signals</p>
-                    <h3>Detection lanes</h3>
+                    <span class="field-label">Run progress</span>
+                    <strong id="auditProgressLabel">Ready</strong>
+                  </div>
+                  <div class="progress-meta">
+                    <strong id="auditProgressPercent">0%</strong>
+                    <span id="auditProgressCounters">Waiting for the next run.</span>
+                    <span id="auditProgressEta">ETA calibrating</span>
                   </div>
                 </div>
-                <div class="signal-grid">
-                  <div class="signal-item"><span>Route load</span><strong id="routeSignal">0</strong></div>
-                  <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
-                  <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
-                  <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
-                  <div class="signal-item"><span>Visual quality</span><strong id="visualSignal">0</strong></div>
-                  <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
+                <div class="progress-track" aria-hidden="true">
+                  <div id="auditProgressFill" class="progress-fill"></div>
                 </div>
-              </article>
+                <div id="auditProgressDetail" class="progress-detail">The engine will show the current phase while it audits.</div>
+              </section>
 
-              <article class="panel visual-quality-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">visual quality</p>
-                    <h3>Layout discipline</h3>
+              <section class="operations-grid">
+                <article class="panel timeline-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">execution timeline</p>
+                      <h3>Live protocol</h3>
+                    </div>
+                    <div class="headline-status" id="timelineHeadline">The workstation will register each engine phase as evidence appears.</div>
                   </div>
-                </div>
-                <div class="signal-grid visual-quality-grid">
-                  <div class="signal-item"><span>Overflow</span><strong id="visualOverflowCount">0</strong></div>
-                  <div class="signal-item"><span>Overlap</span><strong id="visualOverlapCount">0</strong></div>
-                  <div class="signal-item"><span>Alignment drift</span><strong id="visualAlignmentCount">0</strong></div>
-                  <div class="signal-item"><span>Section rules</span><strong id="visualSectionsCount">0</strong></div>
-                </div>
-                <div class="headline-status" id="visualQualityHeadline">No visual evidence yet.</div>
-                <p class="panel-copy" id="visualQualityDetail">
-                  Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.
-                </p>
-              </article>
+                  <div id="timelineList" class="timeline-list">
+                    <article class="empty-state">Run an audit to populate the execution timeline.</article>
+                  </div>
+                </article>
 
-              <article class="panel steps-panel">
-                <div class="panel-head">
-                  <div>
-                    <p class="eyebrow">operator guide</p>
-                    <h3>Next actions</h3>
-                  </div>
+                <div class="operations-side">
+                  <article class="panel stage-panel">
+                    <div class="panel-head">
+                      <div>
+                        <p class="eyebrow">evidence by stage</p>
+                        <h3>Engine stage board</h3>
+                      </div>
+                    </div>
+                    <div id="stageBoard" class="stage-board">
+                      <article class="empty-state">Stage evidence will appear here during execution.</article>
+                    </div>
+                  </article>
+
+                  <article class="panel log-panel">
+                    <div class="panel-head split-head">
+                      <div>
+                        <p class="eyebrow">live activity</p>
+                        <h3>Live engine log</h3>
+                      </div>
+                      <button id="clearLog" class="ghost" type="button">Clear</button>
+                    </div>
+                    <div id="logOutput" class="log-view">[studio] waiting for engine telemetry</div>
+                  </article>
                 </div>
-                <ol id="stepsList" class="steps-list">
-                  <li>Run an audit to generate the first operating brief.</li>
-                </ol>
-              </article>
+              </section>
             </section>
-          </section>
 
           <section class="view-panel" data-view-panel="findings">
             <section class="panel findings-toolbar">
@@ -317,21 +345,89 @@
               </div>
             </section>
 
-            <section class="panel issue-distribution-panel">
-              <div class="panel-head">
-                <div>
-                  <p class="eyebrow">coverage map</p>
-                  <h3>Issue distribution</h3>
-                </div>
-              </div>
-              <div id="issueGroupGrid" class="group-grid">
-                <article class="empty-state">No issues loaded yet.</article>
-              </div>
-            </section>
+            <section class="findings-grid">
+              <div class="findings-main">
+                <section class="panel issue-distribution-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">coverage map</p>
+                      <h3>Issue distribution</h3>
+                    </div>
+                  </div>
+                  <div id="issueGroupGrid" class="group-grid">
+                    <article class="empty-state">No issues loaded yet.</article>
+                  </div>
+                </section>
 
-            <section class="panel issues-panel findings-board-panel">
-              <div id="issuesList" class="issues-list">
-                <article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>
+                <section class="panel issues-panel findings-board-panel">
+                  <div id="issuesList" class="issues-list">
+                    <article class="empty-state">No report loaded yet. Run the engine to populate the board.</article>
+                  </div>
+                </section>
+              </div>
+
+              <div class="findings-side">
+                <article class="panel signals-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">micro signals</p>
+                      <h3>Detection lanes</h3>
+                    </div>
+                  </div>
+                  <div class="signal-grid">
+                    <div class="signal-item"><span>Route load</span><strong id="routeSignal">0</strong></div>
+                    <div class="signal-item"><span>Runtime JS</span><strong id="runtimeSignal">0</strong></div>
+                    <div class="signal-item"><span>Network</span><strong id="networkSignal">0</strong></div>
+                    <div class="signal-item"><span>Buttons</span><strong id="buttonSignal">0</strong></div>
+                    <div class="signal-item"><span>Visual quality</span><strong id="visualSignal">0</strong></div>
+                    <div class="signal-item"><span>SEO critical</span><strong id="seoSignal">0</strong></div>
+                  </div>
+                </article>
+
+                <article class="panel visual-quality-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">visual quality</p>
+                      <h3>Layout discipline</h3>
+                    </div>
+                  </div>
+                  <div class="signal-grid visual-quality-grid">
+                    <div class="signal-item"><span>Overflow</span><strong id="visualOverflowCount">0</strong></div>
+                    <div class="signal-item"><span>Overlap</span><strong id="visualOverlapCount">0</strong></div>
+                    <div class="signal-item"><span>Alignment drift</span><strong id="visualAlignmentCount">0</strong></div>
+                    <div class="signal-item"><span>Section rules</span><strong id="visualSectionsCount">0</strong></div>
+                  </div>
+                  <div class="headline-status" id="visualQualityHeadline">No visual evidence yet.</div>
+                  <p class="panel-copy" id="visualQualityDetail">
+                    Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.
+                  </p>
+                </article>
+
+                <article class="panel explorer-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">route explorer</p>
+                      <h3>Routes actually checked</h3>
+                    </div>
+                    <button id="copyRouteDigest" class="ghost" type="button">Copy route digest</button>
+                  </div>
+                  <div id="routeList" class="explorer-list">
+                    <article class="empty-state">Run an audit to load route coverage.</article>
+                  </div>
+                </article>
+
+                <article class="panel explorer-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">action explorer</p>
+                      <h3>Actions and button intent</h3>
+                    </div>
+                    <button id="copyActionDigest" class="ghost" type="button">Copy action digest</button>
+                  </div>
+                  <div id="actionList" class="explorer-list">
+                    <article class="empty-state">Run an audit to load action coverage.</article>
+                  </div>
+                </article>
               </div>
             </section>
           </section>
@@ -471,58 +567,45 @@
               </div>
             </section>
 
-            <section class="dual-grid">
-              <article class="panel prompt-panel">
+            <section class="reports-grid">
+              <article class="panel evidence-panel">
                 <div class="panel-head split-head">
                   <div>
-                    <p class="eyebrow">prompt pack</p>
-                    <h3>Fix direction</h3>
+                    <p class="eyebrow">visual evidence</p>
+                    <h3>Captured proof</h3>
                   </div>
-                  <button id="copyQuickPromptSecondary" class="ghost" type="button">Copy</button>
+                  <div class="headline-status" id="evidenceHeadline">Run an audit to capture visual evidence.</div>
                 </div>
-                <div class="prompt-box" id="quickPromptBox">Run an audit to generate a professional fix prompt.</div>
-              </article>
-
-              <article class="panel history-panel">
-                <div class="panel-head split-head">
-                  <div>
-                    <p class="eyebrow">run history</p>
-                    <h3>Recent snapshots</h3>
-                  </div>
-                  <button id="clearHistory" class="ghost" type="button">Clear history</button>
-                </div>
-                <div id="historyList" class="history-list">
-                  <article class="empty-state">No stored snapshots yet.</article>
-                </div>
-              </article>
-            </section>
-
-            <section class="dual-grid">
-              <article class="panel explorer-panel">
-                <div class="panel-head split-head">
-                  <div>
-                    <p class="eyebrow">route explorer</p>
-                    <h3>Routes actually checked</h3>
-                  </div>
-                  <button id="copyRouteDigest" class="ghost" type="button">Copy route digest</button>
-                </div>
-                <div id="routeList" class="explorer-list">
-                  <article class="empty-state">Run an audit to load route coverage.</article>
+                <div id="evidenceGallery" class="evidence-gallery">
+                  <article class="empty-state">Visual screenshots will appear here when the engine detects layout problems.</article>
                 </div>
               </article>
 
-              <article class="panel explorer-panel">
-                <div class="panel-head split-head">
-                  <div>
-                    <p class="eyebrow">action explorer</p>
-                    <h3>Actions and button intent</h3>
+              <div class="reports-side">
+                <article class="panel prompt-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">prompt pack</p>
+                      <h3>Fix direction</h3>
+                    </div>
+                    <button id="copyQuickPromptSecondary" class="ghost" type="button">Copy</button>
                   </div>
-                  <button id="copyActionDigest" class="ghost" type="button">Copy action digest</button>
-                </div>
-                <div id="actionList" class="explorer-list">
-                  <article class="empty-state">Run an audit to load action coverage.</article>
-                </div>
-              </article>
+                  <div class="prompt-box" id="quickPromptBox">Run an audit to generate a professional fix prompt.</div>
+                </article>
+
+                <article class="panel history-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">run history</p>
+                      <h3>Recent snapshots</h3>
+                    </div>
+                    <button id="clearHistory" class="ghost" type="button">Clear history</button>
+                  </div>
+                  <div id="historyList" class="history-list">
+                    <article class="empty-state">No stored snapshots yet.</article>
+                  </div>
+                </article>
+              </div>
             </section>
           </section>
 
@@ -538,20 +621,20 @@
 
               <div class="settings-grid">
                 <article class="setting-card">
-                  <span class="info-label">Service</span>
-                  <strong id="serviceName">SitePulse Studio</strong>
+                  <span class="info-label">QA runtime</span>
+                  <code id="runtimePath">loading...</code>
                 </article>
                 <article class="setting-card">
-                  <span class="info-label">Bridge</span>
-                  <strong id="bridgeStatus">offline</strong>
+                  <span class="info-label">Reports</span>
+                  <code id="reportsPath">loading...</code>
                 </article>
                 <article class="setting-card">
-                  <span class="info-label">Audit status</span>
-                  <strong id="auditStatus">idle</strong>
+                  <span class="info-label">Bridge URL</span>
+                  <code id="bridgeAddress">loading...</code>
                 </article>
                 <article class="setting-card">
-                  <span class="info-label">Version</span>
-                  <strong id="versionText">1.0.0</strong>
+                  <span class="info-label">Workstation policy</span>
+                  <strong>local-first</strong>
                 </article>
               </div>
 
@@ -560,30 +643,7 @@
                 <span>Open SitePulse Studio when Windows starts.</span>
               </label>
 
-              <div class="dual-grid">
-                <article class="panel nested-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">runtime</p>
-                      <h3>Local artifact paths</h3>
-                    </div>
-                  </div>
-                  <div class="info-list compact-list">
-                    <div class="info-row">
-                      <span class="info-label">QA runtime</span>
-                      <code id="runtimePath">loading...</code>
-                    </div>
-                    <div class="info-row">
-                      <span class="info-label">Reports</span>
-                      <code id="reportsPath">loading...</code>
-                    </div>
-                    <div class="info-row">
-                      <span class="info-label">Bridge URL</span>
-                      <code id="bridgeAddress">loading...</code>
-                    </div>
-                  </div>
-                </article>
-
+              <div class="settings-layout">
                 <article class="panel nested-panel">
                   <div class="panel-head">
                     <div>
@@ -598,50 +658,26 @@
                     <button id="copyBridgeUrlSecondary" type="button">Copy bridge URL</button>
                   </div>
                 </article>
+
+                <article class="panel nested-panel settings-notes-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">operating doctrine</p>
+                      <h3>Local software principles</h3>
+                    </div>
+                  </div>
+                  <ul class="dna-list">
+                    <li>Keep the engine local and the evidence replayable.</li>
+                    <li>Separate setup, operations, findings and reporting into distinct workspaces.</li>
+                    <li>Prefer operational clarity over dashboard density.</li>
+                    <li>Preserve enough context for operators and developers to act immediately.</li>
+                  </ul>
+                </article>
               </div>
             </section>
           </section>
+          </section>
         </section>
-
-        <aside class="context-column">
-          <section class="panel brief-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">executive brief</p>
-                <h3>Current mission</h3>
-              </div>
-            </div>
-            <div id="missionBrief" class="brief-copy">
-              SitePulse Studio is ready. Define a target and start the first audit run.
-            </div>
-          </section>
-
-          <section class="panel profile-panel">
-            <div class="panel-head">
-              <div>
-                <p class="eyebrow">product DNA</p>
-                <h3>Why this product exists</h3>
-              </div>
-            </div>
-            <ul class="dna-list">
-              <li>Detect runtime, visual and SEO regressions in one run.</li>
-              <li>Translate technical failure into action for operators and developers.</li>
-              <li>Preserve evidence, replay commands and issue history in every run.</li>
-              <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
-            </ul>
-          </section>
-
-          <section class="panel log-panel">
-            <div class="panel-head split-head">
-              <div>
-                <p class="eyebrow">live activity</p>
-                <h3>Live engine log</h3>
-              </div>
-              <button id="clearLog" class="ghost" type="button">Clear</button>
-            </div>
-            <div id="logOutput" class="log-view">[studio] waiting for engine telemetry</div>
-          </section>
-        </aside>
       </main>
     </div>
 

@@ -622,20 +622,34 @@ async function statMaybe(filePath) {
 
 async function readCheckpointReport(checkpointPath) {
   if (!checkpointPath) return null;
-  try {
-    const raw = await fs.readFile(checkpointPath, "utf8");
-    const payload = JSON.parse(raw);
-    if (!payload || typeof payload !== "object" || !payload.report || typeof payload.report !== "object") {
-      return null;
+  let lastError = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    try {
+      const raw = await fs.readFile(checkpointPath, "utf8");
+      if (!raw.trim()) return null;
+      const payload = JSON.parse(raw);
+      if (!payload || typeof payload !== "object" || !payload.report || typeof payload.report !== "object") {
+        return null;
+      }
+      return payload.report;
+    } catch (error) {
+      if (error && typeof error === "object" && error.code === "ENOENT") {
+        return null;
+      }
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error || "unknown");
+      const retryableSyntax = /unexpected end of json input|unterminated string/i.test(message);
+      if (!retryableSyntax || attempt === 3) {
+        pushLog(`[audit] live snapshot read failed: ${message}`);
+        return null;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 90 * (attempt + 1)));
     }
-    return payload.report;
-  } catch (error) {
-    if (error && typeof error === "object" && error.code === "ENOENT") {
-      return null;
-    }
-    pushLog(`[audit] live snapshot read failed: ${error instanceof Error ? error.message : String(error || "unknown")}`);
-    return null;
   }
+  if (lastError) {
+    pushLog(`[audit] live snapshot read failed: ${lastError instanceof Error ? lastError.message : String(lastError || "unknown")}`);
+  }
+  return null;
 }
 
 async function readTextMaybe(filePath) {
@@ -1095,14 +1109,29 @@ async function findLatestReportArtifact() {
     await ensureQaRuntime();
   }
 
-  const entries = await fs.readdir(reportsDir, { withFileTypes: true });
   const candidates = [];
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!/-sitepulse-(report-final\.json|report-final\.md|issues-final\.log|assistant-final\.txt)$/i.test(entry.name)) continue;
-    const fullPath = path.join(reportsDir, entry.name);
-    const stats = await fs.stat(fullPath);
-    candidates.push({ path: fullPath, mtimeMs: stats.mtimeMs });
+  const queue = [reportsDir];
+  while (queue.length) {
+    const currentDir = queue.shift();
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name.toLowerCase() === "visual-evidence") {
+          queue.push(fullPath);
+        }
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (
+        !/-sitepulse-(report-final\.json|report-final\.md|issues-final\.log|assistant-final\.txt)$/i.test(entry.name) &&
+        !/\.png$/i.test(entry.name)
+      ) {
+        continue;
+      }
+      const stats = await fs.stat(fullPath);
+      candidates.push({ path: fullPath, mtimeMs: stats.mtimeMs });
+    }
   }
 
   candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
@@ -1624,6 +1653,21 @@ ipcMain.handle("companion:open-latest-evidence", async () => {
     const message = error instanceof Error ? error.message : String(error || "latest_evidence_failed");
     pushLog(`[reports] falha ao abrir evidencia recente: ${message}`);
     return { ok: false, error: "latest_evidence_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:open-artifact-path", async (_event, filePath) => {
+  try {
+    const target = String(filePath || "").trim();
+    if (!target) {
+      return { ok: false, error: "artifact_path_missing" };
+    }
+    await fs.access(target);
+    shell.showItemInFolder(target);
+    return { ok: true, path: target };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "artifact_open_failed");
+    pushLog(`[reports] failed to open artifact path: ${message}`);
+    return { ok: false, error: "artifact_open_failed", detail: message };
   }
 });
 ipcMain.handle("companion:get-launch-on-login", async () => ({ ok: true, enabled: launchOnLogin }));
