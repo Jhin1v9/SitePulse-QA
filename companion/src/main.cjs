@@ -21,6 +21,23 @@ let desktopLogFile = "";
 let launchOnLogin = false;
 let shuttingDown = false;
 const logLines = [];
+
+function createEmptyAuditProgress() {
+  return {
+    percentage: 0,
+    phase: "idle",
+    phaseLabel: "Ready",
+    detail: "Waiting for the next run.",
+    routeIndex: 0,
+    totalRoutes: 0,
+    labelIndex: 0,
+    totalLabels: 0,
+    currentRoute: "",
+    currentAction: "",
+    lastEventType: "",
+  };
+}
+
 let auditState = {
   running: false,
   status: "idle",
@@ -35,10 +52,20 @@ let auditState = {
   lastError: "",
   usedFallback: false,
   lastSummary: null,
+  progress: createEmptyAuditProgress(),
 };
 
 function nowIso() {
   return new Date().toISOString();
+}
+
+function clampNumber(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function safeFiniteNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 function getWindowStatePayload() {
@@ -98,10 +125,140 @@ function summarizeReport(report) {
   };
 }
 
+function deriveProgressLabel(eventType) {
+  const map = {
+    runner_ready: "Preparing runtime",
+    runner_engine: "Launching browser engine",
+    route_discovery_start: "Discovering routes",
+    route_discovery_done: "Route map ready",
+    route_start: "Loading route",
+    route_loaded: "Route loaded",
+    route_error: "Route load failed",
+    layout_check_start: "Checking visual structure",
+    layout_check_issue: "Visual issue detected",
+    button_sweep_skipped: "Skipping button sweep",
+    button_route_skipped: "Action route skipped",
+    button_click_start: "Testing action",
+    button_click_result: "Action checked",
+    button_click_skip: "Action skipped",
+    button_click_error: "Action failed",
+    assistant_hint_ready: "Writing operator brief",
+    runner_finished: "Run finished",
+  };
+  return map[eventType] || "Running audit";
+}
+
+function deriveProgressPercent(event, currentProgress) {
+  const totalRoutes = Math.max(0, safeFiniteNumber(event.totalRoutes, currentProgress.totalRoutes));
+  const routeIndex = clampNumber(safeFiniteNumber(event.routeIndex, currentProgress.routeIndex), 0, Math.max(totalRoutes, 0));
+  const totalLabels = Math.max(0, safeFiniteNumber(event.totalLabels, currentProgress.totalLabels));
+  const labelIndex = clampNumber(safeFiniteNumber(event.labelIndex, currentProgress.labelIndex), 0, Math.max(totalLabels, 0));
+
+  const routeBodyPercent = (() => {
+    if (!totalRoutes) return 0;
+    let routeFraction = Math.max(routeIndex - 1, 0);
+    let innerFraction = 0;
+
+    switch (event.type) {
+      case "route_start":
+        innerFraction = 0.08;
+        break;
+      case "route_loaded":
+        innerFraction = 0.24;
+        break;
+      case "route_error":
+        innerFraction = 1;
+        break;
+      case "layout_check_start":
+        innerFraction = 0.38;
+        break;
+      case "layout_check_issue":
+        innerFraction = 0.5;
+        break;
+      case "button_sweep_skipped":
+      case "button_route_skipped":
+        innerFraction = 1;
+        break;
+      case "button_click_start":
+        innerFraction = totalLabels > 0 ? clampNumber(0.28 + ((Math.max(labelIndex - 1, 0) / totalLabels) * 0.62), 0, 0.94) : 0.64;
+        break;
+      case "button_click_result":
+      case "button_click_skip":
+      case "button_click_error":
+        innerFraction = totalLabels > 0 ? clampNumber(0.34 + ((labelIndex / totalLabels) * 0.62), 0, 1) : 0.82;
+        break;
+      default:
+        innerFraction = routeIndex > 0 ? 0.12 : 0;
+        break;
+    }
+
+    routeFraction += innerFraction;
+    return 20 + Math.round((routeFraction / totalRoutes) * 72);
+  })();
+
+  switch (event.type) {
+    case "runner_ready":
+      return 4;
+    case "runner_engine":
+      return 10;
+    case "route_discovery_start":
+      return 14;
+    case "route_discovery_done":
+      return 20;
+    case "assistant_hint_ready":
+      return 96;
+    case "runner_finished":
+      return 100;
+    default:
+      return clampNumber(routeBodyPercent || currentProgress.percentage || 0, 0, 99);
+  }
+}
+
+function deriveProgressFromLiveEvent(event, currentProgress) {
+  const totalRoutes = Math.max(0, safeFiniteNumber(event.totalRoutes, currentProgress.totalRoutes));
+  const totalLabels = Math.max(0, safeFiniteNumber(event.totalLabels, currentProgress.totalLabels));
+  const percentage = deriveProgressPercent(event, currentProgress);
+  const currentRoute = typeof event.route === "string" ? event.route : currentProgress.currentRoute;
+  const currentAction = typeof event.action === "string" ? event.action : currentProgress.currentAction;
+  const detail = (() => {
+    if (typeof event.detail === "string" && event.detail.trim()) return event.detail.trim();
+    if (event.type === "button_click_start" && currentAction) {
+      return `Route ${safeFiniteNumber(event.routeIndex, currentProgress.routeIndex)}/${totalRoutes || "?"} · action ${safeFiniteNumber(event.labelIndex, currentProgress.labelIndex)}/${totalLabels || "?"} · ${currentAction}`;
+    }
+    if (event.type === "route_start" && currentRoute) {
+      return `Loading ${currentRoute} (${safeFiniteNumber(event.routeIndex, currentProgress.routeIndex)}/${totalRoutes || "?"})`;
+    }
+    return currentProgress.detail;
+  })();
+
+  return {
+    percentage,
+    phase: event.type || currentProgress.phase,
+    phaseLabel: deriveProgressLabel(event.type),
+    detail,
+    routeIndex: safeFiniteNumber(event.routeIndex, currentProgress.routeIndex),
+    totalRoutes,
+    labelIndex: safeFiniteNumber(event.labelIndex, currentProgress.labelIndex),
+    totalLabels,
+    currentRoute,
+    currentAction,
+    lastEventType: event.type || currentProgress.lastEventType,
+  };
+}
+
 function setAuditState(patch) {
   auditState = {
     ...auditState,
     ...patch,
+  };
+  notifyState();
+}
+
+function applyLiveAuditEvent(event) {
+  if (!event || typeof event !== "object") return;
+  auditState = {
+    ...auditState,
+    progress: deriveProgressFromLiveEvent(event, auditState.progress || createEmptyAuditProgress()),
   };
   notifyState();
 }
@@ -194,6 +351,9 @@ async function startBridge() {
     },
     recommendedCommandFactory() {
       return "Use o SitePulse Studio aberto e rode a auditoria completa pelo proprio programa.";
+    },
+    liveEvent(event) {
+      applyLiveAuditEvent(event);
     },
     logger(message) {
       pushLog(message);
@@ -321,6 +481,13 @@ async function runAuditViaBridge(input) {
     lastError: "",
     lastCommand: "",
     usedFallback: false,
+    progress: {
+      ...createEmptyAuditProgress(),
+      phase: "boot",
+      phaseLabel: "Preparing runtime",
+      detail: `Preparing audit for ${input.baseUrl}`,
+      percentage: 2,
+    },
   });
   pushLog(`[audit] iniciando ${input.mode}/${input.scope} para ${input.baseUrl}`);
 
@@ -341,6 +508,13 @@ async function runAuditViaBridge(input) {
         usedFallback: payload.usedFallback === true,
         lastSummary: summary,
         lastError: "",
+        progress: {
+          ...(auditState.progress || createEmptyAuditProgress()),
+          percentage: 100,
+          phase: "runner_finished",
+          phaseLabel: "Run finished",
+          detail: summary.totalIssues > 0 ? `Run completed with ${summary.totalIssues} issue(s).` : "Run completed clean.",
+        },
       });
       pushLog(`[audit] concluida | issues=${summary.totalIssues} | seo=${summary.seoScore}`);
       return payload;
@@ -356,6 +530,12 @@ async function runAuditViaBridge(input) {
       lastCommand: String(payload?.command || ""),
       usedFallback: payload?.usedFallback === true,
       lastError: detail,
+      progress: {
+        ...(auditState.progress || createEmptyAuditProgress()),
+        phase: "failed",
+        phaseLabel: "Run failed",
+        detail,
+      },
     });
     pushLog(`[audit] falhou: ${detail}`);
     return payload;
@@ -368,6 +548,12 @@ async function runAuditViaBridge(input) {
       finishedAt: nowIso(),
       durationMs: Date.now() - new Date(startedAt).getTime(),
       lastError: message,
+      progress: {
+        ...(auditState.progress || createEmptyAuditProgress()),
+        phase: "failed",
+        phaseLabel: "Run failed",
+        detail: message,
+      },
     });
     pushLog(`[audit] falhou: ${message}`);
     return {

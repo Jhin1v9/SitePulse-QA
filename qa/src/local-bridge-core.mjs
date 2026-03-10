@@ -168,6 +168,20 @@ function createLogger(logger) {
   return typeof logger === "function" ? logger : () => {};
 }
 
+function createLiveEventSink(callback) {
+  return typeof callback === "function" ? callback : () => {};
+}
+
+function tryParseLiveEvent(line) {
+  const text = String(line || "").trim();
+  if (!text.startsWith("SPLIVE ")) return null;
+  try {
+    return JSON.parse(text.slice(7));
+  } catch {
+    return null;
+  }
+}
+
 async function writeCmdLaunchScript(options, command) {
   const scriptName = "sitepulse-launch.cmd";
   const scriptPath = path.join(options.qaDir, scriptName);
@@ -191,6 +205,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
     nodeExecPath: userOptions.nodeExecPath || process.execPath,
     runAsNode: userOptions.runAsNode === true,
     logger: createLogger(userOptions.logger),
+    liveEvent: createLiveEventSink(userOptions.liveEvent),
     extraEnv: userOptions.extraEnv && typeof userOptions.extraEnv === "object" ? userOptions.extraEnv : {},
     recommendedCommandFactory:
       typeof userOptions.recommendedCommandFactory === "function" ? userOptions.recommendedCommandFactory : null,
@@ -233,21 +248,57 @@ export async function startLocalBridgeServer(userOptions = {}) {
 
     let stdout = "";
     let stderr = "";
-    child.stdout.on("data", (chunk) => {
+    let stdoutBuffer = "";
+    let stderrBuffer = "";
+
+    function processLine(kind, line) {
+      const normalized = String(line || "").trimEnd();
+      if (!normalized) return;
+
+      if (kind === "stdout") {
+        const liveEvent = tryParseLiveEvent(normalized);
+        if (liveEvent) {
+          options.liveEvent(liveEvent);
+          return;
+        }
+      }
+
+      options.logger(`[audit ${kind}] ${normalized}`);
+    }
+
+    function pushStreamChunk(kind, chunk) {
       const text = String(chunk);
-      stdout += text;
-      options.logger(`[audit stdout] ${text.trimEnd()}`);
+      if (kind === "stdout") stdout += text;
+      else stderr += text;
+
+      if (kind === "stdout") {
+        stdoutBuffer += text;
+        const lines = stdoutBuffer.split(/\r?\n/);
+        stdoutBuffer = lines.pop() ?? "";
+        lines.forEach((line) => processLine(kind, line));
+        return;
+      }
+
+      stderrBuffer += text;
+      const lines = stderrBuffer.split(/\r?\n/);
+      stderrBuffer = lines.pop() ?? "";
+      lines.forEach((line) => processLine(kind, line));
+    }
+
+    child.stdout.on("data", (chunk) => {
+      pushStreamChunk("stdout", chunk);
     });
     child.stderr.on("data", (chunk) => {
-      const text = String(chunk);
-      stderr += text;
-      options.logger(`[audit stderr] ${text.trimEnd()}`);
+      pushStreamChunk("stderr", chunk);
     });
 
     const exitCode = await new Promise((resolve) => {
       child.on("close", (code) => resolve(typeof code === "number" ? code : 1));
       child.on("error", () => resolve(1));
     });
+
+    processLine("stdout", stdoutBuffer);
+    processLine("stderr", stderrBuffer);
 
     const parsed = parseJsonTail(stdout);
     if (parsed?.jsonReport) {

@@ -38,6 +38,19 @@ const mockState = {
     lastError: "",
     usedFallback: false,
     lastSummary: null,
+    progress: {
+      percentage: 0,
+      phase: "idle",
+      phaseLabel: "Ready",
+      detail: "Waiting for the next run.",
+      routeIndex: 0,
+      totalRoutes: 0,
+      labelIndex: 0,
+      totalLabels: 0,
+      currentRoute: "",
+      currentAction: "",
+      lastEventType: "",
+    },
   },
   logs: Array.from({ length: 120 }, (_, index) => `[studio] mocked runtime log line ${index + 1}`),
 };
@@ -161,6 +174,26 @@ await page.addInitScript(
       },
       async runAudit(payload) {
         runCount += 1;
+        currentState.audit.running = true;
+        currentState.audit.status = "running";
+        currentState.audit.baseUrl = payload.baseUrl;
+        currentState.audit.mode = payload.mode;
+        currentState.audit.scope = payload.scope;
+        currentState.audit.depth = payload.fullAudit ? "deep" : "signal";
+        currentState.audit.progress = {
+          percentage: 42,
+          phase: "button_click_start",
+          phaseLabel: "Testing action",
+          detail: "Route 1/2 · action 1/1 · Primary CTA",
+          routeIndex: 1,
+          totalRoutes: 2,
+          labelIndex: 1,
+          totalLabels: 1,
+          currentRoute: "/",
+          currentAction: "Primary CTA",
+          lastEventType: "button_click_start",
+        };
+        notifyState();
         const report = structuredClone(auditResponse.report);
         report.meta.startedAt = `2026-03-10T00:00:0${runCount}.000Z`;
         report.meta.finishedAt = `2026-03-10T00:00:1${runCount}.000Z`;
@@ -194,6 +227,19 @@ await page.addInitScript(
           depth: payload.fullAudit ? "deep" : "signal",
           durationMs: 5000,
           lastCommand: auditResponse.command,
+          progress: {
+            percentage: 100,
+            phase: "runner_finished",
+            phaseLabel: "Run finished",
+            detail: runCount > 1 ? "Run completed clean." : "Run completed with 1 issue(s).",
+            routeIndex: 2,
+            totalRoutes: 2,
+            labelIndex: 1,
+            totalLabels: 1,
+            currentRoute: "/pricing",
+            currentAction: "Primary CTA",
+            lastEventType: "runner_finished",
+          },
         };
         listeners.log.forEach((callback) => callback(`[studio] mocked audit for ${payload.baseUrl}`));
         notifyState();
@@ -328,6 +374,7 @@ try {
   await page.getByRole("button", { name: "Run deep audit" }).click();
   await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "1");
   await page.waitForSelector('[data-view-panel="findings"].active');
+  await page.waitForFunction(() => document.getElementById("auditProgressPercent")?.textContent?.trim() === "100%");
 
   const findingsState = await page.evaluate(() => ({
     issuesMetric: document.getElementById("issuesMetric")?.textContent?.trim(),
@@ -336,6 +383,8 @@ try {
     routeSignal: document.getElementById("buttonSignal")?.textContent?.trim(),
     routeCards: document.querySelectorAll("#routeList .explorer-item").length,
     actionCards: document.querySelectorAll("#actionList .explorer-item").length,
+    progressPercent: document.getElementById("auditProgressPercent")?.textContent?.trim(),
+    progressLabel: document.getElementById("auditProgressLabel")?.textContent?.trim(),
   }));
 
   if (findingsState.issuesMetric !== "1") {
@@ -356,6 +405,10 @@ try {
 
   if (findingsState.routeCards < 1 || findingsState.actionCards < 1) {
     fail("coverage explorers were not populated");
+  }
+
+  if (findingsState.progressPercent !== "100%" || findingsState.progressLabel !== "Run finished") {
+    fail("progress bar did not reflect the completed run");
   }
 
   await page.getByRole("button", { name: "Reports" }).click();

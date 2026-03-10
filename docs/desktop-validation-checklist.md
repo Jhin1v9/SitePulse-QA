@@ -21,6 +21,7 @@ Product: SitePulse Studio 1.0.0
 - [x] Internal tool surfaces now expose explicit scroll behavior (`log`, `history`, `route explorer`, `action explorer`, `steps`, `brief`, `prompt`)
 - [x] Command palette is available from the desktop shell and via `Ctrl+K`
 - [x] Reports view compares the current run against baseline or previous run
+- [x] Desktop shell now shows run progress percentage, phase and current route/action context while the engine is executing
 - [x] UI contract test passed via `npm run desktop:test:ui`
 - [ ] Final tactile pass in a live Windows session after installer update
 

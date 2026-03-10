@@ -4248,12 +4248,14 @@ async function run() {
     emitLiveEvent(args, "runner_ready", {
       action: "boot",
       detail: `baseUrl=${cfg.baseUrl} routes=${cfg.routes.length}`,
+      totalRoutes: cfg.routes.length,
     });
 
     const launchPlan = await resolveChromiumLaunchPlan(args);
     emitLiveEvent(args, "runner_engine", {
       action: "engine_select",
       detail: `engine=${launchPlan.engine} headed=${args.headed ? "requested" : "no"}`,
+      totalRoutes: cfg.routes.length,
     });
     browser = await chromium.launch(launchPlan.options);
     const context = await browser.newContext({ viewport: { width: cfg.viewportWidth, height: cfg.viewportHeight } });
@@ -4263,6 +4265,7 @@ async function run() {
       emitLiveEvent(args, "route_discovery_start", {
         action: "route_discovery",
         detail: `seed=${cfg.routes.length} max=${cfg.maxDiscoveredRoutes}`,
+        totalRoutes: cfg.routes.length,
       });
       const discoveredRoutes = await discoverRoutes(page, cfg, args);
       cfg.routes = discoveredRoutes;
@@ -4274,6 +4277,7 @@ async function run() {
       emitLiveEvent(args, "route_discovery_done", {
         action: "route_discovery",
         detail: `total=${cfg.routes.length}`,
+        totalRoutes: cfg.routes.length,
       });
     }
 
@@ -4373,6 +4377,8 @@ async function run() {
         route,
         action: "route_load",
         detail: `route ${routeIndex + 1}/${cfg.routes.length}`,
+        routeIndex: routeIndex + 1,
+        totalRoutes: cfg.routes.length,
       });
 
       const routeResult = ensureRouteResult(report, route);
@@ -4390,6 +4396,8 @@ async function run() {
           route,
           action: "route_load",
           detail: normalizeText(String(error)),
+          routeIndex: routeIndex + 1,
+          totalRoutes: cfg.routes.length,
         });
         pushIssue(report, {
           code: CODE.ROUTE_LOAD_FAIL,
@@ -4403,11 +4411,21 @@ async function run() {
         await saveCheckpoint(cfg.checkpointFile, report);
         continue;
       }
-      emitLiveEvent(args, "route_loaded", { route, action: "route_load" });
+      emitLiveEvent(args, "route_loaded", {
+        route,
+        action: "route_load",
+        routeIndex: routeIndex + 1,
+        totalRoutes: cfg.routes.length,
+      });
 
       if (shouldAuditExperience && cfg.sectionOrderRules.length) {
         currentAction = "visual_layout_check";
-        emitLiveEvent(args, "layout_check_start", { route, action: "visual_layout_check" });
+        emitLiveEvent(args, "layout_check_start", {
+          route,
+          action: "visual_layout_check",
+          routeIndex: routeIndex + 1,
+          totalRoutes: cfg.routes.length,
+        });
         const findings = await runSectionOrderChecks(page, route, cfg);
         for (const finding of findings) {
           if (finding.status === "missing") {
@@ -4416,6 +4434,8 @@ async function run() {
               action: `layout_rule:${finding.id}`,
               rule: finding.id,
               status: "missing",
+              routeIndex: routeIndex + 1,
+              totalRoutes: cfg.routes.length,
             });
             pushIssue(report, {
               code: CODE.VISUAL_SECTION_MISSING,
@@ -4431,6 +4451,8 @@ async function run() {
               action: `layout_rule:${finding.id}`,
               rule: finding.id,
               status: "order_invalid",
+              routeIndex: routeIndex + 1,
+              totalRoutes: cfg.routes.length,
             });
             pushIssue(report, {
               code: CODE.VISUAL_SECTION_ORDER_INVALID,
@@ -4464,6 +4486,8 @@ async function run() {
           route,
           action: "button_sweep",
           detail: "scope=seo",
+          routeIndex: routeIndex + 1,
+          totalRoutes: cfg.routes.length,
         });
         report.progress.nextRouteIndex = routeIndex + 1;
         report.progress.nextLabelIndex = 0;
@@ -4502,6 +4526,8 @@ async function run() {
           route,
           action: "button_sweep",
           detail: "route_limit",
+          routeIndex: routeIndex + 1,
+          totalRoutes: cfg.routes.length,
         });
         report.progress.nextRouteIndex = routeIndex + 1;
         report.progress.nextLabelIndex = 0;
@@ -4559,6 +4585,8 @@ async function run() {
           label,
           labelIndex: labelIndex + 1,
           totalLabels: actionsToClick.length,
+          routeIndex: routeIndex + 1,
+          totalRoutes: cfg.routes.length,
         });
 
         try {
@@ -4604,6 +4632,10 @@ async function run() {
               action: label,
               label,
               reason: result.reason,
+              labelIndex: labelIndex + 1,
+              totalLabels: actionsToClick.length,
+              routeIndex: routeIndex + 1,
+              totalRoutes: cfg.routes.length,
             });
             if (
               result.reason !== "button_disabled" &&
@@ -4626,6 +4658,10 @@ async function run() {
               action: label,
               label,
               effectDetected: result.effectDetected,
+              labelIndex: labelIndex + 1,
+              totalLabels: actionsToClick.length,
+              routeIndex: routeIndex + 1,
+              totalRoutes: cfg.routes.length,
             });
 
             if (cfg.requireButtonEffect && !result.effectDetected && !canIgnoreNoEffect(label, cfg)) {
@@ -4667,6 +4703,10 @@ async function run() {
             action: label,
             label,
             detail,
+            labelIndex: labelIndex + 1,
+            totalLabels: actionsToClick.length,
+            routeIndex: routeIndex + 1,
+            totalRoutes: cfg.routes.length,
           });
           pushIssue(report, {
             code: CODE.BTN_CLICK_ERROR,
@@ -4742,6 +4782,7 @@ async function run() {
     action: "assistant_playbook",
     detail: firstStep,
     report: artifacts.assistantBriefPath,
+    totalRoutes: cfg.routes.length,
   });
 
   emitLiveEvent(args, "runner_finished", {
@@ -4749,6 +4790,7 @@ async function run() {
     paused,
     ok: output.ok,
     totalIssues: report.summary.totalIssues,
+    totalRoutes: cfg.routes.length,
   });
 
   console.log(JSON.stringify(output, null, 2));

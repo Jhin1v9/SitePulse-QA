@@ -58,6 +58,11 @@ const stateEl = {
   copyQuickPromptSecondary: document.getElementById("copyQuickPromptSecondary"),
   openCommandPalette: document.getElementById("openCommandPalette"),
   headlineStatus: document.getElementById("headlineStatus"),
+  auditProgressLabel: document.getElementById("auditProgressLabel"),
+  auditProgressPercent: document.getElementById("auditProgressPercent"),
+  auditProgressCounters: document.getElementById("auditProgressCounters"),
+  auditProgressFill: document.getElementById("auditProgressFill"),
+  auditProgressDetail: document.getElementById("auditProgressDetail"),
   findingsHeadline: document.getElementById("findingsHeadline"),
   reportsHeadline: document.getElementById("reportsHeadline"),
   findingsSearch: document.getElementById("findingsSearch"),
@@ -1201,8 +1206,9 @@ function renderAuditState(audit = {}) {
   stateEl.runAudit.textContent = busy ? "Audit running..." : "Run native audit";
 
   if (busy) {
+    const percentage = Math.max(0, Math.min(100, toNumber(audit?.progress?.percentage, 0)));
     setChip(stateEl.auditChip, "audit running", "warn");
-    stateEl.headlineStatus.textContent = `Engine is auditing ${audit.baseUrl || "the selected target"}. Evidence is being collected now.`;
+    stateEl.headlineStatus.textContent = `Engine is auditing ${audit.baseUrl || "the selected target"} · ${percentage}% complete.`;
     return;
   }
 
@@ -1228,6 +1234,38 @@ function renderAuditState(audit = {}) {
   stateEl.headlineStatus.textContent = "Ready to run a new audit.";
 }
 
+function renderAuditProgress(audit = {}) {
+  const progress = audit?.progress && typeof audit.progress === "object" ? audit.progress : {};
+  const percentage = Math.max(0, Math.min(100, toNumber(progress.percentage, 0)));
+  const phaseLabel = String(progress.phaseLabel || (audit.running ? "Preparing runtime" : "Ready"));
+  const detail = String(progress.detail || (audit.running ? "The engine is collecting evidence." : "The engine will show the current phase while it audits."));
+  const routeIndex = toNumber(progress.routeIndex, 0);
+  const totalRoutes = toNumber(progress.totalRoutes, 0);
+  const labelIndex = toNumber(progress.labelIndex, 0);
+  const totalLabels = toNumber(progress.totalLabels, 0);
+
+  let counters = "Waiting for the next run.";
+  if (audit.running) {
+    if (totalRoutes > 0 && totalLabels > 0) {
+      counters = `Route ${Math.max(routeIndex, 1)}/${totalRoutes} · action ${Math.max(labelIndex, 1)}/${totalLabels}`;
+    } else if (totalRoutes > 0) {
+      counters = `Route ${Math.max(routeIndex, 1)}/${totalRoutes}`;
+    } else {
+      counters = "Preparing the run map...";
+    }
+  } else if (audit.status === "clean" || audit.status === "issues") {
+    counters = "Run finished.";
+  } else if (audit.status === "failed") {
+    counters = "Run stopped with failure.";
+  }
+
+  stateEl.auditProgressLabel.textContent = phaseLabel;
+  stateEl.auditProgressPercent.textContent = `${percentage}%`;
+  stateEl.auditProgressCounters.textContent = counters;
+  stateEl.auditProgressDetail.textContent = detail;
+  stateEl.auditProgressFill.style.width = `${percentage}%`;
+}
+
 function renderCompanionState(payload) {
   uiState.companionState = payload;
   stateEl.serviceName.textContent = payload?.serviceName || "SitePulse Studio";
@@ -1244,6 +1282,7 @@ function renderCompanionState(payload) {
 
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});
+  renderAuditProgress(payload?.audit || {});
   renderMissionBrief();
   renderReportSummary(uiState.report);
 }

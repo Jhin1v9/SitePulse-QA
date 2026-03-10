@@ -163,6 +163,23 @@
                 <button id="copyReplayCommand" type="button">Copy replay command</button>
                 <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
               </div>
+
+              <section class="progress-panel">
+                <div class="progress-top">
+                  <div>
+                    <span class="field-label">Run progress</span>
+                    <strong id="auditProgressLabel">Ready</strong>
+                  </div>
+                  <div class="progress-meta">
+                    <strong id="auditProgressPercent">0%</strong>
+                    <span id="auditProgressCounters">Waiting for the next run.</span>
+                  </div>
+                </div>
+                <div class="progress-track" aria-hidden="true">
+                  <div id="auditProgressFill" class="progress-fill"></div>
+                </div>
+                <div id="auditProgressDetail" class="progress-detail">The engine will show the current phase while it audits.</div>
+              </section>
             </section>
 
             <section class="metrics-grid">
