@@ -11,7 +11,9 @@
     "sync:runtime:fast": "node scripts/sync-runtime.mjs",
     "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
+    "test:ui": "node scripts/ui-contract.mjs",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
+    "build:win:staging": "npm run sync:runtime && electron-builder --win nsis --config.directories.output=dist-staging",
     "build:win": "npm run sync:runtime && electron-builder --win nsis"
   },
   "dependencies": {

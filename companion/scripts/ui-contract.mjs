@@ -1,0 +1,420 @@
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { chromium } from "playwright";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rendererUrl = pathToFileURL(path.resolve(__dirname, "..", "src", "renderer.html")).href;
+
+function fail(message) {
+  throw new Error(`ui_contract_failed: ${message}`);
+}
+
+const mockState = {
+  serviceName: "SitePulse Studio",
+  version: "1.0.0",
+  qaRuntimeDir: "C:\\Runtime\\qa",
+  reportsDir: "C:\\Runtime\\qa\\reports",
+  launchOnLogin: false,
+  platform: process.platform,
+  bridge: {
+    running: true,
+    host: "127.0.0.1",
+    port: 47891,
+    service: "sitepulse-desktop-bridge",
+  },
+  audit: {
+    running: false,
+    status: "idle",
+    baseUrl: "",
+    mode: "desktop",
+    scope: "full",
+    depth: "signal",
+    startedAt: "",
+    finishedAt: "",
+    durationMs: 0,
+    lastCommand: "",
+    lastError: "",
+    usedFallback: false,
+    lastSummary: null,
+  },
+  logs: Array.from({ length: 120 }, (_, index) => `[studio] mocked runtime log line ${index + 1}`),
+};
+
+const mockAuditResponse = {
+  ok: true,
+  command: 'node src/index.mjs --config "audit.default.json" --base-url "https://example.com" --scope full --no-server',
+  report: {
+    meta: {
+      baseUrl: "https://example.com",
+      startedAt: "2026-03-10T00:00:00.000Z",
+      finishedAt: "2026-03-10T00:00:05.000Z",
+      replayCommand: 'node src/index.mjs --config "audit.default.json" --base-url "https://example.com" --scope full --no-server',
+      auditMode: "desktop",
+      auditDepth: "deep",
+    },
+    summary: {
+      auditScope: "full",
+      routesChecked: 12,
+      buttonsChecked: 7,
+      actionsMapped: 7,
+      totalIssues: 1,
+      seoScore: 88,
+      seoCriticalIssues: 0,
+      seoTotalIssues: 2,
+      buttonsNoEffect: 1,
+      visualSectionOrderInvalid: 0,
+      consoleErrors: 0,
+      durationMs: 5000,
+    },
+    routeSweep: [
+      { route: "/", loadOk: true, buttonsDiscovered: 4, buttonsClicked: 4 },
+      { route: "/pricing", loadOk: true, buttonsDiscovered: 3, buttonsClicked: 3 },
+    ],
+    actionSweep: [
+      {
+        route: "/",
+        label: "Primary CTA",
+        expectedForUser: "Open contact flow for the operator.",
+        actualFunction: "No visible response after click.",
+      },
+    ],
+    issues: [
+      {
+        id: "issue-1",
+        code: "BTN_NO_EFFECT",
+        severity: "medium",
+        route: "/",
+        action: "Primary CTA",
+        detail: "The main CTA does not trigger any visible action.",
+        recommendedResolution: "Reconnect the CTA to the intended contact workflow and validate the click effect.",
+        assistantHint: {
+          priority: "P1",
+          firstChecks: ["Inspect click binding", "Validate href/onClick target"],
+        },
+        diagnosis: {
+          laymanExplanation: "The main button looks active but does nothing for the user.",
+          technicalExplanation: "The CTA path is mounted without a visible effect or redirect.",
+          technicalChecks: ["Inspect renderer binding for the CTA action"],
+          commandHints: ["npm run desktop:smoke"],
+          likelyAreas: ["companion/src/renderer.js"],
+        },
+      },
+    ],
+    seo: {
+      overallScore: 88,
+      topRecommendations: ["Tighten metadata on the pricing page."],
+    },
+    assistantGuide: {
+      status: "issues",
+      issueCount: 1,
+      immediateSteps: ["Reconnect the broken CTA.", "Re-run the desktop smoke after the fix."],
+      replayCommand: 'node src/index.mjs --config "audit.default.json" --base-url "https://example.com" --scope full --no-server',
+      quickStartPrompt: "Act as a senior engineer and fix the CTA no-effect failure first.",
+    },
+  },
+};
+
+const browser = await chromium.launch({ headless: true });
+const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
+
+await page.addInitScript(
+  ({ initialState, auditResponse }) => {
+    localStorage.setItem("sitepulse-studio:onboarding-v1", JSON.stringify(true));
+    localStorage.removeItem("sitepulse-studio:last-report-v1");
+    localStorage.removeItem("sitepulse-studio:run-history-v1");
+
+    let currentState = structuredClone(initialState);
+    const listeners = {
+      log: [],
+      state: [],
+      window: [],
+    };
+
+    const notifyState = () => {
+      listeners.state.forEach((callback) => callback(structuredClone(currentState)));
+    };
+
+    let runCount = 0;
+
+    window.sitePulseCompanion = {
+      async getState() {
+        return structuredClone(currentState);
+      },
+      async getWindowState() {
+        return {
+          focused: true,
+          maximized: false,
+          minimized: false,
+        };
+      },
+      async startBridge() {
+        currentState.bridge.running = true;
+        notifyState();
+        return { ok: true };
+      },
+      async stopBridge() {
+        currentState.bridge.running = false;
+        notifyState();
+        return { ok: true };
+      },
+      async runAudit(payload) {
+        runCount += 1;
+        const report = structuredClone(auditResponse.report);
+        report.meta.startedAt = `2026-03-10T00:00:0${runCount}.000Z`;
+        report.meta.finishedAt = `2026-03-10T00:00:1${runCount}.000Z`;
+        report.meta.replayCommand = auditResponse.command;
+        report.meta.auditMode = payload.mode;
+        report.meta.auditDepth = payload.fullAudit ? "deep" : "signal";
+        report.summary.auditScope = payload.scope;
+
+        if (runCount > 1) {
+          report.summary.totalIssues = 0;
+          report.summary.buttonsNoEffect = 0;
+          report.summary.seoScore = 93;
+          report.summary.routesChecked = 14;
+          report.summary.actionsMapped = 8;
+          report.summary.buttonsChecked = 8;
+          report.issues = [];
+          report.seo.overallScore = 93;
+          report.assistantGuide.issueCount = 0;
+          report.assistantGuide.status = "clean";
+          report.assistantGuide.immediateSteps = ["Keep this run as the new baseline."];
+          report.assistantGuide.quickStartPrompt = "Act as a release engineer and verify the clean baseline stays stable.";
+        }
+
+        currentState.audit = {
+          ...currentState.audit,
+          running: false,
+          status: runCount > 1 ? "clean" : "issues",
+          baseUrl: payload.baseUrl,
+          mode: payload.mode,
+          scope: payload.scope,
+          depth: payload.fullAudit ? "deep" : "signal",
+          durationMs: 5000,
+          lastCommand: auditResponse.command,
+        };
+        listeners.log.forEach((callback) => callback(`[studio] mocked audit for ${payload.baseUrl}`));
+        notifyState();
+        return {
+          ok: true,
+          command: auditResponse.command,
+          report,
+        };
+      },
+      async openCmdWindow() {
+        listeners.log.forEach((callback) => callback("[studio] mocked cmd flow"));
+        return { ok: true, message: "Mocked CMD flow launched." };
+      },
+      async openReports() {
+        return { ok: true };
+      },
+      async openLatestEvidence() {
+        return { ok: true, path: "C:\\Runtime\\qa\\reports\\latest.json" };
+      },
+      async copyBridgeUrl() {
+        return { ok: true };
+      },
+      async copyText() {
+        return { ok: true };
+      },
+      async pickReportFile() {
+        return { ok: false, error: "file_pick_cancelled" };
+      },
+      async exportReportFile() {
+        return { ok: true, path: "C:\\Runtime\\qa\\reports\\snapshot.json" };
+      },
+      async getLaunchOnLogin() {
+        return { ok: true, enabled: false };
+      },
+      async setLaunchOnLogin(enabled) {
+        currentState.launchOnLogin = enabled === true;
+        notifyState();
+        return { ok: true, enabled: currentState.launchOnLogin };
+      },
+      async minimizeWindow() {
+        return { ok: true };
+      },
+      async toggleMaximizeWindow() {
+        return { ok: true, maximized: false };
+      },
+      async closeWindow() {
+        return { ok: true };
+      },
+      onLog(callback) {
+        listeners.log.push(callback);
+        return () => {};
+      },
+      onState(callback) {
+        listeners.state.push(callback);
+        return () => {};
+      },
+      onWindowState(callback) {
+        listeners.window.push(callback);
+        setTimeout(() => callback({ focused: true, maximized: false, minimized: false }), 0);
+        return () => {};
+      },
+    };
+  },
+  { initialState: mockState, auditResponse: mockAuditResponse },
+);
+
+try {
+  await page.goto(rendererUrl);
+  await page.waitForSelector(".studio-shell");
+  await page.waitForSelector('[data-view-panel="overview"].active');
+
+  const navigationState = await page.evaluate(() => {
+    const buttons = Array.from(document.querySelectorAll("[data-view]"));
+    const labels = buttons.map((button) => button.textContent?.trim() || "");
+    const computed = getComputedStyle(document.querySelector(".main-column"));
+    const logView = document.querySelector(".log-view");
+    const stepsList = document.querySelector(".steps-list");
+    const dnaList = document.querySelector(".dna-list");
+    return {
+      count: buttons.length,
+      hasSettings: labels.some((label) => label.includes("Settings")),
+      mainOverflowY: computed.overflowY,
+      logOverflowY: logView ? getComputedStyle(logView).overflowY : "missing",
+      stepsOverflowY: stepsList ? getComputedStyle(stepsList).overflowY : "missing",
+      dnaOverflowY: dnaList ? getComputedStyle(dnaList).overflowY : "missing",
+    };
+  });
+
+  if (navigationState.count < 4 || !navigationState.hasSettings) {
+    fail("navigation stack is incomplete");
+  }
+
+  if (navigationState.mainOverflowY !== "auto") {
+    fail("main column overflow is not configured");
+  }
+
+  if (navigationState.logOverflowY !== "auto" || navigationState.stepsOverflowY !== "auto" || navigationState.dnaOverflowY !== "auto") {
+    fail("internal scroll surfaces are not configured");
+  }
+
+  const initialScroll = await page.evaluate(() => {
+    const mainColumn = document.querySelector(".main-column");
+    if (!(mainColumn instanceof HTMLElement)) {
+      return { exists: false };
+    }
+    return {
+      exists: true,
+      scrollHeight: mainColumn.scrollHeight,
+      clientHeight: mainColumn.clientHeight,
+    };
+  });
+
+  if (!initialScroll.exists) {
+    fail("main column missing");
+  }
+
+  if (initialScroll.scrollHeight <= initialScroll.clientHeight) {
+    fail("main column is not scrollable");
+  }
+
+  const scrollTop = await page.evaluate(() => {
+    const mainColumn = document.querySelector(".main-column");
+    if (!(mainColumn instanceof HTMLElement)) return -1;
+    mainColumn.scrollTop = 520;
+    return mainColumn.scrollTop;
+  });
+
+  if (scrollTop <= 0) {
+    fail("main column did not move after scroll");
+  }
+
+  await page.getByRole("button", { name: "Run deep audit" }).click();
+  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "1");
+  await page.waitForSelector('[data-view-panel="findings"].active');
+
+  const findingsState = await page.evaluate(() => ({
+    issuesMetric: document.getElementById("issuesMetric")?.textContent?.trim(),
+    currentCommand: document.getElementById("currentCommand")?.textContent?.trim(),
+    historyItems: document.querySelectorAll("[data-history-index]").length,
+    routeSignal: document.getElementById("buttonSignal")?.textContent?.trim(),
+    routeCards: document.querySelectorAll("#routeList .explorer-item").length,
+    actionCards: document.querySelectorAll("#actionList .explorer-item").length,
+  }));
+
+  if (findingsState.issuesMetric !== "1") {
+    fail("issues metric did not update");
+  }
+
+  if (!findingsState.currentCommand?.includes("node src/index.mjs")) {
+    fail("replay command not rendered");
+  }
+
+  if (findingsState.historyItems < 1) {
+    fail("history snapshot was not recorded");
+  }
+
+  if (findingsState.routeSignal !== "1") {
+    fail("button signal did not reflect the mocked issue");
+  }
+
+  if (findingsState.routeCards < 1 || findingsState.actionCards < 1) {
+    fail("coverage explorers were not populated");
+  }
+
+  await page.getByRole("button", { name: "Reports" }).click();
+  await page.waitForSelector('[data-view-panel="reports"].active');
+  await page.waitForFunction(() => document.getElementById("currentDepth")?.textContent?.trim() === "deep crawl");
+  await page.getByRole("button", { name: "Pin current as baseline" }).click();
+
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Run native audit" }).click();
+  await page.waitForFunction(() => document.getElementById("issuesMetric")?.textContent?.trim() === "0");
+
+  await page.getByRole("button", { name: "Reports" }).click();
+  await page.waitForFunction(() => document.getElementById("compareIssueDelta")?.textContent?.trim() === "-1");
+  const comparisonState = await page.evaluate(() => ({
+    compareHeadline: document.getElementById("compareHeadline")?.textContent?.trim(),
+    compareIssueDelta: document.getElementById("compareIssueDelta")?.textContent?.trim(),
+    compareSeoDelta: document.getElementById("compareSeoDelta")?.textContent?.trim(),
+    resolvedCount: document.querySelectorAll("#compareResolvedIssuesList .explorer-item").length,
+  }));
+
+  if (!comparisonState.compareHeadline?.includes("baseline")) {
+    fail("comparison headline did not bind to baseline");
+  }
+
+  if (comparisonState.compareIssueDelta !== "-1") {
+    fail("comparison issue delta is incorrect");
+  }
+
+  if (comparisonState.compareSeoDelta !== "+5") {
+    fail("comparison seo delta is incorrect");
+  }
+
+  if (comparisonState.resolvedCount < 1) {
+    fail("resolved comparison list was not populated");
+  }
+
+  await page.keyboard.press("Control+K");
+  await page.waitForFunction(() => !document.getElementById("commandPaletteOverlay")?.classList.contains("hidden"));
+  await page.fill("#commandPaletteSearch", "settings");
+  await page.keyboard.press("Enter");
+  await page.waitForSelector('[data-view-panel="settings"].active');
+
+  await page.keyboard.press("?");
+  await page.waitForFunction(() => !document.getElementById("shortcutsOverlay")?.classList.contains("hidden"));
+  await page.keyboard.press("Escape");
+  await page.waitForFunction(() => document.getElementById("shortcutsOverlay")?.classList.contains("hidden"));
+
+  await page.getByRole("button", { name: "Overview" }).click();
+  await page.getByRole("button", { name: "Open full CMD flow" }).click();
+  await page.waitForFunction(() => document.getElementById("headlineStatus")?.textContent?.includes("Mocked CMD flow launched."));
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.waitForSelector('[data-view-panel="settings"].active');
+  await page.getByRole("button", { name: "Stop engine" }).click();
+  await page.waitForFunction(() => document.getElementById("bridgeStatus")?.textContent?.trim() === "offline");
+  await page.getByRole("button", { name: "Start engine" }).click();
+  await page.waitForFunction(() => document.getElementById("bridgeStatus")?.textContent?.includes("127.0.0.1"));
+} finally {
+  await browser.close();
+}
+
+process.stdout.write("SITEPULSE_DESKTOP_UI_CONTRACT_OK\n");

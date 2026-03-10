@@ -22,9 +22,11 @@
           <span class="status-chip" id="bridgeChip">engine offline</span>
           <span class="status-chip" id="auditChip">audit idle</span>
           <span class="status-chip ok" id="buildChip">studio build</span>
+          <button id="openCommandPalette" class="status-chip status-btn" type="button">command palette</button>
         </div>
 
         <div class="window-controls no-drag">
+          <button id="openShortcuts" class="window-btn" type="button" aria-label="Shortcuts">?</button>
           <button id="winMinimize" class="window-btn" type="button" aria-label="Minimize">&minus;</button>
           <button id="winMaximize" class="window-btn" type="button" aria-label="Maximize">&#9633;</button>
           <button id="winClose" class="window-btn danger" type="button" aria-label="Close">&#10005;</button>
@@ -73,6 +75,9 @@
             <div class="action-row stack">
               <button id="quickAuditButton" class="primary" type="button">Run quick audit</button>
               <button id="deepAuditButton" class="secondary" type="button">Run deep audit</button>
+              <button id="loadReportFile" type="button">Load report file</button>
+              <button id="exportCurrentReport" type="button">Export current report</button>
+              <button id="openLatestEvidence" type="button">Open latest evidence</button>
               <button id="openReports" type="button">Open report vault</button>
               <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
             </div>
@@ -234,6 +239,19 @@
                 </div>
                 <div class="headline-status" id="findingsHeadline">Use this board to drive the fix sequence.</div>
               </div>
+              <div class="filters-row findings-tools-row">
+                <label class="toolbar-field">
+                  <span class="field-label">Search findings</span>
+                  <input id="findingsSearch" class="toolbar-input" type="search" placeholder="route, action, code or detail" />
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Route filter</span>
+                  <select id="findingsRouteFilter" class="toolbar-select">
+                    <option value="all">All routes</option>
+                  </select>
+                </label>
+                <button id="copyIssueDigest" class="ghost" type="button">Copy issue digest</button>
+              </div>
             </section>
 
             <section class="panel issue-distribution-panel">
@@ -293,6 +311,71 @@
               </div>
             </section>
 
+            <section class="panel comparison-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">comparison brief</p>
+                  <h3>Delta against baseline</h3>
+                </div>
+                <div class="headline-status" id="compareHeadline">Run two audits to unlock comparison.</div>
+              </div>
+
+              <div class="report-grid comparison-metrics-grid">
+                <article class="info-card">
+                  <span class="info-label">Issue delta</span>
+                  <code id="compareIssueDelta">n/a</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">SEO delta</span>
+                  <code id="compareSeoDelta">n/a</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Risk delta</span>
+                  <code id="compareRiskDelta">n/a</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Route delta</span>
+                  <code id="compareRouteDelta">n/a</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Action delta</span>
+                  <code id="compareActionDelta">n/a</code>
+                </article>
+              </div>
+
+              <div class="dual-grid comparison-dual-grid">
+                <article class="panel nested-panel compare-list-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">new pressure</p>
+                      <h3>New findings vs baseline</h3>
+                    </div>
+                  </div>
+                  <div id="compareNewIssuesList" class="explorer-list comparison-list">
+                    <article class="empty-state">No comparison baseline yet.</article>
+                  </div>
+                </article>
+
+                <article class="panel nested-panel compare-list-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">resolved work</p>
+                      <h3>Findings cleared since baseline</h3>
+                    </div>
+                  </div>
+                  <div id="compareResolvedIssuesList" class="explorer-list comparison-list">
+                    <article class="empty-state">No comparison baseline yet.</article>
+                  </div>
+                </article>
+              </div>
+
+              <div class="action-row">
+                <button id="pinCurrentBaseline" type="button">Pin current as baseline</button>
+                <button id="clearBaseline" type="button">Clear baseline</button>
+                <button id="copyCompareDigest" type="button">Copy compare digest</button>
+              </div>
+            </section>
+
             <section class="dual-grid">
               <article class="panel prompt-panel">
                 <div class="panel-head split-head">
@@ -315,6 +398,34 @@
                 </div>
                 <div id="historyList" class="history-list">
                   <article class="empty-state">No stored run snapshots yet.</article>
+                </div>
+              </article>
+            </section>
+
+            <section class="dual-grid">
+              <article class="panel explorer-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">route explorer</p>
+                    <h3>Routes that were actually checked</h3>
+                  </div>
+                  <button id="copyRouteDigest" class="ghost" type="button">Copy route digest</button>
+                </div>
+                <div id="routeList" class="explorer-list">
+                  <article class="empty-state">Run an audit to load route coverage.</article>
+                </div>
+              </article>
+
+              <article class="panel explorer-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">action explorer</p>
+                    <h3>Actions and button intent</h3>
+                  </div>
+                  <button id="copyActionDigest" class="ghost" type="button">Copy action digest</button>
+                </div>
+                <div id="actionList" class="explorer-list">
+                  <article class="empty-state">Run an audit to load action coverage.</article>
                 </div>
               </article>
             </section>
@@ -466,6 +577,48 @@
         </div>
       </div>
     </div>
+
+    <div id="shortcutsOverlay" class="shortcuts-overlay hidden">
+      <div class="shortcuts-card">
+        <div class="panel-head split-head">
+          <div>
+            <p class="eyebrow">operator shortcuts</p>
+            <h3>Faster desktop control</h3>
+          </div>
+          <button id="dismissShortcuts" class="ghost" type="button">Close</button>
+        </div>
+        <div class="shortcut-grid">
+          <article><strong>Ctrl+1..4</strong><span>Switch overview, findings, reports and settings</span></article>
+          <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
+          <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
+          <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
+          <article><strong>Ctrl+Shift+C</strong><span>Open the full CMD flow</span></article>
+          <article><strong>Ctrl+O</strong><span>Load a report file into the desktop board</span></article>
+          <article><strong>Ctrl+S</strong><span>Export the current report snapshot</span></article>
+          <article><strong>Ctrl+F</strong><span>Focus findings search when working in the issue board</span></article>
+          <article><strong>?</strong><span>Open or close this shortcuts panel</span></article>
+        </div>
+      </div>
+    </div>
+
+    <div id="commandPaletteOverlay" class="shortcuts-overlay hidden">
+      <div class="shortcuts-card command-palette-card">
+        <div class="panel-head split-head">
+          <div>
+            <p class="eyebrow">command palette</p>
+            <h3>Run workstation actions directly</h3>
+          </div>
+          <button id="dismissCommandPalette" class="ghost" type="button">Close</button>
+        </div>
+        <label class="toolbar-field">
+          <span class="field-label">Search commands</span>
+          <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, switch findings..." />
+        </label>
+        <div id="commandPaletteList" class="explorer-list command-palette-list"></div>
+      </div>
+    </div>
+
+    <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
     <script src="./renderer.js"></script>
   </body>

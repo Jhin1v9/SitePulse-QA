@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const process = require("node:process");
 const { pathToFileURL } = require("node:url");
-const { app, BrowserWindow, clipboard, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
 
 const IS_SMOKE_MODE = process.argv.includes("--smoke-test") || process.env.SITEPULSE_DESKTOP_SMOKE === "1";
 const BRIDGE_HOST = "127.0.0.1";
@@ -27,6 +27,7 @@ let auditState = {
   baseUrl: "",
   mode: "desktop",
   scope: "full",
+  depth: "signal",
   startedAt: "",
   finishedAt: "",
   durationMs: 0,
@@ -244,6 +245,67 @@ async function postBridgeJson(pathname, payload) {
   }
 }
 
+async function findLatestReportArtifact() {
+  if (!reportsDir) {
+    await ensureQaRuntime();
+  }
+
+  const entries = await fs.readdir(reportsDir, { withFileTypes: true });
+  const candidates = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!/-sitepulse-(report-final\.json|report-final\.md|issues-final\.log|assistant-final\.txt)$/i.test(entry.name)) continue;
+    const fullPath = path.join(reportsDir, entry.name);
+    const stats = await fs.stat(fullPath);
+    candidates.push({ path: fullPath, mtimeMs: stats.mtimeMs });
+  }
+
+  candidates.sort((left, right) => right.mtimeMs - left.mtimeMs);
+  return candidates[0] || null;
+}
+
+async function pickReportFile() {
+  const selection = await dialog.showOpenDialog(mainWindow || undefined, {
+    title: "Load SitePulse report",
+    properties: ["openFile"],
+    filters: [
+      { name: "SitePulse report", extensions: ["json"] },
+      { name: "All files", extensions: ["*"] },
+    ],
+  });
+
+  if (selection.canceled || !selection.filePaths.length) {
+    return { ok: false, error: "file_pick_cancelled" };
+  }
+
+  const selectedPath = selection.filePaths[0];
+  const raw = await fs.readFile(selectedPath, "utf8");
+  const report = JSON.parse(raw);
+  return {
+    ok: true,
+    path: selectedPath,
+    report,
+  };
+}
+
+async function exportReportFile(reportPayload) {
+  const selection = await dialog.showSaveDialog(mainWindow || undefined, {
+    title: "Export SitePulse snapshot",
+    defaultPath: path.join(app.getPath("documents"), `sitepulse-snapshot-${nowIso().replace(/[:.]/g, "-")}.json`),
+    filters: [{ name: "JSON", extensions: ["json"] }],
+  });
+
+  if (selection.canceled || !selection.filePath) {
+    return { ok: false, error: "file_save_cancelled" };
+  }
+
+  await fs.writeFile(selection.filePath, `${JSON.stringify(reportPayload, null, 2)}\n`, "utf8");
+  return {
+    ok: true,
+    path: selection.filePath,
+  };
+}
+
 async function runAuditViaBridge(input) {
   const startedAt = nowIso();
   setAuditState({
@@ -252,6 +314,7 @@ async function runAuditViaBridge(input) {
     baseUrl: input.baseUrl,
     mode: input.mode,
     scope: input.scope,
+    depth: input.fullAudit ? "deep" : "signal",
     startedAt,
     finishedAt: "",
     durationMs: 0,
@@ -271,6 +334,7 @@ async function runAuditViaBridge(input) {
       setAuditState({
         running: false,
         status: summary.totalIssues > 0 ? "issues" : "clean",
+        depth: input.fullAudit ? "deep" : "signal",
         finishedAt,
         durationMs,
         lastCommand: String(payload.command || ""),
@@ -286,6 +350,7 @@ async function runAuditViaBridge(input) {
     setAuditState({
       running: false,
       status: "failed",
+      depth: input.fullAudit ? "deep" : "signal",
       finishedAt,
       durationMs,
       lastCommand: String(payload?.command || ""),
@@ -299,6 +364,7 @@ async function runAuditViaBridge(input) {
     setAuditState({
       running: false,
       status: "failed",
+      depth: input.fullAudit ? "deep" : "signal",
       finishedAt: nowIso(),
       durationMs: Date.now() - new Date(startedAt).getTime(),
       lastError: message,
@@ -485,6 +551,41 @@ ipcMain.handle("companion:copy-bridge-url", async () => {
 ipcMain.handle("companion:copy-text", async (_event, value) => {
   clipboard.writeText(String(value || ""));
   return { ok: true };
+});
+ipcMain.handle("companion:pick-report-file", async () => {
+  try {
+    return await pickReportFile();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "report_pick_failed");
+    pushLog(`[reports] falha ao carregar report: ${message}`);
+    return { ok: false, error: "report_pick_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:export-report-file", async (_event, reportPayload) => {
+  try {
+    return await exportReportFile(reportPayload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "report_export_failed");
+    pushLog(`[reports] falha ao exportar report: ${message}`);
+    return { ok: false, error: "report_export_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:open-latest-evidence", async () => {
+  try {
+    const latest = await findLatestReportArtifact();
+    if (!latest) {
+      return { ok: false, error: "latest_evidence_missing" };
+    }
+    shell.showItemInFolder(latest.path);
+    return {
+      ok: true,
+      path: latest.path,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "latest_evidence_failed");
+    pushLog(`[reports] falha ao abrir evidencia recente: ${message}`);
+    return { ok: false, error: "latest_evidence_failed", detail: message };
+  }
 });
 ipcMain.handle("companion:get-launch-on-login", async () => ({ ok: true, enabled: launchOnLogin }));
 ipcMain.handle("companion:set-launch-on-login", async (_event, enabled) => {
