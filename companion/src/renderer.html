@@ -1172,6 +1172,39 @@
       </div>
     </div>
 
+    <div id="longRunOverlay" class="shortcuts-overlay hidden">
+      <div class="shortcuts-card long-run-card">
+        <div class="shortcuts-head">
+          <div>
+            <p class="eyebrow">long run advisor</p>
+            <h2>Inspection is taking longer than expected.</h2>
+          </div>
+          <button id="dismissLongRunOverlay" class="ghost" type="button">Keep current run</button>
+        </div>
+        <p id="longRunSummary" class="panel-copy">
+          SitePulse can arm a faster profile when the current audit starts running beyond its expected window.
+        </p>
+        <div class="onboarding-grid long-run-grid">
+          <article>
+            <h3>Elapsed time</h3>
+            <p id="longRunElapsed" class="history-copy">0s</p>
+          </article>
+          <article>
+            <h3>Expected window</h3>
+            <p id="longRunExpected" class="history-copy">calibrating</p>
+          </article>
+          <article>
+            <h3>Fast mode plan</h3>
+            <p id="longRunPlan" class="history-copy">Signal sweep, lower overhead and a single active viewport.</p>
+          </article>
+        </div>
+        <div class="shortcuts-foot long-run-actions">
+          <button id="applyFastMode" class="primary" type="button">Arm fast mode</button>
+          <button id="dismissLongRunSecondary" class="secondary" type="button">Stay on current run</button>
+        </div>
+      </div>
+    </div>
+
     <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
     <script src="./renderer.js"></script>

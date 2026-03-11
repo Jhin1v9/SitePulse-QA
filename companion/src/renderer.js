@@ -298,6 +298,14 @@ const stateEl = {
   evidenceCompareState: document.getElementById("evidenceCompareState"),
   evidenceOpenImage: document.getElementById("evidenceOpenImage"),
   evidenceRevealImage: document.getElementById("evidenceRevealImage"),
+  longRunOverlay: document.getElementById("longRunOverlay"),
+  dismissLongRunOverlay: document.getElementById("dismissLongRunOverlay"),
+  dismissLongRunSecondary: document.getElementById("dismissLongRunSecondary"),
+  longRunSummary: document.getElementById("longRunSummary"),
+  longRunElapsed: document.getElementById("longRunElapsed"),
+  longRunExpected: document.getElementById("longRunExpected"),
+  longRunPlan: document.getElementById("longRunPlan"),
+  applyFastMode: document.getElementById("applyFastMode"),
   toastStack: document.getElementById("toastStack"),
 };
 
@@ -341,6 +349,11 @@ const uiState = {
     followAudit: true,
     available: false,
     timerId: 0,
+  },
+  longRunAdvisor: {
+    shownForRunKey: "",
+    activeRunKey: "",
+    open: false,
   },
   runtimeTickerId: 0,
 };
@@ -422,6 +435,12 @@ function formatDuration(durationMs) {
   return `${hours}h ${minutesRemain}m`;
 }
 
+function formatDurationWindow(durationMs) {
+  const normalized = toNumber(durationMs, 0);
+  if (!normalized) return "calibrating";
+  return `~${formatDuration(normalized)}`;
+}
+
 function toFileSrc(filePath) {
   const value = String(filePath || "").trim();
   if (!value) return "";
@@ -451,6 +470,55 @@ function classifyRunPace(elapsedMs, estimatedTotalMs) {
   if (ratio >= 1.2) return "Pace slower than baseline";
   if (ratio <= 0.8) return "Pace ahead of baseline";
   return "Pace on baseline";
+}
+
+function getAuditRunKey(audit = {}) {
+  return [
+    String(audit.baseUrl || "").trim(),
+    String(audit.startedAt || "").trim(),
+    String(audit.mode || "").trim(),
+    String(audit.scope || "").trim(),
+    String(audit.depth || "").trim(),
+  ].join("|");
+}
+
+function buildFastModeProfile(source = {}) {
+  const currentScope = normalizeScope(source.scope || uiState.scope);
+  return {
+    mode: normalizeMode(source.mode || uiState.mode),
+    mobileSweep: normalizeMode(source.mode || uiState.mode) === "mobile" ? "single" : "single",
+    scope: currentScope === "full" ? "experience" : currentScope,
+    depth: "signal",
+    headed: false,
+  };
+}
+
+function describeFastModePlan(profile) {
+  const changes = [];
+  changes.push("switch to signal sweep");
+  if (profile.scope === "experience" && normalizeScope(uiState.scope) === "full") {
+    changes.push("focus on UX/runtime first");
+  }
+  if (normalizeMode(uiState.mode) === "mobile" && normalizeMobileSweep(uiState.mobileSweep) === "family") {
+    changes.push("reduce mobile coverage to a single viewport");
+  }
+  if (stateEl.headed.checked === true) {
+    changes.push("disable headed preview overhead");
+  }
+  return changes.join(" | ");
+}
+
+function applyFastModeProfile(profile) {
+  uiState.mode = normalizeMode(profile.mode);
+  uiState.mobileSweep = normalizeMobileSweep(profile.mobileSweep);
+  uiState.scope = normalizeScope(profile.scope);
+  uiState.depth = normalizeDepth(profile.depth);
+  stateEl.headed.checked = profile.headed === true;
+  renderStaticSelections();
+  persistProfile();
+  renderPreviewWorkspace();
+  renderMissionBrief();
+  renderReportSummary(getVisibleReport(), { transient: !!uiState.liveReport });
 }
 
 function shortPath(value) {
@@ -2852,10 +2920,63 @@ function renderAuditProgress(audit = {}) {
   stateEl.auditProgressFill.style.width = `${percentage}%`;
 }
 
+function closeLongRunAdvisor() {
+  uiState.longRunAdvisor.open = false;
+  stateEl.longRunOverlay.classList.add("hidden");
+}
+
+function computeLongRunThresholdMs(audit = {}) {
+  const historyEstimateMs = estimateRunDurationMs({
+    baseUrl: audit.baseUrl,
+    mode: audit.mode,
+    scope: audit.scope,
+    depth: audit.depth,
+  });
+  const minimumMs = audit.mode === "mobile" && normalizeMobileSweep(uiState.mobileSweep) === "family"
+    ? 180000
+    : audit.depth === "deep"
+      ? 150000
+      : 90000;
+  return Math.max(minimumMs, historyEstimateMs > 0 ? Math.round(historyEstimateMs * 1.35) : 0);
+}
+
+function updateLongRunAdvisor(audit = {}) {
+  const running = audit.running === true;
+  const runKey = getAuditRunKey(audit);
+  if (!running || !runKey) {
+    uiState.longRunAdvisor.activeRunKey = "";
+    closeLongRunAdvisor();
+    return;
+  }
+
+  const elapsedMs = audit.startedAt ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime()) : 0;
+  const thresholdMs = computeLongRunThresholdMs(audit);
+  const shouldPrompt = elapsedMs >= thresholdMs && uiState.longRunAdvisor.shownForRunKey !== runKey;
+  const expectedText = thresholdMs > 0 ? formatDurationWindow(thresholdMs) : "calibrating";
+  const fastProfile = buildFastModeProfile(audit);
+
+  if (shouldPrompt) {
+    uiState.longRunAdvisor.shownForRunKey = runKey;
+    uiState.longRunAdvisor.activeRunKey = runKey;
+    uiState.longRunAdvisor.open = true;
+    stateEl.longRunSummary.textContent = `SitePulse detected that this run is taking longer than its expected window. You can arm a faster profile now without losing the current evidence already collected.`;
+    stateEl.longRunOverlay.classList.remove("hidden");
+  }
+
+  if (!uiState.longRunAdvisor.open || uiState.longRunAdvisor.activeRunKey !== runKey) {
+    return;
+  }
+
+  stateEl.longRunElapsed.textContent = formatDuration(elapsedMs);
+  stateEl.longRunExpected.textContent = expectedText;
+  stateEl.longRunPlan.textContent = describeFastModePlan(fastProfile) || "switch to signal sweep";
+}
+
 function refreshRuntimeTicker() {
   const audit = uiState.companionState?.audit || {};
   renderAuditProgress(audit);
   renderReportSummary(getVisibleReport(), { transient: !!uiState.liveReport });
+  updateLongRunAdvisor(audit);
 }
 
 function syncRuntimeTicker() {
@@ -3634,6 +3755,20 @@ function bindButtons() {
   });
   stateEl.evidenceRevealImage.addEventListener("click", async () => {
     await openArtifactPath(uiState.activeEvidence?.path || "");
+  });
+  stateEl.dismissLongRunOverlay.addEventListener("click", closeLongRunAdvisor);
+  stateEl.dismissLongRunSecondary.addEventListener("click", closeLongRunAdvisor);
+  stateEl.longRunOverlay.addEventListener("click", (event) => {
+    if (event.target === stateEl.longRunOverlay) {
+      closeLongRunAdvisor();
+    }
+  });
+  stateEl.applyFastMode.addEventListener("click", () => {
+    const audit = uiState.companionState?.audit || {};
+    applyFastModeProfile(buildFastModeProfile(audit));
+    appendLog("[studio] fast mode armed after long-run advisory.");
+    showToast("Fast mode armed. The next run will use a lighter profile.", "ok");
+    closeLongRunAdvisor();
   });
   stateEl.commandPaletteList.addEventListener("click", async (event) => {
     const target = event.target;

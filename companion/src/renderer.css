@@ -2112,6 +2112,22 @@ button.xl {
   border-color: rgba(255, 128, 148, 0.28);
 }
 
+.long-run-card {
+  max-width: 880px;
+}
+
+.long-run-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.long-run-grid article p {
+  margin: 0;
+}
+
+.long-run-actions {
+  justify-content: flex-end;
+}
+
 .onboarding-card h2 {
   margin: 0;
   font-size: 36px;
