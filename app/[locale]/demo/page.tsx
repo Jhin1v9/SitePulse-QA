@@ -37,24 +37,24 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
   const target = searchParams?.target?.trim();
 
   return (
-    <div className="content-shell min-w-0 space-y-10 py-10 sm:py-14">
+    <div className="content-shell min-w-0 space-y-8 py-8 sm:space-y-10 sm:py-14">
       <section className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.demo.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.4vw,3.4rem)] text-slate-900 dark:text-slate-100">{messages.demo.title}</h1>
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.demo.description}</p>
         {target ? (
-          <p className="text-sm font-medium text-studio-700 dark:text-studio-200">Target: {target}</p>
+          <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">Target: {target}</p>
         ) : null}
         <div className="flex min-w-0 flex-wrap gap-3">
           <Link
             href={buildLocalizedPath(locale, "downloads")}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100"
+            className="inline-flex h-10 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100 sm:w-auto"
           >
             {messages.demo.ctaPrimary}
           </Link>
           <Link
             href={buildLocalizedPath(locale, "contact")}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+            className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:w-auto"
           >
             {messages.demo.ctaSecondary}
           </Link>
@@ -68,7 +68,7 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
       </section>
 
       <section className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <article className="panel min-w-0 p-6">
+        <article className="panel min-w-0 p-4 sm:p-6">
           <h2 className="font-heading text-2xl text-slate-900 dark:text-slate-100">{messages.demo.flowTitle}</h2>
           <div className="mt-4 grid gap-3">
             {messages.demo.flow.map((step) => (
@@ -80,7 +80,7 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
           </div>
         </article>
 
-        <article className="panel min-w-0 p-6">
+        <article className="panel min-w-0 p-4 sm:p-6">
           <h2 className="font-heading text-2xl text-slate-900 dark:text-slate-100">{messages.demo.walkthroughTitle}</h2>
           <div className="mt-4 grid gap-3">
             {messages.demo.walkthrough.map((step) => (

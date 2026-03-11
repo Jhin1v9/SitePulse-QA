@@ -21,10 +21,10 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-300/70 bg-white/85 backdrop-blur dark:border-slate-800/70 dark:bg-slate-950/85">
-      <div className="content-shell flex min-w-0 items-center gap-3 py-3">
+      <div className="content-shell flex min-w-0 items-center gap-2 py-3 sm:gap-3">
         <Link
           href={buildLocalizedPath(locale, "home")}
-          className="inline-flex min-w-0 items-center gap-3 rounded-full border border-slate-300 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:text-studio-200"
+          className="inline-flex min-w-0 max-w-[min(74vw,18rem)] items-center gap-3 rounded-full border border-slate-300 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:text-studio-200 sm:max-w-none"
         >
           <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-studio-500/15 text-[0.68rem] font-bold uppercase tracking-wider text-studio-700 dark:text-studio-100">
             SP
@@ -71,7 +71,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           aria-expanded={mobileOpen}
           aria-label={mobileOpen ? messages.nav.mobileClose : messages.nav.mobileOpen}
         >
-          {mobileOpen ? "X" : "="}
+          {mobileOpen ? "X" : "||"}
         </button>
       </div>
 
@@ -94,6 +94,22 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <LanguageSwitcher locale={locale} label={messages.localeSwitcherLabel} />
               <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
+            </div>
+            <div className="mt-3 grid gap-2">
+              <Link
+                href={buildLocalizedPath(locale, "demo")}
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100"
+              >
+                {messages.nav.primaryCta}
+              </Link>
+              <Link
+                href={buildLocalizedPath(locale, "downloads")}
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex h-10 w-full items-center justify-center rounded-xl border border-studio-400/70 bg-studio-500/20 px-3 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100"
+              >
+                {messages.nav.secondaryCta}
+              </Link>
             </div>
           </nav>
         </div>

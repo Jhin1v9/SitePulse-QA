@@ -32,7 +32,7 @@ export default function FaqPage({ params }: FaqPageProps) {
   const messages = getMessages(locale);
 
   return (
-    <div className="content-shell min-w-0 space-y-8 py-10 sm:py-14">
+    <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
       <section className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.faq.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.faq.title}</h1>

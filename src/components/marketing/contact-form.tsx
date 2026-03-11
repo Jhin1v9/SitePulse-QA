@@ -168,7 +168,7 @@ export function ContactForm({ labels }: ContactFormProps) {
       <button
         type="submit"
         disabled={submitting || !canSubmit}
-        className="inline-flex h-11 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-5 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 disabled:cursor-not-allowed disabled:opacity-60 dark:text-studio-100"
+        className="inline-flex h-11 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-5 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 disabled:cursor-not-allowed disabled:opacity-60 dark:text-studio-100 sm:w-auto"
       >
         {submitting ? labels.submitting : labels.submit}
       </button>

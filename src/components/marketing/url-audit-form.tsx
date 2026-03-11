@@ -95,13 +95,13 @@ export function UrlAuditForm({
         <button
           type="submit"
           disabled={state === "loading"}
-          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-studio-500 to-cyan-500 px-5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
+          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-studio-500 to-cyan-500 px-5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 sm:w-auto"
         >
           {submitLabel}
         </button>
         <Link
           href={buildLocalizedPath(locale, "downloads")}
-          className="inline-flex h-11 shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:w-auto"
         >
           {secondaryLabel}
         </Link>

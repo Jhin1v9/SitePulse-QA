@@ -57,14 +57,14 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
   const messages = getMessages(locale);
 
   return (
-    <div className="content-shell min-w-0 space-y-8 py-10 sm:py-14">
+    <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
       <section className="space-y-3">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.downloads.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.downloads.title}</h1>
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.downloads.description}</p>
         <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700 dark:text-slate-300">
-          <p>{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{downloadFeed.channel}</span></p>
-          <p>{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt)}</span></p>
+          <p className="break-words">{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{downloadFeed.channel}</span></p>
+          <p className="break-words">{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt)}</span></p>
         </div>
       </section>
 
@@ -74,8 +74,8 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
           const checksum = installer.checksumSha256 ?? messages.downloads.availability.noChecksum;
 
           return (
-            <article key={installer.id} className="panel min-w-0 p-6">
-              <div className="flex min-w-0 flex-wrap items-start justify-between gap-4">
+            <article key={installer.id} className="panel min-w-0 p-4 sm:p-6">
+              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 max-w-3xl space-y-2">
                   <h2 className="font-heading text-2xl text-slate-900 dark:text-slate-100">
                     {messages.downloads.kindLabels[installer.kind]}
@@ -96,18 +96,18 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
                   ) : null}
                 </div>
 
-                <div className="flex shrink-0 flex-col gap-2">
+                <div className="flex w-full flex-col gap-2 xl:w-auto">
                   {hasDirectDownload ? (
                     <a
                       href={installer.downloadUrl ?? undefined}
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100 xl:w-auto"
                     >
                       {messages.downloads.actions.download}
                     </a>
                   ) : (
                     <Link
                       href={`${buildLocalizedPath(locale, "contact")}?topic=download&package=${encodeURIComponent(installer.id)}`}
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100 xl:w-auto"
                     >
                       {messages.downloads.actions.request}
                     </Link>
@@ -116,14 +116,14 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
                   {installer.releaseNotesUrl ? (
                     <a
                       href={installer.releaseNotesUrl}
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 xl:w-auto"
                     >
                       {messages.downloads.actions.releaseNotes}
                     </a>
                   ) : (
                     <Link
                       href={`${buildLocalizedPath(locale, "contact")}?topic=release-notes&package=${encodeURIComponent(installer.id)}`}
-                      className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                      className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 xl:w-auto"
                     >
                       {messages.downloads.actions.releaseNotes}
                     </Link>
@@ -131,7 +131,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
 
                   <Link
                     href={buildLocalizedPath(locale, "contact")}
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200"
+                    className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 xl:w-auto"
                   >
                     {messages.downloads.actions.support}
                   </Link>

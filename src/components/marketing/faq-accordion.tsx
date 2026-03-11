@@ -23,10 +23,10 @@ export function FaqAccordion({ items }: FaqAccordionProps) {
             <button
               type="button"
               onClick={() => setOpenIndex((current) => (current === index ? null : index))}
-              className="flex w-full min-w-0 items-start justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
+              className="flex w-full min-w-0 items-center justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
               aria-expanded={isOpen}
             >
-              <span className="text-base font-semibold text-slate-800 dark:text-slate-100">{item.question}</span>
+              <span className="min-w-0 break-words text-base font-semibold text-slate-800 dark:text-slate-100">{item.question}</span>
               <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-slate-300 text-xs text-slate-600 dark:border-slate-600 dark:text-slate-300">
                 {isOpen ? "-" : "+"}
               </span>
