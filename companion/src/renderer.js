@@ -355,6 +355,16 @@ const uiState = {
     activeRunKey: "",
     open: false,
   },
+  slowWatch: {
+    runKey: "",
+    routeKey: "",
+    routeStartedAtMs: 0,
+    routeWarnedKey: "",
+    actionKey: "",
+    actionStartedAtMs: 0,
+    actionWarnedKey: "",
+    events: [],
+  },
   runtimeTickerId: 0,
 };
 
@@ -490,6 +500,19 @@ function buildFastModeProfile(source = {}) {
     scope: currentScope === "full" ? "experience" : currentScope,
     depth: "signal",
     headed: false,
+  };
+}
+
+function createEmptySlowWatch() {
+  return {
+    runKey: "",
+    routeKey: "",
+    routeStartedAtMs: 0,
+    routeWarnedKey: "",
+    actionKey: "",
+    actionStartedAtMs: 0,
+    actionWarnedKey: "",
+    events: [],
   };
 }
 
@@ -1405,6 +1428,7 @@ function estimateRunDurationMs(profile = {}) {
     if (!item?.report?.summary?.durationMs) return false;
     if (profile.baseUrl && item.baseUrl !== profile.baseUrl) return false;
     if (profile.mode && item.mode !== profile.mode) return false;
+    if (profile.mobileSweep && String(item.mobileSweep || "") !== String(profile.mobileSweep)) return false;
     if (profile.scope && item.scope !== profile.scope) return false;
     if (profile.depth && item.depth !== profile.depth) return false;
     return true;
@@ -1421,6 +1445,112 @@ function estimateRunDurationMs(profile = {}) {
       });
 
   return median(preferred.slice(0, 6).map((item) => item.durationMs || item.report?.summary?.durationMs || 0));
+}
+
+function buildAuditEstimateContext(audit = {}, percentage = 0, elapsedMs = 0) {
+  const historyEstimateMs = estimateRunDurationMs({
+    baseUrl: audit.baseUrl,
+    mode: audit.mode,
+    mobileSweep: audit.mode === "mobile" && toNumber(audit?.progress?.sweepProfileTotal, 0) > 1 ? "family" : "single",
+    scope: audit.scope,
+    depth: audit.depth,
+  });
+  const progressEstimateMs = percentage >= 10 && elapsedMs > 0
+    ? Math.round(elapsedMs / Math.max(percentage / 100, 0.1))
+    : 0;
+  const totalEstimateMs = median([historyEstimateMs, progressEstimateMs].filter((value) => value > 0));
+  return {
+    historyEstimateMs,
+    progressEstimateMs,
+    totalEstimateMs,
+  };
+}
+
+function createSlowTimelineEntry(kind, audit, elapsedMs, thresholdMs) {
+  const progress = audit?.progress && typeof audit.progress === "object" ? audit.progress : {};
+  const isAction = kind === "action";
+  const route = String(progress.currentRoute || "").trim();
+  const action = String(progress.currentAction || "").trim();
+  return {
+    id: `${isAction ? "slow-action" : "slow-route"}-${getAuditRunKey(audit)}-${route}-${action}-${Math.round(elapsedMs)}`,
+    stage: isAction ? "actions" : "routes",
+    label: isAction ? "Slow action detected" : "Slow route detected",
+    status: "issue",
+    detail: isAction
+      ? `${action || "Current action"} has been running for ${formatDuration(elapsedMs)}. The expected window for this action was ${formatDuration(thresholdMs)}.`
+      : `${route || "Current route"} has been active for ${formatDuration(elapsedMs)}. The expected window for this route was ${formatDuration(thresholdMs)}.`,
+    route,
+    action: isAction ? action : "",
+    at: new Date().toISOString(),
+  };
+}
+
+function getSlowThresholds(audit = {}) {
+  const progress = audit?.progress && typeof audit.progress === "object" ? audit.progress : {};
+  const totalRoutes = Math.max(0, toNumber(progress.totalRoutes, 0));
+  const totalLabels = Math.max(0, toNumber(progress.totalLabels, 0));
+  const elapsedMs = audit.startedAt ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime()) : 0;
+  const estimate = buildAuditEstimateContext(audit, toNumber(progress.percentage, 0), elapsedMs);
+  const routeThresholdMs = Math.max(
+    audit.depth === "deep" ? 45000 : 25000,
+    totalRoutes > 0 && estimate.totalEstimateMs > 0 ? Math.round((estimate.totalEstimateMs / totalRoutes) * 1.35) : 0,
+  );
+  const actionThresholdMs = Math.max(
+    audit.depth === "deep" ? 15000 : 8000,
+    routeThresholdMs > 0 ? Math.round((routeThresholdMs / Math.max(totalLabels || 6, 6)) * 1.6) : 0,
+  );
+  return {
+    routeThresholdMs,
+    actionThresholdMs,
+  };
+}
+
+function syncSlowTimeline(audit = {}) {
+  const runKey = getAuditRunKey(audit);
+  const running = audit.running === true;
+  if (!running || !runKey) {
+    uiState.slowWatch = createEmptySlowWatch();
+    return;
+  }
+
+  if (uiState.slowWatch.runKey !== runKey) {
+    uiState.slowWatch = {
+      ...createEmptySlowWatch(),
+      runKey,
+    };
+  }
+
+  const progress = audit?.progress && typeof audit.progress === "object" ? audit.progress : {};
+  const route = String(progress.currentRoute || "").trim();
+  const action = String(progress.currentAction || "").trim();
+  const routeIndex = Math.max(0, toNumber(progress.routeIndex, 0));
+  const labelIndex = Math.max(0, toNumber(progress.labelIndex, 0));
+  const routeKey = route ? `${routeIndex}|${route}` : "";
+  const actionKey = action ? `${routeKey}|${labelIndex}|${action}` : "";
+  const nowMs = Date.now();
+
+  if (routeKey !== uiState.slowWatch.routeKey) {
+    uiState.slowWatch.routeKey = routeKey;
+    uiState.slowWatch.routeStartedAtMs = routeKey ? nowMs : 0;
+  }
+  if (actionKey !== uiState.slowWatch.actionKey) {
+    uiState.slowWatch.actionKey = actionKey;
+    uiState.slowWatch.actionStartedAtMs = actionKey ? nowMs : 0;
+  }
+
+  const { routeThresholdMs, actionThresholdMs } = getSlowThresholds(audit);
+  const routeElapsedMs = routeKey && uiState.slowWatch.routeStartedAtMs > 0 ? nowMs - uiState.slowWatch.routeStartedAtMs : 0;
+  const actionElapsedMs = actionKey && uiState.slowWatch.actionStartedAtMs > 0 ? nowMs - uiState.slowWatch.actionStartedAtMs : 0;
+
+  if (routeKey && routeElapsedMs >= routeThresholdMs && uiState.slowWatch.routeWarnedKey !== routeKey) {
+    uiState.slowWatch.routeWarnedKey = routeKey;
+    uiState.slowWatch.events = [createSlowTimelineEntry("route", audit, routeElapsedMs, routeThresholdMs), ...uiState.slowWatch.events].slice(0, 10);
+  }
+
+  if (actionKey && actionElapsedMs >= actionThresholdMs && uiState.slowWatch.actionWarnedKey !== actionKey) {
+    uiState.slowWatch.actionWarnedKey = actionKey;
+    uiState.slowWatch.events = [createSlowTimelineEntry("action", audit, actionElapsedMs, actionThresholdMs), ...uiState.slowWatch.events].slice(0, 10);
+  }
 }
 
 function createCompactStoredReport(report, limits = {}) {
@@ -2865,15 +2995,24 @@ function renderAuditProgress(audit = {}) {
   const totalRoutes = toNumber(progress.totalRoutes, 0);
   const labelIndex = toNumber(progress.labelIndex, 0);
   const totalLabels = toNumber(progress.totalLabels, 0);
+  const sweepProfileIndex = toNumber(progress.sweepProfileIndex, 0);
+  const sweepProfileTotal = toNumber(progress.sweepProfileTotal, 0);
+  const sweepProfileLabel = String(progress.sweepProfileLabel || "").trim();
+  const sweepProfilePercentage = Math.max(0, Math.min(100, toNumber(progress.sweepProfilePercentage, 0)));
+  const sweepProfileStartedAtMs = toNumber(progress.sweepProfileStartedAtMs, 0);
 
   let counters = "Waiting for the next run.";
   if (audit.running) {
+    const profilePrefix = sweepProfileTotal > 1 ? `Profile ${Math.max(sweepProfileIndex, 1)}/${sweepProfileTotal}${sweepProfileLabel ? ` · ${sweepProfileLabel}` : ""}` : "";
     if (totalRoutes > 0 && totalLabels > 0) {
       counters = `Route ${Math.max(routeIndex, 1)}/${totalRoutes} · action ${Math.max(labelIndex, 1)}/${totalLabels}`;
     } else if (totalRoutes > 0) {
       counters = `Route ${Math.max(routeIndex, 1)}/${totalRoutes}`;
     } else {
       counters = "Preparing the run map...";
+    }
+    if (profilePrefix) {
+      counters = `${profilePrefix} · ${counters}`;
     }
   } else if (audit.status === "clean" || audit.status === "issues") {
     counters = "Run finished.";
@@ -2885,18 +3024,27 @@ function renderAuditProgress(audit = {}) {
   let etaText = "ETA calibrating";
   let paceText = "Pace standby";
   if (audit.running) {
-    const historyEstimateMs = estimateRunDurationMs({
-      baseUrl: audit.baseUrl,
-      mode: audit.mode,
-      scope: audit.scope,
-      depth: audit.depth,
-    });
-    const progressEstimateMs = percentage >= 10 && elapsedMs > 0
-      ? Math.round(elapsedMs / Math.max(percentage / 100, 0.1))
-      : 0;
-    const totalEstimateMs = median([historyEstimateMs, progressEstimateMs].filter((value) => value > 0));
+    const { totalEstimateMs } = buildAuditEstimateContext(audit, percentage, elapsedMs);
     paceText = classifyRunPace(elapsedMs, totalEstimateMs);
-    if (totalEstimateMs > 0) {
+    if (sweepProfileTotal > 1) {
+      const profileElapsedMs = sweepProfileStartedAtMs > 0 ? Math.max(0, Date.now() - sweepProfileStartedAtMs) : 0;
+      const profileHistoryEstimateMs = totalEstimateMs > 0 ? Math.round(totalEstimateMs / sweepProfileTotal) : 0;
+      const profileProgressEstimateMs = sweepProfilePercentage >= 10 && profileElapsedMs > 0
+        ? Math.round(profileElapsedMs / Math.max(sweepProfilePercentage / 100, 0.1))
+        : 0;
+      const profileEstimateMs = median([profileHistoryEstimateMs, profileProgressEstimateMs].filter((value) => value > 0));
+      const familyRemainingMs = totalEstimateMs > 0 ? Math.max(0, totalEstimateMs - elapsedMs) : 0;
+      const profileRemainingMs = profileEstimateMs > 0 ? Math.max(0, profileEstimateMs - profileElapsedMs) : 0;
+      const profileName = sweepProfileLabel || `Profile ${Math.max(sweepProfileIndex, 1)}`;
+      etaText = [
+        profileEstimateMs > 0
+          ? `${profileName} ETA ${profileRemainingMs > 0 ? formatDuration(profileRemainingMs) : "ending soon"}`
+          : (profileElapsedMs > 0 ? `${profileName} elapsed ${formatDuration(profileElapsedMs)}` : ""),
+        totalEstimateMs > 0
+          ? `Family ETA ${familyRemainingMs > 0 ? formatDuration(familyRemainingMs) : "ending soon"}`
+          : (elapsedMs > 0 ? `Family elapsed ${formatDuration(elapsedMs)}` : ""),
+      ].filter(Boolean).join(" · ") || "ETA calibrating";
+    } else if (totalEstimateMs > 0) {
       const remainingMs = Math.max(0, totalEstimateMs - elapsedMs);
       etaText = remainingMs > 0 ? `ETA ${formatDuration(remainingMs)}` : "Ending soon";
     } else if (elapsedMs > 0) {
@@ -2974,9 +3122,11 @@ function updateLongRunAdvisor(audit = {}) {
 
 function refreshRuntimeTicker() {
   const audit = uiState.companionState?.audit || {};
+  syncSlowTimeline(audit);
   renderAuditProgress(audit);
   renderReportSummary(getVisibleReport(), { transient: !!uiState.liveReport });
   updateLongRunAdvisor(audit);
+  renderExecutionState(audit);
 }
 
 function syncRuntimeTicker() {
@@ -2997,19 +3147,23 @@ function syncRuntimeTicker() {
 
 function renderExecutionState(audit = {}) {
   const timeline = Array.isArray(audit.timeline) ? audit.timeline : [];
+  const mergedTimeline = [...(uiState.slowWatch.events || []), ...timeline]
+    .sort((left, right) => new Date(right.at || 0).getTime() - new Date(left.at || 0).getTime());
   const stageBoard = Array.isArray(audit.stageBoard) ? audit.stageBoard : [];
   const busy = audit.running === true;
 
   stateEl.timelineHeadline.textContent = busy
-    ? "The engine is moving through phases and updating evidence as each step finishes."
-    : timeline.length
+    ? (uiState.slowWatch.events.length
+        ? "The engine is moving through phases. Slow route/action markers are added when execution drifts beyond its expected window."
+        : "The engine is moving through phases and updating evidence as each step finishes.")
+    : mergedTimeline.length
       ? "Latest execution trail from the most recent run."
       : "The workstation will register each engine phase as evidence appears.";
 
-  if (!timeline.length) {
+  if (!mergedTimeline.length) {
     stateEl.timelineList.innerHTML = '<article class="empty-state">Run an audit to populate the execution timeline.</article>';
   } else {
-    stateEl.timelineList.innerHTML = timeline
+    stateEl.timelineList.innerHTML = mergedTimeline
       .slice(0, 14)
       .map((entry) => `
         <article class="timeline-entry timeline-${escapeHtml(entry.status || "active")}">
@@ -3118,6 +3272,7 @@ function renderCompanionState(payload) {
   renderGoogleSeoSource(payload?.seoSource || {});
   renderUpdateState(payload?.update || null);
   syncRuntimeTicker();
+  syncSlowTimeline(payload?.audit || {});
 
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});

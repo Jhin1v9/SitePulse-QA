@@ -143,6 +143,12 @@ function createEmptyAuditProgress() {
     currentRoute: "",
     currentAction: "",
     lastEventType: "",
+    sweepProfileIndex: 0,
+    sweepProfileTotal: 0,
+    sweepProfileLabel: "",
+    sweepProfileViewport: "",
+    sweepProfilePercentage: 0,
+    sweepProfileStartedAtMs: 0,
   };
 }
 
@@ -842,6 +848,12 @@ function scaleProgressForSweep(progress) {
     ...progress,
     percentage: clampNumber(scaled, 0, finished ? 100 : 99),
     detail: prefixSweepDetail(progress.detail, context),
+    sweepProfileIndex: context.index,
+    sweepProfileTotal: context.total,
+    sweepProfileLabel: context.label,
+    sweepProfileViewport: context.viewport,
+    sweepProfilePercentage: clampNumber(safeFiniteNumber(progress.percentage, 0), 0, 100),
+    sweepProfileStartedAtMs: safeFiniteNumber(liveReportContext?.startedAtMs, 0),
   };
 }
 
@@ -1837,6 +1849,12 @@ async function runMobileFamilyAudit(input) {
         phaseLabel: "Preparing mobile profile",
         detail: `${profile.label} ${formatViewport(profile.width, profile.height)} | pass ${index + 1}/${profiles.length}`,
         percentage: 4 + Math.round((index / profiles.length) * 92),
+        sweepProfileIndex: index + 1,
+        sweepProfileTotal: profiles.length,
+        sweepProfileLabel: profile.label,
+        sweepProfileViewport: formatViewport(profile.width, profile.height),
+        sweepProfilePercentage: 0,
+        sweepProfileStartedAtMs: profileStartedAtMs,
       },
     });
     pushLog(`[audit] mobile profile ${index + 1}/${profiles.length} | ${profile.label} ${formatViewport(profile.width, profile.height)}`);
