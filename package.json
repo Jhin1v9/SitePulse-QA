@@ -27,6 +27,7 @@
     "audit:bridge": "npm --prefix qa run audit:bridge"
   },
   "dependencies": {
+    "framer-motion": "^11.11.17",
     "next": "14.2.5",
     "react": "18.3.1",
     "react-dom": "18.3.1"
