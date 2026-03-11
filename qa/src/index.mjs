@@ -4634,7 +4634,7 @@ async function suppressConsentOverlays(page, cfg, args, route = "") {
   return result;
 }
 
-async function captureVisualFindingEvidence(page, finding, reportDir, route) {
+async function captureVisualFindingEvidence(page, finding, reportDir, route, cfg) {
   if (!reportDir || !finding || !Array.isArray(finding.samples) || !finding.samples.length) {
     return [];
   }
@@ -6088,7 +6088,7 @@ async function run() {
             finding.code === CODE.VISUAL_BOUNDARY_COLLISION ||
             finding.code === CODE.VISUAL_FOLD_PRESSURE
           ) {
-            const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route);
+            const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route, cfg);
             emitLiveEvent(args, "layout_check_issue", {
               route,
               action: finding.action,
