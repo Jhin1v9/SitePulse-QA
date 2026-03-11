@@ -54,6 +54,22 @@ function createEmptyAuditProgress() {
   };
 }
 
+function normalizeMobileSweep(value) {
+  return value === "family" ? "family" : "single";
+}
+
+const MOBILE_FAMILY_PROFILES = [
+  { id: "small", label: "Small phone", width: 360, height: 740 },
+  { id: "medium", label: "Medium phone", width: 390, height: 844 },
+  { id: "large", label: "Large phone", width: 412, height: 915 },
+  { id: "xl", label: "XL phone", width: 430, height: 932 },
+  { id: "xxl", label: "XXL phone", width: 480, height: 1040 },
+];
+
+function formatViewport(width, height) {
+  return `${width}x${height}`;
+}
+
 const RUN_STAGE_DEFINITIONS = [
   { id: "boot", label: "Runtime boot" },
   { id: "discovery", label: "Route discovery" },
@@ -294,6 +310,197 @@ function summarizeReport(report) {
   };
 }
 
+function uniqueStrings(values) {
+  return [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function buildViewportTaggedIssue(issue, profile) {
+  return {
+    ...issue,
+    viewportLabel: profile.label,
+    viewport: formatViewport(profile.width, profile.height),
+    viewportWidth: profile.width,
+    viewportHeight: profile.height,
+  };
+}
+
+function buildViewportTaggedAction(action, profile) {
+  return {
+    ...action,
+    viewportLabel: profile.label,
+    viewport: formatViewport(profile.width, profile.height),
+    viewportWidth: profile.width,
+    viewportHeight: profile.height,
+  };
+}
+
+function buildViewportTaggedRoute(route, profile) {
+  return {
+    ...route,
+    viewportLabel: profile.label,
+    viewport: formatViewport(profile.width, profile.height),
+    viewportWidth: profile.width,
+    viewportHeight: profile.height,
+  };
+}
+
+function buildMobileSweepPrompt(baseUrl, profileCount) {
+  return [
+    "Act as a senior QA and frontend engineer focused on mobile quality.",
+    `The current SitePulse run aggregated ${profileCount} mobile viewport profiles for ${baseUrl}.`,
+    "Prioritize regressions that only appear on one viewport family, then validate spacing, overflow, collisions and broken actions across the whole mobile surface.",
+    "Do not apply cosmetic-only fixes. Preserve interaction quality, readability and viewport discipline.",
+  ].join(" ");
+}
+
+function aggregateMobileSweepReport(input, successfulRuns, failedRuns, startedAt, finishedAt) {
+  const successful = Array.isArray(successfulRuns) ? successfulRuns : [];
+  const failed = Array.isArray(failedRuns) ? failedRuns : [];
+  const summaries = successful.map((item) => ({
+    profile: item.profile,
+    summary: summarizeReport(item.report),
+    report: item.report,
+    command: String(item.command || ""),
+  }));
+  const successfulProfiles = summaries.map((item) => ({
+    id: item.profile.id,
+    label: item.profile.label,
+    width: item.profile.width,
+    height: item.profile.height,
+    viewport: formatViewport(item.profile.width, item.profile.height),
+    status: "ok",
+    routesChecked: item.summary.routesChecked,
+    actionsMapped: item.summary.buttonsChecked || item.summary.actionsMapped,
+    totalIssues: item.summary.totalIssues,
+    seoScore: item.summary.seoScore,
+  }));
+  const failedProfiles = failed.map((item) => ({
+    id: item.profile.id,
+    label: item.profile.label,
+    width: item.profile.width,
+    height: item.profile.height,
+    viewport: formatViewport(item.profile.width, item.profile.height),
+    status: "failed",
+    routesChecked: 0,
+    actionsMapped: 0,
+    totalIssues: 1,
+    seoScore: 0,
+    error: String(item.detail || item.error || "profile_failed"),
+  }));
+
+  const issues = successful.flatMap((item) =>
+    (Array.isArray(item.report?.issues) ? item.report.issues : []).map((issue) => buildViewportTaggedIssue(issue, item.profile)),
+  );
+  const actions = successful.flatMap((item) =>
+    (Array.isArray(item.report?.actionSweep) ? item.report.actionSweep : []).map((action) =>
+      buildViewportTaggedAction(action, item.profile),
+    ),
+  );
+  const routes = successful.flatMap((item) =>
+    (Array.isArray(item.report?.routeSweep) ? item.report.routeSweep : []).map((route) => buildViewportTaggedRoute(route, item.profile)),
+  );
+
+  failed.forEach((item, index) => {
+    issues.push({
+      id: `mobile-sweep-failed-${index + 1}`,
+      code: "ROUTE_LOAD_FAIL",
+      severity: "high",
+      route: "/",
+      action: `mobile_sweep:${item.profile.id}`,
+      detail: `The ${item.profile.label} pass (${formatViewport(item.profile.width, item.profile.height)}) did not complete: ${String(item.detail || item.error || "profile_failed")}`,
+      recommendedResolution: "Re-run the failing viewport in mobile single-device mode and inspect the live log to isolate the root cause.",
+      viewportLabel: item.profile.label,
+      viewport: formatViewport(item.profile.width, item.profile.height),
+      viewportWidth: item.profile.width,
+      viewportHeight: item.profile.height,
+    });
+  });
+
+  const totalSeoScore = successfulProfiles.reduce((sum, item) => sum + item.seoScore, 0);
+  const averageSeoScore = successfulProfiles.length ? Math.round(totalSeoScore / successfulProfiles.length) : 0;
+  const routesChecked = summaries.reduce((max, item) => Math.max(max, item.summary.routesChecked), 0);
+  const buttonsChecked = summaries.reduce((sum, item) => sum + item.summary.buttonsChecked, 0);
+  const actionsMapped = summaries.reduce((sum, item) => sum + (item.summary.buttonsChecked || item.summary.actionsMapped), 0);
+  const visualSectionOrderInvalid = summaries.reduce((sum, item) => sum + item.summary.visualSectionOrderInvalid, 0);
+  const consoleErrors = summaries.reduce((sum, item) => sum + item.summary.consoleErrors, 0);
+  const seoCriticalIssues = summaries.reduce((sum, item) => sum + item.summary.seoCriticalIssues, 0);
+  const buttonsNoEffect = summaries.reduce((sum, item) => sum + item.summary.buttonsNoEffect, 0);
+  const seoPagesAnalyzed = successful.reduce((sum, item) => {
+    const pagesAnalyzed = item.report?.seo && typeof item.report.seo === "object" ? Number(item.report.seo.pagesAnalyzed || 0) : 0;
+    return sum + (Number.isFinite(pagesAnalyzed) ? pagesAnalyzed : 0);
+  }, 0);
+  const preferredReplay =
+    summaries.find((item) => item.profile.id === "medium")?.command ||
+    summaries[0]?.command ||
+    "";
+  const topRecommendations = uniqueStrings(
+    successful.flatMap((item) =>
+      item.report?.seo && Array.isArray(item.report.seo.topRecommendations) ? item.report.seo.topRecommendations : [],
+    ),
+  ).slice(0, 10);
+  const worstProfile = [...successfulProfiles, ...failedProfiles].sort((left, right) => right.totalIssues - left.totalIssues)[0] || null;
+  const durationMs = Math.max(0, new Date(finishedAt).getTime() - new Date(startedAt).getTime());
+
+  return {
+    meta: {
+      baseUrl: input.baseUrl,
+      startedAt,
+      finishedAt,
+      replayCommand: preferredReplay,
+      auditMode: "mobile",
+      auditDepth: input.fullAudit ? "deep" : "signal",
+      viewport: "mobile-family",
+      viewportLabel: "Mobile family sweep",
+      mobileSweep: {
+        id: normalizeMobileSweep(input.mobileSweep),
+        label: "Mobile family sweep",
+        profiles: [...successfulProfiles, ...failedProfiles],
+      },
+    },
+    summary: {
+      auditScope: input.scope,
+      routesChecked,
+      buttonsChecked,
+      actionsMapped,
+      totalIssues: issues.length,
+      seoScore: averageSeoScore,
+      seoCriticalIssues,
+      seoTotalIssues: summaries.reduce(
+        (sum, item) => sum + Number(item.report?.summary?.seoTotalIssues || item.report?.seo?.issues?.length || 0),
+        0,
+      ),
+      seoPagesAnalyzed,
+      buttonsNoEffect,
+      visualSectionOrderInvalid,
+      consoleErrors,
+      durationMs,
+      mobileProfilesAnalyzed: successfulProfiles.length,
+    },
+    routeSweep: routes,
+    actionSweep: actions,
+    issues,
+    seo: {
+      overallScore: averageSeoScore,
+      pagesAnalyzed: seoPagesAnalyzed,
+      topRecommendations,
+    },
+    assistantGuide: {
+      status: issues.length > 0 ? "issues" : "clean",
+      issueCount: issues.length,
+      immediateSteps: uniqueStrings([
+        worstProfile
+          ? `Start with ${worstProfile.label} (${worstProfile.viewport}) because it currently carries the heaviest mobile pressure.`
+          : "",
+        failedProfiles.length ? "Re-run the failed viewport passes in single-device mode before treating the mobile family as stable." : "",
+        "Fix issues that repeat across multiple mobile sizes before polishing isolated edge cases.",
+      ]).slice(0, 6),
+      replayCommand: preferredReplay,
+      quickStartPrompt: buildMobileSweepPrompt(input.baseUrl, successfulProfiles.length + failedProfiles.length),
+      routePriority: [],
+    },
+  };
+}
+
 function deriveProgressLabel(eventType) {
   const map = {
     runner_ready: "Preparing runtime",
@@ -509,9 +716,57 @@ function buildSyntheticLiveEventFromReport(progress) {
   };
 }
 
+function getActiveSweepContext() {
+  const total = safeFiniteNumber(liveReportContext?.sweepProfileTotal, 0);
+  const index = safeFiniteNumber(liveReportContext?.sweepProfileIndex, 0);
+  if (total <= 1 || index <= 0) return null;
+  return {
+    total,
+    index,
+    label: String(liveReportContext?.sweepProfileLabel || "").trim(),
+    viewport: String(liveReportContext?.sweepProfileViewport || "").trim(),
+  };
+}
+
+function prefixSweepDetail(detail, context) {
+  const prefixParts = [context?.label, context?.viewport].filter(Boolean);
+  const prefix = prefixParts.join(" ");
+  const text = String(detail || "").trim();
+  if (!prefix) return text;
+  if (!text) return prefix;
+  return text.startsWith(prefix) ? text : `${prefix} | ${text}`;
+}
+
+function scaleProgressForSweep(progress) {
+  const context = getActiveSweepContext();
+  if (!context) return progress;
+
+  const completedProfiles = Math.max(0, context.index - 1);
+  const perProfileRatio = clampNumber(safeFiniteNumber(progress.percentage, 0), 0, 100) / 100;
+  const scaled = 4 + Math.round(((completedProfiles + perProfileRatio) / context.total) * 92);
+  const finished = progress.phase === "runner_finished" && context.index >= context.total;
+
+  return {
+    ...progress,
+    percentage: clampNumber(scaled, 0, finished ? 100 : 99),
+    detail: prefixSweepDetail(progress.detail, context),
+  };
+}
+
+function decorateEventForSweep(event) {
+  const context = getActiveSweepContext();
+  if (!context) return event;
+  return {
+    ...event,
+    detail: prefixSweepDetail(event?.detail, context),
+  };
+}
+
 function applyLiveReportProgress(report, options = {}) {
   if (!report || typeof report !== "object") return;
-  const nextProgress = deriveProgressFromLiveReport(report, auditState.progress || createEmptyAuditProgress());
+  const nextProgress = scaleProgressForSweep(
+    deriveProgressFromLiveReport(report, auditState.progress || createEmptyAuditProgress()),
+  );
   let nextTimeline = auditState.timeline || [];
   let nextStageBoard = auditState.stageBoard || createEmptyStageBoard();
 
@@ -527,12 +782,12 @@ function applyLiveReportProgress(report, options = {}) {
     String(report?.meta?.finishedAt || ""),
   ]);
 
-  if (options.source === "cmd" && liveReportContext?.lastSnapshotKey !== snapshotKey) {
+    if (options.source === "cmd" && liveReportContext?.lastSnapshotKey !== snapshotKey) {
     liveReportContext = {
       ...(liveReportContext || {}),
       lastSnapshotKey: snapshotKey,
     };
-    const syntheticEvent = buildSyntheticLiveEventFromReport(nextProgress);
+    const syntheticEvent = decorateEventForSweep(buildSyntheticLiveEventFromReport(nextProgress));
     nextTimeline = appendTimelineEvent(nextTimeline, syntheticEvent);
     nextStageBoard = updateStageBoardFromEvent(nextStageBoard, syntheticEvent);
   }
@@ -556,11 +811,14 @@ function setAuditState(patch) {
 
 function applyLiveAuditEvent(event) {
   if (!event || typeof event !== "object") return;
+  const decoratedEvent = decorateEventForSweep(event);
   auditState = {
     ...auditState,
-    progress: deriveProgressFromLiveEvent(event, auditState.progress || createEmptyAuditProgress()),
-    timeline: appendTimelineEvent(auditState.timeline, event),
-    stageBoard: updateStageBoardFromEvent(auditState.stageBoard, event),
+    progress: scaleProgressForSweep(
+      deriveProgressFromLiveEvent(decoratedEvent, auditState.progress || createEmptyAuditProgress()),
+    ),
+    timeline: appendTimelineEvent(auditState.timeline, decoratedEvent),
+    stageBoard: updateStageBoardFromEvent(auditState.stageBoard, decoratedEvent),
   };
   notifyState();
 }
@@ -915,6 +1173,10 @@ async function startLiveReportPolling(mode = "desktop", options = {}) {
     startedAtMs: Number.isFinite(options.startedAtMs) ? Number(options.startedAtMs) : Date.now(),
     recommendedCommand: String(options.recommendedCommand || "").trim(),
     cmdStatePath: String(options.cmdStatePath || (options.source === "cmd" ? getCmdStatePathForMode(mode) : "")).trim(),
+    sweepProfileIndex: Number.isFinite(options.sweepProfileIndex) ? Number(options.sweepProfileIndex) : 0,
+    sweepProfileTotal: Number.isFinite(options.sweepProfileTotal) ? Number(options.sweepProfileTotal) : 0,
+    sweepProfileLabel: String(options.sweepProfileLabel || "").trim(),
+    sweepProfileViewport: String(options.sweepProfileViewport || "").trim(),
     lastSnapshotKey: "",
     cmdStateValue: "",
     cmdFinishedAtMs: 0,
@@ -1245,7 +1507,7 @@ async function exportReportFile(reportPayload) {
   };
 }
 
-async function runAuditViaBridge(input) {
+async function runSingleAuditViaBridge(input) {
   const startedAt = nowIso();
   stopLiveReportPolling({
     preserveSnapshot: false,
@@ -1414,6 +1676,198 @@ async function runAuditViaBridge(input) {
       detail: message,
     };
   }
+}
+
+async function runMobileFamilyAudit(input) {
+  const startedAt = nowIso();
+  const startedAtMs = new Date(startedAt).getTime();
+  const profiles = MOBILE_FAMILY_PROFILES;
+  const successfulRuns = [];
+  const failedRuns = [];
+
+  stopLiveReportPolling({
+    preserveSnapshot: false,
+    notifyState: false,
+    notifyRenderer: true,
+  });
+  setAuditState({
+    running: true,
+    status: "running",
+    baseUrl: input.baseUrl,
+    mode: "mobile",
+    scope: input.scope,
+    depth: input.fullAudit ? "deep" : "signal",
+    startedAt,
+    finishedAt: "",
+    durationMs: 0,
+    lastError: "",
+    lastCommand: "",
+    usedFallback: false,
+    progress: {
+      ...createEmptyAuditProgress(),
+      phase: "boot",
+      phaseLabel: "Preparing mobile family",
+      detail: `Preparing a ${profiles.length}-profile mobile family sweep for ${input.baseUrl}`,
+      percentage: 2,
+    },
+    liveReport: null,
+    timeline: [
+      {
+        id: `mobile-family-start-${startedAt}`,
+        stage: "boot",
+        label: "Mobile family scheduled",
+        status: "active",
+        detail: `Preparing ${profiles.length} mobile viewport passes for ${input.baseUrl}`,
+        route: "",
+        action: "",
+        at: startedAt,
+      },
+    ],
+    stageBoard: createInitialStageBoard(`Preparing ${profiles.length} mobile viewport passes for ${input.baseUrl}`),
+  });
+  pushLog(`[audit] starting mobile family sweep | scope=${input.scope} | depth=${input.fullAudit ? "deep" : "signal"} | target=${input.baseUrl}`);
+
+  for (let index = 0; index < profiles.length; index += 1) {
+    const profile = profiles[index];
+    const profileInput = {
+      ...input,
+      mode: "mobile",
+      viewportWidth: profile.width,
+      viewportHeight: profile.height,
+      viewportLabel: profile.label,
+    };
+    const profileStartedAtMs = Date.now();
+
+    setAuditState({
+      progress: {
+        ...(auditState.progress || createEmptyAuditProgress()),
+        phase: "runner_ready",
+        phaseLabel: "Preparing mobile profile",
+        detail: `${profile.label} ${formatViewport(profile.width, profile.height)} | pass ${index + 1}/${profiles.length}`,
+        percentage: 4 + Math.round((index / profiles.length) * 92),
+      },
+    });
+    pushLog(`[audit] mobile profile ${index + 1}/${profiles.length} | ${profile.label} ${formatViewport(profile.width, profile.height)}`);
+
+    try {
+      await startLiveReportPolling("mobile", {
+        source: "native",
+        baseUrl: input.baseUrl,
+        scope: input.scope,
+        depth: input.fullAudit ? "deep" : "signal",
+        startedAtMs: profileStartedAtMs,
+        sweepProfileIndex: index + 1,
+        sweepProfileTotal: profiles.length,
+        sweepProfileLabel: profile.label,
+        sweepProfileViewport: formatViewport(profile.width, profile.height),
+      });
+      const { status, payload } = await postBridgeJson("/run", profileInput);
+      if (payload?.ok && payload?.report) {
+        successfulRuns.push({
+          profile,
+          report: payload.report,
+          command: String(payload.command || ""),
+          status,
+          usedFallback: payload.usedFallback === true,
+        });
+        pushLog(`[audit] mobile profile completed | ${profile.label} | issues=${summarizeReport(payload.report).totalIssues} | seo=${summarizeReport(payload.report).seoScore}`);
+        continue;
+      }
+
+      const detail = String(payload?.detail || payload?.error || `bridge_status_${status}`);
+      failedRuns.push({
+        profile,
+        error: payload?.error || "audit_failed",
+        detail,
+      });
+      pushLog(`[audit] mobile profile failed | ${profile.label} | ${detail}`);
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error || "audit_failed");
+      failedRuns.push({
+        profile,
+        error: "audit_failed",
+        detail,
+      });
+      pushLog(`[audit] mobile profile failed | ${profile.label} | ${detail}`);
+    } finally {
+      stopLiveReportPolling({
+        preserveSnapshot: true,
+        notifyState: false,
+        notifyRenderer: false,
+      });
+    }
+  }
+
+  if (!successfulRuns.length) {
+    const message = failedRuns[0]?.detail || "The mobile family sweep did not produce any successful report.";
+    stopLiveReportPolling({
+      preserveSnapshot: true,
+    });
+    setAuditState({
+      running: false,
+      status: "failed",
+      finishedAt: nowIso(),
+      durationMs: Math.max(0, Date.now() - startedAtMs),
+      lastError: message,
+      progress: {
+        ...(auditState.progress || createEmptyAuditProgress()),
+        phase: "failed",
+        phaseLabel: "Run failed",
+        detail: message,
+      },
+    });
+    return {
+      ok: false,
+      error: "audit_failed",
+      detail: message,
+    };
+  }
+
+  const finishedAt = nowIso();
+  const aggregate = aggregateMobileSweepReport(input, successfulRuns, failedRuns, startedAt, finishedAt);
+  const summary = summarizeReport(aggregate);
+  const usedFallback = successfulRuns.some((item) => item.usedFallback === true);
+  stopLiveReportPolling({
+    preserveSnapshot: false,
+    notifyState: false,
+    notifyRenderer: true,
+  });
+  setAuditState({
+    running: false,
+    status: summary.totalIssues > 0 ? "issues" : "clean",
+    depth: input.fullAudit ? "deep" : "signal",
+    finishedAt,
+    durationMs: Math.max(0, Date.now() - startedAtMs),
+    lastCommand: String(aggregate.meta.replayCommand || ""),
+    usedFallback,
+    lastSummary: summary,
+    lastError: "",
+    liveReport: null,
+    progress: {
+      ...(auditState.progress || createEmptyAuditProgress()),
+      percentage: 100,
+      phase: "runner_finished",
+      phaseLabel: "Mobile family finished",
+      detail:
+        failedRuns.length > 0
+          ? `Mobile family sweep finished with ${summary.totalIssues} issue(s) and ${failedRuns.length} failed profile(s).`
+          : `Mobile family sweep finished with ${summary.totalIssues} issue(s).`,
+    },
+  });
+  pushLog(`[audit] mobile family completed | profiles=${successfulRuns.length}/${profiles.length} | issues=${summary.totalIssues} | seo=${summary.seoScore}`);
+  return {
+    ok: true,
+    report: aggregate,
+    command: String(aggregate.meta.replayCommand || ""),
+    usedFallback,
+  };
+}
+
+async function runAuditViaBridge(input) {
+  if (input.mode === "mobile" && normalizeMobileSweep(input.mobileSweep) === "family") {
+    return await runMobileFamilyAudit(input);
+  }
+  return await runSingleAuditViaBridge(input);
 }
 
 async function openCmdViaBridge(input) {
@@ -1686,6 +2140,10 @@ ipcMain.handle("companion:run-audit", async (_event, input) => {
     noServer: input?.noServer !== false,
     headed: input?.headed === true,
     fullAudit: input?.fullAudit !== false,
+    mobileSweep: normalizeMobileSweep(input?.mobileSweep),
+    viewportWidth: Number.isFinite(Number(input?.viewportWidth)) ? Math.max(320, Number(input.viewportWidth)) : null,
+    viewportHeight: Number.isFinite(Number(input?.viewportHeight)) ? Math.max(320, Number(input.viewportHeight)) : null,
+    viewportLabel: String(input?.viewportLabel || "").trim(),
   });
 });
 ipcMain.handle("companion:open-cmd-window", async (_event, input) => {
@@ -1697,6 +2155,10 @@ ipcMain.handle("companion:open-cmd-window", async (_event, input) => {
     headed: input?.headed === true,
     fullAudit: input?.fullAudit !== false,
     elevated: input?.elevated === true,
+    mobileSweep: normalizeMobileSweep(input?.mobileSweep),
+    viewportWidth: Number.isFinite(Number(input?.viewportWidth)) ? Math.max(320, Number(input.viewportWidth)) : null,
+    viewportHeight: Number.isFinite(Number(input?.viewportHeight)) ? Math.max(320, Number(input.viewportHeight)) : null,
+    viewportLabel: String(input?.viewportLabel || "").trim(),
   });
 });
 ipcMain.handle("companion:open-reports", async () => {

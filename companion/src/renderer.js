@@ -109,6 +109,7 @@ const stateEl = {
   previewFallback: document.getElementById("previewFallback"),
   sitePreview: document.getElementById("sitePreview"),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
+  mobileSweepButtons: Array.from(document.querySelectorAll("[data-mobile-sweep]")),
   scopeButtons: Array.from(document.querySelectorAll("[data-scope]")),
   depthButtons: Array.from(document.querySelectorAll("[data-depth]")),
   severityFilterButtons: Array.from(document.querySelectorAll("[data-issue-filter]")),
@@ -177,6 +178,11 @@ const stateEl = {
   currentDepth: document.getElementById("currentDepth"),
   currentDuration: document.getElementById("currentDuration"),
   currentCommand: document.getElementById("currentCommand"),
+  mobileSweepControls: document.getElementById("mobileSweepControls"),
+  mobileSweepHint: document.getElementById("mobileSweepHint"),
+  mobileMatrixPanel: document.getElementById("mobileMatrixPanel"),
+  mobileMatrixHeadline: document.getElementById("mobileMatrixHeadline"),
+  mobileMatrixGrid: document.getElementById("mobileMatrixGrid"),
   compareHeadline: document.getElementById("compareHeadline"),
   compareIssueDelta: document.getElementById("compareIssueDelta"),
   compareSeoDelta: document.getElementById("compareSeoDelta"),
@@ -271,6 +277,7 @@ const uiState = {
   liveReportKey: "",
   logs: ["[studio] waiting for engine telemetry"],
   mode: "desktop",
+  mobileSweep: "single",
   scope: "full",
   depth: "signal",
   activeView: "overview",
@@ -369,6 +376,10 @@ function normalizeScope(value) {
 
 function normalizeMode(value) {
   return value === "mobile" ? "mobile" : "desktop";
+}
+
+function normalizeMobileSweep(value) {
+  return value === "family" ? "family" : "single";
 }
 
 function normalizeDepth(value) {
@@ -632,6 +643,30 @@ function normalizeEvidenceItem(item = {}) {
   };
 }
 
+function normalizeMobileSweepMeta(input) {
+  if (!input || typeof input !== "object") return null;
+  const profiles = Array.isArray(input.profiles)
+    ? input.profiles.map((item, index) => ({
+        id: String(item?.id || `profile-${index + 1}`),
+        label: String(item?.label || `Profile ${index + 1}`),
+        viewport: String(item?.viewport || ""),
+        width: toNumber(item?.width, 0),
+        height: toNumber(item?.height, 0),
+        status: String(item?.status || "ok"),
+        routesChecked: toNumber(item?.routesChecked, 0),
+        actionsMapped: toNumber(item?.actionsMapped, 0),
+        totalIssues: toNumber(item?.totalIssues, 0),
+        seoScore: toNumber(item?.seoScore, 0),
+        error: String(item?.error || ""),
+      }))
+    : [];
+  return {
+    id: normalizeMobileSweep(input.id),
+    label: String(input.label || "Mobile sweep"),
+    profiles,
+  };
+}
+
 function normalizeIssue(item, index) {
   const issue = item && typeof item === "object" ? item : {};
   const code = String(issue.code || "UNKNOWN");
@@ -644,6 +679,8 @@ function normalizeIssue(item, index) {
     detail: String(issue.detail || "No detail provided."),
     recommendedResolution: String(issue.recommendedResolution || "Review the root cause and validate with a fresh run."),
     group: ISSUE_GROUP[code] || "Other issue",
+    viewportLabel: String(issue.viewportLabel || ""),
+    viewport: String(issue.viewport || ""),
     assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
     diagnosis: normalizeDiagnosis(issue.diagnosis && typeof issue.diagnosis === "object" ? issue.diagnosis : {}),
     evidence: Array.isArray(issue.evidence) ? issue.evidence.map(normalizeEvidenceItem).filter((item) => item.path) : [],
@@ -666,6 +703,8 @@ function normalizeAction(item, index) {
     actualFunction: String(action.actualFunction || ""),
     detail: String(action.detail || ""),
     area: String(action.area || ""),
+    viewportLabel: String(action.viewportLabel || ""),
+    viewport: String(action.viewport || ""),
     signals: Array.isArray(action.signals) ? action.signals.map((signal) => String(signal)) : [],
   };
 }
@@ -678,6 +717,8 @@ function normalizeRoute(item, index) {
     loadOk: route.loadOk !== false,
     buttonsDiscovered: toNumber(route.buttonsDiscovered, 0),
     buttonsClicked: toNumber(route.buttonsClicked, 0),
+    viewportLabel: String(route.viewportLabel || ""),
+    viewport: String(route.viewport || ""),
   };
 }
 
@@ -721,6 +762,9 @@ function normalizeReport(raw) {
       replayCommand: String(meta.replayCommand || assistantGuide.replayCommand || ""),
       auditMode: normalizeMode(meta.auditMode || meta.mode || "desktop"),
       auditDepth: normalizeDepth(meta.auditDepth || (meta.fullAudit === true ? "deep" : "signal")),
+      viewport: String(meta.viewport || ""),
+      viewportLabel: String(meta.viewportLabel || ""),
+      mobileSweep: normalizeMobileSweepMeta(meta.mobileSweep),
     },
     summary: {
       auditScope: normalizeScope(summary.auditScope || meta.auditScope || "full"),
@@ -757,6 +801,7 @@ function normalizeReport(raw) {
       seoCriticalIssues: toNumber(summary.seoCriticalIssues, 0),
       seoTotalIssues: toNumber(summary.seoTotalIssues, 0),
       seoPagesAnalyzed: toNumber(summary.seoPagesAnalyzed, seo.pagesAnalyzed),
+      mobileProfilesAnalyzed: toNumber(summary.mobileProfilesAnalyzed, meta.mobileSweep?.profiles?.length || 0),
       durationMs,
     },
     assistantGuide,
@@ -778,6 +823,7 @@ function createReportSnapshot(report) {
     issueCount: report.summary.totalIssues,
     seoScore: report.summary.seoScore,
     mode: report.meta.auditMode || "desktop",
+    mobileSweep: report.meta.mobileSweep?.id || "",
     scope: report.summary.auditScope,
     depth: report.meta.auditDepth || "signal",
     durationMs: report.summary.durationMs || 0,
@@ -786,6 +832,7 @@ function createReportSnapshot(report) {
       ? {
           code: report.issues[0].code,
           severity: report.issues[0].severity,
+          viewportLabel: report.issues[0].viewportLabel || "",
           route: report.issues[0].route,
           action: report.issues[0].action,
           detail: report.issues[0].detail,
@@ -798,6 +845,7 @@ function persistProfile() {
   writeStorage(STORAGE_KEYS.lastProfile, {
     targetUrl: stateEl.targetUrl.value.trim(),
     mode: uiState.mode,
+    mobileSweep: uiState.mobileSweep,
     scope: uiState.scope,
     depth: uiState.depth,
     noServer: stateEl.noServer.checked,
@@ -815,6 +863,7 @@ function restoreProfile() {
 
   stateEl.targetUrl.value = String(payload.targetUrl || DEFAULT_TARGET);
   uiState.mode = normalizeMode(payload.mode);
+  uiState.mobileSweep = normalizeMobileSweep(payload.mobileSweep);
   uiState.scope = normalizeScope(payload.scope);
   uiState.depth = normalizeDepth(payload.depth);
   stateEl.noServer.checked = payload.noServer !== false;
@@ -1151,6 +1200,7 @@ function collectRunInput(forceFullAudit = null) {
   return {
     baseUrl: stateEl.targetUrl.value.trim(),
     mode: uiState.mode,
+    mobileSweep: uiState.mode === "mobile" ? uiState.mobileSweep : "single",
     scope: uiState.scope,
     noServer: stateEl.noServer.checked,
     headed: stateEl.headed.checked,
@@ -1205,7 +1255,10 @@ function buildIssueDigest(report) {
 
   return report.issues
     .slice(0, 12)
-    .map((issue, index) => `${index + 1}. [${issue.severity.toUpperCase()}] ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""} | ${issue.detail}`)
+    .map(
+      (issue, index) =>
+        `${index + 1}. [${issue.severity.toUpperCase()}] ${issue.code}${issue.viewportLabel ? ` | ${issue.viewportLabel}` : ""} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""} | ${issue.detail}`,
+    )
     .join("\n");
 }
 
@@ -1216,7 +1269,10 @@ function buildRouteDigest(report) {
 
   return report.routes
     .slice(0, 20)
-    .map((route, index) => `${index + 1}. ${route.route} | load=${route.loadOk ? "ok" : "failed"} | discovered=${route.buttonsDiscovered} | clicked=${route.buttonsClicked}`)
+    .map(
+      (route, index) =>
+        `${index + 1}. ${route.viewportLabel ? `[${route.viewportLabel}] ` : ""}${route.route} | load=${route.loadOk ? "ok" : "failed"} | discovered=${route.buttonsDiscovered} | clicked=${route.buttonsClicked}`,
+    )
     .join("\n");
 }
 
@@ -1227,7 +1283,10 @@ function buildActionDigest(report) {
 
   return report.actions
     .slice(0, 20)
-    .map((action, index) => `${index + 1}. ${action.route} | ${action.label} | expected=${action.expectedForUser || action.expectedFunction || "n/a"} | actual=${action.actualFunction || action.detail || action.statusLabel || "n/a"}`)
+    .map(
+      (action, index) =>
+        `${index + 1}. ${action.viewportLabel ? `[${action.viewportLabel}] ` : ""}${action.route} | ${action.label} | expected=${action.expectedForUser || action.expectedFunction || "n/a"} | actual=${action.actualFunction || action.detail || action.statusLabel || "n/a"}`,
+    )
     .join("\n");
 }
 
@@ -1530,13 +1589,27 @@ function getFilteredIssues(report) {
 
 function renderStaticSelections() {
   updateSegmentButtons(stateEl.modeButtons, "mode", uiState.mode);
+  updateSegmentButtons(stateEl.mobileSweepButtons, "mobileSweep", uiState.mobileSweep);
   updateSegmentButtons(stateEl.scopeButtons, "scope", uiState.scope);
   updateSegmentButtons(stateEl.depthButtons, "depth", uiState.depth);
   updateSegmentButtons(stateEl.severityFilterButtons, "issueFilter", uiState.issueFilter);
-  stateEl.currentMode.textContent = uiState.mode;
+  stateEl.currentMode.textContent = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
   stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel();
+  if (stateEl.mobileSweepControls) {
+    stateEl.mobileSweepControls.classList.toggle("hidden", uiState.mode !== "mobile");
+  }
+  if (stateEl.mobileSweepHint) {
+    stateEl.mobileSweepHint.textContent =
+      uiState.mobileSweep === "family"
+        ? "Family sweep runs Small, Medium, Large, XL and XXL phone viewports one after another and merges the analytics into a mobile-only report."
+        : "Single device keeps the run deterministic. Use it when you want an exact replay command for one mobile viewport.";
+  }
+  stateEl.runCmd.disabled = uiState.mode === "mobile" && uiState.mobileSweep === "family";
+  stateEl.runCmd.textContent =
+    uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "CMD unavailable for family sweep" : "Open full CMD flow";
   renderPreviewWorkspace();
+  renderMobileCoveragePanel(getVisibleReport());
 }
 
 function summarizeAuditError(detail) {
@@ -1575,6 +1648,14 @@ function renderMissionBrief() {
     return;
   }
 
+  if (visibleReport.meta.mobileSweep?.profiles?.length) {
+    const worstProfile = [...visibleReport.meta.mobileSweep.profiles].sort((left, right) => right.totalIssues - left.totalIssues)[0];
+    stateEl.missionBrief.textContent = worstProfile
+      ? `Mobile family sweep loaded for ${visibleReport.meta.baseUrl}. ${visibleReport.summary.mobileProfilesAnalyzed} profile(s) completed. Highest pressure is ${worstProfile.label} (${worstProfile.viewport}) with ${worstProfile.totalIssues} issue(s).`
+      : `Mobile family sweep loaded for ${visibleReport.meta.baseUrl}.`;
+    return;
+  }
+
   const topIssue = visibleReport.issues[0];
   if (!topIssue) {
     stateEl.missionBrief.textContent = `The latest run finished clean on ${visibleReport.meta.baseUrl}. Treat it as the regression baseline and run again after each structural change.`;
@@ -1600,6 +1681,70 @@ function renderMetrics(report) {
   stateEl.issuesMetric.textContent = String(report.summary.totalIssues || 0);
   stateEl.seoMetric.textContent = String(report.summary.seoScore || 0);
   stateEl.riskMetric.textContent = String(scoreFromIssues(report.issues));
+}
+
+function renderMobileCoveragePanel(report) {
+  if (!stateEl.mobileMatrixPanel || !stateEl.mobileMatrixHeadline || !stateEl.mobileMatrixGrid) {
+    return;
+  }
+
+  const modeIsMobile = uiState.mode === "mobile";
+  const mobileSweep = report?.meta?.mobileSweep || null;
+  const shouldShow = modeIsMobile || !!mobileSweep;
+  stateEl.mobileMatrixPanel.classList.toggle("hidden", !shouldShow);
+
+  if (!shouldShow) {
+    return;
+  }
+
+  if (!mobileSweep?.profiles?.length) {
+    stateEl.mobileMatrixHeadline.textContent =
+      uiState.mobileSweep === "family"
+        ? "Run a family sweep to build a viewport-by-viewport mobile matrix."
+        : "Single-device mode is active. Switch to Family sweep when you want the full phone matrix.";
+    stateEl.mobileMatrixGrid.innerHTML = '<article class="empty-state">No mobile viewport analytics are loaded yet.</article>';
+    return;
+  }
+
+  const totalProfiles = report.summary.mobileProfilesAnalyzed || mobileSweep.profiles.length;
+  const failingProfiles = mobileSweep.profiles.filter((item) => item.status === "failed").length;
+  stateEl.mobileMatrixHeadline.textContent =
+    failingProfiles > 0
+      ? `${totalProfiles} mobile profile(s) completed and ${failingProfiles} failed. Start with the profiles carrying the heaviest issue count.`
+      : `${totalProfiles} mobile profile(s) completed. Review issue density and SEO consistency before treating mobile as stable.`;
+
+  stateEl.mobileMatrixGrid.innerHTML = mobileSweep.profiles
+    .map((profile) => `
+      <article class="mobile-profile-card">
+        <div class="mobile-profile-head">
+          <div>
+            <div class="nav-title">${escapeHtml(profile.label)}</div>
+            <div class="history-meta">${escapeHtml(profile.viewport || "mobile viewport")}</div>
+          </div>
+          <span class="pill ${profile.status === "failed" ? "bad" : "ok"}">${escapeHtml(profile.status)}</span>
+        </div>
+        <div class="mobile-profile-stats">
+          <div class="mobile-profile-stat">
+            <span class="info-label">Issues</span>
+            <strong>${escapeHtml(String(profile.totalIssues))}</strong>
+          </div>
+          <div class="mobile-profile-stat">
+            <span class="info-label">SEO</span>
+            <strong>${escapeHtml(String(profile.seoScore))}</strong>
+          </div>
+          <div class="mobile-profile-stat">
+            <span class="info-label">Routes</span>
+            <strong>${escapeHtml(String(profile.routesChecked))}</strong>
+          </div>
+          <div class="mobile-profile-stat">
+            <span class="info-label">Actions</span>
+            <strong>${escapeHtml(String(profile.actionsMapped))}</strong>
+          </div>
+        </div>
+        ${profile.error ? `<div class="history-copy">${escapeHtml(profile.error)}</div>` : ""}
+      </article>
+    `)
+    .join("");
 }
 
 function renderSignals(report) {
@@ -1791,7 +1936,7 @@ function renderCoverageExplorers(report) {
           <div class="explorer-item-top">
             <div>
               <div class="nav-title">${escapeHtml(route.route)}</div>
-              <div class="history-meta">buttons discovered ${route.buttonsDiscovered} | buttons clicked ${route.buttonsClicked}</div>
+              <div class="history-meta">${route.viewportLabel ? `${escapeHtml(route.viewportLabel)} | ` : ""}buttons discovered ${route.buttonsDiscovered} | buttons clicked ${route.buttonsClicked}</div>
             </div>
             <span class="pill ${route.loadOk ? "ok" : "bad"}">${route.loadOk ? "load ok" : "load failed"}</span>
           </div>
@@ -1810,7 +1955,7 @@ function renderCoverageExplorers(report) {
           <div class="explorer-item-top">
             <div>
               <div class="nav-title">${escapeHtml(action.label)}</div>
-              <div class="history-meta">${escapeHtml(action.route)}${action.kind ? ` | ${escapeHtml(action.kind)}` : ""}</div>
+              <div class="history-meta">${action.viewportLabel ? `${escapeHtml(action.viewportLabel)} | ` : ""}${escapeHtml(action.route)}${action.kind ? ` | ${escapeHtml(action.kind)}` : ""}</div>
             </div>
             <span class="pill">${escapeHtml(action.statusLabel || action.status || "mapped")}</span>
           </div>
@@ -1835,7 +1980,7 @@ function renderCompareIssueList(element, issues, emptyText) {
         <div class="explorer-item-top">
           <div>
             <div class="nav-title">${escapeHtml(issue.group)}</div>
-            <div class="history-meta">${escapeHtml(issue.route)}${issue.action ? ` | ${escapeHtml(issue.action)}` : ""}</div>
+            <div class="history-meta">${issue.viewportLabel ? `${escapeHtml(issue.viewportLabel)} | ` : ""}${escapeHtml(issue.route)}${issue.action ? ` | ${escapeHtml(issue.action)}` : ""}</div>
           </div>
           <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
         </div>
@@ -2098,10 +2243,11 @@ function buildIssueCard(issue, actionContext) {
       <div class="issue-top">
         <div>
           <p class="issue-title">${escapeHtml(issue.group)}</p>
-          <div class="issue-route">${escapeHtml(issue.route)}${issue.action ? ` -> ${escapeHtml(issue.action)}` : ""}</div>
+          <div class="issue-route">${issue.viewportLabel ? `${escapeHtml(issue.viewportLabel)} | ` : ""}${escapeHtml(issue.route)}${issue.action ? ` -> ${escapeHtml(issue.action)}` : ""}</div>
         </div>
         <div class="issue-meta">
           ${priority}
+          ${issue.viewportLabel ? `<span class="pill">${escapeHtml(issue.viewportLabel)}</span>` : ""}
           <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
           <span class="pill">${escapeHtml(issue.code)}</span>
         </div>
@@ -2196,8 +2342,8 @@ function renderPromptWorkspace(report) {
 function renderReportSummary(report, options = {}) {
   if (!report) {
     stateEl.currentTarget.textContent = "none";
-    stateEl.currentMode.textContent = uiState.mode;
-  stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
+    stateEl.currentMode.textContent = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
+    stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
     stateEl.currentDepth.textContent = currentDepthLabel();
     stateEl.currentDuration.textContent = "0s";
     stateEl.currentCommand.textContent = "Run an audit to generate a replay command.";
@@ -2209,7 +2355,8 @@ function renderReportSummary(report, options = {}) {
   const reportMode = normalizeMode(report.meta.auditMode || audit.mode || uiState.mode);
   const reportDepth = normalizeDepth(report.meta.auditDepth || audit.depth || uiState.depth);
   stateEl.currentTarget.textContent = report.meta.baseUrl;
-  stateEl.currentMode.textContent = reportMode;
+  stateEl.currentMode.textContent =
+    report.meta.mobileSweep?.profiles?.length ? "mobile family" : reportMode;
   stateEl.currentScope.textContent = currentScopeLabel(report.summary.auditScope || audit.scope || uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel(reportDepth);
   const liveDurationMs = audit.running === true && audit.startedAt
@@ -2240,14 +2387,14 @@ function renderHistory() {
           <div class="issue-top">
             <div>
               <p class="issue-title">${escapeHtml(item.baseUrl)}</p>
-              <div class="history-meta">${escapeHtml(formatLocalDate(item.stamp))} | ${escapeHtml(item.mode || "desktop")} | scope ${escapeHtml(item.scope)} | ${escapeHtml(currentDepthLabel(item.depth || "signal"))} | risk ${escapeHtml(String(item.risk))}</div>
+              <div class="history-meta">${escapeHtml(formatLocalDate(item.stamp))} | ${escapeHtml(item.mobileSweep === "family" ? "mobile family" : item.mode || "desktop")} | scope ${escapeHtml(item.scope)} | ${escapeHtml(currentDepthLabel(item.depth || "signal"))} | risk ${escapeHtml(String(item.risk))}</div>
             </div>
             <div class="issue-meta">
               <span class="pill">${escapeHtml(`${item.issueCount} issues`)}</span>
               <span class="pill ok">${escapeHtml(`SEO ${item.seoScore}`)}</span>
             </div>
           </div>
-          <p class="history-copy">${topIssue ? escapeHtml(`${topIssue.code}${topIssue.action ? ` | ${topIssue.action}` : ""} | ${topIssue.detail}`) : "Clean run snapshot."}</p>
+          <p class="history-copy">${topIssue ? escapeHtml(`${topIssue.code}${topIssue.viewportLabel ? ` | ${topIssue.viewportLabel}` : ""}${topIssue.action ? ` | ${topIssue.action}` : ""} | ${topIssue.detail}`) : "Clean run snapshot."}</p>
           <div class="history-actions">
             <button type="button" data-history-index="${index}" data-history-action="load">Load snapshot</button>
             <button type="button" data-history-index="${index}" data-history-action="baseline">Use as baseline</button>
@@ -2501,6 +2648,7 @@ function renderWorkspaceReport(report, options = {}) {
   }
 
   renderMetrics(report);
+  renderMobileCoveragePanel(report);
   renderSignals(report);
   renderVisualQuality(report);
   renderSteps(report);
@@ -2523,6 +2671,7 @@ function clearLiveReportState() {
   uiState.liveReportKey = "";
   const fallbackReport = getVisibleReport();
   renderMetrics(fallbackReport);
+  renderMobileCoveragePanel(fallbackReport);
   renderSignals(fallbackReport);
   renderVisualQuality(fallbackReport);
   renderSteps(fallbackReport);
@@ -2674,6 +2823,11 @@ async function handleAuditRun(forceDepth = null) {
 async function openCmdWindow() {
   if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
     showToast("An audit is already in progress.", "warn");
+    return;
+  }
+
+  if (uiState.mode === "mobile" && uiState.mobileSweep === "family") {
+    showToast("Family sweep is available in native audit only. Use single-device mode if you need CMD replay.", "warn");
     return;
   }
 
@@ -2893,6 +3047,7 @@ function clearBaseline() {
 
 function applyPresetFirstAudit() {
   uiState.mode = "desktop";
+  uiState.mobileSweep = "single";
   uiState.scope = "full";
   uiState.depth = "signal";
   stateEl.targetUrl.value = stateEl.targetUrl.value.trim() || DEFAULT_TARGET;
@@ -2910,6 +3065,14 @@ function bindSelectionEvents() {
   stateEl.modeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       uiState.mode = normalizeMode(button.dataset.mode);
+      renderStaticSelections();
+      persistProfile();
+    });
+  });
+
+  stateEl.mobileSweepButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      uiState.mobileSweep = normalizeMobileSweep(button.dataset.mobileSweep);
       renderStaticSelections();
       persistProfile();
     });

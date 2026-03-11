@@ -128,6 +128,13 @@ function defaultRecommendedCommand(input) {
     "--human-log",
     `--scope "${normalizeAuditScope(input.scope)}"`,
     `--base-url "${safeQuoted(input.baseUrl)}"`,
+    Number.isFinite(input.viewportWidth) && input.viewportWidth > 0
+      ? `--viewport-width "${input.viewportWidth}"`
+      : "",
+    Number.isFinite(input.viewportHeight) && input.viewportHeight > 0
+      ? `--viewport-height "${input.viewportHeight}"`
+      : "",
+    input.viewportLabel ? `--viewport-label "${safeQuoted(input.viewportLabel)}"` : "",
     input.noServer !== false ? "--no-server" : "",
     input.headed === true ? "--headed" : "",
   ]
@@ -152,6 +159,15 @@ function makeCommandParts(input, options) {
     "--base-url",
     input.baseUrl,
   ];
+  if (Number.isFinite(input.viewportWidth) && input.viewportWidth > 0) {
+    args.push("--viewport-width", String(input.viewportWidth));
+  }
+  if (Number.isFinite(input.viewportHeight) && input.viewportHeight > 0) {
+    args.push("--viewport-height", String(input.viewportHeight));
+  }
+  if (input.viewportLabel) {
+    args.push("--viewport-label", String(input.viewportLabel));
+  }
   if (input.noServer !== false) args.push("--no-server");
   if (input.headed === true) args.push("--headed");
 
@@ -164,6 +180,11 @@ function makeCommandParts(input, options) {
         headed: input.headed === true,
         fullAudit: input.fullAudit !== false,
         scope,
+        viewportWidth:
+          Number.isFinite(input.viewportWidth) && input.viewportWidth > 0 ? Number(input.viewportWidth) : null,
+        viewportHeight:
+          Number.isFinite(input.viewportHeight) && input.viewportHeight > 0 ? Number(input.viewportHeight) : null,
+        viewportLabel: String(input.viewportLabel || "").trim(),
       })
     : defaultRecommendedCommand({
         baseUrl: input.baseUrl,
@@ -172,6 +193,11 @@ function makeCommandParts(input, options) {
         noServer: input.noServer !== false,
         headed: input.headed === true,
         scope,
+        viewportWidth:
+          Number.isFinite(input.viewportWidth) && input.viewportWidth > 0 ? Number(input.viewportWidth) : null,
+        viewportHeight:
+          Number.isFinite(input.viewportHeight) && input.viewportHeight > 0 ? Number(input.viewportHeight) : null,
+        viewportLabel: String(input.viewportLabel || "").trim(),
       });
 
   const runnerPath = path.join(options.qaDir, ...runnerEntry.split("/"));
@@ -179,7 +205,28 @@ function makeCommandParts(input, options) {
   if (options.runAsNode === true) {
     shellCommandParts.push("set ELECTRON_RUN_AS_NODE=1");
   }
-  shellCommandParts.push(`"${safeQuoted(options.nodeExecPath)}" "${safeQuoted(runnerPath)}" --config "${safeQuoted(config)}" --fresh --live-log --human-log --scope "${safeQuoted(scope)}" --base-url "${safeQuoted(input.baseUrl)}"${input.noServer !== false ? " --no-server" : ""}${input.headed === true ? " --headed" : ""}`);
+  shellCommandParts.push(
+    [
+      `"${safeQuoted(options.nodeExecPath)}" "${safeQuoted(runnerPath)}"`,
+      `--config "${safeQuoted(config)}"`,
+      "--fresh",
+      "--live-log",
+      "--human-log",
+      `--scope "${safeQuoted(scope)}"`,
+      `--base-url "${safeQuoted(input.baseUrl)}"`,
+      Number.isFinite(input.viewportWidth) && input.viewportWidth > 0
+        ? `--viewport-width "${safeQuoted(input.viewportWidth)}"`
+        : "",
+      Number.isFinite(input.viewportHeight) && input.viewportHeight > 0
+        ? `--viewport-height "${safeQuoted(input.viewportHeight)}"`
+        : "",
+      input.viewportLabel ? `--viewport-label "${safeQuoted(input.viewportLabel)}"` : "",
+      input.noServer !== false ? "--no-server" : "",
+      input.headed === true ? "--headed" : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
+  );
 
   return {
     mode,
@@ -486,6 +533,9 @@ export async function startLocalBridgeServer(userOptions = {}) {
       noServer: body.noServer !== false,
       headed: body.headed === true,
       fullAudit: body.fullAudit !== false,
+      viewportWidth: Number.isFinite(Number(body.viewportWidth)) ? Math.max(320, Number(body.viewportWidth)) : null,
+      viewportHeight: Number.isFinite(Number(body.viewportHeight)) ? Math.max(320, Number(body.viewportHeight)) : null,
+      viewportLabel: String(body.viewportLabel || "").trim(),
     };
 
     state.running = true;
@@ -545,6 +595,9 @@ export async function startLocalBridgeServer(userOptions = {}) {
       headed: body.headed === true,
       fullAudit: body.fullAudit !== false,
       elevated: body.elevated === true,
+      viewportWidth: Number.isFinite(Number(body.viewportWidth)) ? Math.max(320, Number(body.viewportWidth)) : null,
+      viewportHeight: Number.isFinite(Number(body.viewportHeight)) ? Math.max(320, Number(body.viewportHeight)) : null,
+      viewportLabel: String(body.viewportLabel || "").trim(),
     });
     writeJson(res, payload.ok ? 200 : 400, payload);
   }

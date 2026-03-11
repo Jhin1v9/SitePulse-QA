@@ -2400,6 +2400,9 @@ function parseArgs(argv) {
     humanLog: false,
     baseUrlOverride: "",
     auditScope: "full",
+    viewportWidthOverride: null,
+    viewportHeightOverride: null,
+    viewportLabel: "",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -2440,6 +2443,23 @@ function parseArgs(argv) {
     }
     if (token === "--scope" && argv[i + 1]) {
       args.auditScope = normalizeAuditScope(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (token === "--viewport-width" && argv[i + 1]) {
+      const parsed = Number(argv[i + 1]);
+      args.viewportWidthOverride = Number.isFinite(parsed) && parsed >= 320 ? parsed : null;
+      i += 1;
+      continue;
+    }
+    if (token === "--viewport-height" && argv[i + 1]) {
+      const parsed = Number(argv[i + 1]);
+      args.viewportHeightOverride = Number.isFinite(parsed) && parsed >= 320 ? parsed : null;
+      i += 1;
+      continue;
+    }
+    if (token === "--viewport-label" && argv[i + 1]) {
+      args.viewportLabel = String(argv[i + 1]).trim();
       i += 1;
       continue;
     }
@@ -5192,6 +5212,15 @@ function buildReplayCommand(args, configPath) {
   }
 
   if (args.headed) parts.push("--headed");
+  if (Number.isFinite(args.viewportWidthOverride) && args.viewportWidthOverride > 0) {
+    parts.push(`--viewport-width "${args.viewportWidthOverride}"`);
+  }
+  if (Number.isFinite(args.viewportHeightOverride) && args.viewportHeightOverride > 0) {
+    parts.push(`--viewport-height "${args.viewportHeightOverride}"`);
+  }
+  if (args.viewportLabel) {
+    parts.push(`--viewport-label "${String(args.viewportLabel).replace(/"/g, '\\"')}"`);
+  }
   return parts.join(" ");
 }
 
@@ -5210,6 +5239,7 @@ function createEmptyReport(cfg, args, maxRunMs) {
       serverCwd: cfg.serverCwd,
       headed: args.headed,
       viewport: `${cfg.viewportWidth}x${cfg.viewportHeight}`,
+      viewportLabel: String(args.viewportLabel || `${cfg.viewportWidth}x${cfg.viewportHeight}`),
       resumedFromCheckpoint: false,
       paused: false,
       maxRunMs,
@@ -5316,6 +5346,7 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
   report.meta.serverCwd = cfg.serverCwd;
   report.meta.headed = args.headed;
   report.meta.viewport = `${cfg.viewportWidth}x${cfg.viewportHeight}`;
+  report.meta.viewportLabel = String(args.viewportLabel || `${cfg.viewportWidth}x${cfg.viewportHeight}`);
   report.meta.resumedFromCheckpoint = true;
   report.meta.paused = false;
   report.meta.maxRunMs = maxRunMs;
@@ -5568,6 +5599,14 @@ async function run() {
   const cfg = {
     ...cfgBase,
     baseUrl: args.baseUrlOverride ? String(args.baseUrlOverride) : cfgBase.baseUrl,
+    viewportWidth:
+      Number.isFinite(args.viewportWidthOverride) && args.viewportWidthOverride > 0
+        ? Math.max(320, Number(args.viewportWidthOverride))
+        : cfgBase.viewportWidth,
+    viewportHeight:
+      Number.isFinite(args.viewportHeightOverride) && args.viewportHeightOverride > 0
+        ? Math.max(320, Number(args.viewportHeightOverride))
+        : cfgBase.viewportHeight,
   };
   const baseOrigin = new URL(cfg.baseUrl).origin;
 

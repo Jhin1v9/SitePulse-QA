@@ -133,6 +133,21 @@
                 </section>
               </div>
 
+              <section id="mobileSweepControls" class="control-group hidden">
+                <div class="split-head compact-head">
+                  <div>
+                    <span class="field-label">Mobile coverage</span>
+                    <p id="mobileSweepHint" class="control-hint">
+                      Run one mobile viewport or sweep the phone family in sequence: Small, Medium, Large, XL and XXL.
+                    </p>
+                  </div>
+                </div>
+                <div class="segment" id="mobileSweepSegment">
+                  <button type="button" data-mobile-sweep="single" class="segment-btn active">Single device</button>
+                  <button type="button" data-mobile-sweep="family" class="segment-btn">Family sweep</button>
+                </div>
+              </section>
+
               <div class="toggle-grid">
                 <label class="toggle-row compact">
                   <input id="noServer" type="checkbox" checked />
@@ -223,6 +238,21 @@
                       <span class="info-label">Service</span>
                       <strong id="serviceName">SitePulse Studio</strong>
                     </article>
+                  </div>
+                </article>
+
+                <article id="mobileMatrixPanel" class="panel overview-mobile-panel hidden">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">mobile coverage</p>
+                      <h3>Viewport matrix</h3>
+                    </div>
+                  </div>
+                  <p id="mobileMatrixHeadline" class="muted">
+                    Switch to Mobile mode to configure single-device or family-sweep coverage.
+                  </p>
+                  <div id="mobileMatrixGrid" class="mobile-matrix-grid">
+                    <article class="empty-state">No mobile family data loaded yet.</article>
                   </div>
                 </article>
 

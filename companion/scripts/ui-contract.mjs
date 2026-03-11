@@ -673,6 +673,28 @@ try {
     fail("comparison classification metrics are incorrect");
   }
 
+  await page.locator('[data-view="overview"]').click();
+  await page.getByRole("button", { name: "Mobile" }).click();
+  await page.waitForFunction(() => !document.getElementById("mobileSweepControls")?.classList.contains("hidden"));
+  await page.getByRole("button", { name: "Family sweep" }).click();
+  const mobileSweepState = await page.evaluate(() => ({
+    hint: document.getElementById("mobileSweepHint")?.textContent?.trim() || "",
+    runCmdDisabled: !!document.getElementById("runCmd")?.hasAttribute("disabled"),
+    matrixVisible: !document.getElementById("mobileMatrixPanel")?.classList.contains("hidden"),
+  }));
+
+  if (!mobileSweepState.hint.toLowerCase().includes("family sweep")) {
+    fail("mobile family hint did not update");
+  }
+
+  if (!mobileSweepState.runCmdDisabled) {
+    fail("cmd flow should be disabled for mobile family sweep");
+  }
+
+  if (!mobileSweepState.matrixVisible) {
+    fail("mobile matrix panel did not become visible in mobile mode");
+  }
+
   await page.keyboard.press("Control+K");
   await page.waitForFunction(() => !document.getElementById("commandPaletteOverlay")?.classList.contains("hidden"));
   await page.fill("#commandPaletteSearch", "settings");
@@ -685,6 +707,7 @@ try {
   await page.waitForFunction(() => document.getElementById("shortcutsOverlay")?.classList.contains("hidden"));
 
   await page.locator('[data-view="overview"]').click();
+  await page.getByRole("button", { name: "Desktop" }).click();
   await page.getByRole("button", { name: "Open full CMD flow" }).click();
   await page.waitForFunction(() => document.getElementById("auditChip")?.textContent?.toLowerCase().includes("audit running"));
 
