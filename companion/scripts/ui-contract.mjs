@@ -410,6 +410,9 @@ await page.addInitScript(
       async openLatestEvidence() {
         return { ok: true, path: "C:\\Runtime\\qa\\reports\\latest.json" };
       },
+      async openExternalUrl(value) {
+        return { ok: true, url: value };
+      },
       async copyBridgeUrl() {
         return { ok: true };
       },

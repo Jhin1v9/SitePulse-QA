@@ -27,6 +27,17 @@ let liveReportLastMtimeMs = 0;
 let liveReportReadInFlight = false;
 let liveReportContext = null;
 
+function isSafeHttpUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return false;
+  try {
+    const parsed = new URL(raw);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function createEmptyAuditProgress() {
   return {
     percentage: 0,
@@ -1565,7 +1576,28 @@ function createWindow() {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
+      webviewTag: true,
     },
+  });
+
+  mainWindow.webContents.on("will-attach-webview", (event, webPreferences, params) => {
+    const src = String(params?.src || "");
+    if (src && src !== "about:blank" && !isSafeHttpUrl(src)) {
+      event.preventDefault();
+      return;
+    }
+    delete webPreferences.preload;
+    webPreferences.nodeIntegration = false;
+    webPreferences.contextIsolation = true;
+    webPreferences.sandbox = true;
+    webPreferences.webSecurity = true;
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (isSafeHttpUrl(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: "deny" };
   });
 
   mainWindow.once("ready-to-show", () => {
@@ -1583,6 +1615,15 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+app.on("web-contents-created", (_event, contents) => {
+  contents.setWindowOpenHandler(({ url }) => {
+    if (isSafeHttpUrl(url)) {
+      void shell.openExternal(url);
+    }
+    return { action: "deny" };
+  });
+});
 
 async function runSmokeTest() {
   pushLog("[smoke] iniciando smoke test do desktop app");
@@ -1673,6 +1714,20 @@ ipcMain.handle("companion:copy-bridge-url", async () => {
 ipcMain.handle("companion:copy-text", async (_event, value) => {
   clipboard.writeText(String(value || ""));
   return { ok: true };
+});
+ipcMain.handle("companion:open-external-url", async (_event, value) => {
+  try {
+    const target = String(value || "").trim();
+    if (!isSafeHttpUrl(target)) {
+      return { ok: false, error: "invalid_external_url" };
+    }
+    await shell.openExternal(target);
+    return { ok: true, url: target };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "open_external_failed");
+    pushLog(`[desktop] failed to open external url: ${message}`);
+    return { ok: false, error: "open_external_failed", detail: message };
+  }
 });
 ipcMain.handle("companion:pick-report-file", async () => {
   try {

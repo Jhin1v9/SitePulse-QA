@@ -47,6 +47,7 @@
 
             <div class="workspace-tabbar">
               <button class="workspace-tab active" data-view="overview" type="button">Overview</button>
+              <button class="workspace-tab" data-view="preview" type="button">Preview</button>
               <button class="workspace-tab" data-view="operations" type="button">Operations</button>
               <button class="workspace-tab" data-view="findings" type="button">Findings</button>
               <button class="workspace-tab" data-view="seo" type="button">SEO</button>
@@ -250,6 +251,53 @@
                     <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
                   </ul>
                 </article>
+              </section>
+            </section>
+
+            <section class="view-panel" data-view-panel="preview">
+              <section class="panel preview-workspace-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">site surface</p>
+                    <h3>Embedded product preview</h3>
+                  </div>
+                  <div id="previewStatus" class="headline-status">
+                    Enter a target URL to load the embedded preview surface.
+                  </div>
+                </div>
+
+                <div class="preview-toolbar">
+                  <label class="toolbar-field">
+                    <span class="field-label">Preview URL</span>
+                    <input id="previewLocation" class="toolbar-input" type="url" placeholder="Preview follows the target URL automatically." readonly />
+                  </label>
+                  <div class="preview-toolbar-actions">
+                    <button id="previewReload" class="secondary" type="button">Reload preview</button>
+                    <button id="previewOpenExternal" type="button">Open in browser</button>
+                    <button id="previewToggleFollow" class="ghost" type="button">Live route sync on</button>
+                  </div>
+                </div>
+
+                <div class="pill-row preview-pills">
+                  <span id="previewModePill" class="pill ok">Passive preview</span>
+                  <span id="previewRoutePill" class="pill">Route n/a</span>
+                  <span id="previewActionPill" class="pill">Action n/a</span>
+                </div>
+
+                <div class="preview-browser-shell">
+                  <div class="preview-browser-bar">
+                    <div class="preview-browser-dots" aria-hidden="true">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
+                    <div id="previewChromeUrl" class="preview-browser-url">about:blank</div>
+                  </div>
+                  <div id="previewFallback" class="preview-fallback hidden">
+                    Embedded preview is only active inside the packaged desktop runtime. In test mode, SitePulse shows this placeholder instead.
+                  </div>
+                  <webview id="sitePreview" class="site-preview" src="about:blank" partition="persist:sitepulse-preview"></webview>
+                </div>
               </section>
             </section>
 
@@ -908,6 +956,7 @@
         </div>
         <div class="shortcut-grid">
           <article><strong>Ctrl+1..7</strong><span>Switch between overview, operations, findings, SEO, prompts, reports and settings</span></article>
+          <article><strong>Ctrl+8</strong><span>Open the embedded preview workspace</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>

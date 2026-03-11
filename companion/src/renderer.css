@@ -27,6 +27,10 @@
   box-sizing: border-box;
 }
 
+.hidden {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -711,6 +715,120 @@ button:hover:not(:disabled),
   display: grid;
   grid-auto-rows: max-content;
   padding-bottom: 18px;
+}
+
+.preview-workspace-panel {
+  display: grid;
+  gap: 18px;
+}
+
+.preview-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+}
+
+.preview-toolbar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.preview-toggle-active {
+  border-color: rgba(122, 226, 179, 0.28) !important;
+  color: #ddfff0 !important;
+}
+
+.preview-pills {
+  gap: 10px;
+}
+
+.preview-browser-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  min-height: 720px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0)),
+    rgba(7, 11, 17, 0.98);
+}
+
+.preview-browser-bar {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 20, 30, 0.98);
+}
+
+.preview-browser-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.preview-browser-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.preview-browser-dots span:nth-child(1) {
+  background: rgba(255, 128, 148, 0.72);
+}
+
+.preview-browser-dots span:nth-child(2) {
+  background: rgba(255, 206, 117, 0.72);
+}
+
+.preview-browser-dots span:nth-child(3) {
+  background: rgba(122, 226, 179, 0.72);
+}
+
+.preview-browser-url {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(8, 12, 18, 0.94);
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.site-preview,
+.preview-fallback {
+  width: 100%;
+  min-height: 0;
+  height: 100%;
+  background: #fff;
+}
+
+.site-preview {
+  border: 0;
+}
+
+.preview-fallback {
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+  background:
+    radial-gradient(circle at top right, rgba(90, 192, 255, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(6, 10, 16, 0.98));
 }
 
 .field-block {

@@ -32,6 +32,11 @@ const VIEW_META = {
     title: "Overview",
     description: "Configure the target, define execution depth and prepare the run before moving into live operations.",
   },
+  preview: {
+    eyebrow: "operator preview",
+    title: "Preview",
+    description: "Inspect the current target in an embedded surface. When headed mode is enabled, SitePulse keeps this workspace aligned with the route currently being exercised.",
+  },
   operations: {
     eyebrow: "live operations",
     title: "Operations",
@@ -85,6 +90,17 @@ const stateEl = {
   quickAuditButton: document.getElementById("quickAuditButton"),
   deepAuditButton: document.getElementById("deepAuditButton"),
   targetUrl: document.getElementById("targetUrl"),
+  previewLocation: document.getElementById("previewLocation"),
+  previewStatus: document.getElementById("previewStatus"),
+  previewModePill: document.getElementById("previewModePill"),
+  previewRoutePill: document.getElementById("previewRoutePill"),
+  previewActionPill: document.getElementById("previewActionPill"),
+  previewChromeUrl: document.getElementById("previewChromeUrl"),
+  previewReload: document.getElementById("previewReload"),
+  previewOpenExternal: document.getElementById("previewOpenExternal"),
+  previewToggleFollow: document.getElementById("previewToggleFollow"),
+  previewFallback: document.getElementById("previewFallback"),
+  sitePreview: document.getElementById("sitePreview"),
   modeButtons: Array.from(document.querySelectorAll("[data-mode]")),
   scopeButtons: Array.from(document.querySelectorAll("[data-scope]")),
   depthButtons: Array.from(document.querySelectorAll("[data-depth]")),
@@ -262,6 +278,15 @@ const uiState = {
   auditRequestInFlight: false,
   activeEvidence: null,
   activeEvidenceReference: null,
+  preview: {
+    requestedUrl: "",
+    loadedUrl: "",
+    detail: "Enter a target URL to load the embedded preview surface.",
+    mode: "idle",
+    followAudit: true,
+    available: false,
+    timerId: 0,
+  },
 };
 
 function getVisibleReport() {
@@ -339,6 +364,31 @@ function normalizeMode(value) {
 
 function normalizeDepth(value) {
   return value === "deep" ? "deep" : "signal";
+}
+
+function normalizePreviewUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  try {
+    const seeded = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`;
+    const parsed = new URL(seeded);
+    if (!["http:", "https:"].includes(parsed.protocol)) return "";
+    return parsed.toString();
+  } catch {
+    return "";
+  }
+}
+
+function buildPreviewRouteUrl(baseUrl, route) {
+  const normalizedBase = normalizePreviewUrl(baseUrl);
+  if (!normalizedBase) return "";
+  const rawRoute = String(route || "").trim();
+  if (!rawRoute) return normalizedBase;
+  try {
+    return new URL(rawRoute, normalizedBase).toString();
+  } catch {
+    return normalizedBase;
+  }
 }
 
 function parseSeverity(value, code = "") {
@@ -808,6 +858,7 @@ function getMenuItems(menuName) {
       { id: "run-cmd", label: "Open Full CMD Flow", hint: "Ctrl+Shift+C", action: () => openCmdWindow() },
     ],
     inspect: [
+      { id: "inspect-preview", label: "Open Preview", hint: "Ctrl+8", action: () => switchView("preview") },
       { id: "inspect-operations", label: "Open Operations", hint: "Ctrl+2", action: () => switchView("operations") },
       { id: "inspect-findings", label: "Open Findings", hint: "Ctrl+3", action: () => switchView("findings") },
       { id: "inspect-seo", label: "Open SEO", hint: "Ctrl+4", action: () => switchView("seo") },
@@ -887,6 +938,164 @@ function switchView(viewName) {
   if (workspaceBody instanceof HTMLElement) {
     workspaceBody.scrollTop = 0;
   }
+  if (nextView === "preview") {
+    queuePreviewSync("view_switch");
+  }
+}
+
+function previewSurfaceSupportsEmbedding() {
+  return !!(stateEl.sitePreview && typeof stateEl.sitePreview.loadURL === "function");
+}
+
+function currentPreviewBaseUrl() {
+  const auditBaseUrl = String(uiState.companionState?.audit?.baseUrl || "").trim();
+  return normalizePreviewUrl(auditBaseUrl || stateEl.targetUrl.value);
+}
+
+function resolvePreviewTargetUrl(audit = uiState.companionState?.audit || {}) {
+  const baseUrl = currentPreviewBaseUrl();
+  if (!baseUrl) return "";
+  const liveRouteSyncActive = uiState.preview.followAudit === true
+    && audit.running === true
+    && (stateEl.headed.checked === true || uiState.activeView === "preview");
+  if (!liveRouteSyncActive) {
+    return baseUrl;
+  }
+
+  const candidates = [
+    audit?.progress?.currentRoute,
+    audit?.timeline?.find((entry) => typeof entry?.route === "string" && entry.route.trim())?.route,
+    audit?.stageBoard?.find((entry) => typeof entry?.route === "string" && entry.route.trim())?.route,
+  ];
+  const route = candidates.find((value) => typeof value === "string" && value.trim()) || "";
+  return buildPreviewRouteUrl(baseUrl, route);
+}
+
+function setPreviewSurfaceUrl(url, options = {}) {
+  const force = options.force === true;
+  const nextUrl = String(url || "").trim() || "about:blank";
+  if (!force && uiState.preview.requestedUrl === nextUrl) return;
+
+  uiState.preview.requestedUrl = nextUrl;
+  const surface = stateEl.sitePreview;
+  if (surface) {
+    try {
+      surface.src = nextUrl;
+    } catch {
+      surface.setAttribute("src", nextUrl);
+    }
+    if (previewSurfaceSupportsEmbedding() && typeof surface.loadURL === "function") {
+      try {
+        surface.loadURL(nextUrl);
+      } catch {
+        surface.setAttribute("src", nextUrl);
+      }
+    }
+  }
+  if (!uiState.preview.loadedUrl || force) {
+    uiState.preview.loadedUrl = nextUrl;
+  }
+}
+
+function renderPreviewWorkspace(audit = uiState.companionState?.audit || {}) {
+  const baseUrl = currentPreviewBaseUrl();
+  const previewUrl = uiState.preview.loadedUrl || uiState.preview.requestedUrl || baseUrl || "about:blank";
+  const currentRoute = String(audit?.progress?.currentRoute || "").trim();
+  const currentAction = String(audit?.progress?.currentAction || "").trim();
+  const headed = stateEl.headed.checked;
+  const liveRouteSyncActive = uiState.preview.followAudit === true
+    && audit.running === true
+    && (headed === true || uiState.activeView === "preview");
+  const canEmbed = previewSurfaceSupportsEmbedding();
+
+  uiState.preview.available = canEmbed;
+  const modeLabel = liveRouteSyncActive
+    ? (headed ? "Live headed sync" : "Live route sync")
+    : uiState.preview.followAudit === true
+      ? (headed ? "Headed preview armed" : "Passive preview")
+      : "Manual preview";
+
+  let status = "Enter a target URL to load the embedded preview surface.";
+  if (!baseUrl) {
+    status = "A valid target URL is required before SitePulse can build a preview.";
+  } else if (!canEmbed) {
+    status = "Embedded preview is only active inside the packaged desktop runtime. This environment shows a placeholder.";
+  } else if (liveRouteSyncActive) {
+    status = currentRoute
+      ? `Preview is following ${currentRoute} while the engine works.`
+      : "Preview is aligned with the current audit run and waiting for the first routed checkpoint.";
+  } else if (headed) {
+    status = "Headed mode is armed. When the run starts, SitePulse will switch here and keep the preview aligned with the active route.";
+  } else {
+    status = "Preview is loaded from the target URL so you can inspect the surface before or after a run.";
+  }
+
+  uiState.preview.mode = modeLabel;
+  uiState.preview.detail = status;
+  stateEl.previewStatus.textContent = status;
+  stateEl.previewModePill.textContent = modeLabel;
+  stateEl.previewModePill.classList.toggle("ok", audit.running !== true);
+  stateEl.previewModePill.classList.toggle("warn", audit.running === true);
+  stateEl.previewRoutePill.textContent = currentRoute ? `Route ${currentRoute}` : "Route n/a";
+  stateEl.previewActionPill.textContent = currentAction ? `Action ${currentAction}` : "Action n/a";
+  stateEl.previewLocation.value = previewUrl === "about:blank" ? "" : previewUrl;
+  stateEl.previewChromeUrl.textContent = previewUrl;
+  stateEl.previewToggleFollow.textContent = uiState.preview.followAudit ? "Live route sync on" : "Live route sync off";
+  stateEl.previewToggleFollow.classList.toggle("preview-toggle-active", uiState.preview.followAudit);
+  stateEl.previewFallback.classList.toggle("hidden", canEmbed);
+  stateEl.sitePreview.classList.toggle("hidden", !canEmbed);
+}
+
+function queuePreviewSync(reason = "profile") {
+  if (uiState.preview.timerId) {
+    window.clearTimeout(uiState.preview.timerId);
+  }
+
+  uiState.preview.timerId = window.setTimeout(() => {
+    uiState.preview.timerId = 0;
+    const nextUrl = resolvePreviewTargetUrl();
+    if (!nextUrl) {
+      uiState.preview.requestedUrl = "";
+      uiState.preview.loadedUrl = "about:blank";
+      renderPreviewWorkspace();
+      return;
+    }
+    setPreviewSurfaceUrl(nextUrl, { force: reason === "reload" });
+    renderPreviewWorkspace();
+  }, reason === "route" ? 140 : 320);
+}
+
+function bindPreviewSurface() {
+  const surface = stateEl.sitePreview;
+  if (!surface) return;
+
+  const syncLoadedUrl = (fallbackUrl = "") => {
+    const resolved = typeof surface.getURL === "function" ? surface.getURL() : String(fallbackUrl || surface.getAttribute("src") || "");
+    uiState.preview.loadedUrl = String(resolved || uiState.preview.requestedUrl || "about:blank");
+    renderPreviewWorkspace();
+  };
+
+  surface.addEventListener("did-start-loading", () => {
+    uiState.preview.detail = "Loading embedded preview surface.";
+    renderPreviewWorkspace();
+  });
+  surface.addEventListener("dom-ready", () => {
+    syncLoadedUrl();
+  });
+  surface.addEventListener("did-stop-loading", () => {
+    syncLoadedUrl();
+  });
+  surface.addEventListener("did-navigate", (event) => {
+    syncLoadedUrl(event?.url);
+  });
+  surface.addEventListener("did-navigate-in-page", (event) => {
+    syncLoadedUrl(event?.url);
+  });
+  surface.addEventListener("did-fail-load", (event) => {
+    if (Number(event?.errorCode) === -3) return;
+    uiState.preview.detail = `Preview load failed: ${String(event?.errorDescription || "unknown error")}`;
+    renderPreviewWorkspace();
+  });
 }
 
 function renderOnboarding() {
@@ -1302,6 +1511,7 @@ function renderStaticSelections() {
   stateEl.currentMode.textContent = uiState.mode;
   stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel();
+  renderPreviewWorkspace();
 }
 
 function summarizeAuditError(detail) {
@@ -2027,12 +2237,15 @@ function getCommandPaletteItems() {
     { id: "export-report", label: "Export current report", hint: "Ctrl+S", description: "Save the current report snapshot to disk.", action: () => exportCurrentReport() },
     { id: "open-vault", label: "Open report vault", hint: "", description: "Open the reports folder in Explorer.", action: () => openReportsVault() },
     { id: "open-evidence", label: "Open latest evidence", hint: "", description: "Jump to the latest evidence artifact.", action: () => openLatestEvidence() },
+    { id: "preview-reload", label: "Reload preview", hint: "", description: "Reload the embedded target preview surface.", action: () => reloadPreview() },
+    { id: "preview-external", label: "Open preview in browser", hint: "", description: "Open the current preview URL in the system browser.", action: () => openPreviewExternal() },
     { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
     { id: "copy-seo", label: "Copy SEO digest", hint: "", description: "Copy the current SEO summary and recommendation block.", action: () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
     { id: "copy-client-prompt", label: "Copy client outreach prompt", hint: "", description: "Copy the AI-ready commercial prompt based on the current audit.", action: () => copyText(buildClientOutreachPrompt(getVisibleReport()), "[studio] client outreach prompt copied.") },
     { id: "copy-client-message", label: "Copy client outreach message", hint: "", description: "Copy the ready-to-send client-facing pitch based on the current audit.", action: () => copyText(buildClientOutreachMessage(getVisibleReport()), "[studio] client outreach message copied.") },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
+    { id: "switch-preview", label: "Go to preview", hint: "Ctrl+8", description: "Open the embedded operator preview and follow the current route.", action: () => switchView("preview") },
     { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
     { id: "switch-findings", label: "Go to findings", hint: "Ctrl+3", description: "Open the issue board, visual quality and coverage panels.", action: () => switchView("findings") },
     { id: "switch-seo", label: "Go to SEO", hint: "Ctrl+4", description: "Open the dedicated SEO workspace.", action: () => switchView("seo") },
@@ -2312,6 +2525,8 @@ function renderCompanionState(payload) {
   renderAuditState(payload?.audit || {});
   renderAuditProgress(payload?.audit || {});
   renderExecutionState(payload?.audit || {});
+  renderPreviewWorkspace(payload?.audit || {});
+  queuePreviewSync(payload?.audit?.running === true ? "route" : "state");
   const livePayload = payload?.audit?.liveReport && typeof payload.audit.liveReport === "object" ? payload.audit.liveReport : null;
   if (livePayload) {
     const liveReport = normalizeReport(livePayload);
@@ -2389,6 +2604,10 @@ async function handleAuditRun(forceDepth = null) {
 
   uiState.auditRequestInFlight = true;
   renderAuditState(uiState.companionState?.audit || {});
+  if (input.headed === true) {
+    switchView("preview");
+    queuePreviewSync("run_start");
+  }
 
   try {
     const payload = await window.sitePulseCompanion.runAudit(input);
@@ -2435,6 +2654,10 @@ async function openCmdWindow() {
 
   uiState.auditRequestInFlight = true;
   renderAuditState(uiState.companionState?.audit || {});
+  if (input.headed === true) {
+    switchView("preview");
+    queuePreviewSync("run_start");
+  }
 
   try {
     const payload = await window.sitePulseCompanion.openCmdWindow(input);
@@ -2468,6 +2691,42 @@ async function copyBridgeUrl() {
   const result = await window.sitePulseCompanion.copyBridgeUrl();
   appendLog(result.ok ? "[studio] bridge URL copied." : `[studio] could not copy bridge URL: ${result.error || "unknown"}`);
   showToast(result.ok ? "Bridge URL copied." : "Could not copy bridge URL.", result.ok ? "ok" : "bad");
+}
+
+async function reloadPreview() {
+  const baseUrl = resolvePreviewTargetUrl();
+  if (!baseUrl) {
+    showToast("Target URL is required before the preview can reload.", "warn");
+    return;
+  }
+  setPreviewSurfaceUrl(baseUrl, { force: true });
+  renderPreviewWorkspace();
+  appendLog(`[studio] preview reloaded for ${baseUrl}`);
+  showToast("Embedded preview reloaded.", "ok");
+}
+
+async function openPreviewExternal() {
+  const previewUrl = String(uiState.preview.loadedUrl || uiState.preview.requestedUrl || currentPreviewBaseUrl()).trim();
+  if (!previewUrl || previewUrl === "about:blank") {
+    showToast("No preview URL is ready yet.", "warn");
+    return;
+  }
+  const result = await window.sitePulseCompanion.openExternalUrl(previewUrl);
+  if (!result?.ok) {
+    appendLog(`[studio] preview external open failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Could not open the preview in the system browser.", "bad");
+    return;
+  }
+  appendLog(`[studio] preview opened externally for ${previewUrl}`);
+  showToast("Preview opened in the system browser.", "ok");
+}
+
+function togglePreviewFollowMode() {
+  uiState.preview.followAudit = !uiState.preview.followAudit;
+  renderPreviewWorkspace();
+  queuePreviewSync("profile");
+  appendLog(`[studio] preview live route sync ${uiState.preview.followAudit ? "enabled" : "disabled"}.`);
+  showToast(`Live route sync ${uiState.preview.followAudit ? "enabled" : "disabled"}.`, uiState.preview.followAudit ? "ok" : "warn");
 }
 
 async function loadReportFromFile() {
@@ -2673,6 +2932,9 @@ function bindPersistenceEvents() {
     node.addEventListener("input", persistProfile);
     node.addEventListener("change", persistProfile);
   });
+  stateEl.targetUrl.addEventListener("input", () => queuePreviewSync("profile"));
+  stateEl.targetUrl.addEventListener("change", () => queuePreviewSync("profile"));
+  stateEl.headed.addEventListener("change", () => renderPreviewWorkspace());
 }
 
 function bindButtons() {
@@ -2680,6 +2942,9 @@ function bindButtons() {
   stateEl.quickAuditButton.addEventListener("click", async () => handleAuditRun("signal"));
   stateEl.deepAuditButton.addEventListener("click", async () => handleAuditRun("deep"));
   stateEl.runCmd.addEventListener("click", openCmdWindow);
+  stateEl.previewReload.addEventListener("click", reloadPreview);
+  stateEl.previewOpenExternal.addEventListener("click", openPreviewExternal);
+  stateEl.previewToggleFollow.addEventListener("click", togglePreviewFollowMode);
   stateEl.loadReportFile.addEventListener("click", loadReportFromFile);
   stateEl.exportCurrentReport.addEventListener("click", exportCurrentReport);
   stateEl.openLatestEvidence.addEventListener("click", openLatestEvidence);
@@ -2926,7 +3191,7 @@ function bindKeyboardShortcuts() {
       return;
     }
 
-    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5", "6", "7"].includes(event.key)) {
+    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5", "6", "7", "8"].includes(event.key)) {
       event.preventDefault();
       const map = {
         "1": "overview",
@@ -2936,6 +3201,7 @@ function bindKeyboardShortcuts() {
         "5": "prompts",
         "6": "reports",
         "7": "settings",
+        "8": "preview",
       };
       switchView(map[event.key]);
       return;
@@ -3010,6 +3276,7 @@ async function bootstrap() {
   restoreProfile();
   renderStaticSelections();
   renderOnboarding();
+  bindPreviewSurface();
 
   const savedReport = restoreLastReport();
   if (savedReport) {
@@ -3020,6 +3287,7 @@ async function bootstrap() {
   renderHistory();
   renderLogs();
   renderCommandPalette();
+  renderPreviewWorkspace();
   switchView("overview");
 
   bindSelectionEvents();
@@ -3035,6 +3303,7 @@ async function bootstrap() {
 
   renderCompanionState(payload);
   stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
+  queuePreviewSync("bootstrap");
 }
 
 bootstrap().catch((error) => {
