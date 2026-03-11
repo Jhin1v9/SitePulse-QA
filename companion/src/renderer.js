@@ -1639,6 +1639,7 @@ function buildSeoDigest(report) {
 
   const googleSnapshot = uiState.seoSource?.snapshot;
   const lines = [
+    "SitePulse internal SEO diagnostics",
     `Target: ${report.meta.baseUrl}`,
     `SEO score: ${report.summary.seoScore}`,
     `SEO critical issues: ${report.summary.seoCriticalIssues || 0}`,
@@ -1647,6 +1648,10 @@ function buildSeoDigest(report) {
   ];
 
   if (googleSnapshot) {
+    lines.push(
+      "",
+      "Google Search Console",
+    );
     lines.push(
       `Google property: ${googleSnapshot.property}`,
       `Google avg position: ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}`,
@@ -1657,12 +1662,16 @@ function buildSeoDigest(report) {
       `Top page: ${googleSnapshot.topPage || "n/a"}`,
     );
   } else {
-    lines.push("Google performance: no verified external Search Console data connected.");
+    lines.push(
+      "",
+      "Google Search Console",
+      "Google ranking data is not connected. Internal SitePulse SEO diagnostics above are still valid.",
+    );
   }
 
   const recommendations = Array.isArray(report.seo?.topRecommendations) ? report.seo.topRecommendations.filter(Boolean) : [];
   if (recommendations.length) {
-    lines.push("Top recommendations:");
+    lines.push("", "Top recommendations:");
     recommendations.slice(0, 8).forEach((item, index) => {
       lines.push(`${index + 1}. ${item}`);
     });
@@ -2714,13 +2723,13 @@ function renderGoogleSeoSource(sourceInput) {
     stateEl.googleTopQuery.textContent = "n/a";
     stateEl.googleTopPage.textContent = "n/a";
     stateEl.seoExternalHeadline.textContent = source.hasAccessToken
-      ? "Source saved locally. Refresh to pull real Google data."
-      : "Add a verified property and valid token to load real Google metrics.";
+      ? "Google source saved locally. Refresh to pull Search Console metrics."
+      : "Connect Search Console only if you want real Google ranking metrics.";
     stateEl.seoExternalDetail.textContent = source.lastError
       ? `Google sync failed: ${source.lastError}`
       : source.hasAccessToken
-      ? "A token is already saved locally. SitePulse will use it when you refresh Google data."
-      : "SitePulse only shows Google ranking signals when Search Console data is available. Without an external source, the SEO view remains internal-only and does not claim real ranking.";
+      ? "A token is already saved locally. Internal SitePulse SEO is already active. Refresh to append Google Search Console data."
+      : "Internal SitePulse SEO diagnostics are active even without Google. Search Console is optional and only adds real external ranking, impressions, clicks and CTR.";
     return;
   }
 
@@ -2784,13 +2793,13 @@ function renderSeoWorkspace(report, options = {}) {
     : "<li>No SEO recommendation was attached to this run.</li>";
   const googleSnapshot = uiState.seoSource?.snapshot;
   stateEl.seoWorkspaceHeadline.textContent = transient === true
-    ? `Live SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`
-    : `SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`;
+    ? `Live internal SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`
+    : `Internal SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`;
   stateEl.seoWorkspaceSummary.textContent = recommendations.length
-    ? `The current run attached ${recommendations.length} SEO recommendation(s). ${googleSnapshot ? `External Google data is also loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions.` : "Connect Search Console if you need real Google performance signals."}`
+    ? `The current run attached ${recommendations.length} internal SEO recommendation(s). ${googleSnapshot ? `External Google data is also loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions.` : "Search Console is not connected. The internal SEO diagnostics and recommendations shown here are still valid."}`
     : googleSnapshot
     ? `No additional SEO recommendation was attached to this run. External Google data is loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions and CTR ${formatPercent(googleSnapshot.ctr)}.`
-    : "No SEO recommendation was attached to this run. This usually means the current pass did not surface search-specific guidance beyond the score summary.";
+    : "No additional internal SEO recommendation was attached to this run. The SEO audit still executed; this usually means the pass did not surface search-specific guidance beyond the score summary.";
 }
 
 function renderPromptWorkspace(report) {
