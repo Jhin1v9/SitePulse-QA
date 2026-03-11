@@ -137,7 +137,9 @@ const stateEl = {
   auditProgressLabel: document.getElementById("auditProgressLabel"),
   auditProgressPercent: document.getElementById("auditProgressPercent"),
   auditProgressCounters: document.getElementById("auditProgressCounters"),
+  auditProgressElapsed: document.getElementById("auditProgressElapsed"),
   auditProgressEta: document.getElementById("auditProgressEta"),
+  auditProgressPace: document.getElementById("auditProgressPace"),
   auditProgressFill: document.getElementById("auditProgressFill"),
   auditProgressDetail: document.getElementById("auditProgressDetail"),
   timelineHeadline: document.getElementById("timelineHeadline"),
@@ -340,6 +342,7 @@ const uiState = {
     available: false,
     timerId: 0,
   },
+  runtimeTickerId: 0,
 };
 
 function getVisibleReport() {
@@ -440,6 +443,14 @@ function median(values) {
   const middle = Math.floor(list.length / 2);
   if (list.length % 2 === 1) return list[middle];
   return Math.round((list[middle - 1] + list[middle]) / 2);
+}
+
+function classifyRunPace(elapsedMs, estimatedTotalMs) {
+  if (!(elapsedMs > 0) || !(estimatedTotalMs > 0)) return "Pace calibrating";
+  const ratio = elapsedMs / estimatedTotalMs;
+  if (ratio >= 1.2) return "Pace slower than baseline";
+  if (ratio <= 0.8) return "Pace ahead of baseline";
+  return "Pace on baseline";
 }
 
 function shortPath(value) {
@@ -2578,21 +2589,24 @@ function renderPromptWorkspace(report) {
 
 function renderReportSummary(report, options = {}) {
   const preparedTargetUrl = getPreparedTargetUrl();
+  const audit = uiState.companionState?.audit || {};
 
   if (!report) {
     stateEl.currentTarget.textContent = preparedTargetUrl || "none";
     stateEl.currentMode.textContent = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
     stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
     stateEl.currentDepth.textContent = currentDepthLabel();
-    stateEl.currentDuration.textContent = "0s";
-    stateEl.currentCommand.textContent = "Run an audit to generate a replay command.";
+    const liveDurationMs = audit.running === true && audit.startedAt
+      ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime())
+      : 0;
+    stateEl.currentDuration.textContent = formatDuration(liveDurationMs);
+    stateEl.currentCommand.textContent = audit.lastCommand || "Run an audit to generate a replay command.";
     stateEl.reportsHeadline.textContent = preparedTargetUrl
       ? `Prepared target ${preparedTargetUrl} | run an audit to generate a replayable evidence trail.`
       : "Each run leaves a replayable evidence trail.";
     return;
   }
 
-  const audit = uiState.companionState?.audit || {};
   const reportMode = normalizeMode(report.meta.auditMode || audit.mode || uiState.mode);
   const reportDepth = normalizeDepth(report.meta.auditDepth || audit.depth || uiState.depth);
   const reportBaseUrl = getReportBaseUrl(report) || report.meta.baseUrl;
@@ -2799,9 +2813,10 @@ function renderAuditProgress(audit = {}) {
     counters = "Run stopped with failure.";
   }
 
+  const elapsedMs = audit.startedAt ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime()) : 0;
   let etaText = "ETA calibrating";
+  let paceText = "Pace standby";
   if (audit.running) {
-    const elapsedMs = audit.startedAt ? Math.max(0, Date.now() - new Date(audit.startedAt).getTime()) : 0;
     const historyEstimateMs = estimateRunDurationMs({
       baseUrl: audit.baseUrl,
       mode: audit.mode,
@@ -2812,6 +2827,7 @@ function renderAuditProgress(audit = {}) {
       ? Math.round(elapsedMs / Math.max(percentage / 100, 0.1))
       : 0;
     const totalEstimateMs = median([historyEstimateMs, progressEstimateMs].filter((value) => value > 0));
+    paceText = classifyRunPace(elapsedMs, totalEstimateMs);
     if (totalEstimateMs > 0) {
       const remainingMs = Math.max(0, totalEstimateMs - elapsedMs);
       etaText = remainingMs > 0 ? `ETA ${formatDuration(remainingMs)}` : "Ending soon";
@@ -2820,16 +2836,42 @@ function renderAuditProgress(audit = {}) {
     }
   } else if (audit.status === "clean" || audit.status === "issues") {
     etaText = "Completed";
+    paceText = "Pace complete";
   } else if (audit.status === "failed") {
     etaText = "Interrupted";
+    paceText = "Pace interrupted";
   }
 
   stateEl.auditProgressLabel.textContent = phaseLabel;
   stateEl.auditProgressPercent.textContent = `${percentage}%`;
   stateEl.auditProgressCounters.textContent = counters;
+  stateEl.auditProgressElapsed.textContent = `Elapsed ${formatDuration(elapsedMs)}`;
   stateEl.auditProgressEta.textContent = etaText;
+  stateEl.auditProgressPace.textContent = paceText;
   stateEl.auditProgressDetail.textContent = detail;
   stateEl.auditProgressFill.style.width = `${percentage}%`;
+}
+
+function refreshRuntimeTicker() {
+  const audit = uiState.companionState?.audit || {};
+  renderAuditProgress(audit);
+  renderReportSummary(getVisibleReport(), { transient: !!uiState.liveReport });
+}
+
+function syncRuntimeTicker() {
+  const running = uiState.companionState?.audit?.running === true;
+  if (running && uiState.runtimeTickerId === 0) {
+    uiState.runtimeTickerId = window.setInterval(() => {
+      refreshRuntimeTicker();
+    }, 1000);
+    refreshRuntimeTicker();
+    return;
+  }
+  if (!running && uiState.runtimeTickerId !== 0) {
+    window.clearInterval(uiState.runtimeTickerId);
+    uiState.runtimeTickerId = 0;
+    refreshRuntimeTicker();
+  }
 }
 
 function renderExecutionState(audit = {}) {
@@ -2954,6 +2996,7 @@ function renderCompanionState(payload) {
   setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
   renderGoogleSeoSource(payload?.seoSource || {});
   renderUpdateState(payload?.update || null);
+  syncRuntimeTicker();
 
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});

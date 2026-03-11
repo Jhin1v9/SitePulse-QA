@@ -1066,6 +1066,15 @@ button:hover:not(:disabled),
   color: #d7ffef;
 }
 
+.progress-meta #auditProgressElapsed,
+.progress-meta #auditProgressPace {
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-meta #auditProgressPace {
+  color: #cfe6ff;
+}
+
 .progress-track {
   position: relative;
   height: 14px;
