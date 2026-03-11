@@ -2949,7 +2949,7 @@ function renderCommandPalette() {
           <strong>${escapeHtml(item.label)}</strong>
           ${item.hint ? `<span class="pill">${escapeHtml(item.hint)}</span>` : ""}
         </div>
-        <span>${escapeHtml(item.description)}</span>
+        <p class="command-item-description">${escapeHtml(item.description)}</p>
       </button>
     `)
     .join("");
