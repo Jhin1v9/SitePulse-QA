@@ -3801,6 +3801,130 @@ async function captureSectionRuleEvidence(page, finding, reportDir, route, code)
   }
 }
 
+const GENERIC_SELECTOR_TOKENS = new Set([
+  "app",
+  "area",
+  "block",
+  "body",
+  "card",
+  "col",
+  "column",
+  "container",
+  "content",
+  "grid",
+  "inner",
+  "item",
+  "layout",
+  "main",
+  "module",
+  "outer",
+  "panel",
+  "row",
+  "section",
+  "shell",
+  "stack",
+  "wrapper",
+]);
+
+function toFiniteNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeSelectorToken(token) {
+  return String(token || "")
+    .replace(/[-_]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseSelectorMeta(selector) {
+  const raw = String(selector || "").trim();
+  const tagMatch = raw.match(/^[a-z0-9-]+/i);
+  const idMatch = raw.match(/#([a-z0-9_-]+)/i);
+  const dataMatch = raw.match(/\[data=([^\]]+)\]/i);
+  const classMatches = [...raw.matchAll(/\.([a-z0-9_-]+)/gi)]
+    .map((match) => String(match[1] || "").trim())
+    .filter(Boolean);
+  return {
+    raw,
+    tag: tagMatch ? String(tagMatch[0]).toLowerCase() : "div",
+    id: idMatch ? String(idMatch[1]) : "",
+    data: dataMatch ? String(dataMatch[1]) : "",
+    classes: classMatches,
+  };
+}
+
+function resolveSelectorTypeLabel(tag) {
+  if (tag === "header") return "cabecalho";
+  if (tag === "nav") return "navegacao";
+  if (tag === "main") return "conteudo principal";
+  if (tag === "footer") return "rodape";
+  if (tag === "section") return "secao";
+  if (tag === "article") return "bloco";
+  if (tag === "aside") return "sidebar";
+  if (tag === "form") return "formulario";
+  if (tag === "button") return "botao";
+  if (tag === "ul" || tag === "ol") return "lista";
+  return "bloco";
+}
+
+function resolveSelectorReadableToken(meta) {
+  if (meta.id) return normalizeSelectorToken(meta.id);
+  if (meta.data) return normalizeSelectorToken(meta.data);
+
+  const meaningfulClass = meta.classes.find((token) => {
+    const normalized = normalizeSelectorToken(token).toLowerCase();
+    if (!normalized) return false;
+    if (GENERIC_SELECTOR_TOKENS.has(normalized)) return false;
+    return normalized.length >= 3;
+  });
+  if (meaningfulClass) return normalizeSelectorToken(meaningfulClass);
+  return "";
+}
+
+function formatSelectorHumanLabel(selector) {
+  const meta = parseSelectorMeta(selector);
+  const typeLabel = resolveSelectorTypeLabel(meta.tag);
+  const readableToken = resolveSelectorReadableToken(meta);
+  if (!readableToken) {
+    return `${typeLabel} (${meta.raw || "sem identificador"})`;
+  }
+  return `${typeLabel} "${readableToken}"`;
+}
+
+function describeVisualRegion(clip, viewportHeight) {
+  const y = toFiniteNumber(clip?.y, -1);
+  const viewport = Math.max(1, toFiniteNumber(viewportHeight, 0));
+  if (y < 0 || viewport <= 0) return "posicao nao mapeada";
+  if (y < viewport * 0.8) return "topo da pagina";
+  if (y < viewport * 1.8) return "miolo da pagina";
+  return "parte baixa da pagina";
+}
+
+function ratioToPercent(value) {
+  const numeric = toFiniteNumber(value, NaN);
+  if (!Number.isFinite(numeric)) return null;
+  const ratio = numeric <= 1.5 ? numeric * 100 : numeric;
+  return Math.max(0, Math.round(ratio));
+}
+
+function formatVerticalTransitionSample(sample, finding, options = {}) {
+  const source = formatSelectorHumanLabel(sample?.a);
+  const target = formatSelectorHumanLabel(sample?.b);
+  const gap = Math.max(0, Math.round(toFiniteNumber(sample?.gap, 0)));
+  const region = describeVisualRegion(sample?.clip, finding?.viewportHeight);
+  const shared = ratioToPercent(sample?.sharedRatio);
+  const sharedText = shared === null ? "n/a" : `${shared}%`;
+  const indexLabel = Number.isFinite(options.index) ? `${options.index}. ` : "";
+
+  if (options.collision === true) {
+    return `${indexLabel}A borda inferior de ${source} encostou na borda superior de ${target} (distancia=${gap}px, largura compartilhada=${sharedText}, regiao=${region}).`;
+  }
+
+  return `${indexLabel}${source} ficou muito perto de ${target} (distancia=${gap}px, largura compartilhada=${sharedText}, regiao=${region}).`;
+}
+
 function formatVisualAnalyzerDetail(finding) {
   if (finding.code === CODE.VISUAL_LAYOUT_OVERFLOW) {
     const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
@@ -3839,11 +3963,14 @@ function formatVisualAnalyzerDetail(finding) {
   if (finding.code === CODE.VISUAL_TIGHT_SPACING) {
     const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
     const sampleText = samples
-      .map((item) => `${item.a} -> ${item.b} (gap=${item.gap}px)`)
+      .map((item, index) => formatVerticalTransitionSample(item, finding, { index: index + 1, collision: false }))
       .join(" ; ");
+    const viewportWidth = Math.max(0, Math.round(toFiniteNumber(finding.viewportWidth, 0)));
+    const viewportHeight = Math.max(0, Math.round(toFiniteNumber(finding.viewportHeight, 0)));
     return [
-      `Detectado espacamento apertado em ${finding.count || samples.length} transicao(oes) entre blocos.`,
+      `Espacamento apertado em ${finding.count || samples.length} transicao(oes) na rota ${finding.route || "n/a"} (viewport ${viewportWidth}x${viewportHeight}).`,
       sampleText || "Nenhum exemplo detalhado disponivel.",
+      "Leitura humana: os blocos quase se grudam, o olho nao encontra respiracao e a pagina parece comprimida.",
     ].join(" | ");
   }
 
@@ -3883,11 +4010,14 @@ function formatVisualAnalyzerDetail(finding) {
   if (finding.code === CODE.VISUAL_BOUNDARY_COLLISION) {
     const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
     const sampleText = samples
-      .map((item) => `${item.a} -> ${item.b} (gap=${item.gap}px, shared=${item.sharedRatio})`)
+      .map((item, index) => formatVerticalTransitionSample(item, finding, { index: index + 1, collision: true }))
       .join(" ; ");
+    const viewportWidth = Math.max(0, Math.round(toFiniteNumber(finding.viewportWidth, 0)));
+    const viewportHeight = Math.max(0, Math.round(toFiniteNumber(finding.viewportHeight, 0)));
     return [
-      `Detectada colisao de borda em ${finding.count || samples.length} transicao(oes) entre blocos.`,
+      `Colisao de borda em ${finding.count || samples.length} transicao(oes) na rota ${finding.route || "n/a"} (viewport ${viewportWidth}x${viewportHeight}).`,
       sampleText || "Nenhum exemplo detalhado disponivel.",
+      "Leitura humana: um bloco termina e o proximo comeca colado, parecendo quebra de layout no mobile.",
     ].join(" | ");
   }
 
