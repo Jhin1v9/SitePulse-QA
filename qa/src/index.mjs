@@ -61,6 +61,8 @@ const CODE = {
   VISUAL_GAP_INCONSISTENCY: "VISUAL_GAP_INCONSISTENCY",
   VISUAL_EDGE_HUGGING: "VISUAL_EDGE_HUGGING",
   VISUAL_WIDTH_INCONSISTENCY: "VISUAL_WIDTH_INCONSISTENCY",
+  VISUAL_BOUNDARY_COLLISION: "VISUAL_BOUNDARY_COLLISION",
+  VISUAL_FOLD_PRESSURE: "VISUAL_FOLD_PRESSURE",
 };
 
 const ACTION_STATUS = {
@@ -210,6 +212,22 @@ const ISSUE_GUIDE = {
       "Partes grandes da pagina ficaram com larguras muito diferentes sem parecer intencional, deixando o layout irregular.",
     recommendation:
       "Padronizar largura util e max-width dos blocos principais para manter uma mesma malha visual ao longo da pagina.",
+  },
+  [CODE.VISUAL_BOUNDARY_COLLISION]: {
+    technical:
+      "Blocos estruturais consecutivos ficaram praticamente colados, com bordas ou divisorias encostando sem respiro suficiente.",
+    layman:
+      "Algumas partes grandes da tela estao encostando uma na outra, como se as linhas e blocos estivessem se batendo.",
+    recommendation:
+      "Adicionar respiro real entre blocos principais, revisar bordas/dividers e impedir que cards ou secoes terminem grudados uns nos outros.",
+  },
+  [CODE.VISUAL_FOLD_PRESSURE]: {
+    technical:
+      "A primeira dobra da pagina concentrou blocos demais em pouco espaco util, comprimindo leitura, hierarquia e respiracao visual.",
+    layman:
+      "Tem coisa demais logo no comeco da pagina. A tela fica pesada e dificulta entender o que e mais importante.",
+    recommendation:
+      "Simplificar a primeira dobra, mover conteudo secundario para baixo e reforcar hierarquia entre hero, prova principal, CTA e indicadores.",
   },
 };
 
@@ -496,6 +514,40 @@ const ISSUE_PLAYBOOK = {
     likelyAreas: [
       "src/components/layout/**",
       "src/components/sections/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_BOUNDARY_COLLISION]: {
+    priority: "P1",
+    firstChecks: [
+      "Medir o gap real entre blocos consecutivos que compartilham a mesma coluna visual.",
+      "Revisar bordas, dividers, margins e paddings que deixam blocos encostados.",
+      "Garantir separacao clara entre conteudo principal, CTA, FAQ, listas e cards longos.",
+    ],
+    commandHints: [
+      "rg -n \"border|divider|margin-top|margin-bottom|padding-top|padding-bottom|gap:|row-gap|space-y-\" src",
+      "rg -n \"section|card|panel|stack|wrapper|content\" src/components src/styles",
+    ],
+    likelyAreas: [
+      "src/components/sections/**",
+      "src/components/layout/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_FOLD_PRESSURE]: {
+    priority: "P2",
+    firstChecks: [
+      "Mapear quantos blocos estruturais entram na primeira dobra e qual deles deveria descer na hierarquia.",
+      "Revisar hero, prova social, KPIs, cards e grids empilhados cedo demais.",
+      "Manter na primeira dobra so o que ajuda a orientar, converter ou explicar a pagina.",
+    ],
+    commandHints: [
+      "rg -n \"hero|banner|kpi|stats|trust|cta|cards|grid|faq|features\" src/components src/app",
+      "rg -n \"section|wrapper|panel|stack|content|max-width|gap:|space-y-\" src/components src/styles",
+    ],
+    likelyAreas: [
+      "src/components/sections/**",
+      "src/components/layout/**",
       "src/styles/**",
     ],
   },
@@ -2641,9 +2693,24 @@ function normalizeVisualAnalyzer(input) {
     edgeGutterMinPx: Number.isFinite(Number(config.edgeGutterMinPx))
       ? Math.max(8, Number(config.edgeGutterMinPx))
       : 20,
+    boundaryCollisionPx: Number.isFinite(Number(config.boundaryCollisionPx))
+      ? Math.max(0, Number(config.boundaryCollisionPx))
+      : 6,
     widthDriftTolerancePx: Number.isFinite(Number(config.widthDriftTolerancePx))
       ? Math.max(24, Number(config.widthDriftTolerancePx))
       : 96,
+    foldPressureMinBlocks: Number.isFinite(Number(config.foldPressureMinBlocks))
+      ? Math.max(3, Number(config.foldPressureMinBlocks))
+      : 5,
+    foldPressureAvgGapPx: Number.isFinite(Number(config.foldPressureAvgGapPx))
+      ? Math.max(8, Number(config.foldPressureAvgGapPx))
+      : 24,
+    foldPressureSpanRatio: Number.isFinite(Number(config.foldPressureSpanRatio))
+      ? Math.max(1, Number(config.foldPressureSpanRatio))
+      : 1.6,
+    foldViewportMultiplier: Number.isFinite(Number(config.foldViewportMultiplier))
+      ? Math.max(1, Number(config.foldViewportMultiplier))
+      : 1.1,
     minComparableGapPx: Number.isFinite(Number(config.minComparableGapPx))
       ? Math.max(12, Number(config.minComparableGapPx))
       : 24,
@@ -2907,7 +2974,8 @@ function severityFromCode(code) {
     code === CODE.VISUAL_LAYOUT_OVERFLOW ||
     code === CODE.VISUAL_LAYER_OVERLAP ||
     code === CODE.VISUAL_TIGHT_SPACING ||
-    code === CODE.VISUAL_EDGE_HUGGING
+    code === CODE.VISUAL_EDGE_HUGGING ||
+    code === CODE.VISUAL_BOUNDARY_COLLISION
   ) {
     return "medium";
   }
@@ -3177,7 +3245,9 @@ function buildPromptPack(issues) {
     byCode.has(CODE.VISUAL_TIGHT_SPACING) ||
     byCode.has(CODE.VISUAL_GAP_INCONSISTENCY) ||
     byCode.has(CODE.VISUAL_EDGE_HUGGING) ||
-    byCode.has(CODE.VISUAL_WIDTH_INCONSISTENCY)
+    byCode.has(CODE.VISUAL_WIDTH_INCONSISTENCY) ||
+    byCode.has(CODE.VISUAL_BOUNDARY_COLLISION) ||
+    byCode.has(CODE.VISUAL_FOLD_PRESSURE)
   ) {
     const rows = [
       ...(byCode.get(CODE.VISUAL_LAYOUT_OVERFLOW) ?? []),
@@ -3187,6 +3257,8 @@ function buildPromptPack(issues) {
       ...(byCode.get(CODE.VISUAL_GAP_INCONSISTENCY) ?? []),
       ...(byCode.get(CODE.VISUAL_EDGE_HUGGING) ?? []),
       ...(byCode.get(CODE.VISUAL_WIDTH_INCONSISTENCY) ?? []),
+      ...(byCode.get(CODE.VISUAL_BOUNDARY_COLLISION) ?? []),
+      ...(byCode.get(CODE.VISUAL_FOLD_PRESSURE) ?? []),
     ]
       .slice(0, 20)
       .map((i) => `- ${i.route} -> ${i.code}: ${i.detail}`)
@@ -3721,6 +3793,28 @@ function formatVisualAnalyzerDetail(finding) {
     ].join(" | ");
   }
 
+  if (finding.code === CODE.VISUAL_BOUNDARY_COLLISION) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.a} -> ${item.b} (gap=${item.gap}px, shared=${item.sharedRatio})`)
+      .join(" ; ");
+    return [
+      `Detectada colisao de borda em ${finding.count || samples.length} transicao(oes) entre blocos.`,
+      sampleText || "Nenhum exemplo detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  if (finding.code === CODE.VISUAL_FOLD_PRESSURE) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 2) : [];
+    const sampleText = samples
+      .map((item) => `${item.blockCount} blocos na primeira dobra (avg gap=${item.averageGap}px, span=${item.stackSpan}px, density=${item.densityRatio}x viewport)`)
+      .join(" ; ");
+    return [
+      `Detectada pressao visual na primeira dobra em ${finding.count || samples.length} agrupamento(s).`,
+      sampleText || "Nenhum agrupamento detalhado disponivel.",
+    ].join(" | ");
+  }
+
   return String(finding.detail || "Inconsistencia visual detectada.");
 }
 
@@ -3941,6 +4035,7 @@ async function runVisualInterfaceChecks(page, route, cfg) {
         a: first.selector,
         b: second.selector,
         gap,
+        sharedRatio: round(sharedRatio),
         clip: {
           x: round(Math.max(0, Math.min(first.left, second.left) + window.scrollX)),
           y: round(Math.max(0, Math.min(first.top, second.top))),
@@ -3957,6 +4052,10 @@ async function runVisualInterfaceChecks(page, route, cfg) {
 
     const tightSpacing = verticalPairs
       .filter((item) => item.gap <= settings.tightSpacingPx)
+      .slice(0, settings.maxSamples);
+
+    const boundaryCollision = verticalPairs
+      .filter((item) => item.gap <= settings.boundaryCollisionPx)
       .slice(0, settings.maxSamples);
 
     const comparableGaps = verticalPairs
@@ -4030,6 +4129,44 @@ async function runVisualInterfaceChecks(page, route, cfg) {
           .filter((item) => item.drift >= settings.widthDriftTolerancePx)
           .slice(0, settings.maxSamples);
 
+    const foldPressure = [];
+    const foldBlocks = stackedBlocks.filter(
+      (item) => item.top < viewportHeight * settings.foldViewportMultiplier && item.top + item.height > 0,
+    );
+    if (foldBlocks.length >= settings.foldPressureMinBlocks) {
+      const first = foldBlocks[0];
+      const last = foldBlocks[foldBlocks.length - 1];
+      const foldPairGaps = [];
+      for (let index = 0; index < foldBlocks.length - 1; index += 1) {
+        const current = foldBlocks[index];
+        const next = foldBlocks[index + 1];
+        const gap = round(next.top - (current.top + current.height));
+        if (gap >= 0) foldPairGaps.push(gap);
+      }
+      const averageGap = foldPairGaps.length
+        ? round(foldPairGaps.reduce((acc, item) => acc + item, 0) / foldPairGaps.length)
+        : 0;
+      const stackSpan = round(last.top + last.height - first.top);
+      const densityRatio = round(stackSpan / Math.max(1, viewportHeight));
+      if (averageGap <= settings.foldPressureAvgGapPx && densityRatio >= settings.foldPressureSpanRatio) {
+        foldPressure.push({
+          blockCount: foldBlocks.length,
+          averageGap,
+          stackSpan,
+          densityRatio,
+          selectors: foldBlocks.slice(0, 5).map((item) => item.selector),
+          clip: {
+            x: round(Math.max(0, Math.min(...foldBlocks.map((item) => item.left)) + window.scrollX)),
+            y: round(Math.max(0, first.top)),
+            width: round(
+              Math.max(1, Math.max(...foldBlocks.map((item) => item.right)) - Math.min(...foldBlocks.map((item) => item.left))),
+            ),
+            height: round(Math.max(1, last.top + last.height - first.top)),
+          },
+        });
+      }
+    }
+
     return {
       viewportWidth,
       viewportHeight,
@@ -4041,6 +4178,8 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       gapInconsistency,
       edgeHugging,
       widthInconsistency,
+      boundaryCollision,
+      foldPressure,
     };
   }, visualCfg);
 
@@ -4119,6 +4258,28 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       action: "visual_quality:width_inconsistency",
       count: findings.widthInconsistency.length,
       samples: findings.widthInconsistency,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.boundaryCollision?.length) {
+    issues.push({
+      code: CODE.VISUAL_BOUNDARY_COLLISION,
+      route,
+      action: "visual_quality:boundary_collision",
+      count: findings.boundaryCollision.length,
+      samples: findings.boundaryCollision,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.foldPressure?.length) {
+    issues.push({
+      code: CODE.VISUAL_FOLD_PRESSURE,
+      route,
+      action: "visual_quality:fold_pressure",
+      count: findings.foldPressure.length,
+      samples: findings.foldPressure,
       viewportWidth: findings.viewportWidth,
       viewportHeight: findings.viewportHeight,
     });
@@ -5177,6 +5338,8 @@ function summarize(report) {
     visualGapInconsistency: count(CODE.VISUAL_GAP_INCONSISTENCY),
     visualEdgeHugging: count(CODE.VISUAL_EDGE_HUGGING),
     visualWidthInconsistency: count(CODE.VISUAL_WIDTH_INCONSISTENCY),
+    visualBoundaryCollision: count(CODE.VISUAL_BOUNDARY_COLLISION),
+    visualFoldPressure: count(CODE.VISUAL_FOLD_PRESSURE),
     visualQualityIssues:
       count(CODE.VISUAL_SECTION_ORDER_INVALID) +
       count(CODE.VISUAL_SECTION_MISSING) +
@@ -5186,7 +5349,9 @@ function summarize(report) {
       count(CODE.VISUAL_TIGHT_SPACING) +
       count(CODE.VISUAL_GAP_INCONSISTENCY) +
       count(CODE.VISUAL_EDGE_HUGGING) +
-      count(CODE.VISUAL_WIDTH_INCONSISTENCY),
+      count(CODE.VISUAL_WIDTH_INCONSISTENCY) +
+      count(CODE.VISUAL_BOUNDARY_COLLISION) +
+      count(CODE.VISUAL_FOLD_PRESSURE),
     seoScore: Number(report?.seo?.overallScore ?? 0),
     seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
     seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
@@ -5919,7 +6084,9 @@ async function run() {
             finding.code === CODE.VISUAL_TIGHT_SPACING ||
             finding.code === CODE.VISUAL_GAP_INCONSISTENCY ||
             finding.code === CODE.VISUAL_EDGE_HUGGING ||
-            finding.code === CODE.VISUAL_WIDTH_INCONSISTENCY
+            finding.code === CODE.VISUAL_WIDTH_INCONSISTENCY ||
+            finding.code === CODE.VISUAL_BOUNDARY_COLLISION ||
+            finding.code === CODE.VISUAL_FOLD_PRESSURE
           ) {
             const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route);
             emitLiveEvent(args, "layout_check_issue", {

@@ -24,6 +24,8 @@ const ISSUE_GROUP = {
   VISUAL_GAP_INCONSISTENCY: "Gap inconsistency",
   VISUAL_EDGE_HUGGING: "Edge hugging",
   VISUAL_WIDTH_INCONSISTENCY: "Width inconsistency",
+  VISUAL_BOUNDARY_COLLISION: "Boundary collision",
+  VISUAL_FOLD_PRESSURE: "Fold pressure",
 };
 
 const DEFAULT_TARGET = "https://example.com";
@@ -165,6 +167,8 @@ const stateEl = {
   visualGapConsistencyCount: document.getElementById("visualGapConsistencyCount"),
   visualEdgeCount: document.getElementById("visualEdgeCount"),
   visualWidthCount: document.getElementById("visualWidthCount"),
+  visualBoundaryCount: document.getElementById("visualBoundaryCount"),
+  visualFoldCount: document.getElementById("visualFoldCount"),
   visualSectionsCount: document.getElementById("visualSectionsCount"),
   visualQualityHeadline: document.getElementById("visualQualityHeadline"),
   visualQualityDetail: document.getElementById("visualQualityDetail"),
@@ -423,6 +427,7 @@ function parseSeverity(value, code = "") {
     "VISUAL_LAYER_OVERLAP",
     "VISUAL_TIGHT_SPACING",
     "VISUAL_EDGE_HUGGING",
+    "VISUAL_BOUNDARY_COLLISION",
   ].includes(code)) {
     return "medium";
   }
@@ -781,6 +786,8 @@ function normalizeReport(raw) {
       visualGapInconsistency: toNumber(summary.visualGapInconsistency, countByCode(issues, ["VISUAL_GAP_INCONSISTENCY"])),
       visualEdgeHugging: toNumber(summary.visualEdgeHugging, countByCode(issues, ["VISUAL_EDGE_HUGGING"])),
       visualWidthInconsistency: toNumber(summary.visualWidthInconsistency, countByCode(issues, ["VISUAL_WIDTH_INCONSISTENCY"])),
+      visualBoundaryCollision: toNumber(summary.visualBoundaryCollision, countByCode(issues, ["VISUAL_BOUNDARY_COLLISION"])),
+      visualFoldPressure: toNumber(summary.visualFoldPressure, countByCode(issues, ["VISUAL_FOLD_PRESSURE"])),
       visualQualityIssues: toNumber(
         summary.visualQualityIssues,
         countByCode(issues, [
@@ -793,6 +800,8 @@ function normalizeReport(raw) {
           "VISUAL_GAP_INCONSISTENCY",
           "VISUAL_EDGE_HUGGING",
           "VISUAL_WIDTH_INCONSISTENCY",
+          "VISUAL_BOUNDARY_COLLISION",
+          "VISUAL_FOLD_PRESSURE",
         ]),
       ),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
@@ -1773,6 +1782,8 @@ function renderSignals(report) {
     "VISUAL_GAP_INCONSISTENCY",
     "VISUAL_EDGE_HUGGING",
     "VISUAL_WIDTH_INCONSISTENCY",
+    "VISUAL_BOUNDARY_COLLISION",
+    "VISUAL_FOLD_PRESSURE",
   ]));
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
 }
@@ -1786,9 +1797,11 @@ function renderVisualQuality(report) {
     stateEl.visualGapConsistencyCount.textContent = "0";
     stateEl.visualEdgeCount.textContent = "0";
     stateEl.visualWidthCount.textContent = "0";
+    stateEl.visualBoundaryCount.textContent = "0";
+    stateEl.visualFoldCount.textContent = "0";
     stateEl.visualSectionsCount.textContent = "0";
     stateEl.visualQualityHeadline.textContent = "No visual evidence yet.";
-    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, edge pressure, width consistency, spacing quality and section-level visual rules.";
+    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, spacing discipline, edge pressure, boundary collisions, fold pressure and section-level visual rules.";
     return;
   }
 
@@ -1802,6 +1815,8 @@ function renderVisualQuality(report) {
   stateEl.visualGapConsistencyCount.textContent = String(summary.visualGapInconsistency || 0);
   stateEl.visualEdgeCount.textContent = String(summary.visualEdgeHugging || 0);
   stateEl.visualWidthCount.textContent = String(summary.visualWidthInconsistency || 0);
+  stateEl.visualBoundaryCount.textContent = String(summary.visualBoundaryCollision || 0);
+  stateEl.visualFoldCount.textContent = String(summary.visualFoldPressure || 0);
   stateEl.visualSectionsCount.textContent = String(sectionRuleIssues);
 
   const lead = report.issues.find((issue) => issue.code.startsWith("VISUAL_"));
@@ -1811,7 +1826,7 @@ function renderVisualQuality(report) {
       : "No visual quality issues detected in the current report.";
     stateEl.visualQualityDetail.textContent = total > 0
       ? "Open Findings to inspect route-level visual evidence."
-      : "Layout spacing, block alignment, edge clearance, width discipline, section order and visual rhythm look stable in this pass.";
+      : "Layout spacing, block alignment, edge clearance, width discipline, fold density and section order look stable in this pass.";
     return;
   }
 
