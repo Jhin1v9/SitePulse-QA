@@ -22,6 +22,8 @@ const ISSUE_GROUP = {
   VISUAL_ALIGNMENT_DRIFT: "Alignment drift",
   VISUAL_TIGHT_SPACING: "Tight spacing",
   VISUAL_GAP_INCONSISTENCY: "Gap inconsistency",
+  VISUAL_EDGE_HUGGING: "Edge hugging",
+  VISUAL_WIDTH_INCONSISTENCY: "Width inconsistency",
 };
 
 const DEFAULT_TARGET = "https://example.com";
@@ -57,10 +59,15 @@ const VIEW_META = {
     title: "Prompts",
     description: "Fix prompts, replay commands and reusable digests are separated here so operators can copy exactly what they need.",
   },
+  compare: {
+    eyebrow: "comparison room",
+    title: "Compare",
+    description: "Track what improved, what regressed and what is still unresolved against a baseline or the previous run.",
+  },
   reports: {
     eyebrow: "evidence room",
     title: "Reports",
-    description: "Replay commands, baselines, evidence and run history are grouped here as a reusable proof package.",
+    description: "Captured proof, route contact sheets and stored run history stay here as a reusable evidence package.",
   },
   settings: {
     eyebrow: "system controls",
@@ -155,6 +162,8 @@ const stateEl = {
   visualAlignmentCount: document.getElementById("visualAlignmentCount"),
   visualSpacingCount: document.getElementById("visualSpacingCount"),
   visualGapConsistencyCount: document.getElementById("visualGapConsistencyCount"),
+  visualEdgeCount: document.getElementById("visualEdgeCount"),
+  visualWidthCount: document.getElementById("visualWidthCount"),
   visualSectionsCount: document.getElementById("visualSectionsCount"),
   visualQualityHeadline: document.getElementById("visualQualityHeadline"),
   visualQualityDetail: document.getElementById("visualQualityDetail"),
@@ -394,7 +403,18 @@ function buildPreviewRouteUrl(baseUrl, route) {
 function parseSeverity(value, code = "") {
   if (value === "high" || value === "medium" || value === "low") return value;
   if (["HTTP_5XX", "JS_RUNTIME_ERROR", "VISUAL_SECTION_ORDER_INVALID", "ROUTE_LOAD_FAIL"].includes(code)) return "high";
-  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING", "VISUAL_LAYOUT_OVERFLOW", "VISUAL_LAYER_OVERLAP", "VISUAL_TIGHT_SPACING"].includes(code)) return "medium";
+  if ([
+    "HTTP_4XX",
+    "BTN_CLICK_ERROR",
+    "NET_REQUEST_FAILED",
+    "VISUAL_SECTION_MISSING",
+    "VISUAL_LAYOUT_OVERFLOW",
+    "VISUAL_LAYER_OVERLAP",
+    "VISUAL_TIGHT_SPACING",
+    "VISUAL_EDGE_HUGGING",
+  ].includes(code)) {
+    return "medium";
+  }
   return "low";
 }
 
@@ -715,6 +735,8 @@ function normalizeReport(raw) {
       visualAlignmentDrift: toNumber(summary.visualAlignmentDrift, countByCode(issues, ["VISUAL_ALIGNMENT_DRIFT"])),
       visualTightSpacing: toNumber(summary.visualTightSpacing, countByCode(issues, ["VISUAL_TIGHT_SPACING"])),
       visualGapInconsistency: toNumber(summary.visualGapInconsistency, countByCode(issues, ["VISUAL_GAP_INCONSISTENCY"])),
+      visualEdgeHugging: toNumber(summary.visualEdgeHugging, countByCode(issues, ["VISUAL_EDGE_HUGGING"])),
+      visualWidthInconsistency: toNumber(summary.visualWidthInconsistency, countByCode(issues, ["VISUAL_WIDTH_INCONSISTENCY"])),
       visualQualityIssues: toNumber(
         summary.visualQualityIssues,
         countByCode(issues, [
@@ -725,6 +747,8 @@ function normalizeReport(raw) {
           "VISUAL_ALIGNMENT_DRIFT",
           "VISUAL_TIGHT_SPACING",
           "VISUAL_GAP_INCONSISTENCY",
+          "VISUAL_EDGE_HUGGING",
+          "VISUAL_WIDTH_INCONSISTENCY",
         ]),
       ),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
@@ -858,12 +882,13 @@ function getMenuItems(menuName) {
       { id: "run-cmd", label: "Open Full CMD Flow", hint: "Ctrl+Shift+C", action: () => openCmdWindow() },
     ],
     inspect: [
-      { id: "inspect-preview", label: "Open Preview", hint: "Ctrl+8", action: () => switchView("preview") },
+      { id: "inspect-preview", label: "Open Preview", hint: "Ctrl+9", action: () => switchView("preview") },
       { id: "inspect-operations", label: "Open Operations", hint: "Ctrl+2", action: () => switchView("operations") },
       { id: "inspect-findings", label: "Open Findings", hint: "Ctrl+3", action: () => switchView("findings") },
       { id: "inspect-seo", label: "Open SEO", hint: "Ctrl+4", action: () => switchView("seo") },
       { id: "inspect-prompts", label: "Open Prompts", hint: "Ctrl+5", action: () => switchView("prompts") },
-      { id: "inspect-reports", label: "Open Reports", hint: "Ctrl+6", action: () => switchView("reports") },
+      { id: "inspect-compare", label: "Open Compare", hint: "Ctrl+6", action: () => switchView("compare") },
+      { id: "inspect-reports", label: "Open Reports", hint: "Ctrl+7", action: () => switchView("reports") },
     ],
     reports: [
       { id: "reports-evidence", label: "Open Latest Evidence", hint: "", action: () => openLatestEvidence() },
@@ -871,7 +896,7 @@ function getMenuItems(menuName) {
       { id: "reports-compare", label: "Copy Comparison Digest", hint: "", action: () => copyText(buildCompareDigest(visibleReport), "[studio] comparison digest copied.") },
     ],
     tools: [
-      { id: "tools-settings", label: "Open Settings", hint: "Ctrl+7", action: () => switchView("settings") },
+      { id: "tools-settings", label: "Open Settings", hint: "Ctrl+8", action: () => switchView("settings") },
       { id: "tools-start", label: "Start Engine", hint: "", action: () => startEngine() },
       { id: "tools-stop", label: "Stop Engine", hint: "", action: () => stopEngine() },
       { id: "tools-bridge", label: "Copy Bridge URL", hint: "", action: () => copyBridgeUrl() },
@@ -1601,6 +1626,8 @@ function renderSignals(report) {
     "VISUAL_ALIGNMENT_DRIFT",
     "VISUAL_TIGHT_SPACING",
     "VISUAL_GAP_INCONSISTENCY",
+    "VISUAL_EDGE_HUGGING",
+    "VISUAL_WIDTH_INCONSISTENCY",
   ]));
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
 }
@@ -1612,9 +1639,11 @@ function renderVisualQuality(report) {
     stateEl.visualAlignmentCount.textContent = "0";
     stateEl.visualSpacingCount.textContent = "0";
     stateEl.visualGapConsistencyCount.textContent = "0";
+    stateEl.visualEdgeCount.textContent = "0";
+    stateEl.visualWidthCount.textContent = "0";
     stateEl.visualSectionsCount.textContent = "0";
     stateEl.visualQualityHeadline.textContent = "No visual evidence yet.";
-    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, spacing quality and section-level visual rules.";
+    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, edge pressure, width consistency, spacing quality and section-level visual rules.";
     return;
   }
 
@@ -1626,6 +1655,8 @@ function renderVisualQuality(report) {
   stateEl.visualAlignmentCount.textContent = String(summary.visualAlignmentDrift || 0);
   stateEl.visualSpacingCount.textContent = String(summary.visualTightSpacing || 0);
   stateEl.visualGapConsistencyCount.textContent = String(summary.visualGapInconsistency || 0);
+  stateEl.visualEdgeCount.textContent = String(summary.visualEdgeHugging || 0);
+  stateEl.visualWidthCount.textContent = String(summary.visualWidthInconsistency || 0);
   stateEl.visualSectionsCount.textContent = String(sectionRuleIssues);
 
   const lead = report.issues.find((issue) => issue.code.startsWith("VISUAL_"));
@@ -1635,7 +1666,7 @@ function renderVisualQuality(report) {
       : "No visual quality issues detected in the current report.";
     stateEl.visualQualityDetail.textContent = total > 0
       ? "Open Findings to inspect route-level visual evidence."
-      : "Layout spacing, block alignment, section order and visual rhythm look stable in this pass.";
+      : "Layout spacing, block alignment, edge clearance, width discipline, section order and visual rhythm look stable in this pass.";
     return;
   }
 
@@ -2245,13 +2276,14 @@ function getCommandPaletteItems() {
     { id: "copy-client-prompt", label: "Copy client outreach prompt", hint: "", description: "Copy the AI-ready commercial prompt based on the current audit.", action: () => copyText(buildClientOutreachPrompt(getVisibleReport()), "[studio] client outreach prompt copied.") },
     { id: "copy-client-message", label: "Copy client outreach message", hint: "", description: "Copy the ready-to-send client-facing pitch based on the current audit.", action: () => copyText(buildClientOutreachMessage(getVisibleReport()), "[studio] client outreach message copied.") },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
-    { id: "switch-preview", label: "Go to preview", hint: "Ctrl+8", description: "Open the embedded operator preview and follow the current route.", action: () => switchView("preview") },
+    { id: "switch-preview", label: "Go to preview", hint: "Ctrl+9", description: "Open the embedded operator preview and follow the current route.", action: () => switchView("preview") },
     { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
     { id: "switch-findings", label: "Go to findings", hint: "Ctrl+3", description: "Open the issue board, visual quality and coverage panels.", action: () => switchView("findings") },
     { id: "switch-seo", label: "Go to SEO", hint: "Ctrl+4", description: "Open the dedicated SEO workspace.", action: () => switchView("seo") },
     { id: "switch-prompts", label: "Go to prompts", hint: "Ctrl+5", description: "Open prompt pack, replay and digest workspaces.", action: () => switchView("prompts") },
-    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+6", description: "Open evidence, comparison and history.", action: () => switchView("reports") },
-    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+7", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
+    { id: "switch-compare", label: "Go to compare", hint: "Ctrl+6", description: "Open baseline deltas, regressions and resolved work.", action: () => switchView("compare") },
+    { id: "switch-reports", label: "Go to reports", hint: "Ctrl+7", description: "Open evidence, contact sheets and history.", action: () => switchView("reports") },
+    { id: "switch-settings", label: "Go to settings", hint: "Ctrl+8", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
@@ -3191,7 +3223,7 @@ function bindKeyboardShortcuts() {
       return;
     }
 
-    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5", "6", "7", "8"].includes(event.key)) {
+    if (event.ctrlKey && !event.shiftKey && ["1", "2", "3", "4", "5", "6", "7", "8", "9"].includes(event.key)) {
       event.preventDefault();
       const map = {
         "1": "overview",
@@ -3199,9 +3231,10 @@ function bindKeyboardShortcuts() {
         "3": "findings",
         "4": "seo",
         "5": "prompts",
-        "6": "reports",
-        "7": "settings",
-        "8": "preview",
+        "6": "compare",
+        "7": "reports",
+        "8": "settings",
+        "9": "preview",
       };
       switchView(map[event.key]);
       return;

@@ -52,6 +52,7 @@
               <button class="workspace-tab" data-view="findings" type="button">Findings</button>
               <button class="workspace-tab" data-view="seo" type="button">SEO</button>
               <button class="workspace-tab" data-view="prompts" type="button">Prompts</button>
+              <button class="workspace-tab" data-view="compare" type="button">Compare</button>
               <button class="workspace-tab" data-view="reports" type="button">Reports</button>
               <button class="workspace-tab" data-view="settings" type="button">Settings</button>
             </div>
@@ -447,11 +448,13 @@
                     <div class="signal-item"><span>Alignment drift</span><strong id="visualAlignmentCount">0</strong></div>
                     <div class="signal-item"><span>Tight spacing</span><strong id="visualSpacingCount">0</strong></div>
                     <div class="signal-item"><span>Gap inconsistency</span><strong id="visualGapConsistencyCount">0</strong></div>
+                    <div class="signal-item"><span>Edge hugging</span><strong id="visualEdgeCount">0</strong></div>
+                    <div class="signal-item"><span>Width drift</span><strong id="visualWidthCount">0</strong></div>
                     <div class="signal-item"><span>Section rules</span><strong id="visualSectionsCount">0</strong></div>
                   </div>
                   <div class="headline-status" id="visualQualityHeadline">No visual evidence yet.</div>
                   <p class="panel-copy" id="visualQualityDetail">
-                    Run an audit to measure overflow, overlap, alignment drift, spacing quality and section-level visual rules.
+                    Run an audit to measure overflow, overlap, alignment drift, edge pressure, width consistency, spacing quality and section-level visual rules.
                   </p>
                 </article>
 
@@ -655,44 +658,7 @@
             </section>
           </section>
 
-          <section class="view-panel" data-view-panel="reports">
-            <section class="panel reports-summary-panel">
-              <div class="panel-head split-head">
-                <div>
-                  <p class="eyebrow">report room</p>
-                  <h3>Evidence, replay and prompt pack</h3>
-                </div>
-                <div class="headline-status" id="reportsHeadline">Each run leaves a replayable evidence trail.</div>
-              </div>
-
-              <div class="report-grid">
-                <article class="info-card">
-                  <span class="info-label">Target</span>
-                  <code id="currentTarget">none</code>
-                </article>
-                <article class="info-card">
-                  <span class="info-label">Mode</span>
-                  <code id="currentMode">desktop</code>
-                </article>
-                <article class="info-card">
-                  <span class="info-label">Scope</span>
-                  <code id="currentScope">full</code>
-                </article>
-                <article class="info-card">
-                  <span class="info-label">Depth</span>
-                  <code id="currentDepth">signal sweep</code>
-                </article>
-                <article class="info-card">
-                  <span class="info-label">Duration</span>
-                  <code id="currentDuration">0s</code>
-                </article>
-                <article class="info-card wide">
-                  <span class="info-label">Replay command</span>
-                  <code id="currentCommand">Run an audit to generate a replay command.</code>
-                </article>
-              </div>
-            </section>
-
+          <section class="view-panel" data-view-panel="compare">
             <section class="panel comparison-panel">
               <div class="panel-head split-head">
                 <div>
@@ -787,6 +753,45 @@
                 <button id="pinCurrentBaseline" type="button">Pin current as baseline</button>
                 <button id="clearBaseline" type="button">Clear baseline</button>
                 <button id="copyCompareDigest" type="button">Copy comparison digest</button>
+              </div>
+            </section>
+          </section>
+
+          <section class="view-panel" data-view-panel="reports">
+            <section class="panel reports-summary-panel">
+              <div class="panel-head split-head">
+                <div>
+                  <p class="eyebrow">report room</p>
+                  <h3>Evidence, replay and prompt pack</h3>
+                </div>
+                <div class="headline-status" id="reportsHeadline">Each run leaves a replayable evidence trail.</div>
+              </div>
+
+              <div class="report-grid">
+                <article class="info-card">
+                  <span class="info-label">Target</span>
+                  <code id="currentTarget">none</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Mode</span>
+                  <code id="currentMode">desktop</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Scope</span>
+                  <code id="currentScope">full</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Depth</span>
+                  <code id="currentDepth">signal sweep</code>
+                </article>
+                <article class="info-card">
+                  <span class="info-label">Duration</span>
+                  <code id="currentDuration">0s</code>
+                </article>
+                <article class="info-card wide">
+                  <span class="info-label">Replay command</span>
+                  <code id="currentCommand">Run an audit to generate a replay command.</code>
+                </article>
               </div>
             </section>
 
@@ -955,8 +960,8 @@
           <button id="dismissShortcuts" class="ghost" type="button">Close</button>
         </div>
         <div class="shortcut-grid">
-          <article><strong>Ctrl+1..7</strong><span>Switch between overview, operations, findings, SEO, prompts, reports and settings</span></article>
-          <article><strong>Ctrl+8</strong><span>Open the embedded preview workspace</span></article>
+          <article><strong>Ctrl+1..8</strong><span>Switch between overview, operations, findings, SEO, prompts, compare, reports and settings</span></article>
+          <article><strong>Ctrl+9</strong><span>Open the embedded preview workspace</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>

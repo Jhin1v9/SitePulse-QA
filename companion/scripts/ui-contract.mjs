@@ -618,16 +618,15 @@ try {
   await page.waitForSelector('[data-view-panel="operations"].active');
   await page.waitForFunction(() => document.querySelectorAll("#timelineList .timeline-entry").length >= 1);
 
-  await page.locator('[data-view="reports"]').click();
-  await page.waitForSelector('[data-view-panel="reports"].active');
-  await page.waitForFunction(() => document.getElementById("currentDepth")?.textContent?.trim() === "deep crawl");
+  await page.locator('[data-view="compare"]').click();
+  await page.waitForSelector('[data-view-panel="compare"].active');
   await page.getByRole("button", { name: "Pin current as baseline" }).click();
 
   await page.locator('[data-view="overview"]').click();
   await page.getByRole("button", { name: "Run native audit" }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-history-index]").length >= 2);
 
-  await page.locator('[data-view="reports"]').click();
+  await page.locator('[data-view="compare"]').click();
   await page.waitForFunction(() => {
     const issueDelta = document.getElementById("compareIssueDelta")?.textContent?.trim();
     const seoDelta = document.getElementById("compareSeoDelta")?.textContent?.trim();
