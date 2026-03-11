@@ -63,6 +63,8 @@ const CODE = {
   VISUAL_WIDTH_INCONSISTENCY: "VISUAL_WIDTH_INCONSISTENCY",
   VISUAL_BOUNDARY_COLLISION: "VISUAL_BOUNDARY_COLLISION",
   VISUAL_FOLD_PRESSURE: "VISUAL_FOLD_PRESSURE",
+  VISUAL_HIERARCHY_COLLAPSE: "VISUAL_HIERARCHY_COLLAPSE",
+  VISUAL_CLUSTER_COLLISION: "VISUAL_CLUSTER_COLLISION",
 };
 
 const ACTION_STATUS = {
@@ -228,6 +230,22 @@ const ISSUE_GUIDE = {
       "Tem coisa demais logo no comeco da pagina. A tela fica pesada e dificulta entender o que e mais importante.",
     recommendation:
       "Simplificar a primeira dobra, mover conteudo secundario para baixo e reforcar hierarquia entre hero, prova principal, CTA e indicadores.",
+  },
+  [CODE.VISUAL_HIERARCHY_COLLAPSE]: {
+    technical:
+      "Um bloco estrutural perdeu contraste de hierarquia entre titulo e conteudo, deixando o heading visualmente proximo demais do texto de apoio.",
+    layman:
+      "O titulo e o texto ficaram parecidos demais. Isso enfraquece a leitura e dificulta entender o que e principal.",
+    recommendation:
+      "Aumentar contraste entre heading e corpo: revisar font-size, font-weight, line-height e espacamento para reforcar a hierarquia visual.",
+  },
+  [CODE.VISUAL_CLUSTER_COLLISION]: {
+    technical:
+      "Blocos laterais da mesma linha ficaram proximos demais, sugerindo colisoes de cluster, grid comprimido ou gutters insuficientes.",
+    layman:
+      "Cards ou blocos lado a lado ficaram grudados demais, como se a grade estivesse apertada ou sem espaco para respirar.",
+    recommendation:
+      "Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.",
   },
 };
 
@@ -548,6 +566,40 @@ const ISSUE_PLAYBOOK = {
     likelyAreas: [
       "src/components/sections/**",
       "src/components/layout/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_HIERARCHY_COLLAPSE]: {
+    priority: "P2",
+    firstChecks: [
+      "Comparar contraste visual entre heading principal e corpo dentro do mesmo bloco.",
+      "Reforcar escala tipografica, peso e espacamento entre titulo, subtitulo e texto de apoio.",
+      "Validar se a hierarquia continua clara em desktop e nos viewports mobile auditados.",
+    ],
+    commandHints: [
+      "rg -n \"font-size|font-weight|line-height|letter-spacing|heading|title|subtitle|eyebrow\" src",
+      "rg -n \"h1|h2|h3|role=\\\"heading\\\"|text-xl|text-2xl|text-3xl|text-sm|text-base\" src/components src/styles",
+    ],
+    likelyAreas: [
+      "src/components/sections/**",
+      "src/components/ui/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_CLUSTER_COLLISION]: {
+    priority: "P1",
+    firstChecks: [
+      "Medir o gap horizontal real entre cards/blocos na mesma linha.",
+      "Ajustar grid/flex gap e min-width para impedir colunas grudadas ou espremidas.",
+      "Validar a composicao nos viewports mobile e desktop sem permitir clusters se tocando.",
+    ],
+    commandHints: [
+      "rg -n \"grid-template-columns|gap:|column-gap|flex-wrap|justify-content|min-width|max-width|grid-cols|gap-x-\" src",
+      "rg -n \"card|panel|tile|cluster|grid|columns|stack\" src/components src/styles",
+    ],
+    likelyAreas: [
+      "src/components/sections/**",
+      "src/components/ui/**",
       "src/styles/**",
     ],
   },
@@ -2699,6 +2751,18 @@ function normalizeVisualAnalyzer(input) {
     widthDriftTolerancePx: Number.isFinite(Number(config.widthDriftTolerancePx))
       ? Math.max(24, Number(config.widthDriftTolerancePx))
       : 96,
+    hierarchyGapMinPx: Number.isFinite(Number(config.hierarchyGapMinPx))
+      ? Math.max(4, Number(config.hierarchyGapMinPx))
+      : 8,
+    hierarchyRatioMin: Number.isFinite(Number(config.hierarchyRatioMin))
+      ? Math.max(1.05, Number(config.hierarchyRatioMin))
+      : 1.22,
+    clusterCollisionPx: Number.isFinite(Number(config.clusterCollisionPx))
+      ? Math.max(0, Number(config.clusterCollisionPx))
+      : 18,
+    clusterRowOverlapRatio: Number.isFinite(Number(config.clusterRowOverlapRatio))
+      ? Math.max(0.15, Math.min(1, Number(config.clusterRowOverlapRatio)))
+      : 0.42,
     foldPressureMinBlocks: Number.isFinite(Number(config.foldPressureMinBlocks))
       ? Math.max(3, Number(config.foldPressureMinBlocks))
       : 5,
@@ -2877,6 +2941,8 @@ function createIssueLogEntry(issue) {
     severity: issue.severity,
     route: issue.route,
     action: issue.action,
+    viewportLabel: issue.viewportLabel,
+    viewport: issue.viewport,
     detail: issue.detail,
     laymanExplanation: issue.laymanExplanation,
     recommendedResolution: issue.recommendedResolution,
@@ -2899,6 +2965,8 @@ function hydrateIssue(rawIssue) {
     severity: rawIssue.severity ?? severityFromCode(rawIssue.code),
     route: rawIssue.route ?? "/",
     action: rawIssue.action ?? "",
+    viewportLabel: rawIssue.viewportLabel ?? "",
+    viewport: rawIssue.viewport ?? "",
     detail: rawIssue.detail ?? "",
     url: rawIssue.url ?? "",
     timestamp: rawIssue.timestamp ?? nowIso(),
@@ -2917,6 +2985,8 @@ function hydrateIssue(rawIssue) {
             label: String(item?.label || ""),
             route: String(item?.route || rawIssue.route || "/"),
             code: String(item?.code || rawIssue.code || ""),
+            viewportLabel: String(item?.viewportLabel || rawIssue.viewportLabel || ""),
+            viewport: String(item?.viewport || rawIssue.viewport || ""),
           }))
           .filter((item) => item.path)
       : [],
@@ -2946,6 +3016,8 @@ function mkIssue(input) {
     severity: input.severity,
     route: input.route,
     action: input.action ?? "",
+    viewportLabel: input.viewportLabel ?? "",
+    viewport: input.viewport ?? "",
     detail: input.detail,
     url: input.url ?? "",
     evidence: input.evidence ?? [],
@@ -2953,7 +3025,11 @@ function mkIssue(input) {
 }
 
 function pushIssue(report, input) {
-  const issue = mkIssue(input);
+  const issue = mkIssue({
+    ...input,
+    viewportLabel: input.viewportLabel ?? report?.meta?.viewportLabel ?? "",
+    viewport: input.viewport ?? report?.meta?.viewport ?? "",
+  });
   report.issues.push(issue);
   report.issueLog.push(createIssueLogEntry(issue));
 }
@@ -2975,7 +3051,8 @@ function severityFromCode(code) {
     code === CODE.VISUAL_LAYER_OVERLAP ||
     code === CODE.VISUAL_TIGHT_SPACING ||
     code === CODE.VISUAL_EDGE_HUGGING ||
-    code === CODE.VISUAL_BOUNDARY_COLLISION
+    code === CODE.VISUAL_BOUNDARY_COLLISION ||
+    code === CODE.VISUAL_CLUSTER_COLLISION
   ) {
     return "medium";
   }
@@ -3247,7 +3324,9 @@ function buildPromptPack(issues) {
     byCode.has(CODE.VISUAL_EDGE_HUGGING) ||
     byCode.has(CODE.VISUAL_WIDTH_INCONSISTENCY) ||
     byCode.has(CODE.VISUAL_BOUNDARY_COLLISION) ||
-    byCode.has(CODE.VISUAL_FOLD_PRESSURE)
+    byCode.has(CODE.VISUAL_FOLD_PRESSURE) ||
+    byCode.has(CODE.VISUAL_HIERARCHY_COLLAPSE) ||
+    byCode.has(CODE.VISUAL_CLUSTER_COLLISION)
   ) {
     const rows = [
       ...(byCode.get(CODE.VISUAL_LAYOUT_OVERFLOW) ?? []),
@@ -3259,6 +3338,8 @@ function buildPromptPack(issues) {
       ...(byCode.get(CODE.VISUAL_WIDTH_INCONSISTENCY) ?? []),
       ...(byCode.get(CODE.VISUAL_BOUNDARY_COLLISION) ?? []),
       ...(byCode.get(CODE.VISUAL_FOLD_PRESSURE) ?? []),
+      ...(byCode.get(CODE.VISUAL_HIERARCHY_COLLAPSE) ?? []),
+      ...(byCode.get(CODE.VISUAL_CLUSTER_COLLISION) ?? []),
     ]
       .slice(0, 20)
       .map((i) => `- ${i.route} -> ${i.code}: ${i.detail}`)
@@ -3815,6 +3896,28 @@ function formatVisualAnalyzerDetail(finding) {
     ].join(" | ");
   }
 
+  if (finding.code === CODE.VISUAL_HIERARCHY_COLLAPSE) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.selector} (heading=${item.headingSize}px, body=${item.bodySize}px, ratio=${item.ratio}x, gap=${item.gap}px)`)
+      .join(" ; ");
+    return [
+      `Detectado colapso de hierarquia visual em ${finding.count || samples.length} bloco(s).`,
+      sampleText || "Nenhum bloco detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  if (finding.code === CODE.VISUAL_CLUSTER_COLLISION) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.a} x ${item.b} (gap=${item.gap}px, overlap=${item.rowOverlapRatio})`)
+      .join(" ; ");
+    return [
+      `Detectada colisao entre clusters laterais em ${finding.count || samples.length} par(es) de blocos.`,
+      sampleText || "Nenhum par detalhado disponivel.",
+    ].join(" | ");
+  }
+
   return String(finding.detail || "Inconsistencia visual detectada.");
 }
 
@@ -4129,6 +4232,95 @@ async function runVisualInterfaceChecks(page, route, cfg) {
           .filter((item) => item.drift >= settings.widthDriftTolerancePx)
           .slice(0, settings.maxSamples);
 
+    const hierarchyCollapse = stackedBlocks
+      .map((item) => {
+        const headingNodes = Array.from(item.el.querySelectorAll("h1, h2, h3, h4, h5, h6, [role='heading']"))
+          .filter((el) => isVisible(el))
+          .map((el) => {
+            const style = window.getComputedStyle(el);
+            const size = parseFloat(style.fontSize || "0");
+            const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+            return { size, text };
+          })
+          .filter((entry) => entry.size >= 12 && entry.text.length >= 2);
+
+        if (!headingNodes.length) return null;
+
+        const bodyNodes = Array.from(item.el.querySelectorAll("p, li, span, a, button, label, small, strong"))
+          .filter((el) => isVisible(el) && !el.closest("h1, h2, h3, h4, h5, h6, [role='heading']"))
+          .map((el) => {
+            const style = window.getComputedStyle(el);
+            const size = parseFloat(style.fontSize || "0");
+            const text = (el.textContent || "").replace(/\s+/g, " ").trim();
+            return { size, text };
+          })
+          .filter((entry) => entry.size >= 10 && entry.text.length >= 8);
+
+        if (!bodyNodes.length) return null;
+
+        const headingSize = round(Math.max(...headingNodes.map((entry) => entry.size)));
+        const bodySizes = bodyNodes.map((entry) => entry.size).sort((a, b) => a - b);
+        const bodySize = round(bodySizes[Math.floor(bodySizes.length / 2)]);
+        const ratio = round(headingSize / Math.max(1, bodySize));
+        const gap = round(headingSize - bodySize);
+
+        if (gap >= settings.hierarchyGapMinPx && ratio >= settings.hierarchyRatioMin) return null;
+
+        return {
+          selector: item.selector,
+          headingSize,
+          bodySize,
+          ratio,
+          gap,
+          headingText: headingNodes[0]?.text || "",
+          clip: item.clip,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, settings.maxSamples);
+
+    const clusterCollision = [];
+    const clusterCap = Math.min(majorBlocks.length, 24);
+    for (let index = 0; index < clusterCap; index += 1) {
+      const first = majorBlocks[index];
+      if (first.fixed) continue;
+      for (let secondIndex = index + 1; secondIndex < clusterCap; secondIndex += 1) {
+        const second = majorBlocks[secondIndex];
+        if (second.fixed) continue;
+        if (first.el.contains(second.el) || second.el.contains(first.el)) continue;
+
+        const rowOverlap =
+          Math.min(first.top + first.height, second.top + second.height) - Math.max(first.top, second.top);
+        if (rowOverlap <= 0) continue;
+        const rowOverlapRatio = Math.min(first.height, second.height) > 0 ? rowOverlap / Math.min(first.height, second.height) : 0;
+        if (rowOverlapRatio < settings.clusterRowOverlapRatio) continue;
+
+        const firstBeforeSecond = first.left <= second.left;
+        const gap = round(firstBeforeSecond ? second.left - first.right : first.left - second.right);
+        if (gap < 0 || gap > settings.clusterCollisionPx) continue;
+
+        clusterCollision.push({
+          a: first.selector,
+          b: second.selector,
+          gap,
+          rowOverlapRatio: round(rowOverlapRatio),
+          clip: {
+            x: round(Math.max(0, Math.min(first.left, second.left) + window.scrollX)),
+            y: round(Math.max(0, Math.min(first.top, second.top))),
+            width: round(Math.max(1, Math.max(first.right, second.right) - Math.min(first.left, second.left))),
+            height: round(
+              Math.max(
+                1,
+                Math.max(first.top + first.height, second.top + second.height) - Math.min(first.top, second.top),
+              ),
+            ),
+          },
+        });
+        if (clusterCollision.length >= settings.maxSamples) break;
+      }
+      if (clusterCollision.length >= settings.maxSamples) break;
+    }
+
     const foldPressure = [];
     const foldBlocks = stackedBlocks.filter(
       (item) => item.top < viewportHeight * settings.foldViewportMultiplier && item.top + item.height > 0,
@@ -4180,6 +4372,8 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       widthInconsistency,
       boundaryCollision,
       foldPressure,
+      hierarchyCollapse,
+      clusterCollision,
     };
   }, visualCfg);
 
@@ -4280,6 +4474,28 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       action: "visual_quality:fold_pressure",
       count: findings.foldPressure.length,
       samples: findings.foldPressure,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.hierarchyCollapse?.length) {
+    issues.push({
+      code: CODE.VISUAL_HIERARCHY_COLLAPSE,
+      route,
+      action: "visual_quality:hierarchy_collapse",
+      count: findings.hierarchyCollapse.length,
+      samples: findings.hierarchyCollapse,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.clusterCollision?.length) {
+    issues.push({
+      code: CODE.VISUAL_CLUSTER_COLLISION,
+      route,
+      action: "visual_quality:cluster_collision",
+      count: findings.clusterCollision.length,
+      samples: findings.clusterCollision,
       viewportWidth: findings.viewportWidth,
       viewportHeight: findings.viewportHeight,
     });
@@ -4693,6 +4909,8 @@ async function captureVisualFindingEvidence(page, finding, reportDir, route, cfg
         route,
         code: finding.code,
         variant: "context",
+        viewportLabel: finding.viewportLabel || "",
+        viewport: finding.viewportWidth && finding.viewportHeight ? `${finding.viewportWidth}x${finding.viewportHeight}` : "",
         note: "Expanded capture with highlighted problem area.",
       });
     } catch {
@@ -4717,6 +4935,8 @@ async function captureVisualFindingEvidence(page, finding, reportDir, route, cfg
         route,
         code: finding.code,
         variant: "focus",
+        viewportLabel: finding.viewportLabel || "",
+        viewport: finding.viewportWidth && finding.viewportHeight ? `${finding.viewportWidth}x${finding.viewportHeight}` : "",
         note: "Tighter crop of the primary visual defect.",
       });
     } catch {
@@ -4741,6 +4961,8 @@ async function captureVisualFindingEvidence(page, finding, reportDir, route, cfg
         route,
         code: finding.code,
         variant: "fullpage",
+        viewportLabel: finding.viewportLabel || "",
+        viewport: finding.viewportWidth && finding.viewportHeight ? `${finding.viewportWidth}x${finding.viewportHeight}` : "",
         note: "Full-page route capture with all highlighted visual problem areas.",
       });
     } catch {
@@ -5340,6 +5562,8 @@ function summarize(report) {
     visualWidthInconsistency: count(CODE.VISUAL_WIDTH_INCONSISTENCY),
     visualBoundaryCollision: count(CODE.VISUAL_BOUNDARY_COLLISION),
     visualFoldPressure: count(CODE.VISUAL_FOLD_PRESSURE),
+    visualHierarchyCollapse: count(CODE.VISUAL_HIERARCHY_COLLAPSE),
+    visualClusterCollision: count(CODE.VISUAL_CLUSTER_COLLISION),
     visualQualityIssues:
       count(CODE.VISUAL_SECTION_ORDER_INVALID) +
       count(CODE.VISUAL_SECTION_MISSING) +
@@ -5351,7 +5575,9 @@ function summarize(report) {
       count(CODE.VISUAL_EDGE_HUGGING) +
       count(CODE.VISUAL_WIDTH_INCONSISTENCY) +
       count(CODE.VISUAL_BOUNDARY_COLLISION) +
-      count(CODE.VISUAL_FOLD_PRESSURE),
+      count(CODE.VISUAL_FOLD_PRESSURE) +
+      count(CODE.VISUAL_HIERARCHY_COLLAPSE) +
+      count(CODE.VISUAL_CLUSTER_COLLISION),
     seoScore: Number(report?.seo?.overallScore ?? 0),
     seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
     seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
@@ -6086,7 +6312,9 @@ async function run() {
             finding.code === CODE.VISUAL_EDGE_HUGGING ||
             finding.code === CODE.VISUAL_WIDTH_INCONSISTENCY ||
             finding.code === CODE.VISUAL_BOUNDARY_COLLISION ||
-            finding.code === CODE.VISUAL_FOLD_PRESSURE
+            finding.code === CODE.VISUAL_FOLD_PRESSURE ||
+            finding.code === CODE.VISUAL_HIERARCHY_COLLAPSE ||
+            finding.code === CODE.VISUAL_CLUSTER_COLLISION
           ) {
             const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route, cfg);
             emitLiveEvent(args, "layout_check_issue", {

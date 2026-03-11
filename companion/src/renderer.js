@@ -26,6 +26,8 @@ const ISSUE_GROUP = {
   VISUAL_WIDTH_INCONSISTENCY: "Width inconsistency",
   VISUAL_BOUNDARY_COLLISION: "Boundary collision",
   VISUAL_FOLD_PRESSURE: "Fold pressure",
+  VISUAL_HIERARCHY_COLLAPSE: "Hierarchy collapse",
+  VISUAL_CLUSTER_COLLISION: "Cluster collision",
 };
 
 const DEFAULT_TARGET = "https://example.com";
@@ -169,6 +171,8 @@ const stateEl = {
   visualWidthCount: document.getElementById("visualWidthCount"),
   visualBoundaryCount: document.getElementById("visualBoundaryCount"),
   visualFoldCount: document.getElementById("visualFoldCount"),
+  visualHierarchyCount: document.getElementById("visualHierarchyCount"),
+  visualClusterCount: document.getElementById("visualClusterCount"),
   visualSectionsCount: document.getElementById("visualSectionsCount"),
   visualQualityHeadline: document.getElementById("visualQualityHeadline"),
   visualQualityDetail: document.getElementById("visualQualityDetail"),
@@ -513,6 +517,7 @@ function parseSeverity(value, code = "") {
     "VISUAL_TIGHT_SPACING",
     "VISUAL_EDGE_HUGGING",
     "VISUAL_BOUNDARY_COLLISION",
+    "VISUAL_CLUSTER_COLLISION",
   ].includes(code)) {
     return "medium";
   }
@@ -659,6 +664,7 @@ function openEvidencePreview(item) {
   stateEl.evidenceLightboxTitle.textContent = item.label || item.issueGroup || item.issueCode || "Evidence preview";
   stateEl.evidenceLightboxMeta.textContent = [
     item.issueRoute || item.route || "/",
+    item.viewportLabel || item.viewport || "",
     item.issueCode || "",
     item.variant ? `variant=${item.variant}` : "",
     item.severity || "",
@@ -675,6 +681,7 @@ function openEvidencePreview(item) {
     stateEl.evidenceReferenceMeta.textContent = [
       reference.label,
       reference.item.issueRoute || reference.item.route || "/",
+      reference.item.viewportLabel || reference.item.viewport || "",
       reference.item.variant ? `variant=${reference.item.variant}` : "",
     ]
       .filter(Boolean)
@@ -682,7 +689,7 @@ function openEvidencePreview(item) {
     stateEl.evidenceReferenceImage.src = toFileSrc(reference.item.path);
     stateEl.evidenceReferenceImage.alt = reference.item.label || "Reference evidence preview";
     stateEl.evidenceReferenceStage.classList.remove("hidden");
-    stateEl.evidenceCompareState.textContent = `Before/after compare active against ${reference.label}. Use the left frame for the current run and the right frame for the reference run.`;
+    stateEl.evidenceCompareState.textContent = `Before/after compare active against ${reference.label}${item.viewportLabel || item.viewport ? ` on ${item.viewportLabel || item.viewport}` : ""}. Use the left frame for the current run and the right frame for the reference run.`;
   } else {
     stateEl.evidenceReferenceImage.removeAttribute("src");
     stateEl.evidenceReferenceMeta.textContent = "No matching baseline evidence.";
@@ -730,6 +737,8 @@ function normalizeEvidenceItem(item = {}) {
     code: String(item.code || ""),
     variant: String(item.variant || ""),
     note: String(item.note || ""),
+    viewportLabel: String(item.viewportLabel || ""),
+    viewport: String(item.viewport || ""),
   };
 }
 
@@ -873,6 +882,8 @@ function normalizeReport(raw) {
       visualWidthInconsistency: toNumber(summary.visualWidthInconsistency, countByCode(issues, ["VISUAL_WIDTH_INCONSISTENCY"])),
       visualBoundaryCollision: toNumber(summary.visualBoundaryCollision, countByCode(issues, ["VISUAL_BOUNDARY_COLLISION"])),
       visualFoldPressure: toNumber(summary.visualFoldPressure, countByCode(issues, ["VISUAL_FOLD_PRESSURE"])),
+      visualHierarchyCollapse: toNumber(summary.visualHierarchyCollapse, countByCode(issues, ["VISUAL_HIERARCHY_COLLAPSE"])),
+      visualClusterCollision: toNumber(summary.visualClusterCollision, countByCode(issues, ["VISUAL_CLUSTER_COLLISION"])),
       visualQualityIssues: toNumber(
         summary.visualQualityIssues,
         countByCode(issues, [
@@ -887,6 +898,8 @@ function normalizeReport(raw) {
           "VISUAL_WIDTH_INCONSISTENCY",
           "VISUAL_BOUNDARY_COLLISION",
           "VISUAL_FOLD_PRESSURE",
+          "VISUAL_HIERARCHY_COLLAPSE",
+          "VISUAL_CLUSTER_COLLISION",
         ]),
       ),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
@@ -1520,7 +1533,7 @@ function buildClientOutreachMessage(report) {
 }
 
 function issueSignature(issue) {
-  return [issue.code, issue.route, issue.action || "", issue.group].join("|");
+  return [issue.code, issue.route, issue.action || "", issue.group, issue.viewportLabel || "", issue.viewport || ""].join("|");
 }
 
 function signedDelta(value) {
@@ -1597,6 +1610,8 @@ function findReferenceEvidenceItem(item, report) {
   const targetRoute = String(item.issueRoute || item.route || "/");
   const targetVariant = String(item.variant || "");
   const targetGroup = String(item.issueGroup || "");
+  const targetViewportLabel = String(item.viewportLabel || "").trim();
+  const targetViewport = String(item.viewport || "").trim();
 
   const bestMatch = collectReportEvidence(reference.snapshot.report)
     .map((candidate) => {
@@ -1605,9 +1620,15 @@ function findReferenceEvidenceItem(item, report) {
       if (String(candidate.issueRoute || candidate.route || "/") === targetRoute) score += 4;
       if (String(candidate.variant || "") === targetVariant) score += 3;
       if (String(candidate.issueGroup || "") === targetGroup) score += 2;
+      if (targetViewportLabel) {
+        score += String(candidate.viewportLabel || "").trim() === targetViewportLabel ? 5 : -8;
+      }
+      if (targetViewport) {
+        score += String(candidate.viewport || "").trim() === targetViewport ? 4 : -6;
+      }
       return { candidate, score };
     })
-    .filter((entry) => entry.score >= 9)
+    .filter((entry) => entry.score >= (targetViewportLabel || targetViewport ? 13 : 9))
     .sort((left, right) => right.score - left.score)[0];
 
   return bestMatch
@@ -1914,6 +1935,8 @@ function renderSignals(report) {
     "VISUAL_WIDTH_INCONSISTENCY",
     "VISUAL_BOUNDARY_COLLISION",
     "VISUAL_FOLD_PRESSURE",
+    "VISUAL_HIERARCHY_COLLAPSE",
+    "VISUAL_CLUSTER_COLLISION",
   ]));
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
 }
@@ -1929,9 +1952,11 @@ function renderVisualQuality(report) {
     stateEl.visualWidthCount.textContent = "0";
     stateEl.visualBoundaryCount.textContent = "0";
     stateEl.visualFoldCount.textContent = "0";
+    stateEl.visualHierarchyCount.textContent = "0";
+    stateEl.visualClusterCount.textContent = "0";
     stateEl.visualSectionsCount.textContent = "0";
     stateEl.visualQualityHeadline.textContent = "No visual evidence yet.";
-    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, spacing discipline, edge pressure, boundary collisions, fold pressure and section-level visual rules.";
+    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, spacing discipline, edge pressure, boundary collisions, fold pressure, hierarchy contrast, cluster density and section-level visual rules.";
     return;
   }
 
@@ -1947,6 +1972,8 @@ function renderVisualQuality(report) {
   stateEl.visualWidthCount.textContent = String(summary.visualWidthInconsistency || 0);
   stateEl.visualBoundaryCount.textContent = String(summary.visualBoundaryCollision || 0);
   stateEl.visualFoldCount.textContent = String(summary.visualFoldPressure || 0);
+  stateEl.visualHierarchyCount.textContent = String(summary.visualHierarchyCollapse || 0);
+  stateEl.visualClusterCount.textContent = String(summary.visualClusterCollision || 0);
   stateEl.visualSectionsCount.textContent = String(sectionRuleIssues);
 
   const lead = report.issues.find((issue) => issue.code.startsWith("VISUAL_"));
@@ -1956,7 +1983,7 @@ function renderVisualQuality(report) {
       : "No visual quality issues detected in the current report.";
     stateEl.visualQualityDetail.textContent = total > 0
       ? "Open Findings to inspect route-level visual evidence."
-      : "Layout spacing, block alignment, edge clearance, width discipline, fold density and section order look stable in this pass.";
+      : "Layout spacing, block alignment, edge clearance, width discipline, fold density, hierarchy contrast, cluster separation and section order look stable in this pass.";
     return;
   }
 
@@ -2148,6 +2175,8 @@ function collectReportEvidence(report) {
         issueRoute: issue.route,
         severity: issue.severity,
         detail: issue.detail,
+        viewportLabel: item.viewportLabel || issue.viewportLabel,
+        viewport: item.viewport || issue.viewport,
       });
     });
   });
@@ -2218,7 +2247,7 @@ function renderEvidenceGallery(report, options = {}) {
         <div class="evidence-meta">
           <div>
             <div class="nav-title">${escapeHtml(item.label || item.issueGroup || item.issueCode)}</div>
-            <div class="history-meta">${escapeHtml(item.issueRoute || item.route || "/")} | ${escapeHtml(item.issueCode || "")}</div>
+            <div class="history-meta">${escapeHtml(item.issueRoute || item.route || "/")}${item.viewportLabel ? ` | ${escapeHtml(item.viewportLabel)}` : ""} | ${escapeHtml(item.issueCode || "")}</div>
           </div>
           <div class="history-actions wrap">
             ${item.variant ? `<span class="evidence-variant">${escapeHtml(item.variant)}</span>` : ""}
@@ -2284,7 +2313,7 @@ function renderRouteContactSheet(report, options = {}) {
                 data-evidence-preview="true"
                 data-evidence-path="${escapeHtml(item.path)}"
               />
-              <span class="route-sheet-thumb-label">${escapeHtml(item.variant || item.issueCode || "evidence")}</span>
+              <span class="route-sheet-thumb-label">${escapeHtml(`${item.viewportLabel ? `${item.viewportLabel} | ` : ""}${item.variant || item.issueCode || "evidence"}`)}</span>
             </button>
           `).join("")}
         </div>
@@ -2470,7 +2499,7 @@ function renderGoogleSeoSource(sourceInput) {
   stateEl.googleCtr.textContent = formatPercent(source.snapshot.ctr);
   stateEl.googleTopQuery.textContent = source.snapshot.topQuery || "n/a";
   stateEl.googleTopPage.textContent = source.snapshot.topPage || "n/a";
-  stateEl.seoExternalHeadline.textContent = `Google data synced | avg position ${stateEl.googlePosition.textContent} | clicks ${source.snapshot.clicks}`;
+  stateEl.seoExternalHeadline.textContent = `Google ranking snapshot | avg position ${stateEl.googlePosition.textContent} | impressions ${source.snapshot.impressions} | clicks ${source.snapshot.clicks}`;
   stateEl.seoExternalDetail.textContent = source.lastError
     ? `The last refresh reported an error, but the previous Google snapshot is still loaded: ${source.lastError}`
     : `Verified Search Console data for ${source.snapshot.property}. Window: ${source.snapshot.startDate} to ${source.snapshot.endDate}. Synced ${formatLocalDate(source.snapshot.syncedAt || source.lastSyncedAt)}.`;
@@ -2522,10 +2551,10 @@ function renderSeoWorkspace(report, options = {}) {
   stateEl.seoRecommendationsList.innerHTML = recommendations.length
     ? recommendations.slice(0, 10).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
     : "<li>No SEO recommendation was attached to this run.</li>";
-  stateEl.seoWorkspaceHeadline.textContent = transient === true
-    ? `Live SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}`
-    : `SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}`;
   const googleSnapshot = uiState.seoSource?.snapshot;
+  stateEl.seoWorkspaceHeadline.textContent = transient === true
+    ? `Live SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`
+    : `SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}${googleSnapshot ? ` | Google avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}` : ""}`;
   stateEl.seoWorkspaceSummary.textContent = recommendations.length
     ? `The current run attached ${recommendations.length} SEO recommendation(s). ${googleSnapshot ? `External Google data is also loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions.` : "Connect Search Console if you need real Google performance signals."}`
     : googleSnapshot
