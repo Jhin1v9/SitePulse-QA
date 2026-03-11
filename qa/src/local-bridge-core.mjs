@@ -80,6 +80,10 @@ function corsHeaders() {
   };
 }
 
+function getPauseRequestFilePath(qaDir, mode = "desktop") {
+  return path.join(qaDir, "reports", mode === "mobile" ? "default-mobile-pause-request.flag" : "default-pause-request.flag");
+}
+
 function writeJson(res, statusCode, payload) {
   const body = JSON.stringify(payload);
   res.writeHead(statusCode, {
@@ -123,7 +127,7 @@ function defaultRecommendedCommand(input) {
   return [
     "npm --prefix qa run audit:cmd --",
     `--config "${input.config}"`,
-    "--fresh",
+    input.fresh !== false ? "--fresh" : "",
     "--live-log",
     "--human-log",
     `--scope "${normalizeAuditScope(input.scope)}"`,
@@ -137,6 +141,7 @@ function defaultRecommendedCommand(input) {
     input.viewportLabel ? `--viewport-label "${safeQuoted(input.viewportLabel)}"` : "",
     input.noServer !== false ? "--no-server" : "",
     input.headed === true ? "--headed" : "",
+    input.resume === false ? "--no-resume" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -151,7 +156,7 @@ function makeCommandParts(input, options) {
     runnerEntry,
     "--config",
     config,
-    "--fresh",
+    ...(input.fresh !== false ? ["--fresh"] : []),
     "--live-log",
     "--human-log",
     "--scope",
@@ -168,8 +173,12 @@ function makeCommandParts(input, options) {
   if (input.viewportLabel) {
     args.push("--viewport-label", String(input.viewportLabel));
   }
+  if (input.pauseRequestFile) {
+    args.push("--pause-request-file", String(input.pauseRequestFile));
+  }
   if (input.noServer !== false) args.push("--no-server");
   if (input.headed === true) args.push("--headed");
+  if (input.resume === false) args.push("--no-resume");
 
   const recommendedCommand = typeof options.recommendedCommandFactory === "function"
     ? options.recommendedCommandFactory({
@@ -179,6 +188,8 @@ function makeCommandParts(input, options) {
         noServer: input.noServer !== false,
         headed: input.headed === true,
         fullAudit: input.fullAudit !== false,
+        fresh: input.fresh !== false,
+        resume: input.resume !== false,
         scope,
         viewportWidth:
           Number.isFinite(input.viewportWidth) && input.viewportWidth > 0 ? Number(input.viewportWidth) : null,
@@ -192,6 +203,8 @@ function makeCommandParts(input, options) {
         config,
         noServer: input.noServer !== false,
         headed: input.headed === true,
+        fresh: input.fresh !== false,
+        resume: input.resume !== false,
         scope,
         viewportWidth:
           Number.isFinite(input.viewportWidth) && input.viewportWidth > 0 ? Number(input.viewportWidth) : null,
@@ -209,7 +222,7 @@ function makeCommandParts(input, options) {
     [
       `"${safeQuoted(options.nodeExecPath)}" "${safeQuoted(runnerPath)}"`,
       `--config "${safeQuoted(config)}"`,
-      "--fresh",
+      input.fresh !== false ? "--fresh" : "",
       "--live-log",
       "--human-log",
       `--scope "${safeQuoted(scope)}"`,
@@ -221,8 +234,10 @@ function makeCommandParts(input, options) {
         ? `--viewport-height "${safeQuoted(input.viewportHeight)}"`
         : "",
       input.viewportLabel ? `--viewport-label "${safeQuoted(input.viewportLabel)}"` : "",
+      input.pauseRequestFile ? `--pause-request-file "${safeQuoted(input.pauseRequestFile)}"` : "",
       input.noServer !== false ? "--no-server" : "",
       input.headed === true ? "--headed" : "",
+      input.resume === false ? "--no-resume" : "",
     ]
       .filter(Boolean)
       .join(" "),
@@ -299,6 +314,8 @@ export async function startLocalBridgeServer(userOptions = {}) {
     startedAt: null,
     baseUrl: null,
     mode: null,
+    child: null,
+    cancelRequested: false,
   };
 
   async function runAudit(input) {
@@ -328,104 +345,113 @@ export async function startLocalBridgeServer(userOptions = {}) {
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
+    state.child = child;
+    state.cancelRequested = false;
 
-    let stdout = "";
-    let stderr = "";
-    let stdoutBuffer = "";
-    let stderrBuffer = "";
+    try {
+      let stdout = "";
+      let stderr = "";
+      let stdoutBuffer = "";
+      let stderrBuffer = "";
 
-    function processLine(kind, line) {
-      const normalized = String(line || "").trimEnd();
-      if (!normalized) return;
+      function processLine(kind, line) {
+        const normalized = String(line || "").trimEnd();
+        if (!normalized) return;
 
-      if (kind === "stdout") {
-        const liveEvent = tryParseLiveEvent(normalized);
-        if (liveEvent) {
-          options.liveEvent(liveEvent);
+        if (kind === "stdout") {
+          const liveEvent = tryParseLiveEvent(normalized);
+          if (liveEvent) {
+            options.liveEvent(liveEvent);
+            return;
+          }
+        }
+
+        options.logger(`[audit ${kind}] ${normalized}`);
+      }
+
+      function pushStreamChunk(kind, chunk) {
+        const text = String(chunk);
+        if (kind === "stdout") stdout += text;
+        else stderr += text;
+
+        if (kind === "stdout") {
+          stdoutBuffer += text;
+          const lines = stdoutBuffer.split(/\r?\n/);
+          stdoutBuffer = lines.pop() ?? "";
+          lines.forEach((line) => processLine(kind, line));
           return;
         }
-      }
 
-      options.logger(`[audit ${kind}] ${normalized}`);
-    }
-
-    function pushStreamChunk(kind, chunk) {
-      const text = String(chunk);
-      if (kind === "stdout") stdout += text;
-      else stderr += text;
-
-      if (kind === "stdout") {
-        stdoutBuffer += text;
-        const lines = stdoutBuffer.split(/\r?\n/);
-        stdoutBuffer = lines.pop() ?? "";
+        stderrBuffer += text;
+        const lines = stderrBuffer.split(/\r?\n/);
+        stderrBuffer = lines.pop() ?? "";
         lines.forEach((line) => processLine(kind, line));
-        return;
       }
 
-      stderrBuffer += text;
-      const lines = stderrBuffer.split(/\r?\n/);
-      stderrBuffer = lines.pop() ?? "";
-      lines.forEach((line) => processLine(kind, line));
-    }
+      child.stdout.on("data", (chunk) => {
+        pushStreamChunk("stdout", chunk);
+      });
+      child.stderr.on("data", (chunk) => {
+        pushStreamChunk("stderr", chunk);
+      });
 
-    child.stdout.on("data", (chunk) => {
-      pushStreamChunk("stdout", chunk);
-    });
-    child.stderr.on("data", (chunk) => {
-      pushStreamChunk("stderr", chunk);
-    });
+      const exitCode = await new Promise((resolve) => {
+        child.on("close", (code) => resolve(typeof code === "number" ? code : 1));
+        child.on("error", () => resolve(1));
+      });
 
-    const exitCode = await new Promise((resolve) => {
-      child.on("close", (code) => resolve(typeof code === "number" ? code : 1));
-      child.on("error", () => resolve(1));
-    });
+      processLine("stdout", stdoutBuffer);
+      processLine("stderr", stderrBuffer);
 
-    processLine("stdout", stdoutBuffer);
-    processLine("stderr", stderrBuffer);
+      const parsed = parseJsonTail(stdout);
+      const parsedReportPath = parsed?.jsonReport
+        ? path.isAbsolute(parsed.jsonReport)
+          ? parsed.jsonReport
+          : path.resolve(options.qaDir, parsed.jsonReport)
+        : "";
+      const reportPath = parsedReportPath || (await findLatestFinalReportJson(options.qaDir, startedMs));
+      if (reportPath) {
+        const raw = await fs.readFile(reportPath, "utf8");
+        const report = JSON.parse(raw);
+        return {
+          ok: parsed?.paused === true ? false : true,
+          paused: parsed?.paused === true,
+          mode: command.mode,
+          command: command.recommendedCommand,
+          startedAt,
+          finishedAt: nowIso(),
+          durationMs: Date.now() - startedMs,
+          steps: parsed?.steps ?? ["Auditoria completa executada via bridge local."],
+          report,
+          summary: parsed?.summary ?? report?.summary ?? null,
+          usedFallback: parsed?.usedFallback === true,
+          detail: parsed?.detail,
+          exitCode,
+          source: options.serviceName,
+        };
+      }
 
-    const parsed = parseJsonTail(stdout);
-    const parsedReportPath = parsed?.jsonReport
-      ? path.isAbsolute(parsed.jsonReport)
-        ? parsed.jsonReport
-        : path.resolve(options.qaDir, parsed.jsonReport)
-      : "";
-    const reportPath = parsedReportPath || (await findLatestFinalReportJson(options.qaDir, startedMs));
-    if (reportPath) {
-      const raw = await fs.readFile(reportPath, "utf8");
-      const report = JSON.parse(raw);
+      const cleanStdoutTail = stripLiveTelemetry(stdout).split("\n").slice(-40).join("\n");
+      const cleanStderrTail = stripLiveTelemetry(stderr);
+      const tail = [cleanStderrTail, cleanStdoutTail].filter(Boolean).join("\n");
       return {
-        ok: true,
+        ok: false,
         mode: command.mode,
         command: command.recommendedCommand,
         startedAt,
         finishedAt: nowIso(),
         durationMs: Date.now() - startedMs,
-        steps: parsed.steps ?? ["Auditoria completa executada via bridge local."],
-        report,
-        summary: parsed.summary ?? report?.summary ?? null,
-        usedFallback: parsed.usedFallback === true,
-        detail: parsed.detail,
+        steps: ["Falha ao consolidar relatorio via bridge local."],
+        error: "audit_failed",
+        detail: trimText(stripAnsi(tail), 1400),
         exitCode,
         source: options.serviceName,
       };
+    } finally {
+      if (state.child === child) {
+        state.child = null;
+      }
     }
-
-    const cleanStdoutTail = stripLiveTelemetry(stdout).split("\n").slice(-40).join("\n");
-    const cleanStderrTail = stripLiveTelemetry(stderr);
-    const tail = [cleanStderrTail, cleanStdoutTail].filter(Boolean).join("\n");
-    return {
-      ok: false,
-      mode: command.mode,
-      command: command.recommendedCommand,
-      startedAt,
-      finishedAt: nowIso(),
-      durationMs: Date.now() - startedMs,
-      steps: ["Falha ao consolidar relatorio via bridge local."],
-      error: "audit_failed",
-      detail: trimText(stripAnsi(tail), 1400),
-      exitCode,
-      source: options.serviceName,
-    };
   }
 
   async function openCmdWindow(input) {
@@ -533,6 +559,9 @@ export async function startLocalBridgeServer(userOptions = {}) {
       noServer: body.noServer !== false,
       headed: body.headed === true,
       fullAudit: body.fullAudit !== false,
+      fresh: body.fresh !== false,
+      resume: body.resume !== false,
+      pauseRequestFile: getPauseRequestFilePath(options.qaDir, mode),
       viewportWidth: Number.isFinite(Number(body.viewportWidth)) ? Math.max(320, Number(body.viewportWidth)) : null,
       viewportHeight: Number.isFinite(Number(body.viewportHeight)) ? Math.max(320, Number(body.viewportHeight)) : null,
       viewportLabel: String(body.viewportLabel || "").trim(),
@@ -542,10 +571,11 @@ export async function startLocalBridgeServer(userOptions = {}) {
     state.startedAt = nowIso();
     state.baseUrl = baseUrl;
     state.mode = mode;
+    state.cancelRequested = false;
 
     try {
       const payload = await runAudit(runInput);
-      const status = payload.ok ? 200 : 500;
+      const status = payload.ok || payload.paused === true || payload.report ? 200 : 500;
       writeJson(res, status, payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error || "run_failed");
@@ -560,6 +590,39 @@ export async function startLocalBridgeServer(userOptions = {}) {
       state.startedAt = null;
       state.baseUrl = null;
       state.mode = null;
+      state.cancelRequested = false;
+      state.child = null;
+    }
+  }
+
+  async function handleCancelRun(_req, res) {
+    if (!state.running || !state.child) {
+      writeJson(res, 409, {
+        ok: false,
+        error: "no_running_audit",
+        detail: "Nao existe auditoria ativa para pausar.",
+      });
+      return;
+    }
+
+    state.cancelRequested = true;
+    try {
+      const pauseRequestFile = getPauseRequestFilePath(options.qaDir, state.mode || "desktop");
+      await fs.mkdir(path.dirname(pauseRequestFile), { recursive: true });
+      await fs.writeFile(pauseRequestFile, `pause-request ${nowIso()}\n`, "utf8");
+      options.logger("[bridge] cancelamento solicitado para a auditoria ativa.");
+      writeJson(res, 200, {
+        ok: true,
+        requested: true,
+        detail: "Pausa segura solicitada. O motor vai salvar o checkpoint e encerrar a rodada atual.",
+        pauseRequestFile,
+      });
+    } catch (error) {
+      writeJson(res, 500, {
+        ok: false,
+        error: "cancel_request_failed",
+        detail: trimText(error instanceof Error ? error.message : String(error || "cancel_request_failed"), 400),
+      });
     }
   }
 
@@ -623,6 +686,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
         runningTarget: state.baseUrl,
         runningMode: state.mode,
         startedAt: state.startedAt,
+        cancelRequested: state.cancelRequested,
         qaDir: options.qaDir,
         timestamp: nowIso(),
       });
@@ -636,6 +700,11 @@ export async function startLocalBridgeServer(userOptions = {}) {
 
     if (method === "POST" && urlObj.pathname === "/open-cmd") {
       await handleOpenCmd(req, res);
+      return;
+    }
+
+    if (method === "POST" && urlObj.pathname === "/cancel-run") {
+      await handleCancelRun(req, res);
       return;
     }
 
@@ -653,7 +722,7 @@ export async function startLocalBridgeServer(userOptions = {}) {
 
   options.logger(`[bridge] listening on http://${options.host}:${options.port}`);
   options.logger(`[bridge] qa directory: ${options.qaDir}`);
-  options.logger("[bridge] endpoints: GET /health | POST /run | POST /open-cmd");
+  options.logger("[bridge] endpoints: GET /health | POST /run | POST /open-cmd | POST /cancel-run");
 
   return {
     host: options.host,

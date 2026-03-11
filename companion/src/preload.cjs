@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
   startBridge: () => ipcRenderer.invoke("companion:start-bridge"),
   stopBridge: () => ipcRenderer.invoke("companion:stop-bridge"),
   runAudit: (payload) => ipcRenderer.invoke("companion:run-audit", payload),
+  switchAuditToFastMode: (payload) => ipcRenderer.invoke("companion:switch-audit-fast", payload),
   openCmdWindow: (payload) => ipcRenderer.invoke("companion:open-cmd-window", payload),
   openReports: () => ipcRenderer.invoke("companion:open-reports"),
   openLatestEvidence: () => ipcRenderer.invoke("companion:open-latest-evidence"),

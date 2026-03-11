@@ -2507,6 +2507,7 @@ function parseArgs(argv) {
     viewportWidthOverride: null,
     viewportHeightOverride: null,
     viewportLabel: "",
+    pauseRequestFile: "",
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -2564,6 +2565,11 @@ function parseArgs(argv) {
     }
     if (token === "--viewport-label" && argv[i + 1]) {
       args.viewportLabel = String(argv[i + 1]).trim();
+      i += 1;
+      continue;
+    }
+    if (token === "--pause-request-file" && argv[i + 1]) {
+      args.pauseRequestFile = String(argv[i + 1]).trim();
       i += 1;
       continue;
     }
@@ -5785,6 +5791,18 @@ async function clearCheckpoint(checkpointFile) {
   }
 }
 
+async function clearPauseRequest(pauseRequestFile) {
+  if (!pauseRequestFile) return;
+  if (await fileExists(pauseRequestFile)) {
+    await fs.unlink(pauseRequestFile);
+  }
+}
+
+async function isPauseRequested(pauseRequestFile) {
+  if (!pauseRequestFile) return false;
+  return await fileExists(pauseRequestFile);
+}
+
 function ensureRouteResult(report, route) {
   let found = report.routeSweep.find((item) => item.route === route);
   if (found) return found;
@@ -5811,6 +5829,10 @@ function upsertSeoPage(report, pageResult) {
 
 function shouldPauseByTime(runStartedAt, maxRunMs) {
   return maxRunMs > 0 && Date.now() - runStartedAt >= maxRunMs;
+}
+
+function shouldPauseExecution(runStartedAt, maxRunMs, externalPauseRequested) {
+  return externalPauseRequested === true || shouldPauseByTime(runStartedAt, maxRunMs);
 }
 
 function hasTruthyEnv(key) {
@@ -5999,6 +6021,9 @@ async function run() {
         ? Math.max(320, Number(args.viewportHeightOverride))
         : cfgBase.viewportHeight,
   };
+  cfg.pauseRequestFile = args.pauseRequestFile
+    ? path.resolve(process.cwd(), args.pauseRequestFile)
+    : path.join(cfg.reportDir, "sitepulse-pause-request.flag");
   const baseOrigin = new URL(cfg.baseUrl).origin;
 
   let maxRunMs = args.maxRunMs ?? (cfg.maxRunMs > 0 ? cfg.maxRunMs : 0);
@@ -6016,6 +6041,7 @@ async function run() {
   if (args.fresh) {
     await clearCheckpoint(cfg.checkpointFile);
   }
+  await clearPauseRequest(cfg.pauseRequestFile);
 
   let report = createEmptyReport(cfg, args, maxRunMs);
   if (!args.noResume) {
@@ -6035,8 +6061,34 @@ async function run() {
   let currentAction = "";
   let paused = false;
   let clicksSinceLastCheckpoint = 0;
+  let externalPauseRequested = false;
+  let pauseSignalLogged = false;
 
   const runStartedAt = Date.now();
+
+  const requestExternalPause = (signal) => {
+    if (externalPauseRequested) return;
+    externalPauseRequested = true;
+    if (!pauseSignalLogged) {
+      pauseSignalLogged = true;
+      emitLiveEvent(args, "runner_pause_requested", {
+        route: currentRoute,
+        action: currentAction || "pause_request",
+        detail: `External pause requested via ${signal}. Saving the checkpoint at the next safe boundary.`,
+        totalRoutes: cfg.routes.length,
+      });
+    }
+  };
+
+  const onSigint = () => {
+    requestExternalPause("SIGINT");
+  };
+  const onSigterm = () => {
+    requestExternalPause("SIGTERM");
+  };
+
+  process.on("SIGINT", onSigint);
+  process.on("SIGTERM", onSigterm);
 
   let server = null;
   if (!args.noServer) {
@@ -6182,7 +6234,7 @@ async function run() {
     });
 
     routeLoop: for (let routeIndex = report.progress.nextRouteIndex; routeIndex < cfg.routes.length; routeIndex += 1) {
-      if (shouldPauseByTime(runStartedAt, maxRunMs)) {
+      if (shouldPauseExecution(runStartedAt, maxRunMs, externalPauseRequested) || (await isPauseRequested(cfg.pauseRequestFile))) {
         paused = true;
         report.progress.nextRouteIndex = routeIndex;
         report.progress.nextLabelIndex = 0;
@@ -6441,7 +6493,7 @@ async function run() {
       if (labelStartIndex > actionsToClick.length) labelStartIndex = actionsToClick.length;
 
       for (let labelIndex = labelStartIndex; labelIndex < actionsToClick.length; labelIndex += 1) {
-        if (shouldPauseByTime(runStartedAt, maxRunMs)) {
+        if (shouldPauseExecution(runStartedAt, maxRunMs, externalPauseRequested) || (await isPauseRequested(cfg.pauseRequestFile))) {
           paused = true;
           report.progress.nextRouteIndex = routeIndex;
           report.progress.nextLabelIndex = labelIndex;
@@ -6615,6 +6667,8 @@ async function run() {
       }
     }
   } finally {
+    process.off("SIGINT", onSigint);
+    process.off("SIGTERM", onSigterm);
     if (browser) {
       await browser.close().catch(() => undefined);
     }
@@ -6637,6 +6691,7 @@ async function run() {
   } else {
     await clearCheckpoint(cfg.checkpointFile);
   }
+  await clearPauseRequest(cfg.pauseRequestFile);
 
   const output = {
     ok: !paused && report.summary.totalIssues === 0,

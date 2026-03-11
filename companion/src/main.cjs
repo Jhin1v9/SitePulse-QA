@@ -30,6 +30,7 @@ let liveReportReadInFlight = false;
 let liveReportContext = null;
 let seoSourceState = null;
 let updateService = null;
+let fastResumePlan = null;
 
 function createEmptySeoSourceState() {
   return {
@@ -316,6 +317,7 @@ function appendTimelineEvent(timeline, event) {
 let auditState = {
   running: false,
   status: "idle",
+  source: "native",
   baseUrl: "",
   mode: "desktop",
   scope: "full",
@@ -959,6 +961,17 @@ function notifyState() {
   mainWindow.webContents.send("companion:state", getStatePayload());
 }
 
+function buildAuditRunKey(descriptor = {}) {
+  return [
+    String(descriptor.baseUrl || "").trim(),
+    String(descriptor.startedAt || "").trim(),
+    String(descriptor.mode || "").trim(),
+    String(descriptor.scope || "").trim(),
+    String(descriptor.depth || "").trim(),
+    String(descriptor.source || "").trim(),
+  ].join("|");
+}
+
 function resolveBundledQaDir() {
   const packaged = path.join(process.resourcesPath, "app.asar.unpacked", "runtime-source", "qa");
   const dev = path.resolve(__dirname, "..", "runtime-source", "qa");
@@ -1538,6 +1551,38 @@ async function postBridgeJson(pathname, payload) {
   }
 }
 
+async function requestBridgeCancel() {
+  if (!bridgeHandle) {
+    await startBridge();
+  }
+
+  const response = await fetch(`http://${BRIDGE_HOST}:${BRIDGE_PORT}/cancel-run`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    cache: "no-store",
+    body: JSON.stringify({ requestedAt: nowIso() }),
+  });
+
+  const rawText = await response.text();
+  try {
+    return {
+      status: response.status,
+      payload: JSON.parse(rawText),
+    };
+  } catch {
+    return {
+      status: response.status,
+      payload: {
+        ok: false,
+        error: "invalid_bridge_response",
+        detail: rawText.slice(0, 1400),
+      },
+    };
+  }
+}
+
 async function findLatestReportArtifact() {
   if (!reportsDir) {
     await ensureQaRuntime();
@@ -1611,16 +1656,26 @@ async function exportReportFile(reportPayload) {
   };
 }
 
-async function runSingleAuditViaBridge(input) {
+async function runSingleAuditViaBridge(input, options = {}) {
   const startedAt = nowIso();
+  const runKey = buildAuditRunKey({
+    baseUrl: input.baseUrl,
+    startedAt,
+    mode: input.mode,
+    scope: input.scope,
+    depth: input.fullAudit ? "deep" : "signal",
+    source: "native",
+  });
+
   stopLiveReportPolling({
-    preserveSnapshot: false,
+    preserveSnapshot: options.preserveSnapshot === true,
     notifyState: false,
     notifyRenderer: true,
   });
   setAuditState({
     running: true,
     status: "running",
+    source: "native",
     baseUrl: input.baseUrl,
     mode: input.mode,
     scope: input.scope,
@@ -1634,26 +1689,43 @@ async function runSingleAuditViaBridge(input) {
     progress: {
       ...createEmptyAuditProgress(),
       phase: "boot",
-      phaseLabel: "Preparing runtime",
-      detail: `Preparing audit for ${input.baseUrl}`,
-      percentage: 2,
+      phaseLabel: options.resumedFromCheckpoint === true ? "Resuming from checkpoint" : "Preparing runtime",
+      detail:
+        options.resumedFromCheckpoint === true
+          ? `Checkpoint detected. Resuming a lighter audit for ${input.baseUrl}`
+          : `Preparing audit for ${input.baseUrl}`,
+      percentage: options.resumedFromCheckpoint === true ? 6 : 2,
     },
-    liveReport: null,
+    liveReport: options.preserveSnapshot === true ? auditState.liveReport : null,
     timeline: [
       {
         id: `run-start-${startedAt}`,
         stage: "boot",
-        label: "Run scheduled",
+        label: options.resumedFromCheckpoint === true ? "Run resumed" : "Run scheduled",
         status: "active",
-        detail: `Preparing audit for ${input.baseUrl}`,
+        detail:
+          options.resumedFromCheckpoint === true
+            ? `Resuming audit for ${input.baseUrl} from the preserved checkpoint.`
+            : `Preparing audit for ${input.baseUrl}`,
         route: "",
         action: "",
         at: startedAt,
       },
+      ...(options.preserveSnapshot === true ? (auditState.timeline || []) : []),
     ],
-    stageBoard: createInitialStageBoard(`Preparing audit for ${input.baseUrl}`),
+    stageBoard: options.preserveSnapshot === true
+      ? updateStageBoardFromEvent(auditState.stageBoard, {
+          type: "runner_ready",
+          detail: `Resuming audit for ${input.baseUrl} from the preserved checkpoint.`,
+          at: startedAt,
+        })
+      : createInitialStageBoard(`Preparing audit for ${input.baseUrl}`),
   });
-  pushLog(`[audit] iniciando ${input.mode}/${input.scope} para ${input.baseUrl}`);
+  pushLog(
+    options.resumedFromCheckpoint === true
+      ? `[audit] retomando checkpoint ${input.mode}/${input.scope} para ${input.baseUrl}`
+      : `[audit] iniciando ${input.mode}/${input.scope} para ${input.baseUrl}`,
+  );
 
   try {
     await startLiveReportPolling(input.mode, {
@@ -1663,11 +1735,18 @@ async function runSingleAuditViaBridge(input) {
       depth: input.fullAudit ? "deep" : "signal",
       startedAtMs: new Date(startedAt).getTime(),
     });
-    const { status, payload } = await postBridgeJson("/run", input);
+    const { status, payload } = await postBridgeJson("/run", {
+      ...input,
+      fresh: options.fresh !== false,
+      resume: options.resume !== false,
+    });
     const finishedAt = nowIso();
     const durationMs = Date.now() - new Date(startedAt).getTime();
 
     if (payload?.ok) {
+      if (fastResumePlan?.runKey === runKey) {
+        fastResumePlan = null;
+      }
       const summary = summarizeReport(payload.report);
       stopLiveReportPolling({
         preserveSnapshot: true,
@@ -1696,7 +1775,95 @@ async function runSingleAuditViaBridge(input) {
       return payload;
     }
 
+    if (payload?.paused === true && payload?.report) {
+      const summary = summarizeReport(payload.report);
+      stopLiveReportPolling({
+        preserveSnapshot: true,
+        notifyState: false,
+        notifyRenderer: false,
+      });
+
+      const shouldResumeFast = fastResumePlan?.runKey === runKey;
+      if (shouldResumeFast) {
+        const nextPlan = fastResumePlan;
+        fastResumePlan = null;
+        const handoffAt = nowIso();
+        setLiveReport(payload.report, {
+          notifyState: false,
+          notifyRenderer: false,
+        });
+        setAuditState({
+          running: true,
+          status: "running",
+          source: "native",
+          baseUrl: nextPlan.input.baseUrl,
+          mode: nextPlan.input.mode,
+          scope: nextPlan.input.scope,
+          depth: nextPlan.input.fullAudit ? "deep" : "signal",
+          finishedAt: "",
+          durationMs: 0,
+          lastError: "",
+          lastCommand: "",
+          progress: {
+            ...(auditState.progress || createEmptyAuditProgress()),
+            phase: "resume_handoff",
+            phaseLabel: "Switching to fast mode",
+            detail: "Checkpoint saved. Resuming the audit with a lighter profile without discarding collected evidence.",
+            percentage: Math.max(8, safeFiniteNumber(auditState?.progress?.percentage, 0)),
+          },
+          timeline: [
+            {
+              id: `fast-handoff-${handoffAt}`,
+              stage: "finish",
+              label: "Fast mode handoff",
+              status: "active",
+              detail: "Checkpoint saved. Resuming the audit with a lighter profile.",
+              route: "",
+              action: "",
+              at: handoffAt,
+            },
+            ...(auditState.timeline || []),
+          ].slice(0, 24),
+        });
+        pushLog("[audit] checkpoint preservado. retomando em fast mode.");
+        return await runSingleAuditViaBridge(nextPlan.input, {
+          fresh: false,
+          resume: true,
+          preserveSnapshot: true,
+          resumedFromCheckpoint: true,
+        });
+      }
+
+      setLiveReport(payload.report, {
+        notifyState: false,
+        notifyRenderer: false,
+      });
+      setAuditState({
+        running: false,
+        status: "paused",
+        source: "native",
+        depth: input.fullAudit ? "deep" : "signal",
+        finishedAt,
+        durationMs,
+        lastCommand: String(payload.command || ""),
+        usedFallback: payload.usedFallback === true,
+        lastSummary: summary,
+        lastError: "",
+        progress: {
+          ...(auditState.progress || createEmptyAuditProgress()),
+          phase: "paused",
+          phaseLabel: "Run paused",
+          detail: "Checkpoint saved. Resume the audit to continue without losing the evidence already collected.",
+        },
+      });
+      pushLog(`[audit] pausada | issues=${summary.totalIssues} | seo=${summary.seoScore}`);
+      return payload;
+    }
+
     const detail = String(payload?.detail || payload?.error || `bridge_status_${status}`);
+    if (fastResumePlan?.runKey === runKey) {
+      fastResumePlan = null;
+    }
     stopLiveReportPolling({
       preserveSnapshot: true,
     });
@@ -1738,6 +1905,9 @@ async function runSingleAuditViaBridge(input) {
     return payload;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || "audit_failed");
+    if (fastResumePlan?.runKey === runKey) {
+      fastResumePlan = null;
+    }
     stopLiveReportPolling({
       preserveSnapshot: true,
     });
@@ -1797,6 +1967,7 @@ async function runMobileFamilyAudit(input) {
   setAuditState({
     running: true,
     status: "running",
+    source: "native",
     baseUrl: input.baseUrl,
     mode: "mobile",
     scope: input.scope,
@@ -1990,6 +2161,7 @@ async function openCmdViaBridge(input) {
   setAuditState({
     running: true,
     status: "running",
+    source: "cmd",
     baseUrl: input.baseUrl,
     mode: input.mode,
     scope: input.scope,
@@ -2085,6 +2257,105 @@ async function openCmdViaBridge(input) {
       detail: message,
     };
   }
+}
+
+async function requestFastModeResume(input) {
+  const runningAudit = auditState && typeof auditState === "object" ? auditState : {};
+  if (runningAudit.running !== true) {
+    return {
+      ok: false,
+      error: "no_running_audit",
+      detail: "There is no active audit to switch.",
+    };
+  }
+
+  if (String(runningAudit.source || "native") !== "native") {
+    return {
+      ok: false,
+      error: "fast_resume_unsupported_source",
+      detail: "Fast checkpoint resume is available for native audits only.",
+    };
+  }
+
+  if (runningAudit.mode === "mobile" && normalizeMobileSweep(input?.mobileSweep) === "family") {
+    return {
+      ok: false,
+      error: "fast_resume_family_unsupported",
+      detail: "Switching in place is not available during mobile family sweep. Use single-device mode for resumable fast handoff.",
+    };
+  }
+
+  const resumeInput = {
+    baseUrl: String(runningAudit.baseUrl || input?.baseUrl || "").trim(),
+    mode: runningAudit.mode === "mobile" ? "mobile" : "desktop",
+    scope: input?.scope === "seo" ? "seo" : input?.scope === "experience" ? "experience" : "full",
+    noServer: input?.noServer !== false,
+    headed: input?.headed === true,
+    fullAudit: input?.fullAudit !== false,
+    mobileSweep: runningAudit.mode === "mobile" ? normalizeMobileSweep(input?.mobileSweep) : "single",
+    viewportWidth: Number.isFinite(Number(input?.viewportWidth)) ? Math.max(320, Number(input.viewportWidth)) : null,
+    viewportHeight: Number.isFinite(Number(input?.viewportHeight)) ? Math.max(320, Number(input.viewportHeight)) : null,
+    viewportLabel: String(input?.viewportLabel || "").trim(),
+  };
+
+  if (!resumeInput.baseUrl) {
+    return {
+      ok: false,
+      error: "resume_target_missing",
+      detail: "The current target URL is not available for the fast resume handoff.",
+    };
+  }
+
+  const runKey = buildAuditRunKey({
+    baseUrl: runningAudit.baseUrl,
+    startedAt: runningAudit.startedAt,
+    mode: runningAudit.mode,
+    scope: runningAudit.scope,
+    depth: runningAudit.depth,
+    source: runningAudit.source || "native",
+  });
+
+  fastResumePlan = {
+    runKey,
+    input: resumeInput,
+    requestedAt: nowIso(),
+  };
+
+  const { payload } = await requestBridgeCancel();
+  if (!payload?.ok) {
+    fastResumePlan = null;
+    return payload;
+  }
+
+  const detail = "Safe pause requested. SitePulse will preserve the current evidence and resume from checkpoint in fast mode.";
+  setAuditState({
+    progress: {
+      ...(auditState.progress || createEmptyAuditProgress()),
+      phase: "resume_handoff",
+      phaseLabel: "Switching to fast mode",
+      detail,
+      percentage: Math.max(5, safeFiniteNumber(auditState?.progress?.percentage, 0)),
+    },
+    timeline: [
+      {
+        id: `fast-resume-request-${nowIso()}`,
+        stage: "finish",
+        label: "Fast mode requested",
+        status: "active",
+        detail,
+        route: "",
+        action: "",
+        at: nowIso(),
+      },
+      ...(auditState.timeline || []),
+    ].slice(0, 24),
+  });
+  pushLog("[audit] pausa segura solicitada. o motor vai retomar do checkpoint em fast mode.");
+  return {
+    ok: true,
+    detail,
+    input: resumeInput,
+  };
 }
 
 function getStatePayload() {
@@ -2284,6 +2555,20 @@ ipcMain.handle("companion:stop-bridge", async () => {
 });
 ipcMain.handle("companion:run-audit", async (_event, input) => {
   return await runAuditViaBridge({
+    baseUrl: String(input?.baseUrl || "").trim(),
+    mode: input?.mode === "mobile" ? "mobile" : "desktop",
+    scope: input?.scope === "seo" ? "seo" : input?.scope === "experience" ? "experience" : "full",
+    noServer: input?.noServer !== false,
+    headed: input?.headed === true,
+    fullAudit: input?.fullAudit !== false,
+    mobileSweep: normalizeMobileSweep(input?.mobileSweep),
+    viewportWidth: Number.isFinite(Number(input?.viewportWidth)) ? Math.max(320, Number(input.viewportWidth)) : null,
+    viewportHeight: Number.isFinite(Number(input?.viewportHeight)) ? Math.max(320, Number(input.viewportHeight)) : null,
+    viewportLabel: String(input?.viewportLabel || "").trim(),
+  });
+});
+ipcMain.handle("companion:switch-audit-fast", async (_event, input) => {
+  return await requestFastModeResume({
     baseUrl: String(input?.baseUrl || "").trim(),
     mode: input?.mode === "mobile" ? "mobile" : "desktop",
     scope: input?.scope === "seo" ? "seo" : input?.scope === "experience" ? "experience" : "full",

@@ -503,6 +503,28 @@ function buildFastModeProfile(source = {}) {
   };
 }
 
+function canResumeCurrentRunInFastMode(audit = {}) {
+  if (audit?.running !== true) return false;
+  if (String(audit?.source || "native") !== "native") return false;
+  if (normalizeMode(audit?.mode || uiState.mode) === "mobile" && normalizeMobileSweep(uiState.mobileSweep) === "family") {
+    return false;
+  }
+  return true;
+}
+
+function buildFastModeResumeInput(audit = {}) {
+  const profile = buildFastModeProfile(audit);
+  return {
+    baseUrl: String(audit?.baseUrl || stateEl.targetUrl.value || "").trim(),
+    mode: normalizeMode(audit?.mode || profile.mode),
+    mobileSweep: normalizeMode(audit?.mode || profile.mode) === "mobile" ? normalizeMobileSweep(profile.mobileSweep) : "single",
+    scope: normalizeScope(profile.scope),
+    noServer: stateEl.noServer.checked,
+    headed: profile.headed === true,
+    fullAudit: normalizeDepth(profile.depth) === "deep",
+  };
+}
+
 function createEmptySlowWatch() {
   return {
     runKey: "",
@@ -2970,6 +2992,12 @@ function renderAuditState(audit = {}) {
     return;
   }
 
+  if (status === "paused") {
+    setChip(stateEl.auditChip, "audit paused", "warn");
+    stateEl.headlineStatus.textContent = "The run paused safely and kept its checkpoint. Resume it to continue without losing the collected evidence.";
+    return;
+  }
+
   if (status === "issues") {
     setChip(stateEl.auditChip, "issues detected", "warn");
     stateEl.headlineStatus.textContent = "The audit completed with findings. Use the board to remove high-risk failures first.";
@@ -3053,6 +3081,9 @@ function renderAuditProgress(audit = {}) {
   } else if (audit.status === "clean" || audit.status === "issues") {
     etaText = "Completed";
     paceText = "Pace complete";
+  } else if (audit.status === "paused") {
+    etaText = "Paused";
+    paceText = "Checkpoint saved";
   } else if (audit.status === "failed") {
     etaText = "Interrupted";
     paceText = "Pace interrupted";
@@ -3102,12 +3133,15 @@ function updateLongRunAdvisor(audit = {}) {
   const shouldPrompt = elapsedMs >= thresholdMs && uiState.longRunAdvisor.shownForRunKey !== runKey;
   const expectedText = thresholdMs > 0 ? formatDurationWindow(thresholdMs) : "calibrating";
   const fastProfile = buildFastModeProfile(audit);
+  const resumable = canResumeCurrentRunInFastMode(audit);
 
   if (shouldPrompt) {
     uiState.longRunAdvisor.shownForRunKey = runKey;
     uiState.longRunAdvisor.activeRunKey = runKey;
     uiState.longRunAdvisor.open = true;
-    stateEl.longRunSummary.textContent = `SitePulse detected that this run is taking longer than its expected window. You can arm a faster profile now without losing the current evidence already collected.`;
+    stateEl.longRunSummary.textContent = resumable
+      ? "SitePulse detected that this run is taking longer than expected. You can pause safely now and resume from the checkpoint in a faster profile without losing the evidence already collected."
+      : "SitePulse detected that this run is taking longer than expected. Fast mode will be armed for the next run because this flow cannot switch in place safely.";
     stateEl.longRunOverlay.classList.remove("hidden");
   }
 
@@ -3118,6 +3152,7 @@ function updateLongRunAdvisor(audit = {}) {
   stateEl.longRunElapsed.textContent = formatDuration(elapsedMs);
   stateEl.longRunExpected.textContent = expectedText;
   stateEl.longRunPlan.textContent = describeFastModePlan(fastProfile) || "switch to signal sweep";
+  stateEl.applyFastMode.textContent = resumable ? "Switch now and resume" : "Arm fast mode";
 }
 
 function refreshRuntimeTicker() {
@@ -3443,6 +3478,18 @@ async function handleAuditRun(forceDepth = null) {
 
   try {
     const payload = await window.sitePulseCompanion.runAudit(input);
+    if (payload?.paused === true && payload?.report) {
+      const report = normalizeReport(payload.report);
+      report.meta.auditMode = input.mode;
+      report.meta.auditDepth = input.fullAudit ? "deep" : "signal";
+      persistLastReport(report);
+      renderAllReportState(report);
+      appendLog("[studio] audit paused safely. checkpoint preserved.");
+      stateEl.headlineStatus.textContent = "Run paused safely. Resume from the checkpoint to continue without losing progress.";
+      showToast("Audit paused safely and kept its checkpoint.", "warn");
+      switchView("operations");
+      return;
+    }
     if (!payload?.ok || !payload?.report) {
       const detail = payload?.detail || payload?.error || "audit_failed";
       appendLog(`[studio] audit failed: ${detail}`);
@@ -3918,8 +3965,21 @@ function bindButtons() {
       closeLongRunAdvisor();
     }
   });
-  stateEl.applyFastMode.addEventListener("click", () => {
+  stateEl.applyFastMode.addEventListener("click", async () => {
     const audit = uiState.companionState?.audit || {};
+    if (canResumeCurrentRunInFastMode(audit)) {
+      const result = await window.sitePulseCompanion.switchAuditToFastMode(buildFastModeResumeInput(audit));
+      if (!result?.ok) {
+        appendLog(`[studio] fast mode handoff failed: ${result?.detail || result?.error || "unknown"}`);
+        showToast("Could not switch the current run safely.", "bad");
+        return;
+      }
+      appendLog("[studio] fast mode handoff requested. current evidence will be preserved.");
+      showToast("Safe pause requested. SitePulse will resume from checkpoint in fast mode.", "ok");
+      closeLongRunAdvisor();
+      return;
+    }
+
     applyFastModeProfile(buildFastModeProfile(audit));
     appendLog("[studio] fast mode armed after long-run advisory.");
     showToast("Fast mode armed. The next run will use a lighter profile.", "ok");
