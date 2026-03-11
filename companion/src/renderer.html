@@ -397,11 +397,13 @@
                     <div class="signal-item"><span>Overflow</span><strong id="visualOverflowCount">0</strong></div>
                     <div class="signal-item"><span>Overlap</span><strong id="visualOverlapCount">0</strong></div>
                     <div class="signal-item"><span>Alignment drift</span><strong id="visualAlignmentCount">0</strong></div>
+                    <div class="signal-item"><span>Tight spacing</span><strong id="visualSpacingCount">0</strong></div>
+                    <div class="signal-item"><span>Gap inconsistency</span><strong id="visualGapConsistencyCount">0</strong></div>
                     <div class="signal-item"><span>Section rules</span><strong id="visualSectionsCount">0</strong></div>
                   </div>
                   <div class="headline-status" id="visualQualityHeadline">No visual evidence yet.</div>
                   <p class="panel-copy" id="visualQualityDetail">
-                    Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.
+                    Run an audit to measure overflow, overlap, alignment drift, spacing quality and section-level visual rules.
                   </p>
                 </article>
 
@@ -580,6 +582,28 @@
                 </div>
                 <div class="prompt-box" id="promptWorkspaceActions">No action coverage is currently loaded in SitePulse Studio.</div>
               </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">client outreach prompt</p>
+                    <h3>Prompt for sales follow-up</h3>
+                  </div>
+                  <button id="copyClientOutreachPrompt" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceClientPrompt">Run an audit to generate a client outreach prompt.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">client outreach message</p>
+                    <h3>Ready-to-send pitch</h3>
+                  </div>
+                  <button id="copyClientOutreachMessage" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="promptWorkspaceClientMessage">Run an audit to generate a ready-to-send client message.</div>
+              </article>
             </section>
           </section>
 
@@ -733,6 +757,19 @@
               </article>
 
               <div class="reports-side">
+                <article class="panel route-contact-panel">
+                  <div class="panel-head split-head">
+                    <div>
+                      <p class="eyebrow">route sheets</p>
+                      <h3>Contact sheets by route</h3>
+                    </div>
+                    <div class="headline-status" id="routeContactHeadline">Run an audit to build route contact sheets.</div>
+                  </div>
+                  <div id="routeContactSheet" class="route-contact-sheet">
+                    <article class="empty-state">Route-level contact sheets will appear here when visual evidence is available.</article>
+                  </div>
+                </article>
+
                 <article class="panel prompt-panel">
                   <div class="panel-head split-head">
                     <div>
@@ -914,14 +951,34 @@
           </div>
         </div>
         <div class="evidence-lightbox-layout">
-          <div class="evidence-lightbox-stage">
-            <img id="evidenceLightboxImage" class="evidence-lightbox-image" alt="Evidence preview" />
+          <div class="evidence-lightbox-stage-grid">
+            <article class="evidence-lightbox-stage-card">
+              <div class="evidence-lightbox-stage-head">
+                <p class="eyebrow">current run</p>
+                <div id="evidenceLightboxMeta" class="history-meta">No evidence selected.</div>
+              </div>
+              <div class="evidence-lightbox-stage">
+                <img id="evidenceLightboxImage" class="evidence-lightbox-image" alt="Evidence preview" />
+              </div>
+            </article>
+            <article id="evidenceReferenceStage" class="evidence-lightbox-stage-card hidden">
+              <div class="evidence-lightbox-stage-head">
+                <p class="eyebrow">reference run</p>
+                <div id="evidenceReferenceMeta" class="history-meta">No matching baseline evidence.</div>
+              </div>
+              <div class="evidence-lightbox-stage">
+                <img id="evidenceReferenceImage" class="evidence-lightbox-image" alt="Reference evidence preview" />
+              </div>
+            </article>
           </div>
           <aside class="evidence-lightbox-side">
             <article class="panel nested-panel evidence-lightbox-panel">
               <p class="eyebrow">capture context</p>
-              <div id="evidenceLightboxMeta" class="history-meta">No evidence selected.</div>
               <p id="evidenceLightboxDetail" class="history-copy">Open a screenshot from the evidence room or issue board to inspect it here.</p>
+            </article>
+            <article class="panel nested-panel evidence-lightbox-panel">
+              <p class="eyebrow">before / after</p>
+              <p id="evidenceCompareState" class="history-copy">Load a screenshot with a matching baseline to compare visual changes here.</p>
             </article>
           </aside>
         </div>

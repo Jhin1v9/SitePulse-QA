@@ -57,6 +57,8 @@ const CODE = {
   VISUAL_LAYOUT_OVERFLOW: "VISUAL_LAYOUT_OVERFLOW",
   VISUAL_LAYER_OVERLAP: "VISUAL_LAYER_OVERLAP",
   VISUAL_ALIGNMENT_DRIFT: "VISUAL_ALIGNMENT_DRIFT",
+  VISUAL_TIGHT_SPACING: "VISUAL_TIGHT_SPACING",
+  VISUAL_GAP_INCONSISTENCY: "VISUAL_GAP_INCONSISTENCY",
 };
 
 const ACTION_STATUS = {
@@ -174,6 +176,22 @@ const ISSUE_GUIDE = {
       "Algumas partes grandes da interface parecem tortas ou fora do mesmo padrao visual da pagina.",
     recommendation:
       "Padronizar grid, margins, max-width e alinhamento dos blocos principais para manter consistencia visual entre secoes.",
+  },
+  [CODE.VISUAL_TIGHT_SPACING]: {
+    technical:
+      "Blocos relevantes ficaram com espacamento vertical apertado demais, sugerindo colisoes proximas, respiracao insuficiente ou composicao comprimida.",
+    layman:
+      "Partes grandes da tela ficaram grudadas demais, como se faltasse respiro entre os blocos.",
+    recommendation:
+      "Aumentar espacamento vertical entre secoes/cards principais, revisar margins e garantir uma hierarquia visual com respiracao consistente.",
+  },
+  [CODE.VISUAL_GAP_INCONSISTENCY]: {
+    technical:
+      "A malha vertical perdeu consistencia: gaps equivalentes entre blocos variam demais e quebram o ritmo do layout.",
+    layman:
+      "A distancia entre partes parecidas da tela muda demais e a pagina fica visualmente sem padrao.",
+    recommendation:
+      "Padronizar a escala de espacamento entre secoes equivalentes e remover gaps isolados que deixam a composicao irregular.",
   },
 };
 
@@ -388,6 +406,40 @@ const ISSUE_PLAYBOOK = {
     commandHints: [
       "rg -n \"container|max-width|mx-auto|padding-inline|px-|pl-|pr-|left:\" src",
       "rg -n \"section|wrapper|content|shell|layout\" src/components src/app",
+    ],
+    likelyAreas: [
+      "src/components/layout/**",
+      "src/components/sections/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_TIGHT_SPACING]: {
+    priority: "P1",
+    firstChecks: [
+      "Medir gaps verticais entre blocos consecutivos da composicao principal.",
+      "Revisar margins/paddings de cards, seções e wrappers que ficaram visualmente colados.",
+      "Garantir respiro suficiente antes de CTA, FAQ, listas e grids longos.",
+    ],
+    commandHints: [
+      "rg -n \"gap:|row-gap|margin-top|margin-bottom|padding-top|padding-bottom|-mt-|-mb-|space-y-\" src",
+      "rg -n \"section|card|panel|stack|wrapper|content\" src/components src/styles",
+    ],
+    likelyAreas: [
+      "src/components/sections/**",
+      "src/components/layout/**",
+      "src/styles/**",
+    ],
+  },
+  [CODE.VISUAL_GAP_INCONSISTENCY]: {
+    priority: "P2",
+    firstChecks: [
+      "Comparar a escala de espacamento entre blocos equivalentes na mesma pagina.",
+      "Unificar tokens/gutters de spacing entre secoes irmas.",
+      "Remover overrides isolados que aumentam ou reduzem gaps sem criterio.",
+    ],
+    commandHints: [
+      "rg -n \"gap:|row-gap|margin-top|margin-bottom|padding-top|padding-bottom|space-y-|space-x-\" src",
+      "rg -n \"token|spacing|gutter|container|max-width|section\" src/components src/styles",
     ],
     likelyAreas: [
       "src/components/layout/**",
@@ -2508,6 +2560,15 @@ function normalizeVisualAnalyzer(input) {
     alignmentTolerancePx: Number.isFinite(Number(config.alignmentTolerancePx))
       ? Math.max(4, Number(config.alignmentTolerancePx))
       : 28,
+    tightSpacingPx: Number.isFinite(Number(config.tightSpacingPx))
+      ? Math.max(4, Number(config.tightSpacingPx))
+      : 18,
+    gapDriftTolerancePx: Number.isFinite(Number(config.gapDriftTolerancePx))
+      ? Math.max(8, Number(config.gapDriftTolerancePx))
+      : 40,
+    minComparableGapPx: Number.isFinite(Number(config.minComparableGapPx))
+      ? Math.max(12, Number(config.minComparableGapPx))
+      : 24,
     minBlockWidthPx: Number.isFinite(Number(config.minBlockWidthPx))
       ? Math.max(120, Number(config.minBlockWidthPx))
       : 240,
@@ -2766,7 +2827,8 @@ function severityFromCode(code) {
     code === CODE.NET_REQUEST_FAILED ||
     code === CODE.VISUAL_SECTION_MISSING ||
     code === CODE.VISUAL_LAYOUT_OVERFLOW ||
-    code === CODE.VISUAL_LAYER_OVERLAP
+    code === CODE.VISUAL_LAYER_OVERLAP ||
+    code === CODE.VISUAL_TIGHT_SPACING
   ) {
     return "medium";
   }
@@ -3023,6 +3085,33 @@ function buildPromptPack(issues) {
       [
         "Corrija inconsistencias visuais/funcionais na ordem das secoes.",
         "Regra critica: conteudo informativo/FAQ nao pode aparecer abaixo do footer.",
+        "Ocorrencias:",
+        rows,
+      ].join("\n"),
+    );
+  }
+
+  if (
+    byCode.has(CODE.VISUAL_LAYOUT_OVERFLOW) ||
+    byCode.has(CODE.VISUAL_LAYER_OVERLAP) ||
+    byCode.has(CODE.VISUAL_ALIGNMENT_DRIFT) ||
+    byCode.has(CODE.VISUAL_TIGHT_SPACING) ||
+    byCode.has(CODE.VISUAL_GAP_INCONSISTENCY)
+  ) {
+    const rows = [
+      ...(byCode.get(CODE.VISUAL_LAYOUT_OVERFLOW) ?? []),
+      ...(byCode.get(CODE.VISUAL_LAYER_OVERLAP) ?? []),
+      ...(byCode.get(CODE.VISUAL_ALIGNMENT_DRIFT) ?? []),
+      ...(byCode.get(CODE.VISUAL_TIGHT_SPACING) ?? []),
+      ...(byCode.get(CODE.VISUAL_GAP_INCONSISTENCY) ?? []),
+    ]
+      .slice(0, 20)
+      .map((i) => `- ${i.route} -> ${i.code}: ${i.detail}`)
+      .join("\n");
+    prompts.push(
+      [
+        "Corrija as inconsistencias de composicao visual da interface.",
+        "O objetivo e padronizar respiro, alinhamento, camadas e ritmo visual entre blocos importantes.",
         "Ocorrencias:",
         rows,
       ].join("\n"),
@@ -3505,6 +3594,28 @@ function formatVisualAnalyzerDetail(finding) {
     ].join(" | ");
   }
 
+  if (finding.code === CODE.VISUAL_TIGHT_SPACING) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.a} -> ${item.b} (gap=${item.gap}px)`)
+      .join(" ; ");
+    return [
+      `Detectado espacamento apertado em ${finding.count || samples.length} transicao(oes) entre blocos.`,
+      sampleText || "Nenhum exemplo detalhado disponivel.",
+    ].join(" | ");
+  }
+
+  if (finding.code === CODE.VISUAL_GAP_INCONSISTENCY) {
+    const samples = Array.isArray(finding.samples) ? finding.samples.slice(0, 3) : [];
+    const sampleText = samples
+      .map((item) => `${item.a} -> ${item.b} (gap=${item.gap}px, baseline=${item.baselineGap}px, drift=${item.drift}px, ${item.trend})`)
+      .join(" ; ");
+    return [
+      `Detectada inconsistencia de espacamento em ${finding.count || samples.length} transicao(oes) visuais.`,
+      sampleText || "Nenhum exemplo detalhado disponivel.",
+    ].join(" | ");
+  }
+
   return String(finding.detail || "Inconsistencia visual detectada.");
 }
 
@@ -3708,7 +3819,63 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       }
     }
 
-    return { viewportWidth, viewportHeight, overflow, overlap, alignment, baselineLeft };
+    const verticalPairs = [];
+    for (let index = 0; index < stackedBlocks.length - 1; index += 1) {
+      const first = stackedBlocks[index];
+      const second = stackedBlocks[index + 1];
+      if (first.el.contains(second.el) || second.el.contains(first.el)) continue;
+
+      const sharedWidth = Math.min(first.right, second.right) - Math.max(first.left, second.left);
+      const sharedRatio = Math.min(first.width, second.width) > 0 ? sharedWidth / Math.min(first.width, second.width) : 0;
+      if (sharedRatio < 0.45) continue;
+
+      const gap = round(second.top - (first.top + first.height));
+      if (gap < 0) continue;
+
+      verticalPairs.push({
+        a: first.selector,
+        b: second.selector,
+        gap,
+        clip: {
+          x: round(Math.max(0, Math.min(first.left, second.left) + window.scrollX)),
+          y: round(Math.max(0, Math.min(first.top, second.top))),
+          width: round(Math.max(1, Math.max(first.right, second.right) - Math.min(first.left, second.left))),
+          height: round(
+            Math.max(
+              1,
+              Math.max(first.top + first.height, second.top + second.height) - Math.min(first.top, second.top),
+            ),
+          ),
+        },
+      });
+    }
+
+    const tightSpacing = verticalPairs
+      .filter((item) => item.gap <= settings.tightSpacingPx)
+      .slice(0, settings.maxSamples);
+
+    const comparableGaps = verticalPairs
+      .map((item) => item.gap)
+      .filter((item) => item >= settings.minComparableGapPx);
+    const gapBaseline = comparableGaps.length
+      ? round(comparableGaps.sort((a, b) => a - b)[Math.floor(comparableGaps.length / 2)])
+      : null;
+    const gapInconsistency = gapBaseline === null
+      ? []
+      : verticalPairs
+          .map((item) => {
+            const drift = round(Math.abs(item.gap - gapBaseline));
+            return {
+              ...item,
+              baselineGap: gapBaseline,
+              drift,
+              trend: item.gap > gapBaseline ? "too_loose" : "too_tight",
+            };
+          })
+          .filter((item) => item.drift >= settings.gapDriftTolerancePx)
+          .slice(0, settings.maxSamples);
+
+    return { viewportWidth, viewportHeight, overflow, overlap, alignment, baselineLeft, tightSpacing, gapInconsistency };
   }, visualCfg);
 
   const issues = [];
@@ -3742,6 +3909,28 @@ async function runVisualInterfaceChecks(page, route, cfg) {
       count: findings.alignment.length,
       samples: findings.alignment,
       baselineLeft: findings.baselineLeft,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.tightSpacing?.length) {
+    issues.push({
+      code: CODE.VISUAL_TIGHT_SPACING,
+      route,
+      action: "visual_quality:tight_spacing",
+      count: findings.tightSpacing.length,
+      samples: findings.tightSpacing,
+      viewportWidth: findings.viewportWidth,
+      viewportHeight: findings.viewportHeight,
+    });
+  }
+  if (findings.gapInconsistency?.length) {
+    issues.push({
+      code: CODE.VISUAL_GAP_INCONSISTENCY,
+      route,
+      action: "visual_quality:gap_inconsistency",
+      count: findings.gapInconsistency.length,
+      samples: findings.gapInconsistency,
       viewportWidth: findings.viewportWidth,
       viewportHeight: findings.viewportHeight,
     });
@@ -4796,12 +4985,16 @@ function summarize(report) {
     visualLayoutOverflow: count(CODE.VISUAL_LAYOUT_OVERFLOW),
     visualLayerOverlap: count(CODE.VISUAL_LAYER_OVERLAP),
     visualAlignmentDrift: count(CODE.VISUAL_ALIGNMENT_DRIFT),
+    visualTightSpacing: count(CODE.VISUAL_TIGHT_SPACING),
+    visualGapInconsistency: count(CODE.VISUAL_GAP_INCONSISTENCY),
     visualQualityIssues:
       count(CODE.VISUAL_SECTION_ORDER_INVALID) +
       count(CODE.VISUAL_SECTION_MISSING) +
       count(CODE.VISUAL_LAYOUT_OVERFLOW) +
       count(CODE.VISUAL_LAYER_OVERLAP) +
-      count(CODE.VISUAL_ALIGNMENT_DRIFT),
+      count(CODE.VISUAL_ALIGNMENT_DRIFT) +
+      count(CODE.VISUAL_TIGHT_SPACING) +
+      count(CODE.VISUAL_GAP_INCONSISTENCY),
     seoScore: Number(report?.seo?.overallScore ?? 0),
     seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
     seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
@@ -5511,7 +5704,9 @@ async function run() {
           } else if (
             finding.code === CODE.VISUAL_LAYOUT_OVERFLOW ||
             finding.code === CODE.VISUAL_LAYER_OVERLAP ||
-            finding.code === CODE.VISUAL_ALIGNMENT_DRIFT
+            finding.code === CODE.VISUAL_ALIGNMENT_DRIFT ||
+            finding.code === CODE.VISUAL_TIGHT_SPACING ||
+            finding.code === CODE.VISUAL_GAP_INCONSISTENCY
           ) {
             const evidence = await captureVisualFindingEvidence(page, finding, cfg.reportDir, route);
             emitLiveEvent(args, "layout_check_issue", {

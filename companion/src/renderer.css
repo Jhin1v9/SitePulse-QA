@@ -1111,7 +1111,8 @@ button.xl {
 .findings-board-panel,
 .log-panel,
 .history-panel,
-.explorer-panel {
+.explorer-panel,
+.route-contact-panel {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-height: 0;
@@ -1121,6 +1122,7 @@ button.xl {
 .log-view,
 .history-list,
 .explorer-list,
+.route-contact-sheet,
 .timeline-list,
 .stage-board {
   min-height: 0;
@@ -1174,6 +1176,7 @@ button.xl {
 .history-list,
 .log-view,
 .explorer-list,
+.route-contact-sheet,
 .timeline-list,
 .stage-board,
 .steps-list,
@@ -1189,6 +1192,7 @@ button.xl {
 .history-list::-webkit-scrollbar,
 .log-view::-webkit-scrollbar,
 .explorer-list::-webkit-scrollbar,
+.route-contact-sheet::-webkit-scrollbar,
 .timeline-list::-webkit-scrollbar,
 .stage-board::-webkit-scrollbar,
 .prompt-box::-webkit-scrollbar,
@@ -1207,6 +1211,7 @@ button.xl {
 .history-list::-webkit-scrollbar-track,
 .log-view::-webkit-scrollbar-track,
 .explorer-list::-webkit-scrollbar-track,
+.route-contact-sheet::-webkit-scrollbar-track,
 .timeline-list::-webkit-scrollbar-track,
 .stage-board::-webkit-scrollbar-track,
 .prompt-box::-webkit-scrollbar-track,
@@ -1226,6 +1231,7 @@ button.xl {
 .history-list::-webkit-scrollbar-thumb,
 .log-view::-webkit-scrollbar-thumb,
 .explorer-list::-webkit-scrollbar-thumb,
+.route-contact-sheet::-webkit-scrollbar-thumb,
 .timeline-list::-webkit-scrollbar-thumb,
 .stage-board::-webkit-scrollbar-thumb,
 .prompt-box::-webkit-scrollbar-thumb,
@@ -1247,6 +1253,7 @@ button.xl {
 .history-list::-webkit-scrollbar-thumb:hover,
 .log-view::-webkit-scrollbar-thumb:hover,
 .explorer-list::-webkit-scrollbar-thumb:hover,
+.route-contact-sheet::-webkit-scrollbar-thumb:hover,
 .timeline-list::-webkit-scrollbar-thumb:hover,
 .stage-board::-webkit-scrollbar-thumb:hover,
 .prompt-box::-webkit-scrollbar-thumb:hover,
@@ -1263,6 +1270,7 @@ button.xl {
 .issues-list,
 .history-list,
 .explorer-list,
+.route-contact-sheet,
 .timeline-list,
 .stage-board {
   display: grid;
@@ -1275,7 +1283,8 @@ button.xl {
 }
 
 .history-list,
-.explorer-list {
+.explorer-list,
+.route-contact-sheet {
   max-height: min(36vh, 420px);
 }
 
@@ -1463,6 +1472,55 @@ button.xl {
   background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)), var(--surface-2);
 }
 
+.route-sheet-card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0)), var(--surface-2);
+}
+
+.route-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.route-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.route-sheet-thumb {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.route-sheet-thumb-image {
+  display: block;
+  width: 100%;
+  height: 136px;
+  object-fit: cover;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.route-sheet-thumb-label {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
 .evidence-preview-wrap,
 .issue-evidence-preview-wrap {
   position: relative;
@@ -1550,6 +1608,28 @@ button.xl {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 18px;
+}
+
+.evidence-lightbox-stage-grid {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.evidence-lightbox-stage-card {
+  min-height: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.evidence-lightbox-stage-card.hidden {
+  display: none;
+}
+
+.evidence-lightbox-stage-head {
+  display: grid;
+  gap: 6px;
 }
 
 .evidence-lightbox-stage {
@@ -1905,6 +1985,11 @@ button.xl {
   }
 
   .evidence-lightbox-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .evidence-lightbox-stage-grid,
+  .route-sheet-grid {
     grid-template-columns: 1fr;
   }
 }

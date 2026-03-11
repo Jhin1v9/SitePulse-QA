@@ -20,6 +20,8 @@ const ISSUE_GROUP = {
   VISUAL_LAYOUT_OVERFLOW: "Layout overflow",
   VISUAL_LAYER_OVERLAP: "Layer overlap",
   VISUAL_ALIGNMENT_DRIFT: "Alignment drift",
+  VISUAL_TIGHT_SPACING: "Tight spacing",
+  VISUAL_GAP_INCONSISTENCY: "Gap inconsistency",
 };
 
 const DEFAULT_TARGET = "https://example.com";
@@ -135,6 +137,8 @@ const stateEl = {
   visualOverflowCount: document.getElementById("visualOverflowCount"),
   visualOverlapCount: document.getElementById("visualOverlapCount"),
   visualAlignmentCount: document.getElementById("visualAlignmentCount"),
+  visualSpacingCount: document.getElementById("visualSpacingCount"),
+  visualGapConsistencyCount: document.getElementById("visualGapConsistencyCount"),
   visualSectionsCount: document.getElementById("visualSectionsCount"),
   visualQualityHeadline: document.getElementById("visualQualityHeadline"),
   visualQualityDetail: document.getElementById("visualQualityDetail"),
@@ -175,6 +179,8 @@ const stateEl = {
   copyCompareDigest: document.getElementById("copyCompareDigest"),
   evidenceHeadline: document.getElementById("evidenceHeadline"),
   evidenceGallery: document.getElementById("evidenceGallery"),
+  routeContactHeadline: document.getElementById("routeContactHeadline"),
+  routeContactSheet: document.getElementById("routeContactSheet"),
   quickPromptBox: document.getElementById("quickPromptBox"),
   promptWorkspaceHeadline: document.getElementById("promptWorkspaceHeadline"),
   promptWorkspaceFix: document.getElementById("promptWorkspaceFix"),
@@ -183,6 +189,8 @@ const stateEl = {
   promptWorkspaceCompare: document.getElementById("promptWorkspaceCompare"),
   promptWorkspaceRoutes: document.getElementById("promptWorkspaceRoutes"),
   promptWorkspaceActions: document.getElementById("promptWorkspaceActions"),
+  promptWorkspaceClientPrompt: document.getElementById("promptWorkspaceClientPrompt"),
+  promptWorkspaceClientMessage: document.getElementById("promptWorkspaceClientMessage"),
   copyPromptPack: document.getElementById("copyPromptPack"),
   copyQuickPromptPrimary: document.getElementById("copyQuickPromptPrimary"),
   copyReplayCommandPrimary: document.getElementById("copyReplayCommandPrimary"),
@@ -191,6 +199,8 @@ const stateEl = {
   copyCompareDigestPrimary: document.getElementById("copyCompareDigestPrimary"),
   copyRouteDigestPrimary: document.getElementById("copyRouteDigestPrimary"),
   copyActionDigestPrimary: document.getElementById("copyActionDigestPrimary"),
+  copyClientOutreachPrompt: document.getElementById("copyClientOutreachPrompt"),
+  copyClientOutreachMessage: document.getElementById("copyClientOutreachMessage"),
   historyList: document.getElementById("historyList"),
   clearHistory: document.getElementById("clearHistory"),
   routeList: document.getElementById("routeList"),
@@ -220,6 +230,10 @@ const stateEl = {
   evidenceLightboxImage: document.getElementById("evidenceLightboxImage"),
   evidenceLightboxMeta: document.getElementById("evidenceLightboxMeta"),
   evidenceLightboxDetail: document.getElementById("evidenceLightboxDetail"),
+  evidenceReferenceStage: document.getElementById("evidenceReferenceStage"),
+  evidenceReferenceImage: document.getElementById("evidenceReferenceImage"),
+  evidenceReferenceMeta: document.getElementById("evidenceReferenceMeta"),
+  evidenceCompareState: document.getElementById("evidenceCompareState"),
   evidenceOpenImage: document.getElementById("evidenceOpenImage"),
   evidenceRevealImage: document.getElementById("evidenceRevealImage"),
   toastStack: document.getElementById("toastStack"),
@@ -247,6 +261,7 @@ const uiState = {
   commandPaletteQuery: "",
   auditRequestInFlight: false,
   activeEvidence: null,
+  activeEvidenceReference: null,
 };
 
 function getVisibleReport() {
@@ -329,7 +344,7 @@ function normalizeDepth(value) {
 function parseSeverity(value, code = "") {
   if (value === "high" || value === "medium" || value === "low") return value;
   if (["HTTP_5XX", "JS_RUNTIME_ERROR", "VISUAL_SECTION_ORDER_INVALID", "ROUTE_LOAD_FAIL"].includes(code)) return "high";
-  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING", "VISUAL_LAYOUT_OVERFLOW", "VISUAL_LAYER_OVERLAP"].includes(code)) return "medium";
+  if (["HTTP_4XX", "BTN_CLICK_ERROR", "NET_REQUEST_FAILED", "VISUAL_SECTION_MISSING", "VISUAL_LAYOUT_OVERFLOW", "VISUAL_LAYER_OVERLAP", "VISUAL_TIGHT_SPACING"].includes(code)) return "medium";
   return "low";
 }
 
@@ -449,11 +464,16 @@ function showToast(message, tone = "ok") {
 
 function closeEvidencePreview() {
   uiState.activeEvidence = null;
+  uiState.activeEvidenceReference = null;
   stateEl.evidenceLightbox.classList.add("hidden");
   stateEl.evidenceLightboxImage.removeAttribute("src");
+  stateEl.evidenceReferenceImage.removeAttribute("src");
+  stateEl.evidenceReferenceStage.classList.add("hidden");
   stateEl.evidenceLightboxTitle.textContent = "Evidence preview";
   stateEl.evidenceLightboxMeta.textContent = "No evidence selected.";
+  stateEl.evidenceReferenceMeta.textContent = "No matching baseline evidence.";
   stateEl.evidenceLightboxDetail.textContent = "Open a screenshot from the evidence room or issue board to inspect it here.";
+  stateEl.evidenceCompareState.textContent = "Load a screenshot with a matching baseline to compare visual changes here.";
 }
 
 function openEvidencePreview(item) {
@@ -463,6 +483,8 @@ function openEvidencePreview(item) {
   }
 
   uiState.activeEvidence = item;
+  const reference = findReferenceEvidenceItem(item, getVisibleReport());
+  uiState.activeEvidenceReference = reference?.item || null;
   stateEl.evidenceLightboxTitle.textContent = item.label || item.issueGroup || item.issueCode || "Evidence preview";
   stateEl.evidenceLightboxMeta.textContent = [
     item.issueRoute || item.route || "/",
@@ -478,6 +500,24 @@ function openEvidencePreview(item) {
     "Visual proof attached to the current issue.";
   stateEl.evidenceLightboxImage.src = toFileSrc(item.path);
   stateEl.evidenceLightboxImage.alt = item.label || "Evidence preview";
+  if (reference?.item?.path) {
+    stateEl.evidenceReferenceMeta.textContent = [
+      reference.label,
+      reference.item.issueRoute || reference.item.route || "/",
+      reference.item.variant ? `variant=${reference.item.variant}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | ");
+    stateEl.evidenceReferenceImage.src = toFileSrc(reference.item.path);
+    stateEl.evidenceReferenceImage.alt = reference.item.label || "Reference evidence preview";
+    stateEl.evidenceReferenceStage.classList.remove("hidden");
+    stateEl.evidenceCompareState.textContent = `Before/after compare active against ${reference.label}. Use the left frame for the current run and the right frame for the reference run.`;
+  } else {
+    stateEl.evidenceReferenceImage.removeAttribute("src");
+    stateEl.evidenceReferenceMeta.textContent = "No matching baseline evidence.";
+    stateEl.evidenceReferenceStage.classList.add("hidden");
+    stateEl.evidenceCompareState.textContent = "No matching baseline evidence was found for this visual proof yet.";
+  }
   stateEl.evidenceLightbox.classList.remove("hidden");
 }
 
@@ -517,6 +557,8 @@ function normalizeEvidenceItem(item = {}) {
     label: String(item.label || ""),
     route: String(item.route || "/"),
     code: String(item.code || ""),
+    variant: String(item.variant || ""),
+    note: String(item.note || ""),
   };
 }
 
@@ -621,6 +663,8 @@ function normalizeReport(raw) {
       visualLayoutOverflow: toNumber(summary.visualLayoutOverflow, countByCode(issues, ["VISUAL_LAYOUT_OVERFLOW"])),
       visualLayerOverlap: toNumber(summary.visualLayerOverlap, countByCode(issues, ["VISUAL_LAYER_OVERLAP"])),
       visualAlignmentDrift: toNumber(summary.visualAlignmentDrift, countByCode(issues, ["VISUAL_ALIGNMENT_DRIFT"])),
+      visualTightSpacing: toNumber(summary.visualTightSpacing, countByCode(issues, ["VISUAL_TIGHT_SPACING"])),
+      visualGapInconsistency: toNumber(summary.visualGapInconsistency, countByCode(issues, ["VISUAL_GAP_INCONSISTENCY"])),
       visualQualityIssues: toNumber(
         summary.visualQualityIssues,
         countByCode(issues, [
@@ -629,6 +673,8 @@ function normalizeReport(raw) {
           "VISUAL_LAYOUT_OVERFLOW",
           "VISUAL_LAYER_OVERLAP",
           "VISUAL_ALIGNMENT_DRIFT",
+          "VISUAL_TIGHT_SPACING",
+          "VISUAL_GAP_INCONSISTENCY",
         ]),
       ),
       buttonsNoEffect: toNumber(summary.buttonsNoEffect, 0),
@@ -975,6 +1021,83 @@ function buildSeoDigest(report) {
   return lines.join("\n");
 }
 
+function buildClientOutreachPrompt(report) {
+  if (!report) {
+    return "Run an audit to generate a client outreach prompt.";
+  }
+
+  const topIssues = report.issues.slice(0, 4);
+  const seoAvailable = (report.summary.seoPagesAnalyzed || 0) > 0 || (report.summary.seoTotalIssues || 0) > 0;
+  const lines = [
+    "Act as a senior website consultant who can sell technical work clearly and credibly.",
+    "Write a short outreach message in English for the site owner after reviewing their website.",
+    "The message must sound human, confident and specific, not generic or spammy.",
+    "",
+    "Objectives:",
+    "- explain the most relevant problems found on the site",
+    "- connect each problem to business impact, trust, conversions and user experience",
+    ...(seoAvailable ? ["- explain how unresolved technical and SEO issues can weaken indexing, crawl quality and Google visibility"] : []),
+    "- make the value of fixing the site obvious",
+    "- end with a clear invitation to discuss the fixes",
+    "",
+    "Constraints:",
+    "- use plain English",
+    "- no buzzwords or fake urgency",
+    "- mention only concrete findings from the audit",
+    "- keep it concise but persuasive",
+    "",
+    `Target site: ${report.meta.baseUrl}`,
+    `Total issues: ${report.summary.totalIssues}`,
+    `Risk score: ${scoreFromIssues(report.issues)}/100`,
+    `Routes checked: ${report.summary.routesChecked}`,
+    `Actions mapped: ${report.summary.actionsMapped}`,
+    ...(seoAvailable
+      ? [
+          `SEO score: ${report.summary.seoScore}`,
+          `SEO critical issues: ${report.summary.seoCriticalIssues || 0}`,
+          `SEO total issues: ${report.summary.seoTotalIssues || 0}`,
+        ]
+      : []),
+    "",
+    "Top findings:",
+    ...(topIssues.length
+      ? topIssues.map((issue, index) => `${index + 1}. ${issue.group} | route=${issue.route}${issue.action ? ` | action=${issue.action}` : ""} | detail=${issue.detail}`)
+      : ["1. No issue details were attached to this run."]),
+  ];
+
+  return lines.join("\n");
+}
+
+function buildClientOutreachMessage(report) {
+  if (!report) {
+    return "Run an audit to generate a ready-to-send client outreach message.";
+  }
+
+  const seoAvailable = (report.summary.seoPagesAnalyzed || 0) > 0 || (report.summary.seoTotalIssues || 0) > 0;
+  const leadIssues = report.issues.slice(0, 3).map((issue) => {
+    const route = issue.route === "/" ? "the home page" : issue.route;
+    return `${issue.group.toLowerCase()} on ${route}${issue.action ? ` via ${issue.action}` : ""}`;
+  });
+  const issuesLine = leadIssues.length
+    ? leadIssues.join("; ")
+    : "technical and structural problems that deserve attention";
+  const seoLine = seoAvailable
+    ? `I also found SEO pressure points: the current SEO score is ${report.summary.seoScore}, with ${report.summary.seoCriticalIssues || 0} critical search issue(s) and ${report.summary.seoTotalIssues || 0} total SEO issue(s). That can weaken crawl quality, indexation stability and how confidently Google understands the site.`
+    : "Even without a dedicated SEO pass, unresolved technical failures still reduce trust and can quietly hurt discoverability.";
+
+  return [
+    `Hi, I reviewed ${report.meta.baseUrl} and found a few issues that are worth fixing before they start costing you trust, conversions and visibility.`,
+    "",
+    `The main problems I detected were ${issuesLine}. In practice, this means parts of the site can feel unreliable, some actions can break or create friction, and the overall quality signal of the website drops for both users and search engines.`,
+    "",
+    seoLine,
+    "",
+    `This is exactly the kind of technical debt that often stays invisible until traffic, leads or indexing quality start slipping. Fixing it now is usually much cheaper than waiting until it becomes a visible business problem.`,
+    "",
+    "If you want, I can turn this audit into a prioritized fix plan and show exactly what should be corrected first.",
+  ].join("\n");
+}
+
 function issueSignature(issue) {
   return [issue.code, issue.route, issue.action || "", issue.group].join("|");
 }
@@ -1042,6 +1165,36 @@ function compareReports(currentReport, referenceReport) {
     persistentIssues,
     criticalRegressions,
   };
+}
+
+function findReferenceEvidenceItem(item, report) {
+  if (!item || !report) return null;
+  const reference = getReferenceSnapshot(report);
+  if (!reference?.snapshot?.report) return null;
+
+  const targetCode = String(item.issueCode || item.code || "");
+  const targetRoute = String(item.issueRoute || item.route || "/");
+  const targetVariant = String(item.variant || "");
+  const targetGroup = String(item.issueGroup || "");
+
+  const bestMatch = collectReportEvidence(reference.snapshot.report)
+    .map((candidate) => {
+      let score = 0;
+      if (String(candidate.issueCode || candidate.code || "") === targetCode) score += 5;
+      if (String(candidate.issueRoute || candidate.route || "/") === targetRoute) score += 4;
+      if (String(candidate.variant || "") === targetVariant) score += 3;
+      if (String(candidate.issueGroup || "") === targetGroup) score += 2;
+      return { candidate, score };
+    })
+    .filter((entry) => entry.score >= 9)
+    .sort((left, right) => right.score - left.score)[0];
+
+  return bestMatch
+    ? {
+        label: reference.label,
+        item: bestMatch.candidate,
+      }
+    : null;
 }
 
 function buildCompareDigest(report) {
@@ -1236,6 +1389,8 @@ function renderSignals(report) {
     "VISUAL_LAYOUT_OVERFLOW",
     "VISUAL_LAYER_OVERLAP",
     "VISUAL_ALIGNMENT_DRIFT",
+    "VISUAL_TIGHT_SPACING",
+    "VISUAL_GAP_INCONSISTENCY",
   ]));
   stateEl.seoSignal.textContent = String(report.summary.seoCriticalIssues || 0);
 }
@@ -1245,9 +1400,11 @@ function renderVisualQuality(report) {
     stateEl.visualOverflowCount.textContent = "0";
     stateEl.visualOverlapCount.textContent = "0";
     stateEl.visualAlignmentCount.textContent = "0";
+    stateEl.visualSpacingCount.textContent = "0";
+    stateEl.visualGapConsistencyCount.textContent = "0";
     stateEl.visualSectionsCount.textContent = "0";
     stateEl.visualQualityHeadline.textContent = "No visual evidence yet.";
-    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift and section-level visual rules.";
+    stateEl.visualQualityDetail.textContent = "Run an audit to measure overflow, overlap, alignment drift, spacing quality and section-level visual rules.";
     return;
   }
 
@@ -1257,6 +1414,8 @@ function renderVisualQuality(report) {
   stateEl.visualOverflowCount.textContent = String(summary.visualLayoutOverflow || 0);
   stateEl.visualOverlapCount.textContent = String(summary.visualLayerOverlap || 0);
   stateEl.visualAlignmentCount.textContent = String(summary.visualAlignmentDrift || 0);
+  stateEl.visualSpacingCount.textContent = String(summary.visualTightSpacing || 0);
+  stateEl.visualGapConsistencyCount.textContent = String(summary.visualGapInconsistency || 0);
   stateEl.visualSectionsCount.textContent = String(sectionRuleIssues);
 
   const lead = report.issues.find((issue) => issue.code.startsWith("VISUAL_"));
@@ -1266,7 +1425,7 @@ function renderVisualQuality(report) {
       : "No visual quality issues detected in the current report.";
     stateEl.visualQualityDetail.textContent = total > 0
       ? "Open Findings to inspect route-level visual evidence."
-      : "Layout spacing, block alignment and section ordering look stable in this pass.";
+      : "Layout spacing, block alignment, section order and visual rhythm look stable in this pass.";
     return;
   }
 
@@ -1472,6 +1631,21 @@ function collectReportEvidence(report) {
   });
 }
 
+function buildRouteContactGroups(report) {
+  const groups = new Map();
+  collectReportEvidence(report).forEach((item) => {
+    const route = String(item.issueRoute || item.route || "/");
+    if (!groups.has(route)) {
+      groups.set(route, []);
+    }
+    groups.get(route).push(item);
+  });
+
+  return [...groups.entries()]
+    .map(([route, items]) => ({ route, items }))
+    .sort((left, right) => right.items.length - left.items.length || left.route.localeCompare(right.route));
+}
+
 function findEvidenceItemByPath(filePath) {
   const target = String(filePath || "").trim();
   if (!target) return null;
@@ -1529,6 +1703,59 @@ function renderEvidenceGallery(report, options = {}) {
           >Inspect here</button>
           <button type="button" data-artifact-file="${escapeHtml(item.path)}">Open image</button>
           <button type="button" data-artifact-path="${escapeHtml(item.path)}">Reveal in folder</button>
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
+function renderRouteContactSheet(report, options = {}) {
+  if (!report) {
+    stateEl.routeContactHeadline.textContent = "Run an audit to build route contact sheets.";
+    stateEl.routeContactSheet.innerHTML = '<article class="empty-state">Route-level contact sheets will appear here when visual evidence is available.</article>';
+    return;
+  }
+
+  const groups = buildRouteContactGroups(report);
+  if (!groups.length) {
+    stateEl.routeContactHeadline.textContent = options.transient === true
+      ? "The live snapshot has not attached route sheets yet."
+      : "No route contact sheet is available for the current report.";
+    stateEl.routeContactSheet.innerHTML = '<article class="empty-state">No visual evidence was grouped by route in this run.</article>';
+    return;
+  }
+
+  stateEl.routeContactHeadline.textContent = `${groups.length} route sheet${groups.length === 1 ? "" : "s"} generated from the current run.`;
+  stateEl.routeContactSheet.innerHTML = groups
+    .slice(0, 8)
+    .map((group) => `
+      <article class="route-sheet-card">
+        <div class="route-sheet-head">
+          <div>
+            <div class="nav-title">${escapeHtml(group.route)}</div>
+            <div class="history-meta">${group.items.length} screenshot${group.items.length === 1 ? "" : "s"} | ${escapeHtml(group.items.map((item) => item.issueCode).filter(Boolean).slice(0, 3).join(" | "))}</div>
+          </div>
+        </div>
+        <div class="route-sheet-grid">
+          ${group.items.slice(0, 6).map((item, index) => `
+            <button
+              type="button"
+              class="route-sheet-thumb"
+              data-evidence-preview="true"
+              data-evidence-path="${escapeHtml(item.path)}"
+              aria-label="${escapeHtml(item.label || `route-evidence-${index + 1}`)}"
+            >
+              <img
+                class="route-sheet-thumb-image"
+                src="${escapeHtml(toFileSrc(item.path))}"
+                alt="${escapeHtml(item.label || `route-evidence-${index + 1}`)}"
+                loading="lazy"
+                data-evidence-preview="true"
+                data-evidence-path="${escapeHtml(item.path)}"
+              />
+              <span class="route-sheet-thumb-label">${escapeHtml(item.variant || item.issueCode || "evidence")}</span>
+            </button>
+          `).join("")}
         </div>
       </article>
     `)
@@ -1718,8 +1945,10 @@ function renderPromptWorkspace(report) {
   stateEl.promptWorkspaceCompare.textContent = buildCompareDigest(report);
   stateEl.promptWorkspaceRoutes.textContent = buildRouteDigest(report);
   stateEl.promptWorkspaceActions.textContent = buildActionDigest(report);
+  stateEl.promptWorkspaceClientPrompt.textContent = buildClientOutreachPrompt(report);
+  stateEl.promptWorkspaceClientMessage.textContent = buildClientOutreachMessage(report);
   stateEl.promptWorkspaceHeadline.textContent = report
-    ? "Prompt pack loaded from the current report. Copy only the artifact you need."
+    ? "Prompt pack loaded from the current report. Copy technical, operational or client-facing material from one workspace."
     : "Run an audit to generate prompts and digests.";
 }
 
@@ -1801,6 +2030,8 @@ function getCommandPaletteItems() {
     { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
     { id: "copy-seo", label: "Copy SEO digest", hint: "", description: "Copy the current SEO summary and recommendation block.", action: () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
+    { id: "copy-client-prompt", label: "Copy client outreach prompt", hint: "", description: "Copy the AI-ready commercial prompt based on the current audit.", action: () => copyText(buildClientOutreachPrompt(getVisibleReport()), "[studio] client outreach prompt copied.") },
+    { id: "copy-client-message", label: "Copy client outreach message", hint: "", description: "Copy the ready-to-send client-facing pitch based on the current audit.", action: () => copyText(buildClientOutreachMessage(getVisibleReport()), "[studio] client outreach message copied.") },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
     { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
     { id: "switch-findings", label: "Go to findings", hint: "Ctrl+3", description: "Open the issue board, visual quality and coverage panels.", action: () => switchView("findings") },
@@ -2035,6 +2266,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderSeoWorkspace(report, { transient });
   renderPromptWorkspace(report);
   renderEvidenceGallery(report, { transient });
+  renderRouteContactSheet(report, { transient });
   renderReportSummary(report, { transient });
   renderComparison(report, { transient });
   renderMissionBrief();
@@ -2056,6 +2288,7 @@ function clearLiveReportState() {
   renderSeoWorkspace(fallbackReport);
   renderPromptWorkspace(fallbackReport);
   renderEvidenceGallery(fallbackReport);
+  renderRouteContactSheet(fallbackReport);
   renderReportSummary(fallbackReport);
   renderComparison(fallbackReport);
   renderMissionBrief();
@@ -2468,6 +2701,8 @@ function bindButtons() {
   stateEl.copyRouteDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceRoutes.textContent, "[studio] route digest copied."));
   stateEl.copyActionDigest.addEventListener("click", async () => copyText(buildActionDigest(getVisibleReport()), "[studio] action digest copied."));
   stateEl.copyActionDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceActions.textContent, "[studio] action digest copied."));
+  stateEl.copyClientOutreachPrompt.addEventListener("click", async () => copyText(stateEl.promptWorkspaceClientPrompt.textContent, "[studio] client outreach prompt copied."));
+  stateEl.copyClientOutreachMessage.addEventListener("click", async () => copyText(stateEl.promptWorkspaceClientMessage.textContent, "[studio] client outreach message copied."));
   stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
   stateEl.copyCompareDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceCompare.textContent, "[studio] comparison digest copied."));
   stateEl.copySeoDigest.addEventListener("click", async () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
@@ -2480,6 +2715,14 @@ function bindButtons() {
       stateEl.promptWorkspaceIssues.textContent,
       "",
       stateEl.promptWorkspaceCompare.textContent,
+      "",
+      stateEl.promptWorkspaceRoutes.textContent,
+      "",
+      stateEl.promptWorkspaceActions.textContent,
+      "",
+      stateEl.promptWorkspaceClientPrompt.textContent,
+      "",
+      stateEl.promptWorkspaceClientMessage.textContent,
     ].join("\n"),
     "[studio] prompt pack copied.",
   ));
@@ -2605,7 +2848,7 @@ function bindButtons() {
     appendLog(`[studio] loaded snapshot ${snapshot.baseUrl} from history.`);
     showToast("Stored snapshot loaded.", "ok");
   });
-  [stateEl.issuesList, stateEl.evidenceGallery].forEach((container) => {
+  [stateEl.issuesList, stateEl.evidenceGallery, stateEl.routeContactSheet].forEach((container) => {
     container.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
