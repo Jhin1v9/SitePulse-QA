@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" role="img" aria-labelledby="title desc">
+  <title id="title">SitePulse Studio Evidence Preview</title>
+  <desc id="desc">Report mock with severity chart and recommendation table.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#09192F" />
+      <stop offset="100%" stop-color="#051222" />
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="800" fill="#020814" />
+  <rect x="44" y="40" width="1192" height="720" rx="20" fill="url(#bg)" stroke="#1D3D66" />
+  <rect x="44" y="40" width="1192" height="64" rx="20" fill="#0A203D" />
+  <text x="88" y="79" fill="#D7E9FF" font-family="'Segoe UI', sans-serif" font-size="24" font-weight="700">
+    SitePulse Studio - Evidence Report
+  </text>
+  <rect x="80" y="140" width="740" height="560" rx="16" fill="#0A1D38" stroke="#254A77" />
+  <text x="110" y="184" fill="#DCEBFF" font-family="'Segoe UI', sans-serif" font-size="30" font-weight="800">
+    Findings by severity
+  </text>
+  <rect x="110" y="214" width="680" height="120" rx="14" fill="#0F2B4E" />
+  <rect x="130" y="240" width="500" height="18" rx="9" fill="#FF5A77" />
+  <rect x="130" y="270" width="390" height="18" rx="9" fill="#FFC560" />
+  <rect x="130" y="300" width="290" height="18" rx="9" fill="#7AE6A0" />
+  <text x="646" y="254" fill="#FFE1E8" font-family="'Segoe UI', sans-serif" font-size="18">Critical 12</text>
+  <text x="536" y="284" fill="#FFF0CF" font-family="'Segoe UI', sans-serif" font-size="18">Major 9</text>
+  <text x="436" y="314" fill="#D5FFE1" font-family="'Segoe UI', sans-serif" font-size="18">Minor 6</text>
+  <rect x="110" y="360" width="680" height="310" rx="14" fill="#0F2B4E" />
+  <text x="130" y="398" fill="#DCEBFF" font-family="'Segoe UI', sans-serif" font-size="22" font-weight="700">
+    Recommendation table
+  </text>
+  <rect x="130" y="424" width="640" height="52" rx="8" fill="#12345D" />
+  <rect x="130" y="486" width="640" height="52" rx="8" fill="#12345D" />
+  <rect x="130" y="548" width="640" height="52" rx="8" fill="#12345D" />
+  <text x="152" y="457" fill="#E4F1FF" font-family="'Segoe UI', sans-serif" font-size="19">
+    Fix canonical mismatch on /pricing before release
+  </text>
+  <text x="152" y="519" fill="#E4F1FF" font-family="'Segoe UI', sans-serif" font-size="19">
+    Correct CLS issue in hero section for mobile viewport
+  </text>
+  <text x="152" y="581" fill="#E4F1FF" font-family="'Segoe UI', sans-serif" font-size="19">
+    Block deploy until redirect chain is normalized
+  </text>
+  <rect x="850" y="140" width="346" height="560" rx="16" fill="#0A1D38" stroke="#254A77" />
+  <text x="876" y="184" fill="#9CC9FF" font-family="'Segoe UI', sans-serif" font-size="20" font-weight="600">
+    Decision summary
+  </text>
+  <rect x="876" y="214" width="294" height="108" rx="12" fill="#3D1322" />
+  <text x="896" y="256" fill="#FFD3DC" font-family="'Segoe UI', sans-serif" font-size="19" font-weight="700">
+    Release status
+  </text>
+  <text x="896" y="288" fill="#FFE5EA" font-family="'Segoe UI', sans-serif" font-size="28" font-weight="800">
+    BLOCKED
+  </text>
+  <rect x="876" y="344" width="294" height="330" rx="12" fill="#102A4D" />
+  <text x="896" y="384" fill="#DDEBFF" font-family="'Segoe UI', sans-serif" font-size="18">
+    - 3 critical issues
+  </text>
+  <text x="896" y="424" fill="#DDEBFF" font-family="'Segoe UI', sans-serif" font-size="18">
+    - 2 major regressions
+  </text>
+  <text x="896" y="464" fill="#DDEBFF" font-family="'Segoe UI', sans-serif" font-size="18">
+    - SEO index risk detected
+  </text>
+  <text x="896" y="504" fill="#DDEBFF" font-family="'Segoe UI', sans-serif" font-size="18">
+    - Re-audit required
+  </text>
+</svg>

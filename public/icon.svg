@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">SitePulse Studio Icon</title>
+  <desc id="desc">Rounded blue icon with SP initials.</desc>
+  <defs>
+    <radialGradient id="bg" cx="24%" cy="18%" r="88%">
+      <stop offset="0%" stop-color="#39B8FF" />
+      <stop offset="45%" stop-color="#0D66E8" />
+      <stop offset="100%" stop-color="#071A38" />
+    </radialGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="28" fill="url(#bg)" />
+  <text
+    x="64"
+    y="76"
+    text-anchor="middle"
+    font-family="'Segoe UI', sans-serif"
+    font-size="46"
+    font-weight="800"
+    fill="#EFF5FF"
+    letter-spacing="-2"
+  >
+    SP
+  </text>
+</svg>

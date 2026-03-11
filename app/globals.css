@@ -1,0 +1,60 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(60rem 30rem at 8% -6%, rgba(25, 133, 255, 0.15), transparent 70%),
+    radial-gradient(45rem 24rem at 95% 0%, rgba(91, 255, 194, 0.13), transparent 60%),
+    linear-gradient(180deg, #020611 0%, #050a16 48%, #060d1c 100%);
+  color: #f1f5ff;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  margin: 0;
+  font-family: var(--font-heading), "Segoe UI", sans-serif;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+@layer components {
+  .content-shell {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .panel {
+    @apply rounded-2xl border border-slate-700/70 bg-slate-900/55 shadow-glow backdrop-blur-sm;
+  }
+}

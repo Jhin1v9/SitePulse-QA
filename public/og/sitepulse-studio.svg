@@ -1,0 +1,87 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">SitePulse Studio</title>
+  <desc id="desc">QA local and technical SEO for safer releases.</desc>
+  <defs>
+    <radialGradient id="glowA" cx="16%" cy="8%" r="90%">
+      <stop offset="0%" stop-color="#1D82FF" stop-opacity="0.9" />
+      <stop offset="38%" stop-color="#0B315F" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#050B19" />
+    </radialGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#8CC2FF" />
+      <stop offset="100%" stop-color="#A6FFE6" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#glowA)" />
+  <g transform="translate(72 76)">
+    <rect x="0" y="0" width="68" height="68" rx="34" fill="none" stroke="#D8E7FF" stroke-opacity="0.68" />
+    <text
+      x="34"
+      y="45"
+      text-anchor="middle"
+      font-family="'Segoe UI', sans-serif"
+      font-size="28"
+      font-weight="800"
+      fill="#F2F7FF"
+      letter-spacing="-1"
+    >
+      SP
+    </text>
+    <text
+      x="86"
+      y="43"
+      font-family="'Segoe UI', sans-serif"
+      font-size="24"
+      font-weight="600"
+      fill="#D0E0FF"
+      letter-spacing="2"
+      text-transform="uppercase"
+    >
+      SitePulse Studio
+    </text>
+  </g>
+  <text
+    x="72"
+    y="290"
+    font-family="'Segoe UI', sans-serif"
+    font-size="78"
+    font-weight="800"
+    fill="#F4F8FF"
+    letter-spacing="-2"
+  >
+    QA local e SEO tecnico para
+  </text>
+  <text
+    x="72"
+    y="380"
+    font-family="'Segoe UI', sans-serif"
+    font-size="78"
+    font-weight="800"
+    fill="url(#accent)"
+    letter-spacing="-2"
+  >
+    releases sem surpresa.
+  </text>
+  <text
+    x="72"
+    y="470"
+    font-family="'Segoe UI', sans-serif"
+    font-size="33"
+    font-weight="500"
+    fill="#CCDCFF"
+  >
+    Auditoria tecnica, evidencias acionaveis e governanca de qualidade em um fluxo unico.
+  </text>
+  <rect x="72" y="520" width="332" height="42" rx="21" fill="#0E1F3E" stroke="#3C5A8F" />
+  <text
+    x="238"
+    y="548"
+    text-anchor="middle"
+    font-family="'Segoe UI', sans-serif"
+    font-size="22"
+    font-weight="600"
+    fill="#DFEBFF"
+  >
+    sitepulse.studio
+  </text>
+</svg>
