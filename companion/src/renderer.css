@@ -1218,6 +1218,10 @@ button.xl {
   gap: 18px;
 }
 
+.compact-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .comparison-quad-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1328,6 +1332,10 @@ button.xl {
 
 .prompt-box {
   max-height: 320px;
+}
+
+.update-detail-box {
+  max-height: 180px;
 }
 
 .comparison-list {

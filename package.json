@@ -10,6 +10,7 @@
     "desktop:test:ui": "npm --prefix companion run test:ui",
     "desktop:build:win": "npm --prefix companion run build:win",
     "desktop:build:win:staging": "npm --prefix companion run build:win:staging",
+    "desktop:build:update:metadata": "npm --prefix companion run build:update:metadata",
     "companion:install": "npm --prefix companion install",
     "companion:dev": "npm --prefix companion run dev",
     "companion:smoke": "npm --prefix companion run smoke",

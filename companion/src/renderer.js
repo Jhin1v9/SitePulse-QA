@@ -214,6 +214,14 @@ const stateEl = {
   seoLookbackDaysInput: document.getElementById("seoLookbackDaysInput"),
   refreshSeoSource: document.getElementById("refreshSeoSource"),
   saveSeoSource: document.getElementById("saveSeoSource"),
+  updateCurrentVersion: document.getElementById("updateCurrentVersion"),
+  updateRemoteVersion: document.getElementById("updateRemoteVersion"),
+  updateStatusLabel: document.getElementById("updateStatusLabel"),
+  updateProgressLabel: document.getElementById("updateProgressLabel"),
+  updateDetailBox: document.getElementById("updateDetailBox"),
+  checkForUpdates: document.getElementById("checkForUpdates"),
+  downloadUpdate: document.getElementById("downloadUpdate"),
+  installUpdate: document.getElementById("installUpdate"),
   googlePosition: document.getElementById("googlePosition"),
   googleClicks: document.getElementById("googleClicks"),
   googleImpressions: document.getElementById("googleImpressions"),
@@ -1034,6 +1042,9 @@ function getMenuItems(menuName) {
       { id: "tools-settings", label: "Open Settings", hint: "Ctrl+8", action: () => switchView("settings") },
       { id: "tools-start", label: "Start Engine", hint: "", action: () => startEngine() },
       { id: "tools-stop", label: "Stop Engine", hint: "", action: () => stopEngine() },
+      { id: "tools-update-check", label: "Check for Updates", hint: "", action: () => checkForUpdates() },
+      { id: "tools-update-download", label: "Download Update", hint: "", action: () => downloadUpdate() },
+      { id: "tools-update-install", label: "Install Update and Restart", hint: "", action: () => installUpdate() },
       { id: "tools-bridge", label: "Copy Bridge URL", hint: "", action: () => copyBridgeUrl() },
     ],
     help: [
@@ -2465,6 +2476,26 @@ function renderGoogleSeoSource(sourceInput) {
     : `Verified Search Console data for ${source.snapshot.property}. Window: ${source.snapshot.startDate} to ${source.snapshot.endDate}. Synced ${formatLocalDate(source.snapshot.syncedAt || source.lastSyncedAt)}.`;
 }
 
+function renderUpdateState(updateInput) {
+  const update = updateInput && typeof updateInput === "object" ? updateInput : {};
+  const currentVersion = String(update.currentVersion || stateEl.versionText.textContent || "1.0.0");
+  const remoteVersion = String(update.remoteVersion || "").trim();
+  const status = String(update.status || "idle");
+  const progress = Number.isFinite(Number(update.downloadProgress)) ? Math.max(0, Math.min(100, Number(update.downloadProgress))) : 0;
+  const detail = String(update.detail || "Updates have not been checked yet.");
+  const canDownload = update.available === true && update.downloaded !== true && update.downloading !== true;
+  const canInstall = update.downloaded === true;
+
+  stateEl.updateCurrentVersion.textContent = currentVersion;
+  stateEl.updateRemoteVersion.textContent = remoteVersion || "n/a";
+  stateEl.updateStatusLabel.textContent = status;
+  stateEl.updateProgressLabel.textContent = `${progress.toFixed(0)}%`;
+  stateEl.updateDetailBox.textContent = detail;
+  stateEl.checkForUpdates.disabled = update.checkInFlight === true || status === "checking";
+  stateEl.downloadUpdate.disabled = !canDownload;
+  stateEl.installUpdate.disabled = !canInstall;
+}
+
 function renderSeoWorkspace(report, options = {}) {
   const transient = options.transient === true;
   if (!report) {
@@ -2605,6 +2636,9 @@ function getCommandPaletteItems() {
     { id: "preview-reload", label: "Reload preview", hint: "", description: "Reload the embedded target preview surface.", action: () => reloadPreview() },
     { id: "preview-external", label: "Open preview in browser", hint: "", description: "Open the current preview URL in the system browser.", action: () => openPreviewExternal() },
     { id: "refresh-google-seo", label: "Refresh Google SEO data", hint: "", description: "Pull real Search Console metrics for the configured property.", action: () => refreshSeoSource() },
+    { id: "check-updates", label: "Check for Updates", hint: "", description: "Query the SitePulse release channel for a newer version.", action: () => checkForUpdates() },
+    { id: "download-update", label: "Download Update", hint: "", description: "Download the newest available SitePulse release.", action: () => downloadUpdate() },
+    { id: "install-update", label: "Install Update and Restart", hint: "", description: "Apply the downloaded release and restart the workstation.", action: () => installUpdate() },
     { id: "copy-compare", label: "Copy compare digest", hint: "", description: "Copy the current delta summary against baseline.", action: () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied.") },
     { id: "copy-seo", label: "Copy SEO digest", hint: "", description: "Copy the current SEO summary and recommendation block.", action: () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied.") },
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
@@ -2890,6 +2924,7 @@ function renderCompanionState(payload) {
   setChip(stateEl.bridgeChip, bridgeRunning ? "engine online" : "engine offline", bridgeRunning ? "ok" : "bad");
   setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
   renderGoogleSeoSource(payload?.seoSource || {});
+  renderUpdateState(payload?.update || null);
 
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});
@@ -2986,6 +3021,51 @@ async function refreshSeoSource() {
   }
   appendLog("[seo] real Google data refreshed.");
   showToast("Real Google data loaded into the SEO workspace.", "ok");
+}
+
+async function checkForUpdates() {
+  const result = await window.sitePulseCompanion.checkForUpdates();
+  if (!result?.ok) {
+    appendLog(`[update] check failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Update check failed.", "bad");
+    return;
+  }
+
+  renderUpdateState(result.state || uiState.companionState?.update || null);
+  if (result.available === true) {
+    appendLog(`[update] new version available: ${result.manifest?.version || result.state?.remoteVersion || "unknown"}`);
+    showToast("New version available.", "warn");
+    return;
+  }
+
+  appendLog("[update] application is up to date.");
+  showToast("Application is up to date.", "ok");
+}
+
+async function downloadUpdate() {
+  const result = await window.sitePulseCompanion.downloadUpdate();
+  if (!result?.ok) {
+    appendLog(`[update] download failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Update download failed.", "bad");
+    return;
+  }
+
+  renderUpdateState(result.state || uiState.companionState?.update || null);
+  appendLog("[update] download started.");
+  showToast("Update download started.", "ok");
+}
+
+async function installUpdate() {
+  const result = await window.sitePulseCompanion.installUpdate();
+  if (!result?.ok) {
+    appendLog(`[update] install failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Update install could not start.", "bad");
+    return;
+  }
+
+  renderUpdateState(result.state || uiState.companionState?.update || null);
+  appendLog("[update] installing downloaded update.");
+  showToast("Installing update and restarting SitePulse Studio.", "warn");
 }
 
 async function handleAuditRun(forceDepth = null) {
@@ -3397,6 +3477,9 @@ function bindButtons() {
   stateEl.copySeoDigest.addEventListener("click", async () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
   stateEl.refreshSeoSource.addEventListener("click", refreshSeoSource);
   stateEl.saveSeoSource.addEventListener("click", saveSeoSource);
+  stateEl.checkForUpdates.addEventListener("click", checkForUpdates);
+  stateEl.downloadUpdate.addEventListener("click", downloadUpdate);
+  stateEl.installUpdate.addEventListener("click", installUpdate);
   stateEl.copyPromptPack.addEventListener("click", async () => copyText(
     [
       stateEl.promptWorkspaceFix.textContent,

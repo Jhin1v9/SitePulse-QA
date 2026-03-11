@@ -13,11 +13,13 @@
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "test:ui": "node scripts/ui-contract.mjs",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
-    "build:win:staging": "npm run sync:runtime && electron-builder --win nsis --config.directories.output=dist-staging",
-    "build:win": "npm run sync:runtime && electron-builder --win nsis"
+    "build:win:staging": "npm run sync:runtime && electron-builder --win nsis-web zip --config.directories.output=dist-staging",
+    "build:win": "npm run sync:runtime && electron-builder --win nsis-web zip",
+    "build:update:metadata": "node scripts/build-version-json.mjs --output-dir dist-staging --notes \"SitePulse Studio desktop release.\""
   },
   "dependencies": {
     "@sparticuz/chromium": "138.0.2",
+    "electron-updater": "6.6.2",
     "playwright": "^1.53.2"
   },
   "devDependencies": {
@@ -30,6 +32,13 @@
     "directories": {
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://cdn.sitepulse.app/releases/"
+      }
+    ],
+    "generateUpdatesFilesForAllChannels": true,
     "files": [
       {
         "from": "src",
@@ -58,9 +67,15 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis-web",
+        "zip"
       ],
       "artifactName": "SitePulse-Studio-${version}-Setup.${ext}"
+    },
+    "nsisWeb": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false
     },
     "nsis": {
       "oneClick": false,

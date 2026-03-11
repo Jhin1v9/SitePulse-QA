@@ -6,6 +6,7 @@ const process = require("node:process");
 const { pathToFileURL } = require("node:url");
 const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
 const { fetchSearchConsoleSnapshot, normalizeSiteProperty } = require("./search-console-service.cjs");
+const { UpdateService } = require("./update-service.cjs");
 
 const IS_SMOKE_MODE = process.argv.includes("--smoke-test") || process.env.SITEPULSE_DESKTOP_SMOKE === "1";
 const BRIDGE_HOST = "127.0.0.1";
@@ -28,6 +29,7 @@ let liveReportLastMtimeMs = 0;
 let liveReportReadInFlight = false;
 let liveReportContext = null;
 let seoSourceState = null;
+let updateService = null;
 
 function createEmptySeoSourceState() {
   return {
@@ -2094,9 +2096,33 @@ function getStatePayload() {
       hasLiveReport: !!auditState.liveReport,
     },
     seoSource: sanitizeSeoSourceState(seoSourceState),
+    update: updateService ? updateService.getState() : null,
     logs: [...logLines],
     logFile: desktopLogFile,
   };
+}
+
+async function installDownloadedUpdate() {
+  if (!updateService) {
+    return { ok: false, error: "update_service_unavailable" };
+  }
+
+  const payload = await updateService.installUpdate();
+  if (!payload?.ok || payload.installNow !== true) {
+    return payload;
+  }
+
+  pushLog("[update] installing downloaded update.");
+  shuttingDown = true;
+  try {
+    if (bridgeHandle) {
+      await stopBridge();
+    }
+  } finally {
+    updateService.applyUpdateAndRestart();
+  }
+
+  return payload;
 }
 
 async function loadDesktopShell() {
@@ -2205,6 +2231,21 @@ ipcMain.handle("companion:get-state", async () => ({
     hasLiveReport: !!auditState.liveReport,
   },
 }));
+ipcMain.handle("companion:check-for-updates", async () => {
+  if (!updateService) {
+    return { ok: false, error: "update_service_unavailable" };
+  }
+  return await updateService.checkForUpdates({ silent: false });
+});
+ipcMain.handle("companion:download-update", async () => {
+  if (!updateService) {
+    return { ok: false, error: "update_service_unavailable" };
+  }
+  return await updateService.downloadUpdate();
+});
+ipcMain.handle("companion:install-update", async () => {
+  return await installDownloadedUpdate();
+});
 ipcMain.handle("companion:start-bridge", async () => {
   try {
     return await startBridge();
@@ -2454,6 +2495,11 @@ app.whenReady().then(async () => {
   pushLog(`[desktop] userData=${app.getPath("userData")}`);
   launchOnLogin = app.getLoginItemSettings().openAtLogin;
   seoSourceState = await readSeoSourceState();
+  updateService = new UpdateService({
+    log: (line) => pushLog(line),
+    notify: () => notifyState(),
+  });
+  updateService.initialize();
 
   if (IS_SMOKE_MODE) {
     try {
@@ -2478,6 +2524,7 @@ app.whenReady().then(async () => {
     await startBridge();
     notifyState();
     writeBootstrapTrace("desktop boot completed");
+    void updateService.checkForUpdates({ silent: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error || "desktop_boot_failed");
     writeBootstrapTrace(`desktop boot failed: ${message}`);

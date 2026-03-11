@@ -996,6 +996,39 @@
                   </div>
                 </article>
 
+                <article class="panel nested-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">release channel</p>
+                      <h3>Application updates</h3>
+                    </div>
+                  </div>
+                  <div class="settings-grid compact-grid">
+                    <article class="setting-card">
+                      <span class="info-label">Current version</span>
+                      <code id="updateCurrentVersion">loading...</code>
+                    </article>
+                    <article class="setting-card">
+                      <span class="info-label">Remote version</span>
+                      <code id="updateRemoteVersion">n/a</code>
+                    </article>
+                    <article class="setting-card">
+                      <span class="info-label">Status</span>
+                      <code id="updateStatusLabel">idle</code>
+                    </article>
+                    <article class="setting-card">
+                      <span class="info-label">Download progress</span>
+                      <code id="updateProgressLabel">0%</code>
+                    </article>
+                  </div>
+                  <div class="prompt-box update-detail-box" id="updateDetailBox">Updates have not been checked yet.</div>
+                  <div class="action-row stack">
+                    <button id="checkForUpdates" type="button">Check for Updates</button>
+                    <button id="downloadUpdate" type="button">Download Update</button>
+                    <button id="installUpdate" class="primary" type="button">Install and Restart</button>
+                  </div>
+                </article>
+
                 <article class="panel nested-panel settings-notes-panel">
                   <div class="panel-head">
                     <div>
