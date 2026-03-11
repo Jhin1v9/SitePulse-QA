@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 :root {
+  color-scheme: light;
+}
+
+:root.dark {
   color-scheme: dark;
 }
 
@@ -21,12 +25,21 @@ body {
 
 body {
   background:
+    radial-gradient(60rem 30rem at 8% -6%, rgba(25, 133, 255, 0.14), transparent 70%),
+    radial-gradient(45rem 24rem at 95% 0%, rgba(91, 255, 194, 0.1), transparent 60%),
+    linear-gradient(180deg, #eaf3ff 0%, #f8fbff 48%, #f3f8ff 100%);
+  color: #0f172a;
+  font-family: var(--font-body), "Segoe UI", sans-serif;
+  line-height: 1.5;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+:root.dark body {
+  background:
     radial-gradient(60rem 30rem at 8% -6%, rgba(25, 133, 255, 0.15), transparent 70%),
     radial-gradient(45rem 24rem at 95% 0%, rgba(91, 255, 194, 0.13), transparent 60%),
     linear-gradient(180deg, #020611 0%, #050a16 48%, #060d1c 100%);
   color: #f1f5ff;
-  font-family: var(--font-body), "Segoe UI", sans-serif;
-  line-height: 1.5;
 }
 
 h1,
@@ -51,10 +64,22 @@ a {
 
 @layer components {
   .content-shell {
-    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
 
   .panel {
-    @apply rounded-2xl border border-slate-700/70 bg-slate-900/55 shadow-glow backdrop-blur-sm;
+    @apply rounded-2xl border border-slate-300/70 bg-white/80 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_14px_38px_rgba(15,23,42,0.12)] backdrop-blur-sm;
+  }
+
+  :root.dark .panel {
+    @apply border-slate-700/70 bg-slate-900/55 shadow-[0_0_0_1px_rgba(23,192,255,0.2),0_20px_70px_rgba(0,0,0,0.35)];
+  }
+
+  .input-base {
+    @apply h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300;
+  }
+
+  :root.dark .input-base {
+    @apply border-slate-600 bg-slate-950/70 text-slate-100 placeholder:text-slate-500;
   }
 }

@@ -1,23 +1,13 @@
-export interface NavigationItem {
-  href: string;
-  label: string;
-}
-
 export const siteConfig = {
   name: "SitePulse Studio",
   shortName: "SitePulse",
-  url: "https://sitepulse.studio",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://site-pulse-qa.vercel.app",
   description:
-    "Auditoria técnica local para equipes que querem lançar com previsibilidade, evidência e menos retrabalho.",
+    "AI audit platform for desktop teams that need predictable releases, technical evidence, and stronger conversion quality.",
   email: "sales@sitepulse.studio",
   supportEmail: "support@sitepulse.studio",
+  legalName: "SitePulse Systems",
+  social: {
+    github: "https://github.com/sitepulse",
+  },
 };
-
-export const navigationItems: readonly NavigationItem[] = [
-  { href: "/", label: "Home" },
-  { href: "/demo", label: "Demo" },
-  { href: "/downloads", label: "Downloads" },
-  { href: "/pricing", label: "Pricing" },
-  { href: "/faq", label: "FAQ" },
-  { href: "/contact", label: "Contato" },
-];
