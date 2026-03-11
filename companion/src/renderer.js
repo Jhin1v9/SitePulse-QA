@@ -207,6 +207,19 @@ const stateEl = {
   seoWorkspaceDelta: document.getElementById("seoWorkspaceDelta"),
   seoRecommendationsList: document.getElementById("seoRecommendationsList"),
   seoWorkspaceSummary: document.getElementById("seoWorkspaceSummary"),
+  seoExternalHeadline: document.getElementById("seoExternalHeadline"),
+  seoExternalDetail: document.getElementById("seoExternalDetail"),
+  seoPropertyInput: document.getElementById("seoPropertyInput"),
+  seoAccessTokenInput: document.getElementById("seoAccessTokenInput"),
+  seoLookbackDaysInput: document.getElementById("seoLookbackDaysInput"),
+  refreshSeoSource: document.getElementById("refreshSeoSource"),
+  saveSeoSource: document.getElementById("saveSeoSource"),
+  googlePosition: document.getElementById("googlePosition"),
+  googleClicks: document.getElementById("googleClicks"),
+  googleImpressions: document.getElementById("googleImpressions"),
+  googleCtr: document.getElementById("googleCtr"),
+  googleTopQuery: document.getElementById("googleTopQuery"),
+  googleTopPage: document.getElementById("googleTopPage"),
   copySeoDigest: document.getElementById("copySeoDigest"),
   seoOnlyPreset: document.getElementById("seoOnlyPreset"),
   pinCurrentBaseline: document.getElementById("pinCurrentBaseline"),
@@ -298,6 +311,14 @@ const uiState = {
   auditRequestInFlight: false,
   activeEvidence: null,
   activeEvidenceReference: null,
+  seoSource: {
+    property: "",
+    hasAccessToken: false,
+    lookbackDays: 28,
+    lastSyncedAt: "",
+    lastError: "",
+    snapshot: null,
+  },
   preview: {
     requestedUrl: "",
     loadedUrl: "",
@@ -332,6 +353,41 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function normalizeSeoSource(input) {
+  const snapshot = input?.snapshot && typeof input.snapshot === "object" ? input.snapshot : null;
+  return {
+    property: String(input?.property || ""),
+    hasAccessToken: input?.hasAccessToken === true,
+    lookbackDays: Math.min(90, Math.max(3, toNumber(input?.lookbackDays, 28))),
+    lastSyncedAt: String(input?.lastSyncedAt || ""),
+    lastError: String(input?.lastError || ""),
+    snapshot: snapshot
+      ? {
+          source: String(snapshot.source || "google-search-console"),
+          property: String(snapshot.property || ""),
+          startDate: String(snapshot.startDate || ""),
+          endDate: String(snapshot.endDate || ""),
+          lookbackDays: Math.min(90, Math.max(3, toNumber(snapshot.lookbackDays, 28))),
+          clicks: toNumber(snapshot.clicks, 0),
+          impressions: toNumber(snapshot.impressions, 0),
+          ctr: toNumber(snapshot.ctr, 0),
+          position: toNumber(snapshot.position, 0),
+          topQuery: String(snapshot.topQuery || ""),
+          topQueryClicks: toNumber(snapshot.topQueryClicks, 0),
+          topPage: String(snapshot.topPage || ""),
+          topPageClicks: toNumber(snapshot.topPageClicks, 0),
+          syncedAt: String(snapshot.syncedAt || ""),
+        }
+      : null,
+  };
+}
+
+function formatPercent(value) {
+  const amount = toNumber(value, 0);
+  if (!amount) return "0%";
+  return `${(amount * 100).toFixed(2)}%`;
+}
+
 function formatLocalDate(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "unknown";
@@ -355,6 +411,12 @@ function toFileSrc(filePath) {
   const value = String(filePath || "").trim();
   if (!value) return "";
   return encodeURI(`file:///${value.replace(/\\/g, "/")}`);
+}
+
+function setInputValueIfIdle(element, value) {
+  if (!element) return;
+  if (document.activeElement === element) return;
+  element.value = String(value || "");
 }
 
 function median(values) {
@@ -1304,6 +1366,7 @@ function buildSeoDigest(report) {
     return "No SEO report is currently loaded in SitePulse Studio.";
   }
 
+  const googleSnapshot = uiState.seoSource?.snapshot;
   const lines = [
     `Target: ${report.meta.baseUrl}`,
     `SEO score: ${report.summary.seoScore}`,
@@ -1311,6 +1374,20 @@ function buildSeoDigest(report) {
     `SEO issues total: ${report.summary.seoTotalIssues || 0}`,
     `Pages analyzed: ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}`,
   ];
+
+  if (googleSnapshot) {
+    lines.push(
+      `Google property: ${googleSnapshot.property}`,
+      `Google avg position: ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}`,
+      `Google clicks: ${googleSnapshot.clicks}`,
+      `Google impressions: ${googleSnapshot.impressions}`,
+      `Google CTR: ${formatPercent(googleSnapshot.ctr)}`,
+      `Top query: ${googleSnapshot.topQuery || "n/a"}`,
+      `Top page: ${googleSnapshot.topPage || "n/a"}`,
+    );
+  } else {
+    lines.push("Google performance: no verified external Search Console data connected.");
+  }
 
   const recommendations = Array.isArray(report.seo?.topRecommendations) ? report.seo.topRecommendations.filter(Boolean) : [];
   if (recommendations.length) {
@@ -1330,6 +1407,7 @@ function buildClientOutreachPrompt(report) {
 
   const topIssues = report.issues.slice(0, 4);
   const seoAvailable = (report.summary.seoPagesAnalyzed || 0) > 0 || (report.summary.seoTotalIssues || 0) > 0;
+  const googleSnapshot = uiState.seoSource?.snapshot;
   const lines = [
     "Act as a senior website consultant who can sell technical work clearly and credibly.",
     "Write a short outreach message in English for the site owner after reviewing their website.",
@@ -1360,6 +1438,14 @@ function buildClientOutreachPrompt(report) {
           `SEO total issues: ${report.summary.seoTotalIssues || 0}`,
         ]
       : []),
+    ...(googleSnapshot
+      ? [
+          `Google average position: ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}`,
+          `Google clicks: ${googleSnapshot.clicks}`,
+          `Google impressions: ${googleSnapshot.impressions}`,
+          `Google CTR: ${formatPercent(googleSnapshot.ctr)}`,
+        ]
+      : []),
     "",
     "Top findings:",
     ...(topIssues.length
@@ -1376,6 +1462,7 @@ function buildClientOutreachMessage(report) {
   }
 
   const seoAvailable = (report.summary.seoPagesAnalyzed || 0) > 0 || (report.summary.seoTotalIssues || 0) > 0;
+  const googleSnapshot = uiState.seoSource?.snapshot;
   const leadIssues = report.issues.slice(0, 3).map((issue) => {
     const route = issue.route === "/" ? "the home page" : issue.route;
     return `${issue.group.toLowerCase()} on ${route}${issue.action ? ` via ${issue.action}` : ""}`;
@@ -1386,6 +1473,9 @@ function buildClientOutreachMessage(report) {
   const seoLine = seoAvailable
     ? `I also found SEO pressure points: the current SEO score is ${report.summary.seoScore}, with ${report.summary.seoCriticalIssues || 0} critical search issue(s) and ${report.summary.seoTotalIssues || 0} total SEO issue(s). That can weaken crawl quality, indexation stability and how confidently Google understands the site.`
     : "Even without a dedicated SEO pass, unresolved technical failures still reduce trust and can quietly hurt discoverability.";
+  const googleLine = googleSnapshot
+    ? `On top of the internal audit, verified Google Search Console data shows an average position of ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.impressions} impressions, ${googleSnapshot.clicks} clicks and a CTR of ${formatPercent(googleSnapshot.ctr)} over the last ${googleSnapshot.lookbackDays} days.`
+    : "If needed, I can also connect verified Google Search Console data to measure real position, impressions, clicks and CTR instead of relying only on internal SEO heuristics.";
 
   return [
     `Hi, I reviewed ${report.meta.baseUrl} and found a few issues that are worth fixing before they start costing you trust, conversions and visibility.`,
@@ -1393,6 +1483,8 @@ function buildClientOutreachMessage(report) {
     `The main problems I detected were ${issuesLine}. In practice, this means parts of the site can feel unreliable, some actions can break or create friction, and the overall quality signal of the website drops for both users and search engines.`,
     "",
     seoLine,
+    "",
+    googleLine,
     "",
     `This is exactly the kind of technical debt that often stays invisible until traffic, leads or indexing quality start slipping. Fixing it now is usually much cheaper than waiting until it becomes a visible business problem.`,
     "",
@@ -2306,6 +2398,46 @@ function renderPrompt(report) {
   stateEl.quickPromptBox.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
 }
 
+function renderGoogleSeoSource(sourceInput) {
+  const source = normalizeSeoSource(sourceInput);
+  uiState.seoSource = source;
+
+  setInputValueIfIdle(stateEl.seoPropertyInput, source.property);
+  setInputValueIfIdle(stateEl.seoLookbackDaysInput, String(source.lookbackDays || 28));
+  if (document.activeElement !== stateEl.seoAccessTokenInput) {
+    stateEl.seoAccessTokenInput.value = "";
+  }
+
+  if (!source.snapshot) {
+    stateEl.googlePosition.textContent = "n/a";
+    stateEl.googleClicks.textContent = "0";
+    stateEl.googleImpressions.textContent = "0";
+    stateEl.googleCtr.textContent = "n/a";
+    stateEl.googleTopQuery.textContent = "n/a";
+    stateEl.googleTopPage.textContent = "n/a";
+    stateEl.seoExternalHeadline.textContent = source.hasAccessToken
+      ? "Source saved locally. Refresh to pull real Google data."
+      : "Add a verified property and valid token to load real Google metrics.";
+    stateEl.seoExternalDetail.textContent = source.lastError
+      ? `Google sync failed: ${source.lastError}`
+      : source.hasAccessToken
+      ? "A token is already saved locally. SitePulse will use it when you refresh Google data."
+      : "SitePulse only shows Google ranking signals when Search Console data is available. Without an external source, the SEO view remains internal-only and does not claim real ranking.";
+    return;
+  }
+
+  stateEl.googlePosition.textContent = source.snapshot.position > 0 ? source.snapshot.position.toFixed(1) : "n/a";
+  stateEl.googleClicks.textContent = String(source.snapshot.clicks);
+  stateEl.googleImpressions.textContent = String(source.snapshot.impressions);
+  stateEl.googleCtr.textContent = formatPercent(source.snapshot.ctr);
+  stateEl.googleTopQuery.textContent = source.snapshot.topQuery || "n/a";
+  stateEl.googleTopPage.textContent = source.snapshot.topPage || "n/a";
+  stateEl.seoExternalHeadline.textContent = `Google data synced | avg position ${stateEl.googlePosition.textContent} | clicks ${source.snapshot.clicks}`;
+  stateEl.seoExternalDetail.textContent = source.lastError
+    ? `The last refresh reported an error, but the previous Google snapshot is still loaded: ${source.lastError}`
+    : `Verified Search Console data for ${source.snapshot.property}. Window: ${source.snapshot.startDate} to ${source.snapshot.endDate}. Synced ${formatLocalDate(source.snapshot.syncedAt || source.lastSyncedAt)}.`;
+}
+
 function renderSeoWorkspace(report, options = {}) {
   const transient = options.transient === true;
   if (!report) {
@@ -2335,8 +2467,11 @@ function renderSeoWorkspace(report, options = {}) {
   stateEl.seoWorkspaceHeadline.textContent = transient === true
     ? `Live SEO snapshot | score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0}`
     : `SEO score ${report.summary.seoScore} | critical ${report.summary.seoCriticalIssues || 0} | pages ${report.summary.seoPagesAnalyzed || report.seo?.pagesAnalyzed || 0}`;
+  const googleSnapshot = uiState.seoSource?.snapshot;
   stateEl.seoWorkspaceSummary.textContent = recommendations.length
-    ? `The current run attached ${recommendations.length} SEO recommendation(s). Use this workspace when you want search work isolated from the rest of the board.`
+    ? `The current run attached ${recommendations.length} SEO recommendation(s). ${googleSnapshot ? `External Google data is also loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions.` : "Connect Search Console if you need real Google performance signals."}`
+    : googleSnapshot
+    ? `No additional SEO recommendation was attached to this run. External Google data is loaded: avg position ${googleSnapshot.position > 0 ? googleSnapshot.position.toFixed(1) : "n/a"}, ${googleSnapshot.clicks} clicks, ${googleSnapshot.impressions} impressions and CTR ${formatPercent(googleSnapshot.ctr)}.`
     : "No SEO recommendation was attached to this run. This usually means the current pass did not surface search-specific guidance beyond the score summary.";
 }
 
@@ -2716,6 +2851,7 @@ function renderCompanionState(payload) {
   stateEl.bridgeStatus.textContent = bridgeRunning ? `${payload.bridge.host}:${payload.bridge.port}` : "offline";
   setChip(stateEl.bridgeChip, bridgeRunning ? "engine online" : "engine offline", bridgeRunning ? "ok" : "bad");
   setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
+  renderGoogleSeoSource(payload?.seoSource || {});
 
   replaceLogs(payload?.logs);
   renderAuditState(payload?.audit || {});
@@ -2778,6 +2914,40 @@ async function copyText(value, successMessage) {
   await window.sitePulseCompanion.copyText(payload);
   appendLog(successMessage);
   showToast(successMessage.replace(/^\[studio\]\s*/i, ""), "ok");
+}
+
+async function saveSeoSource() {
+  const payload = {
+    property: stateEl.seoPropertyInput.value,
+    accessToken: stateEl.seoAccessTokenInput.value,
+    lookbackDays: stateEl.seoLookbackDaysInput.value,
+  };
+  const result = await window.sitePulseCompanion.saveSeoSource(payload);
+  if (!result?.ok) {
+    showToast("The SEO source could not be saved.", "bad");
+    return;
+  }
+  renderGoogleSeoSource(result.source || {});
+  appendLog("[seo] source settings saved.");
+  showToast("SEO source saved locally.", "ok");
+}
+
+async function refreshSeoSource() {
+  const payload = {
+    baseUrl: stateEl.targetUrl.value,
+    property: stateEl.seoPropertyInput.value,
+    accessToken: stateEl.seoAccessTokenInput.value,
+    lookbackDays: stateEl.seoLookbackDaysInput.value,
+  };
+  stateEl.seoExternalHeadline.textContent = "Refreshing Google data...";
+  const result = await window.sitePulseCompanion.refreshSeoSource(payload);
+  renderGoogleSeoSource(result?.source || {});
+  if (!result?.ok) {
+    showToast("Google data refresh failed. Review the SEO panel for the exact reason.", "bad");
+    return;
+  }
+  appendLog("[seo] real Google data refreshed.");
+  showToast("Real Google data loaded into the SEO workspace.", "ok");
 }
 
 async function handleAuditRun(forceDepth = null) {
@@ -3181,6 +3351,8 @@ function bindButtons() {
   stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
   stateEl.copyCompareDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceCompare.textContent, "[studio] comparison digest copied."));
   stateEl.copySeoDigest.addEventListener("click", async () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
+  stateEl.refreshSeoSource.addEventListener("click", refreshSeoSource);
+  stateEl.saveSeoSource.addEventListener("click", saveSeoSource);
   stateEl.copyPromptPack.addEventListener("click", async () => copyText(
     [
       stateEl.promptWorkspaceFix.textContent,

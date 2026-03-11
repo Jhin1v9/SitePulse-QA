@@ -5,6 +5,7 @@ const path = require("node:path");
 const process = require("node:process");
 const { pathToFileURL } = require("node:url");
 const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
+const { fetchSearchConsoleSnapshot, normalizeSiteProperty } = require("./search-console-service.cjs");
 
 const IS_SMOKE_MODE = process.argv.includes("--smoke-test") || process.env.SITEPULSE_DESKTOP_SMOKE === "1";
 const BRIDGE_HOST = "127.0.0.1";
@@ -26,6 +27,95 @@ let liveReportCheckpointPath = "";
 let liveReportLastMtimeMs = 0;
 let liveReportReadInFlight = false;
 let liveReportContext = null;
+let seoSourceState = null;
+
+function createEmptySeoSourceState() {
+  return {
+    property: "",
+    accessToken: "",
+    lookbackDays: 28,
+    snapshot: null,
+    lastSyncedAt: "",
+    lastError: "",
+  };
+}
+
+function normalizeLookbackDays(value) {
+  const parsed = Number.parseInt(String(value || ""), 10);
+  if (!Number.isFinite(parsed)) return 28;
+  return Math.min(90, Math.max(3, parsed));
+}
+
+function getSeoSourceStatePath() {
+  return path.join(app.getPath("userData"), "seo-source.json");
+}
+
+function sanitizeSeoSourceState(input) {
+  const state = input && typeof input === "object" ? input : createEmptySeoSourceState();
+  return {
+    property: String(state.property || ""),
+    hasAccessToken: String(state.accessToken || "").trim().length > 0,
+    lookbackDays: normalizeLookbackDays(state.lookbackDays),
+    lastSyncedAt: String(state.lastSyncedAt || ""),
+    lastError: String(state.lastError || ""),
+    snapshot: state.snapshot && typeof state.snapshot === "object"
+      ? {
+          source: String(state.snapshot.source || "google-search-console"),
+          property: String(state.snapshot.property || ""),
+          startDate: String(state.snapshot.startDate || ""),
+          endDate: String(state.snapshot.endDate || ""),
+          lookbackDays: normalizeLookbackDays(state.snapshot.lookbackDays),
+          clicks: Number(state.snapshot.clicks || 0),
+          impressions: Number(state.snapshot.impressions || 0),
+          ctr: Number(state.snapshot.ctr || 0),
+          position: Number(state.snapshot.position || 0),
+          topQuery: String(state.snapshot.topQuery || ""),
+          topQueryClicks: Number(state.snapshot.topQueryClicks || 0),
+          topPage: String(state.snapshot.topPage || ""),
+          topPageClicks: Number(state.snapshot.topPageClicks || 0),
+          syncedAt: String(state.snapshot.syncedAt || ""),
+        }
+      : null,
+  };
+}
+
+async function readSeoSourceState() {
+  const defaults = createEmptySeoSourceState();
+  try {
+    const raw = await fs.readFile(getSeoSourceStatePath(), "utf8");
+    const parsed = JSON.parse(raw);
+    const property = normalizeSiteProperty(parsed?.property);
+    return {
+      property,
+      accessToken: String(parsed?.accessToken || "").trim(),
+      lookbackDays: normalizeLookbackDays(parsed?.lookbackDays),
+      snapshot: parsed?.snapshot && typeof parsed.snapshot === "object" ? parsed.snapshot : null,
+      lastSyncedAt: String(parsed?.lastSyncedAt || ""),
+      lastError: String(parsed?.lastError || ""),
+    };
+  } catch {
+    return defaults;
+  }
+}
+
+async function persistSeoSourceState(nextState) {
+  seoSourceState = {
+    property: normalizeSiteProperty(nextState?.property),
+    accessToken: String(nextState?.accessToken || "").trim(),
+    lookbackDays: normalizeLookbackDays(nextState?.lookbackDays),
+    snapshot: nextState?.snapshot && typeof nextState.snapshot === "object" ? nextState.snapshot : null,
+    lastSyncedAt: String(nextState?.lastSyncedAt || ""),
+    lastError: String(nextState?.lastError || ""),
+  };
+  await fs.writeFile(getSeoSourceStatePath(), `${JSON.stringify(seoSourceState, null, 2)}\n`, "utf8");
+}
+
+async function ensureSeoSourceState() {
+  if (!seoSourceState) {
+    seoSourceState = await readSeoSourceState();
+  }
+  return seoSourceState;
+}
 
 function isSafeHttpUrl(value) {
   const raw = String(value || "").trim();
@@ -2003,6 +2093,7 @@ function getStatePayload() {
       liveReport: null,
       hasLiveReport: !!auditState.liveReport,
     },
+    seoSource: sanitizeSeoSourceState(seoSourceState),
     logs: [...logLines],
     logFile: desktopLogFile,
   };
@@ -2258,6 +2349,79 @@ ipcMain.handle("companion:open-artifact-path", async (_event, filePath) => {
     return { ok: false, error: "artifact_open_failed", detail: message };
   }
 });
+ipcMain.handle("companion:get-seo-source", async () => ({
+  ok: true,
+  source: sanitizeSeoSourceState(await ensureSeoSourceState()),
+}));
+ipcMain.handle("companion:save-seo-source", async (_event, payload) => {
+  const current = await ensureSeoSourceState();
+  const property = normalizeSiteProperty(payload?.property, current.property);
+  const accessToken = String(payload?.accessToken || "").trim() || current.accessToken;
+  const lookbackDays = normalizeLookbackDays(payload?.lookbackDays || current.lookbackDays);
+  const next = {
+    ...current,
+    property,
+    accessToken,
+    lookbackDays,
+    lastError: "",
+  };
+  await persistSeoSourceState(next);
+  notifyState();
+  return { ok: true, source: sanitizeSeoSourceState(next) };
+});
+ipcMain.handle("companion:refresh-seo-source", async (_event, payload) => {
+  const current = await ensureSeoSourceState();
+  const property = normalizeSiteProperty(payload?.property, payload?.baseUrl || current.property);
+  const accessToken = String(payload?.accessToken || "").trim() || current.accessToken;
+  const lookbackDays = normalizeLookbackDays(payload?.lookbackDays || current.lookbackDays);
+  if (!property || !accessToken) {
+    const error = !property ? "search_console_property_required" : "search_console_access_token_required";
+    const next = {
+      ...current,
+      property,
+      lookbackDays,
+      lastError: error,
+    };
+    await persistSeoSourceState(next);
+    notifyState();
+    return { ok: false, error, source: sanitizeSeoSourceState(next) };
+  }
+
+  try {
+    const snapshot = await fetchSearchConsoleSnapshot({
+      property,
+      accessToken,
+      lookbackDays,
+      baseUrl: payload?.baseUrl,
+    });
+    const next = {
+      ...current,
+      property,
+      accessToken,
+      lookbackDays,
+      snapshot,
+      lastSyncedAt: snapshot.syncedAt,
+      lastError: "",
+    };
+    await persistSeoSourceState(next);
+    pushLog(`[seo] google data synced | property=${property} | position=${snapshot.position} | clicks=${snapshot.clicks}`);
+    notifyState();
+    return { ok: true, source: sanitizeSeoSourceState(next), snapshot };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "search_console_refresh_failed");
+    const next = {
+      ...current,
+      property,
+      accessToken,
+      lookbackDays,
+      lastError: message,
+    };
+    await persistSeoSourceState(next);
+    pushLog(`[seo] google data sync failed | ${message}`);
+    notifyState();
+    return { ok: false, error: message, source: sanitizeSeoSourceState(next) };
+  }
+});
 ipcMain.handle("companion:get-launch-on-login", async () => ({ ok: true, enabled: launchOnLogin }));
 ipcMain.handle("companion:set-launch-on-login", async (_event, enabled) => {
   launchOnLogin = !!enabled;
@@ -2289,6 +2453,7 @@ app.whenReady().then(async () => {
   pushLog(`[desktop] boot iniciado | packaged=${app.isPackaged}`);
   pushLog(`[desktop] userData=${app.getPath("userData")}`);
   launchOnLogin = app.getLoginItemSettings().openAtLogin;
+  seoSourceState = await readSeoSourceState();
 
   if (IS_SMOKE_MODE) {
     try {

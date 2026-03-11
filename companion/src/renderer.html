@@ -562,6 +562,70 @@
               <article class="panel prompt-panel">
                 <div class="panel-head split-head">
                   <div>
+                    <p class="eyebrow">google search console</p>
+                    <h3>Verified Google data</h3>
+                  </div>
+                  <div class="headline-status" id="seoExternalHeadline">Add a verified property and valid token to load real Google metrics.</div>
+                </div>
+                <div class="controls-grid">
+                  <label class="field-block">
+                    <span class="field-label">Property</span>
+                    <input id="seoPropertyInput" class="toolbar-input" type="text" placeholder="https://example.com/ or sc-domain:example.com" />
+                  </label>
+                  <label class="field-block">
+                    <span class="field-label">Access token</span>
+                    <input id="seoAccessTokenInput" class="toolbar-input" type="password" placeholder="Paste a Google OAuth access token" />
+                  </label>
+                  <label class="field-block">
+                    <span class="field-label">Lookback days</span>
+                    <input id="seoLookbackDaysInput" class="toolbar-input" type="number" min="3" max="90" placeholder="28" />
+                  </label>
+                </div>
+                <p class="panel-copy" id="seoExternalDetail">SitePulse shows real Google metrics only when a verified Search Console property and valid token are available.</p>
+                <div class="action-row">
+                  <button id="refreshSeoSource" type="button">Refresh Google data</button>
+                  <button id="saveSeoSource" class="secondary" type="button">Save source</button>
+                </div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">google search performance</p>
+                    <h3>Live Google metrics</h3>
+                  </div>
+                </div>
+                <div class="report-grid comparison-metrics-grid">
+                  <article class="info-card">
+                    <span class="info-label">Avg position</span>
+                    <code id="googlePosition">n/a</code>
+                  </article>
+                  <article class="info-card">
+                    <span class="info-label">Clicks</span>
+                    <code id="googleClicks">0</code>
+                  </article>
+                  <article class="info-card">
+                    <span class="info-label">Impressions</span>
+                    <code id="googleImpressions">0</code>
+                  </article>
+                  <article class="info-card">
+                    <span class="info-label">CTR</span>
+                    <code id="googleCtr">n/a</code>
+                  </article>
+                  <article class="info-card">
+                    <span class="info-label">Top query</span>
+                    <code id="googleTopQuery">n/a</code>
+                  </article>
+                  <article class="info-card">
+                    <span class="info-label">Top page</span>
+                    <code id="googleTopPage">n/a</code>
+                  </article>
+                </div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
                     <p class="eyebrow">top recommendations</p>
                     <h3>Priority SEO actions</h3>
                   </div>
