@@ -465,6 +465,21 @@ function normalizePreviewUrl(value) {
   }
 }
 
+function getPreparedTargetUrl() {
+  return normalizePreviewUrl(stateEl.targetUrl?.value);
+}
+
+function getReportBaseUrl(report) {
+  return normalizePreviewUrl(report?.meta?.baseUrl);
+}
+
+function isPreparedTargetAlignedWithReport(report) {
+  const preparedTargetUrl = getPreparedTargetUrl();
+  const reportBaseUrl = getReportBaseUrl(report);
+  if (!preparedTargetUrl || !reportBaseUrl) return true;
+  return preparedTargetUrl === reportBaseUrl;
+}
+
 function buildPreviewRouteUrl(baseUrl, route) {
   const normalizedBase = normalizePreviewUrl(baseUrl);
   if (!normalizedBase) return "";
@@ -1093,8 +1108,9 @@ function previewSurfaceSupportsEmbedding() {
 }
 
 function currentPreviewBaseUrl() {
-  const auditBaseUrl = String(uiState.companionState?.audit?.baseUrl || "").trim();
-  return normalizePreviewUrl(auditBaseUrl || stateEl.targetUrl.value);
+  const audit = uiState.companionState?.audit || {};
+  const auditBaseUrl = audit.running === true ? normalizePreviewUrl(audit.baseUrl) : "";
+  return auditBaseUrl || getPreparedTargetUrl();
 }
 
 function resolvePreviewTargetUrl(audit = uiState.companionState?.audit || {}) {
@@ -1728,6 +1744,8 @@ function renderMissionBrief() {
   const bridgeRunning = uiState.companionState?.bridge?.running === true;
   const audit = uiState.companionState?.audit || {};
   const visibleReport = getVisibleReport();
+  const preparedTargetUrl = getPreparedTargetUrl();
+  const reportAlignedWithPreparedTarget = isPreparedTargetAlignedWithReport(visibleReport);
   const evidenceCount = visibleReport ? collectReportEvidence(visibleReport).length : 0;
 
   if (!bridgeRunning) {
@@ -1745,7 +1763,16 @@ function renderMissionBrief() {
   }
 
   if (!visibleReport) {
+    if (preparedTargetUrl) {
+      stateEl.missionBrief.textContent = `Target armed: ${preparedTargetUrl}. Run the first audit to generate findings, SEO diagnostics and evidence for this site.`;
+      return;
+    }
     stateEl.missionBrief.textContent = "SitePulse Studio is ready. Define a target and start the first audit.";
+    return;
+  }
+
+  if (!reportAlignedWithPreparedTarget && preparedTargetUrl) {
+    stateEl.missionBrief.textContent = `Prepared target: ${preparedTargetUrl}. The board still shows the last completed run for ${visibleReport.meta.baseUrl}. Run the engine again to refresh findings, SEO and evidence for the new site.`;
     return;
   }
 
@@ -2490,21 +2517,27 @@ function renderPromptWorkspace(report) {
 }
 
 function renderReportSummary(report, options = {}) {
+  const preparedTargetUrl = getPreparedTargetUrl();
+
   if (!report) {
-    stateEl.currentTarget.textContent = "none";
+    stateEl.currentTarget.textContent = preparedTargetUrl || "none";
     stateEl.currentMode.textContent = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
     stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
     stateEl.currentDepth.textContent = currentDepthLabel();
     stateEl.currentDuration.textContent = "0s";
     stateEl.currentCommand.textContent = "Run an audit to generate a replay command.";
-    stateEl.reportsHeadline.textContent = "Each run leaves a replayable evidence trail.";
+    stateEl.reportsHeadline.textContent = preparedTargetUrl
+      ? `Prepared target ${preparedTargetUrl} | run an audit to generate a replayable evidence trail.`
+      : "Each run leaves a replayable evidence trail.";
     return;
   }
 
   const audit = uiState.companionState?.audit || {};
   const reportMode = normalizeMode(report.meta.auditMode || audit.mode || uiState.mode);
   const reportDepth = normalizeDepth(report.meta.auditDepth || audit.depth || uiState.depth);
-  stateEl.currentTarget.textContent = report.meta.baseUrl;
+  const reportBaseUrl = getReportBaseUrl(report) || report.meta.baseUrl;
+  const reportAlignedWithPreparedTarget = isPreparedTargetAlignedWithReport(report);
+  stateEl.currentTarget.textContent = preparedTargetUrl || reportBaseUrl;
   stateEl.currentMode.textContent =
     report.meta.mobileSweep?.profiles?.length ? "mobile family" : reportMode;
   stateEl.currentScope.textContent = currentScopeLabel(report.summary.auditScope || audit.scope || uiState.scope);
@@ -2518,6 +2551,10 @@ function renderReportSummary(report, options = {}) {
   if (options.transient === true) {
     const lead = audit.running === true ? "Live snapshot" : "Partial snapshot";
     stateEl.reportsHeadline.textContent = `${lead} | ${report.summary.totalIssues} issue(s) so far | ${report.summary.routesChecked} route(s) | SEO ${report.summary.seoScore} | evidence ${evidenceCount}`;
+    return;
+  }
+  if (!reportAlignedWithPreparedTarget && preparedTargetUrl) {
+    stateEl.reportsHeadline.textContent = `Prepared target ${preparedTargetUrl} | loaded snapshot belongs to ${reportBaseUrl} | last run ${formatLocalDate(report.meta.generatedAt)} | evidence ${evidenceCount}`;
     return;
   }
   stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)} | evidence ${evidenceCount}`;
@@ -3313,8 +3350,14 @@ function bindPersistenceEvents() {
     node.addEventListener("input", persistProfile);
     node.addEventListener("change", persistProfile);
   });
-  stateEl.targetUrl.addEventListener("input", () => queuePreviewSync("profile"));
-  stateEl.targetUrl.addEventListener("change", () => queuePreviewSync("profile"));
+  const refreshPreparedTargetState = () => {
+    queuePreviewSync("profile");
+    renderPreviewWorkspace();
+    renderMissionBrief();
+    renderReportSummary(getVisibleReport());
+  };
+  stateEl.targetUrl.addEventListener("input", refreshPreparedTargetState);
+  stateEl.targetUrl.addEventListener("change", refreshPreparedTargetState);
   stateEl.headed.addEventListener("change", () => renderPreviewWorkspace());
 }
 
