@@ -23,7 +23,7 @@ interface FlagIconProps {
 function FlagIcon({ locale }: FlagIconProps) {
   if (locale === "es") {
     return (
-      <svg aria-hidden viewBox="0 0 24 18" className="h-4 w-5 overflow-hidden rounded-[0.35rem] shadow-sm">
+      <svg aria-hidden viewBox="0 0 24 18" className="h-[18px] w-6 overflow-hidden rounded-[0.45rem] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]">
         <rect width="24" height="18" fill="#AA151B" />
         <rect y="4.5" width="24" height="9" fill="#F1BF00" />
       </svg>
@@ -32,27 +32,23 @@ function FlagIcon({ locale }: FlagIconProps) {
 
   if (locale === "ca") {
     return (
-      <svg aria-hidden viewBox="0 0 24 18" className="h-4 w-5 overflow-hidden rounded-[0.35rem] shadow-sm">
+      <svg aria-hidden viewBox="0 0 24 18" className="h-[18px] w-6 overflow-hidden rounded-[0.45rem] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]">
         <rect width="24" height="18" fill="#F9D64A" />
-        <rect y="1" width="24" height="2" fill="#C62828" />
-        <rect y="5" width="24" height="2" fill="#C62828" />
-        <rect y="9" width="24" height="2" fill="#C62828" />
-        <rect y="13" width="24" height="2" fill="#C62828" />
+        <rect y="1.2" width="24" height="2" fill="#C62828" />
+        <rect y="5.2" width="24" height="2" fill="#C62828" />
+        <rect y="9.2" width="24" height="2" fill="#C62828" />
+        <rect y="13.2" width="24" height="2" fill="#C62828" />
       </svg>
     );
   }
 
   return (
-    <svg aria-hidden viewBox="0 0 24 18" className="h-4 w-5 overflow-hidden rounded-[0.35rem] shadow-sm">
-      <rect width="24" height="18" fill="#0A3A8A" />
-      <path d="M0 0 L10 0 L24 10 L24 18 L14 18 L0 8 Z" fill="#fff" opacity="0.95" />
-      <path d="M24 0 L14 0 L0 10 L0 18 L10 18 L24 8 Z" fill="#fff" opacity="0.95" />
-      <path d="M0 0 L8 0 L24 12 L24 18 L16 18 L0 6 Z" fill="#C62828" />
-      <path d="M24 0 L16 0 L0 12 L0 18 L8 18 L24 6 Z" fill="#C62828" />
-      <rect x="9" width="6" height="18" fill="#fff" />
-      <rect y="6" width="24" height="6" fill="#fff" />
-      <rect x="10" width="4" height="18" fill="#C62828" />
-      <rect y="7" width="24" height="4" fill="#C62828" />
+    <svg aria-hidden viewBox="0 0 24 18" className="h-[18px] w-6 overflow-hidden rounded-[0.45rem] shadow-[inset_0_0_0_1px_rgba(15,23,42,0.08)]">
+      <rect width="24" height="18" fill="#012169" />
+      <path d="M0 0 L24 18 M24 0 L0 18" stroke="#FFFFFF" strokeWidth="5.4" />
+      <path d="M0 0 L24 18 M24 0 L0 18" stroke="#C8102E" strokeWidth="2.6" />
+      <path d="M12 0 V18 M0 9 H24" stroke="#FFFFFF" strokeWidth="6.8" />
+      <path d="M12 0 V18 M0 9 H24" stroke="#C8102E" strokeWidth="4" />
     </svg>
   );
 }
