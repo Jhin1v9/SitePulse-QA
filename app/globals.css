@@ -25,9 +25,12 @@ body {
 
 body {
   background:
-    radial-gradient(60rem 30rem at 8% -6%, rgba(25, 133, 255, 0.14), transparent 70%),
-    radial-gradient(45rem 24rem at 95% 0%, rgba(91, 255, 194, 0.1), transparent 60%),
-    linear-gradient(180deg, #eaf3ff 0%, #f8fbff 48%, #f3f8ff 100%);
+    radial-gradient(78rem 36rem at -6% -8%, rgba(20, 184, 166, 0.2), transparent 64%),
+    radial-gradient(60rem 30rem at 106% -4%, rgba(14, 165, 233, 0.2), transparent 62%),
+    radial-gradient(48rem 24rem at 50% 112%, rgba(59, 130, 246, 0.14), transparent 64%),
+    repeating-linear-gradient(90deg, rgba(15, 23, 42, 0.028) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(0deg, rgba(15, 23, 42, 0.024) 0 1px, transparent 1px 72px),
+    linear-gradient(155deg, #f7fffb 0%, #eef8ff 46%, #f5f9ff 100%);
   color: #0f172a;
   font-family: var(--font-body), "Segoe UI", sans-serif;
   line-height: 1.5;
@@ -36,9 +39,12 @@ body {
 
 :root.dark body {
   background:
-    radial-gradient(60rem 30rem at 8% -6%, rgba(25, 133, 255, 0.15), transparent 70%),
-    radial-gradient(45rem 24rem at 95% 0%, rgba(91, 255, 194, 0.13), transparent 60%),
-    linear-gradient(180deg, #020611 0%, #050a16 48%, #060d1c 100%);
+    radial-gradient(72rem 34rem at -8% -10%, rgba(45, 212, 191, 0.25), transparent 62%),
+    radial-gradient(58rem 28rem at 108% -6%, rgba(56, 189, 248, 0.24), transparent 62%),
+    radial-gradient(44rem 22rem at 50% 112%, rgba(16, 185, 129, 0.18), transparent 66%),
+    repeating-linear-gradient(90deg, rgba(148, 163, 184, 0.03) 0 1px, transparent 1px 72px),
+    repeating-linear-gradient(0deg, rgba(148, 163, 184, 0.025) 0 1px, transparent 1px 72px),
+    linear-gradient(160deg, #03070f 0%, #071425 50%, #08192b 100%);
   color: #f1f5ff;
 }
 
@@ -68,11 +74,11 @@ a {
   }
 
   .panel {
-    @apply rounded-2xl border border-slate-300/70 bg-white/80 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_14px_38px_rgba(15,23,42,0.12)] backdrop-blur-sm;
+    @apply rounded-2xl border border-slate-300/70 bg-gradient-to-br from-white/95 to-white/75 shadow-[0_1px_1px_rgba(15,23,42,0.04),0_14px_38px_rgba(15,23,42,0.12)] backdrop-blur-sm;
   }
 
   :root.dark .panel {
-    @apply border-slate-700/70 bg-slate-900/55 shadow-[0_0_0_1px_rgba(23,192,255,0.2),0_20px_70px_rgba(0,0,0,0.35)];
+    @apply border-slate-700/70 bg-gradient-to-br from-slate-900/70 to-slate-900/50 shadow-[0_0_0_1px_rgba(45,212,191,0.14),0_20px_70px_rgba(0,0,0,0.35)];
   }
 
   .input-base {
