@@ -1,3 +1,5 @@
+import type { Locale } from "@/src/i18n/config";
+
 export interface AppPreview {
   id: string;
   title: string;
@@ -31,32 +33,90 @@ export interface CaseSnapshot {
   summary: string;
 }
 
-export const appPreviews: readonly AppPreview[] = [
-  {
-    id: "operations",
-    title: "Painel de Operacoes",
-    summary: "Monitora progresso da auditoria, estagios, logs e status de risco em tempo real.",
-    imagePath: "/screenshots/studio-operations.svg",
-    alt: "Preview do painel de operacoes do SitePulse Studio.",
-    focusLabel: "Operacao ao vivo",
-  },
-  {
-    id: "evidence",
-    title: "Relatorio de Evidencias",
-    summary: "Consolida achados por severidade, causa, impacto e recomendacao para decisao de release.",
-    imagePath: "/screenshots/studio-evidence.svg",
-    alt: "Preview do relatorio de evidencias do SitePulse Studio.",
-    focusLabel: "Diagnostico tecnico",
-  },
-  {
-    id: "seo",
-    title: "SEO Tecnico Integrado",
-    summary: "Valida indexacao, metadados e sinais tecnicos antes da publicacao para reduzir regressao organica.",
-    imagePath: "/screenshots/studio-seo.svg",
-    alt: "Preview da analise de SEO tecnico no SitePulse Studio.",
-    focusLabel: "Baseline de SEO",
-  },
-];
+const previewCatalog: Record<Locale, readonly AppPreview[]> = {
+  en: [
+    {
+      id: "operations",
+      title: "Operations panel",
+      summary: "Tracks audit progress, stages, runtime logs, and release risk from one operational surface.",
+      imagePath: "/screenshots/studio-operations.svg",
+      alt: "Preview of the SitePulse Studio operations panel.",
+      focusLabel: "Live operations",
+    },
+    {
+      id: "evidence",
+      title: "Evidence report",
+      summary: "Groups findings by severity, cause, impact, and recommendation for release decision making.",
+      imagePath: "/screenshots/studio-evidence.svg",
+      alt: "Preview of the SitePulse Studio evidence report.",
+      focusLabel: "Technical evidence",
+    },
+    {
+      id: "seo",
+      title: "Integrated technical SEO",
+      summary: "Validates indexing, metadata, and technical SEO signals before publication to reduce regressions.",
+      imagePath: "/screenshots/studio-seo.svg",
+      alt: "Preview of the technical SEO analysis in SitePulse Studio.",
+      focusLabel: "SEO baseline",
+    },
+  ],
+  es: [
+    {
+      id: "operations",
+      title: "Panel de operaciones",
+      summary: "Monitorea progreso de auditoria, etapas, logs y riesgo de release en una sola superficie.",
+      imagePath: "/screenshots/studio-operations.svg",
+      alt: "Preview del panel de operaciones de SitePulse Studio.",
+      focusLabel: "Operacion en vivo",
+    },
+    {
+      id: "evidence",
+      title: "Reporte de evidencia",
+      summary: "Agrupa hallazgos por severidad, causa, impacto y recomendacion para decidir el release.",
+      imagePath: "/screenshots/studio-evidence.svg",
+      alt: "Preview del reporte de evidencia de SitePulse Studio.",
+      focusLabel: "Evidencia tecnica",
+    },
+    {
+      id: "seo",
+      title: "SEO tecnico integrado",
+      summary: "Valida indexacion, metadatos y senales SEO tecnicas antes de publicar para reducir regresiones.",
+      imagePath: "/screenshots/studio-seo.svg",
+      alt: "Preview del analisis de SEO tecnico en SitePulse Studio.",
+      focusLabel: "Baseline SEO",
+    },
+  ],
+  ca: [
+    {
+      id: "operations",
+      title: "Panell d operacions",
+      summary: "Monitora progres d auditoria, etapes, logs i risc de release en una sola superficie.",
+      imagePath: "/screenshots/studio-operations.svg",
+      alt: "Preview del panell d operacions de SitePulse Studio.",
+      focusLabel: "Operacio en viu",
+    },
+    {
+      id: "evidence",
+      title: "Informe d evidencia",
+      summary: "Agrupa troballes per severitat, causa, impacte i recomanacio per decidir el release.",
+      imagePath: "/screenshots/studio-evidence.svg",
+      alt: "Preview de l informe d evidencia de SitePulse Studio.",
+      focusLabel: "Evidencia tecnica",
+    },
+    {
+      id: "seo",
+      title: "SEO tecnic integrat",
+      summary: "Valida indexacio, metadades i senyals SEO tecniques abans de publicar per reduir regressions.",
+      imagePath: "/screenshots/studio-seo.svg",
+      alt: "Preview de l analisi de SEO tecnic a SitePulse Studio.",
+      focusLabel: "Baseline SEO",
+    },
+  ],
+};
+
+export function getAppPreviews(locale: Locale): readonly AppPreview[] {
+  return previewCatalog[locale];
+}
 
 export const buyerReasons: readonly BuyerReason[] = [
   {

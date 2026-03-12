@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { FormEvent } from "react";
 import { useState } from "react";
@@ -74,7 +74,12 @@ export function UrlAuditForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className={`rounded-2xl border border-slate-300/70 bg-white/80 p-3 dark:border-slate-700 dark:bg-slate-900/70 ${compact ? "" : "shadow-xl shadow-slate-200/70 dark:shadow-black/25"}`}>
+    <form
+      onSubmit={handleSubmit}
+      className={`rounded-[1.6rem] border border-slate-300/70 bg-white/80 p-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 ${
+        compact ? "" : "shadow-[0_24px_70px_rgba(15,23,42,0.14)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+      }`}
+    >
       <label htmlFor={`${compact ? "cta" : "hero"}-url`} className="sr-only">
         {inputLabel}
       </label>
@@ -87,7 +92,7 @@ export function UrlAuditForm({
             setUrl(event.target.value);
             if (state !== "idle") setState("idle");
           }}
-          className="input-base min-w-0 flex-1"
+          className="input-base min-w-0 flex-1 rounded-2xl"
           placeholder={inputPlaceholder}
           aria-invalid={state === "error"}
           required
@@ -95,13 +100,13 @@ export function UrlAuditForm({
         <button
           type="submit"
           disabled={state === "loading"}
-          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-studio-500 to-cyan-500 px-5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 sm:w-auto"
+          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-5 text-sm font-semibold text-white shadow-[0_16px_44px_rgba(8,145,178,0.3)] transition hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 sm:w-auto"
         >
           {submitLabel}
         </button>
         <Link
           href={buildLocalizedPath(locale, "downloads")}
-          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:w-auto"
+          className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white/80 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-studio-100 sm:w-auto"
         >
           {secondaryLabel}
         </Link>

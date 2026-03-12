@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AppPreviewGrid } from "@/src/components/app-preview-grid";
-import { appPreviews } from "@/src/config/showcase";
+import { getAppPreviews } from "@/src/config/showcase";
 import { isLocale, type Locale } from "@/src/i18n/config";
 import { createLocalizedMetadata } from "@/src/i18n/metadata";
 import { getMessages } from "@/src/i18n/messages";
@@ -35,6 +35,8 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
   const target = searchParams?.target?.trim();
+  const appPreviews = getAppPreviews(locale);
+  const targetLabel = locale === "en" ? "Target" : locale === "ca" ? "Objectiu" : "Objetivo";
 
   return (
     <div className="content-shell min-w-0 space-y-8 py-8 sm:space-y-10 sm:py-14">
@@ -43,7 +45,7 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
         <h1 className="font-heading text-[clamp(1.9rem,4.4vw,3.4rem)] text-slate-900 dark:text-slate-100">{messages.demo.title}</h1>
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.demo.description}</p>
         {target ? (
-          <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">Target: {target}</p>
+          <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">{targetLabel}: {target}</p>
         ) : null}
         <div className="flex min-w-0 flex-wrap gap-3">
           <Link
