@@ -55,10 +55,40 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
 
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
+  const statusTitle =
+    locale === "en"
+      ? "Release status"
+      : locale === "ca"
+        ? "Estat del release"
+        : "Estado del release";
+  const statusDescription =
+    locale === "en"
+      ? "Track the current release channel, publication date, and package publication mode from one place."
+      : locale === "ca"
+        ? "Segueix el canal actual, la data de publicacio i el mode de publicacio del paquet des d un sol lloc."
+        : "Sigue el canal actual, la fecha de publicacion y el modo de publicacion del paquete desde un solo lugar.";
+  const statusItems =
+    locale === "en"
+      ? [
+          `Channel: ${downloadFeed.channel}`,
+          `Updated: ${formatIsoDate(downloadFeed.updatedAt)}`,
+          "Distribution mode: signed packages on request",
+        ]
+      : locale === "ca"
+        ? [
+            `Canal: ${downloadFeed.channel}`,
+            `Actualitzat: ${formatIsoDate(downloadFeed.updatedAt)}`,
+            "Mode de distribucio: paquets signats sota sollicitud",
+          ]
+        : [
+            `Canal: ${downloadFeed.channel}`,
+            `Actualizado: ${formatIsoDate(downloadFeed.updatedAt)}`,
+            "Modo de distribucion: paquetes firmados bajo solicitud",
+          ];
 
   return (
     <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
-      <section className="space-y-3">
+      <section id="status" className="space-y-3 scroll-mt-28">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.downloads.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.downloads.title}</h1>
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.downloads.description}</p>
@@ -66,6 +96,17 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
           <p className="break-words">{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{downloadFeed.channel}</span></p>
           <p className="break-words">{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt)}</span></p>
         </div>
+        <article className="panel mt-5 min-w-0 rounded-[1.6rem] p-5 sm:p-6">
+          <h2 className="font-heading text-xl text-slate-900 dark:text-slate-100">{statusTitle}</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-700 dark:text-slate-300">{statusDescription}</p>
+          <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-3">
+            {statusItems.map((item) => (
+              <div key={item} className="rounded-[1.15rem] border border-slate-300/80 bg-white/75 p-4 text-sm text-slate-700 dark:border-slate-700/80 dark:bg-slate-950/60 dark:text-slate-300">
+                {item}
+              </div>
+            ))}
+          </div>
+        </article>
       </section>
 
       <section className="grid min-w-0 gap-4">

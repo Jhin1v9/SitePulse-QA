@@ -66,7 +66,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "Panel de operaciones",
       summary: "Monitorea progreso de auditoria, etapas, logs y riesgo de release en una sola superficie.",
       imagePath: "/screenshots/studio-operations.svg",
-      alt: "Preview del panel de operaciones de SitePulse Studio.",
+      alt: "Vista del panel de operaciones de SitePulse Studio.",
       focusLabel: "Operacion en vivo",
     },
     {
@@ -74,7 +74,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "Reporte de evidencia",
       summary: "Agrupa hallazgos por severidad, causa, impacto y recomendacion para decidir el release.",
       imagePath: "/screenshots/studio-evidence.svg",
-      alt: "Preview del reporte de evidencia de SitePulse Studio.",
+      alt: "Vista del reporte de evidencia de SitePulse Studio.",
       focusLabel: "Evidencia tecnica",
     },
     {
@@ -82,7 +82,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "SEO tecnico integrado",
       summary: "Valida indexacion, metadatos y senales SEO tecnicas antes de publicar para reducir regresiones.",
       imagePath: "/screenshots/studio-seo.svg",
-      alt: "Preview del analisis de SEO tecnico en SitePulse Studio.",
+      alt: "Vista del analisis de SEO tecnico en SitePulse Studio.",
       focusLabel: "Baseline SEO",
     },
   ],
@@ -92,7 +92,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "Panell d operacions",
       summary: "Monitora progres d auditoria, etapes, logs i risc de release en una sola superficie.",
       imagePath: "/screenshots/studio-operations.svg",
-      alt: "Preview del panell d operacions de SitePulse Studio.",
+      alt: "Vista del panell d operacions de SitePulse Studio.",
       focusLabel: "Operacio en viu",
     },
     {
@@ -100,7 +100,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "Informe d evidencia",
       summary: "Agrupa troballes per severitat, causa, impacte i recomanacio per decidir el release.",
       imagePath: "/screenshots/studio-evidence.svg",
-      alt: "Preview de l informe d evidencia de SitePulse Studio.",
+      alt: "Vista de l informe d evidencia de SitePulse Studio.",
       focusLabel: "Evidencia tecnica",
     },
     {
@@ -108,7 +108,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       title: "SEO tecnic integrat",
       summary: "Valida indexacio, metadades i senyals SEO tecniques abans de publicar per reduir regressions.",
       imagePath: "/screenshots/studio-seo.svg",
-      alt: "Preview de l analisi de SEO tecnic a SitePulse Studio.",
+      alt: "Vista de l analisi de SEO tecnic a SitePulse Studio.",
       focusLabel: "Baseline SEO",
     },
   ],

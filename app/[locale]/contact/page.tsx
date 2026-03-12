@@ -32,6 +32,9 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
 
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
+  const sourceLabel = locale === "en" ? "Source" : locale === "ca" ? "Origen" : "Origen";
+  const salesLabel = locale === "en" ? "Sales" : locale === "ca" ? "Vendes" : "Ventas";
+  const supportLabel = locale === "en" ? "Support" : locale === "ca" ? "Suport" : "Soporte";
 
   const sourceTopic = searchParams?.topic;
   const sourcePackage = searchParams?.package;
@@ -44,7 +47,7 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.contact.description}</p>
         {sourceTopic ? (
           <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">
-            Source: {sourceTopic} {sourcePackage ? `(${sourcePackage})` : ""}
+            {sourceLabel}: {sourceTopic} {sourcePackage ? `(${sourcePackage})` : ""}
           </p>
         ) : null}
       </section>
@@ -55,10 +58,10 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
           <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{messages.contact.directDescription}</p>
           <div className="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-300">
             <p>
-              Sales: <a href={`mailto:${siteConfig.email}`} className="break-all font-semibold text-slate-900 hover:text-studio-700 dark:text-slate-100 dark:hover:text-studio-200">{siteConfig.email}</a>
+              {salesLabel}: <a href={`mailto:${siteConfig.email}`} className="break-all font-semibold text-slate-900 hover:text-studio-700 dark:text-slate-100 dark:hover:text-studio-200">{siteConfig.email}</a>
             </p>
             <p>
-              Support: <a href={`mailto:${siteConfig.supportEmail}`} className="break-all font-semibold text-slate-900 hover:text-studio-700 dark:text-slate-100 dark:hover:text-studio-200">{siteConfig.supportEmail}</a>
+              {supportLabel}: <a href={`mailto:${siteConfig.supportEmail}`} className="break-all font-semibold text-slate-900 hover:text-studio-700 dark:text-slate-100 dark:hover:text-studio-200">{siteConfig.supportEmail}</a>
             </p>
           </div>
         </article>

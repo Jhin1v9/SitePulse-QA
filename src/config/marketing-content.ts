@@ -176,18 +176,19 @@ export const marketingContent: Record<Locale, MarketingContent> = {
           ],
         },
         {
-          title: "Platform",
+          title: "Resources",
           links: [
-            { label: "Operating layer", href: "/#platform" },
-            { label: "Proof", href: "/#proof" },
+            { label: "Docs", href: "/faq#docs" },
+            { label: "FAQ", href: "/faq" },
             { label: "Contact", href: "/contact" },
           ],
         },
         {
           title: "Trust",
           links: [
-            { label: "FAQ", href: "/faq" },
-            { label: "Support", href: "/contact" },
+            { label: "Security", href: "/faq#security" },
+            { label: "Privacy", href: "/faq#privacy" },
+            { label: "Status", href: "/downloads#status" },
             { label: "GitHub", href: "https://github.com/sitepulse", external: true },
           ],
         },
@@ -295,18 +296,19 @@ export const marketingContent: Record<Locale, MarketingContent> = {
           ],
         },
         {
-          title: "Plataforma",
+          title: "Recursos",
           links: [
-            { label: "Capa operativa", href: "/#platform" },
-            { label: "Prueba", href: "/#proof" },
+            { label: "Docs", href: "/faq#docs" },
+            { label: "FAQ", href: "/faq" },
             { label: "Contacto", href: "/contact" },
           ],
         },
         {
           title: "Confianza",
           links: [
-            { label: "FAQ", href: "/faq" },
-            { label: "Soporte", href: "/contact" },
+            { label: "Seguridad", href: "/faq#security" },
+            { label: "Privacidad", href: "/faq#privacy" },
+            { label: "Estado", href: "/downloads#status" },
             { label: "GitHub", href: "https://github.com/sitepulse", external: true },
           ],
         },
@@ -414,18 +416,19 @@ export const marketingContent: Record<Locale, MarketingContent> = {
           ],
         },
         {
-          title: "Plataforma",
+          title: "Recursos",
           links: [
-            { label: "Capa operativa", href: "/#platform" },
-            { label: "Prova", href: "/#proof" },
+            { label: "Docs", href: "/faq#docs" },
+            { label: "FAQ", href: "/faq" },
             { label: "Contacte", href: "/contact" },
           ],
         },
         {
           title: "Confianca",
           links: [
-            { label: "FAQ", href: "/faq" },
-            { label: "Suport", href: "/contact" },
+            { label: "Seguretat", href: "/faq#security" },
+            { label: "Privacitat", href: "/faq#privacy" },
+            { label: "Estat", href: "/downloads#status" },
             { label: "GitHub", href: "https://github.com/sitepulse", external: true },
           ],
         },
