@@ -42,6 +42,77 @@ const TELEMETRY_DOMAINS = [
   "google-analytics.com",
   "googletagmanager.com",
 ];
+const LANGUAGE_STOPWORDS = {
+  es: [
+    "para",
+    "como",
+    "sitio",
+    "equipo",
+    "ventas",
+    "prueba",
+    "instalador",
+    "contacto",
+    "precios",
+    "descargar",
+    "hallazgos",
+    "flujo",
+    "seguridad",
+  ],
+  ca: [
+    "per",
+    "amb",
+    "equip",
+    "descarrega",
+    "contacte",
+    "preus",
+    "evidencia",
+    "lloc",
+    "solucio",
+    "pantalla",
+    "auditoria",
+    "prova",
+    "flux",
+  ],
+  en: [
+    "with",
+    "from",
+    "your",
+    "website",
+    "download",
+    "pricing",
+    "contact",
+    "proof",
+    "report",
+    "issues",
+    "security",
+    "performance",
+    "workflow",
+    "release",
+    "start",
+    "current",
+  ],
+  pt: [
+    "com",
+    "para",
+    "vendas",
+    "precos",
+    "baixar",
+    "contato",
+    "solucao",
+    "prova",
+    "relatorio",
+    "equipe",
+    "fluxo",
+    "seguranca",
+    "usuario",
+  ],
+};
+const LANGUAGE_LABEL = {
+  es: "espanhol",
+  ca: "catalao",
+  en: "ingles",
+  pt: "portugues",
+};
 
 const CODE = {
   ROUTE_LOAD_FAIL: "ROUTE_LOAD_FAIL",
@@ -52,6 +123,7 @@ const CODE = {
   NET_REQUEST_FAILED: "NET_REQUEST_FAILED",
   JS_RUNTIME_ERROR: "JS_RUNTIME_ERROR",
   CONSOLE_ERROR: "CONSOLE_ERROR",
+  CONTENT_LANGUAGE_CONFLICT: "CONTENT_LANGUAGE_CONFLICT",
   VISUAL_SECTION_ORDER_INVALID: "VISUAL_SECTION_ORDER_INVALID",
   VISUAL_SECTION_MISSING: "VISUAL_SECTION_MISSING",
   VISUAL_LAYOUT_OVERFLOW: "VISUAL_LAYOUT_OVERFLOW",
@@ -76,6 +148,16 @@ const ACTION_STATUS = {
   CLICK_ERROR: "click_error",
   ANALYSIS_ONLY: "analysis_only",
   ROUTE_LIMIT: "route_limit",
+};
+
+const ISSUE_LEARNING_LIBRARY = {
+  [CODE.CONTENT_LANGUAGE_CONFLICT]: {
+    source: "Aprendizado validado durante o rework multilocale do SitePulse Studio.",
+    possibleSolution:
+      "Centralizar toda a copy em um dicionario de i18n, definir idioma principal por rota e revisar header, footer, hero, screenshots, formularios e estados para remover textos fixos fora da traducao.",
+    finalSolution:
+      "Mover os textos residuais para a camada oficial de traducao, alinhar o atributo lang do documento com o locale ativo e reexecutar a auditoria ate nao restarem trechos visiveis em idioma errado.",
+  },
 };
 
 const ISSUE_GUIDE = {
@@ -142,6 +224,14 @@ const ISSUE_GUIDE = {
       "Algo deu errado por baixo dos panos, mesmo que a tela ainda apareca.",
     recommendation:
       "Inspecionar stack/message no console, remover erros silenciosos e corrigir integracoes quebradas.",
+  },
+  [CODE.CONTENT_LANGUAGE_CONFLICT]: {
+    technical:
+      "A pagina declara um idioma principal, mas ainda exibe blocos relevantes em outro idioma visivel. Isso normalmente indica i18n incompleto, textos hardcoded ou rotas reutilizando copy errada.",
+    layman:
+      "A tela mistura idiomas diferentes. Para quem visita, isso passa falta de acabamento e reduz confianca.",
+    recommendation:
+      "Identificar os textos fora do idioma principal, mover toda a copy para a camada oficial de traducao e validar novamente a rota inteira.",
   },
   [CODE.VISUAL_SECTION_ORDER_INVALID]: {
     technical:
@@ -382,6 +472,24 @@ const ISSUE_PLAYBOOK = {
       "src/lib/**",
     ],
   },
+  [CODE.CONTENT_LANGUAGE_CONFLICT]: {
+    priority: "P1",
+    firstChecks: [
+      "Mapear em quais blocos a copy saiu do idioma principal.",
+      "Conferir se os textos vieram da camada de i18n ou ficaram hardcoded no componente.",
+      "Revalidar header, footer, CTA, demo, pricing e mensagens de estado na rota afetada.",
+    ],
+    commandHints: [
+      "rg -n \"contact|pricing|download|proof|report|start|with|from|your|demo\" src app companion",
+      "rg -n \"i18n|locale|messages|translations|dictionary|lang\" src app companion",
+    ],
+    likelyAreas: [
+      "src/i18n/**",
+      "src/config/**",
+      "src/components/**",
+      "app/**",
+    ],
+  },
   [CODE.VISUAL_SECTION_ORDER_INVALID]: {
     priority: "P0",
     firstChecks: [
@@ -619,6 +727,114 @@ function shortHash(value) {
 
 function normalizeText(value) {
   return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function normalizeLanguageCode(value) {
+  const normalized = normalizeText(String(value ?? "")).toLowerCase();
+  if (!normalized) return "";
+  if (normalized.startsWith("es")) return "es";
+  if (normalized.startsWith("ca")) return "ca";
+  if (normalized.startsWith("en")) return "en";
+  if (normalized.startsWith("pt")) return "pt";
+  return "";
+}
+
+function normalizeLanguageSample(value) {
+  return normalizeText(String(value ?? ""))
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function scoreLanguageSample(text, lang) {
+  const normalized = ` ${normalizeLanguageSample(text)} `;
+  if (!normalized.trim()) return 0;
+  return (LANGUAGE_STOPWORDS[lang] ?? []).reduce((score, token) => {
+    return normalized.includes(` ${token} `) ? score + 1 : score;
+  }, 0);
+}
+
+function classifyLanguageSample(text) {
+  const scores = Object.keys(LANGUAGE_STOPWORDS).map((lang) => ({
+    lang,
+    score: scoreLanguageSample(text, lang),
+  }));
+  scores.sort((left, right) => right.score - left.score || left.lang.localeCompare(right.lang));
+  const best = scores[0] ?? { lang: "", score: 0 };
+  const second = scores[1] ?? { lang: "", score: 0 };
+  return {
+    lang: best.score >= 2 && best.score > second.score ? best.lang : "",
+    score: best.score,
+    secondScore: second.score,
+    scores,
+  };
+}
+
+function languageLabel(lang) {
+  return LANGUAGE_LABEL[lang] || lang || "idioma nao mapeado";
+}
+
+function detectLanguageConflict(snapshot = {}) {
+  const samples = Array.isArray(snapshot.uiTextSamples)
+    ? snapshot.uiTextSamples.map((item) => normalizeText(item)).filter(Boolean)
+    : [];
+  if (!samples.length) return null;
+
+  const aggregate = new Map();
+  const analyses = samples.map((text) => {
+    const result = classifyLanguageSample(text);
+    for (const row of result.scores) {
+      aggregate.set(row.lang, (aggregate.get(row.lang) ?? 0) + row.score);
+    }
+    return {
+      text,
+      lang: result.lang,
+      score: result.score,
+      secondScore: result.secondScore,
+    };
+  });
+
+  const sortedAggregate = Array.from(aggregate.entries()).sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]));
+  const declaredLang = normalizeLanguageCode(snapshot.lang);
+  const primaryLang = declaredLang || (sortedAggregate[0]?.[1] >= 4 ? sortedAggregate[0][0] : "");
+  if (!primaryLang) return null;
+
+  const conflictsByLang = new Map();
+  for (const sample of analyses) {
+    if (!sample.lang || sample.lang === primaryLang || sample.score < 2) continue;
+    const bucket = conflictsByLang.get(sample.lang) ?? [];
+    if (!bucket.some((entry) => entry.text === sample.text)) {
+      bucket.push(sample);
+    }
+    conflictsByLang.set(sample.lang, bucket);
+  }
+
+  const rankedConflicts = Array.from(conflictsByLang.entries())
+    .map(([lang, items]) => ({
+      lang,
+      items,
+      score: items.reduce((total, item) => total + item.score, 0),
+    }))
+    .sort((left, right) => right.items.length - left.items.length || right.score - left.score || left.lang.localeCompare(right.lang));
+  const strongestConflict = rankedConflicts[0];
+  if (!strongestConflict || strongestConflict.items.length < 2 || strongestConflict.score < 4) {
+    return null;
+  }
+
+  return {
+    documentLang: declaredLang,
+    primaryLang,
+    conflictingLang: strongestConflict.lang,
+    conflictingTexts: strongestConflict.items.slice(0, 4).map((item) => item.text),
+    confidence: strongestConflict.items.length >= 3 ? "high" : "medium",
+  };
+}
+
+function learningForIssue(code) {
+  return ISSUE_LEARNING_LIBRARY[code] ?? null;
 }
 
 function sanitizeFileToken(value, fallback = "item") {
@@ -1242,6 +1458,13 @@ async function captureSeoSnapshot(page, route) {
   const url = page.url();
   const snapshot = await page.evaluate(() => {
     const clean = (value) => String(value ?? "").replace(/\s+/g, " ").trim();
+    const isVisible = (element) => {
+      if (!element) return false;
+      const style = window.getComputedStyle(element);
+      if (!style || style.visibility === "hidden" || style.display === "none") return false;
+      const rect = element.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0;
+    };
     const title = clean(document.title);
     const metaDescription = clean(document.querySelector('meta[name="description"]')?.getAttribute("content"));
     const canonicalUrl = clean(document.querySelector('link[rel="canonical"]')?.getAttribute("href"));
@@ -1259,6 +1482,17 @@ async function captureSeoSnapshot(page, route) {
     const structuredScripts = document.querySelectorAll('script[type="application/ld+json"]').length;
     const text = clean(document.body?.innerText);
     const wordCount = text ? text.split(" ").filter(Boolean).length : 0;
+    const uiTextSamples = [];
+    const seenSamples = new Set();
+    for (const element of Array.from(document.querySelectorAll("h1, h2, h3, h4, p, a[href], button, label, summary, li, span"))) {
+      if (!isVisible(element)) continue;
+      const sample = clean(element.textContent);
+      if (sample.length < 12 || sample.length > 160) continue;
+      if (seenSamples.has(sample)) continue;
+      seenSamples.add(sample);
+      uiTextSamples.push(sample);
+      if (uiTextSamples.length >= 80) break;
+    }
 
     const links = Array.from(document.querySelectorAll("a[href]"));
     const internalLinks = links.filter((node) => {
@@ -1293,15 +1527,40 @@ async function captureSeoSnapshot(page, route) {
       structuredDataCount: structuredScripts,
       internalLinks,
       wordCount,
+      uiTextSamples,
     };
   });
 
   const evaluated = evaluateSeoSnapshot(snapshot);
+  const languageConflict = detectLanguageConflict(snapshot);
   return {
     route,
     url,
     ...snapshot,
     ...evaluated,
+    languageConflict,
+  };
+}
+
+function buildLanguageConflictIssue(pageResult) {
+  const conflict = pageResult?.languageConflict;
+  if (!conflict) return null;
+
+  const primaryLang = conflict.documentLang || conflict.primaryLang;
+  const samples = (conflict.conflictingTexts ?? []).map((item) => `"${item}"`).join(" | ");
+  const detail = [
+    `A pagina foi detectada como ${languageLabel(primaryLang)}, mas ainda mostra textos em ${languageLabel(conflict.conflictingLang)}.`,
+    samples ? `Exemplos: ${samples}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return {
+    code: CODE.CONTENT_LANGUAGE_CONFLICT,
+    severity: severityFromCode(CODE.CONTENT_LANGUAGE_CONFLICT),
+    route: pageResult.route || "/",
+    detail,
+    url: pageResult.url || "",
   };
 }
 
@@ -2381,6 +2640,43 @@ function inferIssueIntelligence(input, guide) {
     }
   } else if (input.code === CODE.JS_RUNTIME_ERROR || input.code === CODE.CONSOLE_ERROR) {
     rich = diagnoseRuntimeSignal(input.code, detail);
+  } else if (input.code === CODE.CONTENT_LANGUAGE_CONFLICT) {
+    rich = {
+      category: "content_language",
+      subtype: "content_language_conflict",
+      confidence: "high",
+      title: "Conflito de idiomas visiveis na interface",
+      httpStatus: null,
+      method: "",
+      requestUrl: input.url ?? "",
+      requestPath: tryParsePathname(input.url ?? ""),
+      failureText: detail,
+      probableCauses: [
+        "Parte da copy ficou fora da camada de i18n.",
+        "Header, footer, CTA ou mensagens de estado reutilizaram textos do locale errado.",
+        "Atributo lang, dicionarios e componentes nao estao sincronizados.",
+      ],
+      technicalChecks: [
+        "Mapear quais componentes renderizam os trechos no idioma errado.",
+        "Conferir chaves de traducao, fallbacks e textos hardcoded.",
+        "Validar se o atributo lang do documento acompanha a rota/locale ativo.",
+      ],
+      recommendedActions: [
+        "Centralizar a copy em i18n e eliminar textos soltos em componentes.",
+        "Reexecutar a auditoria para confirmar que nao restaram trechos residuais.",
+      ],
+      commandHints: [
+        "rg -n \"contact|pricing|download|proof|report|start|with|from|your|demo\" src app companion",
+        "rg -n \"i18n|locale|messages|translations|dictionary|lang\" src app companion",
+      ],
+      likelyAreas: ["src/i18n/**", "src/config/**", "src/components/**", "app/**"],
+      technicalExplanation:
+        "Foram encontrados textos visiveis fora do idioma principal da pagina, o que indica conflito de internacionalizacao e copy residual.",
+      laymanExplanation:
+        "A tela mistura idiomas diferentes e passa sensacao de produto inacabado.",
+      recommendedResolution:
+        "Remover os textos fora do idioma principal e garantir que toda a interface leia da mesma fonte de traducao.",
+    };
   } else if (input.code === CODE.ROUTE_LOAD_FAIL) {
     const lower = detail.toLowerCase();
     if (lower.includes("err_insufficient_resources")) {
@@ -2952,6 +3248,9 @@ function createIssueLogEntry(issue) {
     detail: issue.detail,
     laymanExplanation: issue.laymanExplanation,
     recommendedResolution: issue.recommendedResolution,
+    possibleResolution: issue.possibleResolution,
+    finalResolution: issue.finalResolution,
+    learningSource: issue.learningSource,
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
     diagnosis: issue.diagnosis,
@@ -2962,6 +3261,7 @@ function createIssueLogEntry(issue) {
 function hydrateIssue(rawIssue) {
   const guide = guideForIssueCode(rawIssue.code);
   const diagnosis = rawIssue.diagnosis ?? inferIssueIntelligence(rawIssue, guide);
+  const learning = learningForIssue(rawIssue.code);
 
   const issue = {
     id:
@@ -2983,6 +3283,10 @@ function hydrateIssue(rawIssue) {
       rawIssue.laymanExplanation ?? diagnosis.laymanExplanation ?? guide.layman,
     recommendedResolution:
       rawIssue.recommendedResolution ?? diagnosis.recommendedResolution ?? guide.recommendation,
+    possibleResolution:
+      rawIssue.possibleResolution ?? learning?.possibleSolution ?? diagnosis.recommendedResolution ?? guide.recommendation,
+    finalResolution: rawIssue.finalResolution ?? learning?.finalSolution ?? "",
+    learningSource: rawIssue.learningSource ?? learning?.source ?? "",
     evidence: Array.isArray(rawIssue.evidence)
       ? rawIssue.evidence
           .map((item) => ({
@@ -3052,6 +3356,7 @@ function severityFromCode(code) {
   if (
     code === CODE.BTN_CLICK_ERROR ||
     code === CODE.NET_REQUEST_FAILED ||
+    code === CODE.CONTENT_LANGUAGE_CONFLICT ||
     code === CODE.VISUAL_SECTION_MISSING ||
     code === CODE.VISUAL_LAYOUT_OVERFLOW ||
     code === CODE.VISUAL_LAYER_OVERLAP ||
@@ -3192,6 +3497,9 @@ function buildAssistantGuide(report) {
       detail: issue.detail,
       diagnosis: issue.diagnosis,
       recommendedResolution: issue.recommendedResolution,
+      possibleResolution: issue.possibleResolution,
+      finalResolution: issue.finalResolution,
+      learningSource: issue.learningSource,
       assistantHint: issue.assistantHint ?? buildIssueActionHint(issue, issue.diagnosis),
     })),
   };
@@ -3235,6 +3543,15 @@ function toAssistantBrief(report) {
         lines.push(`  diagnostico: ${issue.diagnosis.title} [${issue.diagnosis.subtype}]`);
       }
       lines.push(`  resolucao: ${issue.recommendedResolution}`);
+      if (issue.possibleResolution) {
+        lines.push(`  solucao_possivel: ${issue.possibleResolution}`);
+      }
+      if (issue.finalResolution) {
+        lines.push(`  solucao_final: ${issue.finalResolution}`);
+      }
+      if (issue.learningSource) {
+        lines.push(`  fonte_aprendizado: ${issue.learningSource}`);
+      }
       lines.push(`  prioridade: ${issue.assistantHint.priority}`);
       lines.push(`  checks: ${issue.assistantHint.firstChecks.join(" | ")}`);
       lines.push(`  comandos: ${issue.assistantHint.commandHints.join(" || ")}`);
@@ -3657,6 +3974,9 @@ function toIssueLog(report) {
         `diagnostico_acoes: ${(entry.diagnosis?.recommendedActions ?? []).join(" | ")}`,
         `leigo: ${entry.laymanExplanation}`,
         `resolucao_recomendada: ${entry.recommendedResolution}`,
+        `solucao_possivel: ${entry.possibleResolution ?? ""}`,
+        `solucao_final: ${entry.finalResolution ?? ""}`,
+        `fonte_aprendizado: ${entry.learningSource ?? ""}`,
         `prioridade_assistente: ${entry.assistantHint?.priority ?? "P2"}`,
         `checks_assistente: ${(entry.assistantHint?.firstChecks ?? []).join(" | ")}`,
         `comandos_assistente: ${(entry.assistantHint?.commandHints ?? []).join(" || ")}`,
@@ -6534,6 +6854,10 @@ async function run() {
       const seoPage = shouldAuditSeo ? await captureSeoSnapshot(page, route).catch(() => null) : null;
       if (seoPage) {
         upsertSeoPage(report, seoPage);
+        const languageConflictIssue = buildLanguageConflictIssue(seoPage);
+        if (languageConflictIssue) {
+          pushIssue(report, languageConflictIssue);
+        }
       }
 
       if (!shouldAuditExperience) {

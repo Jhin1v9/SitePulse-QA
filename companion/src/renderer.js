@@ -15,6 +15,7 @@ const ISSUE_GROUP = {
   NET_REQUEST_FAILED: "Network failure",
   JS_RUNTIME_ERROR: "Runtime JavaScript failure",
   CONSOLE_ERROR: "Console error",
+  CONTENT_LANGUAGE_CONFLICT: "Language conflict",
   VISUAL_SECTION_ORDER_INVALID: "Visual order mismatch",
   VISUAL_SECTION_MISSING: "Missing section",
   VISUAL_LAYOUT_OVERFLOW: "Layout overflow",
@@ -635,6 +636,7 @@ function parseSeverity(value, code = "") {
     "HTTP_4XX",
     "BTN_CLICK_ERROR",
     "NET_REQUEST_FAILED",
+    "CONTENT_LANGUAGE_CONFLICT",
     "VISUAL_SECTION_MISSING",
     "VISUAL_LAYOUT_OVERFLOW",
     "VISUAL_LAYER_OVERLAP",
@@ -901,6 +903,9 @@ function normalizeIssue(item, index) {
     action: String(issue.action || ""),
     detail: String(issue.detail || "No detail provided."),
     recommendedResolution: String(issue.recommendedResolution || "Review the root cause and validate with a fresh run."),
+    possibleResolution: String(issue.possibleResolution || ""),
+    finalResolution: String(issue.finalResolution || ""),
+    learningSource: String(issue.learningSource || ""),
     group: ISSUE_GROUP[code] || "Other issue",
     viewportLabel: String(issue.viewportLabel || ""),
     viewport: String(issue.viewport || ""),
@@ -2670,6 +2675,9 @@ function buildIssueCard(issue, actionContext) {
       <p class="issue-detail"><strong>Actually did:</strong> ${escapeHtml(actualDid)}</p>
       <p class="issue-detail"><strong>Why it matters:</strong> ${escapeHtml(whyItMatters)}</p>
       <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
+      ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
+      ${issue.finalResolution ? `<p class="issue-checks"><strong>Final solution:</strong> ${escapeHtml(issue.finalResolution)}</p>` : ""}
+      ${issue.learningSource ? `<p class="issue-checks"><strong>Learning source:</strong> ${escapeHtml(issue.learningSource)}</p>` : ""}
       ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
       ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
       ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
