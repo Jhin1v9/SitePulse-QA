@@ -159,6 +159,7 @@ export function HeroExperience({
 
         <form
           onSubmit={handleSubmit}
+          noValidate
           className="rounded-[1.75rem] border border-slate-300/80 bg-white/90 p-4 shadow-[0_24px_70px_rgba(15,23,42,0.14)] backdrop-blur dark:border-slate-700/80 dark:bg-slate-950/70 dark:shadow-[0_24px_70px_rgba(0,0,0,0.38)] sm:p-5"
         >
           <label htmlFor="hero-platform-url" className="sr-only">
@@ -181,7 +182,6 @@ export function HeroExperience({
               className="input-base h-12 min-w-0 flex-1 rounded-2xl"
               placeholder={inputPlaceholder}
               aria-invalid={state === "error"}
-              required
             />
             <button
               type="submit"
@@ -192,12 +192,15 @@ export function HeroExperience({
             </button>
             <Link
               href={buildLocalizedPath(locale, "downloads")}
+              prefetch={false}
               className="inline-flex h-12 w-full shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white/75 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100 lg:w-auto"
             >
               {secondaryLabel}
             </Link>
           </div>
-          <p className={`mt-3 min-h-5 text-sm ${statusClassName}`}>{statusText}</p>
+          <p className={`mt-3 min-h-5 text-sm ${statusClassName}`} aria-live="polite" role={state === "error" ? "alert" : "status"}>
+            {statusText}
+          </p>
         </form>
 
         <div className="flex min-w-0 flex-wrap gap-2 text-xs font-semibold uppercase tracking-[0.14em] leading-relaxed text-slate-600 dark:text-slate-300">
@@ -238,7 +241,7 @@ export function HeroExperience({
             <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-300">{content.liveSummary}</p>
           </div>
 
-          <ol className="grid min-w-0 gap-3">
+          <ol className="grid min-w-0 gap-4">
             {content.steps.map((step, index) => {
               const isActive = state !== "error" && index <= activeStep;
               return (
@@ -270,7 +273,7 @@ export function HeroExperience({
             })}
           </ol>
 
-          <div className="grid min-w-0 gap-3 sm:grid-cols-2">
+          <div className="grid min-w-0 gap-5 sm:grid-cols-2">
             <article className="rounded-[1.2rem] border border-slate-300/80 bg-white/80 p-4 dark:border-slate-700/80 dark:bg-slate-950/60">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">{content.scoreLabel}</p>
               <p className="mt-2 text-3xl font-semibold text-slate-950 dark:text-slate-100">{scoreValue}</p>

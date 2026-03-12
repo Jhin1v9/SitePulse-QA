@@ -83,7 +83,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       summary: "Valida indexacion, metadatos y senales SEO tecnicas antes de publicar para reducir regresiones.",
       imagePath: "/screenshots/studio-seo.svg",
       alt: "Vista del analisis de SEO tecnico en SitePulse Studio.",
-      focusLabel: "Baseline SEO",
+      focusLabel: "Base SEO",
     },
   ],
   ca: [
@@ -109,7 +109,7 @@ const previewCatalog: Record<Locale, readonly AppPreview[]> = {
       summary: "Valida indexacio, metadades i senyals SEO tecniques abans de publicar per reduir regressions.",
       imagePath: "/screenshots/studio-seo.svg",
       alt: "Vista de l analisi de SEO tecnic a SitePulse Studio.",
-      focusLabel: "Baseline SEO",
+      focusLabel: "Base SEO",
     },
   ],
 };

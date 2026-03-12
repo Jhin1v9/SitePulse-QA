@@ -55,6 +55,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
 
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
+  const localizedChannel = locale === "en" ? "stable" : "estable";
   const statusTitle =
     locale === "en"
       ? "Release status"
@@ -70,18 +71,18 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
   const statusItems =
     locale === "en"
       ? [
-          `Channel: ${downloadFeed.channel}`,
+          `Channel: ${localizedChannel}`,
           `Updated: ${formatIsoDate(downloadFeed.updatedAt)}`,
           "Distribution mode: signed packages on request",
         ]
       : locale === "ca"
         ? [
-            `Canal: ${downloadFeed.channel}`,
+            `Canal: ${localizedChannel}`,
             `Actualitzat: ${formatIsoDate(downloadFeed.updatedAt)}`,
             "Mode de distribucio: paquets signats sota sollicitud",
           ]
         : [
-            `Canal: ${downloadFeed.channel}`,
+            `Canal: ${localizedChannel}`,
             `Actualizado: ${formatIsoDate(downloadFeed.updatedAt)}`,
             "Modo de distribucion: paquetes firmados bajo solicitud",
           ];
@@ -93,7 +94,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.downloads.title}</h1>
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.downloads.description}</p>
         <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700 dark:text-slate-300">
-          <p className="break-words">{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{downloadFeed.channel}</span></p>
+          <p className="break-words">{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{localizedChannel}</span></p>
           <p className="break-words">{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt)}</span></p>
         </div>
         <article className="panel mt-5 min-w-0 rounded-[1.6rem] p-5 sm:p-6">
@@ -148,6 +149,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
                   ) : (
                     <Link
                       href={`${buildLocalizedPath(locale, "contact")}?topic=download&package=${encodeURIComponent(installer.id)}`}
+                      prefetch={false}
                       className="inline-flex h-10 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100 xl:w-auto"
                     >
                       {messages.downloads.actions.request}
@@ -164,6 +166,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
                   ) : (
                     <Link
                       href={`${buildLocalizedPath(locale, "contact")}?topic=release-notes&package=${encodeURIComponent(installer.id)}`}
+                      prefetch={false}
                       className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 xl:w-auto"
                     >
                       {messages.downloads.actions.releaseNotes}
@@ -172,6 +175,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
 
                   <Link
                     href={buildLocalizedPath(locale, "contact")}
+                    prefetch={false}
                     className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 xl:w-auto"
                   >
                     {messages.downloads.actions.support}

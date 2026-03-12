@@ -38,6 +38,20 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
 
   const sourceTopic = searchParams?.topic;
   const sourcePackage = searchParams?.package;
+  const localizedSourceTopic =
+    sourceTopic === "download"
+      ? locale === "en"
+        ? "download request"
+        : locale === "ca"
+          ? "sollicitud de descarrega"
+          : "solicitud de descarga"
+      : sourceTopic === "release-notes"
+        ? locale === "en"
+          ? "release notes"
+          : locale === "ca"
+            ? "notes de release"
+            : "notas de release"
+        : sourceTopic;
 
   return (
     <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
@@ -47,7 +61,7 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
         <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.contact.description}</p>
         {sourceTopic ? (
           <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">
-            {sourceLabel}: {sourceTopic} {sourcePackage ? `(${sourcePackage})` : ""}
+            {sourceLabel}: {localizedSourceTopic} {sourcePackage ? `(${sourcePackage})` : ""}
           </p>
         ) : null}
       </section>

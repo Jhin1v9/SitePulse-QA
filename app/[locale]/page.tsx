@@ -5,6 +5,7 @@ import { HeroExperience } from "@/src/components/marketing/hero-experience";
 import { PricingGrid } from "@/src/components/marketing/pricing-grid";
 import { UrlAuditForm } from "@/src/components/marketing/url-audit-form";
 import { getMarketingContent } from "@/src/config/marketing-content";
+import { siteConfig } from "@/src/config/site";
 import { getAppPreviews } from "@/src/config/showcase";
 import { isLocale, type Locale } from "@/src/i18n/config";
 import { createLocalizedMetadata } from "@/src/i18n/metadata";
@@ -37,9 +38,34 @@ export default function HomePage({ params }: HomePageProps) {
   const messages = getMessages(locale);
   const marketing = getMarketingContent(locale);
   const appPreviews = getAppPreviews(locale);
+  const canonicalUrl = `${siteConfig.url}/${locale}`;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: siteConfig.name,
+    applicationCategory: "BusinessApplication",
+    operatingSystem: "Windows",
+    url: canonicalUrl,
+    description: messages.home.meta.description,
+    offers: [
+      {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "EUR",
+        category: "Starter",
+      },
+      {
+        "@type": "Offer",
+        price: "89",
+        priceCurrency: "EUR",
+        category: "Pro",
+      },
+    ],
+  };
 
   return (
-    <div className="content-shell min-w-0 space-y-14 py-8 sm:space-y-20 sm:py-14">
+    <div className="content-shell space-y-14 py-8 sm:space-y-20 sm:py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <HeroExperience
         locale={locale}
         eyebrow={messages.home.hero.eyebrow}
@@ -66,7 +92,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.home.problem.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 md:grid-cols-3">
+        <div className="grid min-w-0 gap-5 md:grid-cols-3 lg:gap-6">
           {messages.home.problem.stats.map((stat) => (
             <article key={stat.label} className="panel flex h-full min-w-0 flex-col rounded-[1.6rem] p-5 sm:p-6">
               <p className="text-4xl font-semibold text-slate-950 dark:text-slate-100">{stat.value}</p>
@@ -88,7 +114,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{marketing.platform.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2 lg:gap-6">
           {marketing.platform.blocks.map((block, index) => (
             <article key={block.title} className="panel flex h-full min-w-0 flex-col rounded-[1.7rem] p-6 sm:p-7">
               <div className="flex min-w-0 items-start justify-between gap-3">
@@ -126,7 +152,7 @@ export default function HomePage({ params }: HomePageProps) {
           </p>
         </div>
 
-        <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-2 lg:gap-6">
           <article className="panel min-w-0 rounded-[1.7rem] p-6 sm:p-7">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-300">
               {messages.home.beforeAfter.beforeTitle}
@@ -161,7 +187,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.home.solution.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-3 lg:gap-6">
           {messages.home.solution.steps.map((step, index) => (
             <article key={step.title} className="panel flex h-full min-w-0 flex-col rounded-[1.7rem] p-6 sm:p-7">
               <span className="text-xs font-semibold uppercase tracking-[0.16em] text-studio-600 dark:text-studio-200">0{index + 1}</span>
@@ -183,7 +209,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.home.features.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:grid-cols-3 lg:gap-6">
           {messages.home.features.items.map((feature) => (
             <article key={feature.title} className="panel flex h-full min-w-0 flex-col rounded-[1.7rem] p-6 sm:p-7">
               <h3 className="text-[clamp(1.2rem,2.8vw,1.45rem)] font-semibold text-slate-950 dark:text-slate-100">{feature.title}</h3>
@@ -214,7 +240,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.home.benefits.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2 lg:gap-6">
           {messages.home.benefits.items.map((benefit) => (
             <article key={benefit} className="panel flex h-full min-w-0 items-start rounded-[1.6rem] p-5 text-sm leading-7 text-slate-700 dark:text-slate-300 sm:p-6">
               {benefit}
@@ -234,7 +260,7 @@ export default function HomePage({ params }: HomePageProps) {
           <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{marketing.social.description}</p>
         </div>
 
-        <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        <div className="grid min-w-0 gap-5 md:grid-cols-2 lg:gap-6">
           {marketing.social.metrics.map((metric) => (
             <article key={metric.label} className="panel flex h-full min-w-0 flex-col rounded-[1.7rem] p-6 sm:p-7">
               <p className="text-4xl font-semibold text-slate-950 dark:text-slate-100">{metric.value}</p>
@@ -244,7 +270,7 @@ export default function HomePage({ params }: HomePageProps) {
           ))}
         </div>
 
-        <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        <div className="grid min-w-0 gap-5 lg:grid-cols-3 lg:gap-6">
           {marketing.social.quotes.map((quote) => (
             <article key={`${quote.company}-${quote.metric}`} className="panel flex h-full min-w-0 flex-col rounded-[1.7rem] p-6 sm:p-7">
               <p className="text-sm leading-7 text-slate-700 dark:text-slate-300">

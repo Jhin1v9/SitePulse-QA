@@ -42,7 +42,7 @@ export default function FaqPage({ params }: FaqPageProps) {
         }
       : locale === "ca"
         ? {
-            docsTitle: "Docs",
+            docsTitle: "Documentacio",
             docsText: "Fes servir la demo, la pagina d instal.ladors i el formulari de contacte com a guia publica d avaluacio, rollout i acces a paquets.",
             securityTitle: "Seguretat",
             securityText: "El producte funciona desktop-first amb engine local, distribucio de paquets signats i publicacio controlada dels instal.ladors.",
@@ -50,7 +50,7 @@ export default function FaqPage({ params }: FaqPageProps) {
             privacyText: "Els formularis comercials nomes recullen els camps necessaris per contacte i pre-venda. L execucio de l auditoria continua sent local al producte desktop.",
           }
         : {
-            docsTitle: "Docs",
+            docsTitle: "Documentacion",
             docsText: "Usa la demo, la pagina de instaladores y el formulario de contacto como guia publica de evaluacion, rollout y acceso a paquetes.",
             securityTitle: "Seguridad",
             securityText: "El producto funciona desktop-first con engine local, distribucion de paquetes firmados y publicacion controlada de instaladores.",

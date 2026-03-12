@@ -76,6 +76,7 @@ export function UrlAuditForm({
   return (
     <form
       onSubmit={handleSubmit}
+      noValidate
       className={`rounded-[1.6rem] border border-slate-300/70 bg-white/80 p-3 backdrop-blur dark:border-slate-700 dark:bg-slate-900/70 ${
         compact ? "" : "shadow-[0_24px_70px_rgba(15,23,42,0.14)] dark:shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
       }`}
@@ -95,7 +96,6 @@ export function UrlAuditForm({
           className="input-base min-w-0 flex-1 rounded-2xl"
           placeholder={inputPlaceholder}
           aria-invalid={state === "error"}
-          required
         />
         <button
           type="submit"
@@ -106,12 +106,15 @@ export function UrlAuditForm({
         </button>
         <Link
           href={buildLocalizedPath(locale, "downloads")}
+          prefetch={false}
           className="inline-flex h-11 w-full shrink-0 items-center justify-center rounded-2xl border border-slate-300 bg-white/80 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:text-studio-100 sm:w-auto"
         >
           {secondaryLabel}
         </Link>
       </div>
-      <p className={`mt-2 min-h-5 text-xs ${statusClassName}`}>{statusText}</p>
+      <p className={`mt-2 min-h-5 text-xs ${statusClassName}`} aria-live="polite" role={state === "error" ? "alert" : "status"}>
+        {statusText}
+      </p>
     </form>
   );
 }

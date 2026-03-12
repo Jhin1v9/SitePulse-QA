@@ -60,6 +60,7 @@ export function PricingGrid({ locale, plans, labels }: PricingGridProps) {
 
             <Link
               href={buildLocalizedPath(locale, plan.ctaRoute)}
+              prefetch={false}
               className={`mt-6 inline-flex h-12 w-full items-center justify-center rounded-2xl px-5 text-sm font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 ${
                 plan.recommended
                   ? "bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 text-white shadow-[0_16px_44px_rgba(8,145,178,0.3)] hover:-translate-y-0.5 hover:brightness-110"

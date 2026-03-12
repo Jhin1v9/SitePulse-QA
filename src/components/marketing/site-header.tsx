@@ -19,11 +19,15 @@ const navRoutes: readonly RouteKey[] = ["home", "demo", "downloads", "pricing", 
 export function SiteHeader({ locale, messages }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  const getNavHref = (route: RouteKey) =>
+    route === "home" ? `${buildLocalizedPath(locale, route)}#top` : buildLocalizedPath(locale, route);
+
   return (
     <header className="sticky top-0 z-50 border-b border-slate-300/70 bg-white/78 shadow-[0_14px_44px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/78 dark:shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
       <div className="content-shell flex min-w-0 items-center gap-3 py-4 lg:gap-4">
         <Link
-          href={buildLocalizedPath(locale, "home")}
+          href={`${buildLocalizedPath(locale, "home")}#top`}
+          prefetch={false}
           className="inline-flex min-w-0 items-center gap-3 rounded-full border border-slate-300/80 bg-white/82 px-3 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-100 dark:hover:text-studio-100"
         >
           <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-studio-500 to-cyan-500 text-[0.72rem] font-bold uppercase tracking-wider text-white shadow-[0_10px_24px_rgba(8,145,178,0.28)]">
@@ -37,7 +41,8 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
             {navRoutes.map((route) => (
               <li key={route} className="min-w-0">
                 <Link
-                  href={buildLocalizedPath(locale, route)}
+                  href={getNavHref(route)}
+                  prefetch={false}
                   className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
                 >
                   {messages.nav[route]}
@@ -52,12 +57,14 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
           <Link
             href={buildLocalizedPath(locale, "demo")}
+            prefetch={false}
             className="inline-flex h-11 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
           >
             {messages.nav.primaryCta}
           </Link>
           <Link
             href={buildLocalizedPath(locale, "downloads")}
+            prefetch={false}
             className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/82 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
           >
             {messages.nav.secondaryCta}
@@ -82,7 +89,8 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
               {navRoutes.map((route) => (
                 <li key={route}>
                   <Link
-                    href={buildLocalizedPath(locale, route)}
+                    href={getNavHref(route)}
+                    prefetch={false}
                     onClick={() => setMobileOpen(false)}
                     className="inline-flex h-11 w-full items-center rounded-2xl border border-slate-300 bg-white px-4 font-medium transition hover:border-studio-300 hover:text-studio-700 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:text-studio-100"
                   >
@@ -98,6 +106,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
             <div className="grid gap-2">
               <Link
                 href={buildLocalizedPath(locale, "demo")}
+                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-4 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
               >
@@ -105,6 +114,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
               </Link>
               <Link
                 href={buildLocalizedPath(locale, "downloads")}
+                prefetch={false}
                 onClick={() => setMobileOpen(false)}
                 className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:text-studio-100"
               >

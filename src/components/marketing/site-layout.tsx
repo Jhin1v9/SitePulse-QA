@@ -14,7 +14,7 @@ export function MarketingLayout({ locale, messages, children }: MarketingLayoutP
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader locale={locale} messages={messages} />
-      <main className="min-w-0 flex-1">{children}</main>
+      <main id="top" className="min-w-0 flex-1">{children}</main>
       <SiteFooter locale={locale} messages={messages} />
     </div>
   );

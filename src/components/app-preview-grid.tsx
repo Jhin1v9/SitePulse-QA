@@ -30,7 +30,7 @@ export function AppPreviewGrid({ previews }: AppPreviewGridProps) {
 
   return (
     <>
-      <div className="grid min-w-0 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+      <div className="grid min-w-0 gap-5 md:grid-cols-2 xl:gap-6 2xl:grid-cols-3">
         {previews.map((preview) => (
           <article key={preview.id} className="panel group min-w-0 overflow-hidden rounded-[1.7rem]">
             <button

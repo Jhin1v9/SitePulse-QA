@@ -50,12 +50,14 @@ export default function DemoPage({ params, searchParams }: DemoPageProps) {
         <div className="flex min-w-0 flex-wrap gap-3">
           <Link
             href={buildLocalizedPath(locale, "downloads")}
+            prefetch={false}
             className="inline-flex h-10 w-full items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 dark:text-studio-100 sm:w-auto"
           >
             {messages.demo.ctaPrimary}
           </Link>
           <Link
             href={buildLocalizedPath(locale, "contact")}
+            prefetch={false}
             className="inline-flex h-10 w-full items-center justify-center rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 sm:w-auto"
           >
             {messages.demo.ctaSecondary}

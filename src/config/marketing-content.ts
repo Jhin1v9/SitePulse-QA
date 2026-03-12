@@ -213,7 +213,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       recommendationLabel: "Recomendacion principal",
       statusIdle: "Esperando objetivo",
       statusRunning: "Simulacion de auditoria en marcha",
-      statusReady: "Preview lista",
+      statusReady: "Vista previa lista",
     },
     platform: {
       eyebrow: "Plataforma",
@@ -257,19 +257,19 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       quotes: [
         {
           company: "Nexa Commerce",
-          role: "Head of QA",
+          role: "Responsable de QA",
           quote: "Dejamos de discutir opiniones y pasamos a aprobar releases con evidencia.",
           metric: "41% menos incidentes en 90 dias",
         },
         {
           company: "Orbit Fintech",
-          role: "Product Engineering Manager",
+          role: "Responsable de ingenieria de producto",
           quote: "La plataforma nos dio un modelo claro de decision en lugar de checklists sueltos.",
           metric: "2.1x mas throughput de validacion",
         },
         {
           company: "Atlas Growth",
-          role: "SEO Lead",
+          role: "Responsable de SEO",
           quote: "El SEO tecnico entro en la conversacion antes de publicar paginas.",
           metric: "18% mas estabilidad de indexacion",
         },
@@ -280,7 +280,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       standardBadge: "PLAN",
       entryLabel: "Entrada",
       primaryLabel: "Principal",
-      enterpriseLabel: "Enterprise",
+      enterpriseLabel: "Corporativo",
     },
     footer: {
       description:
@@ -298,7 +298,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
         {
           title: "Recursos",
           links: [
-            { label: "Docs", href: "/faq#docs" },
+            { label: "Documentacion", href: "/faq#docs" },
             { label: "FAQ", href: "/faq" },
             { label: "Contacto", href: "/contact" },
           ],
@@ -333,7 +333,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       recommendationLabel: "Recomanacio principal",
       statusIdle: "Esperant objectiu",
       statusRunning: "Simulacio d auditoria en marxa",
-      statusReady: "Preview llesta",
+      statusReady: "Vista previa llesta",
     },
     platform: {
       eyebrow: "Plataforma",
@@ -377,19 +377,19 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       quotes: [
         {
           company: "Nexa Commerce",
-          role: "Head of QA",
+          role: "Responsable de QA",
           quote: "Vam deixar de discutir opinions i vam passar a aprovar releases amb evidencia.",
           metric: "41% menys incidencies en 90 dies",
         },
         {
           company: "Orbit Fintech",
-          role: "Product Engineering Manager",
+          role: "Responsable d enginyeria de producte",
           quote: "La plataforma ens va donar un model clar de decisio en lloc de checklists dispersos.",
           metric: "2.1x mes throughput de validacio",
         },
         {
           company: "Atlas Growth",
-          role: "SEO Lead",
+          role: "Responsable de SEO",
           quote: "El SEO tecnic va entrar a la conversa abans de publicar pagines.",
           metric: "18% mes estabilitat d indexacio",
         },
@@ -400,7 +400,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
       standardBadge: "PLA",
       entryLabel: "Entrada",
       primaryLabel: "Principal",
-      enterpriseLabel: "Enterprise",
+      enterpriseLabel: "Corporatiu",
     },
     footer: {
       description:
@@ -418,7 +418,7 @@ export const marketingContent: Record<Locale, MarketingContent> = {
         {
           title: "Recursos",
           links: [
-            { label: "Docs", href: "/faq#docs" },
+            { label: "Documentacio", href: "/faq#docs" },
             { label: "FAQ", href: "/faq" },
             { label: "Contacte", href: "/contact" },
           ],

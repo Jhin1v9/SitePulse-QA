@@ -35,7 +35,11 @@ export function SiteFooter({ locale, messages }: SiteFooterProps) {
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">{group.title}</p>
               <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-200">
                 {group.links.map((link) => {
-                  const href = link.external ? link.href : localizeHref(locale, link.href);
+                  const href = link.external
+                    ? link.href
+                    : link.href === "/"
+                      ? `${localizeHref(locale, link.href)}#top`
+                      : localizeHref(locale, link.href);
                   const commonClassName = "inline-flex min-w-0 break-words transition hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:text-studio-100";
 
                   return (
@@ -45,7 +49,7 @@ export function SiteFooter({ locale, messages }: SiteFooterProps) {
                           {link.label}
                         </a>
                       ) : (
-                        <Link href={href} className={commonClassName}>
+                        <Link href={href} prefetch={false} className={commonClassName}>
                           {link.label}
                         </Link>
                       )}

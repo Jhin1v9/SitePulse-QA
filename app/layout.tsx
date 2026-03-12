@@ -59,6 +59,10 @@ export const metadata: Metadata = {
 
 const themeInitScript = `(() => {
   try {
+    const locale = window.location.pathname.split('/').filter(Boolean)[0];
+    if (locale === 'es' || locale === 'ca' || locale === 'en') {
+      document.documentElement.lang = locale;
+    }
     const key = 'sitepulse-theme';
     const stored = window.localStorage.getItem(key);
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
