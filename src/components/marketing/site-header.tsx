@@ -14,7 +14,7 @@ interface SiteHeaderProps {
   messages: SiteMessages;
 }
 
-const navRoutes: readonly RouteKey[] = ["home", "demo", "downloads", "pricing", "faq", "contact"];
+const navRoutes: readonly RouteKey[] = ["home", "pricing", "faq", "contact"];
 
 export function SiteHeader({ locale, messages }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,7 +24,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
 
   return (
     <header className="sticky top-0 z-50 border-b border-slate-300/70 bg-white/78 shadow-[0_14px_44px_rgba(15,23,42,0.08)] backdrop-blur-xl dark:border-slate-800/70 dark:bg-slate-950/78 dark:shadow-[0_18px_50px_rgba(0,0,0,0.3)]">
-      <div className="content-shell flex min-w-0 items-center gap-3 py-4 lg:gap-4">
+      <div className="content-shell flex min-w-0 items-center justify-between gap-4 py-4 lg:gap-6">
         <Link
           href={`${buildLocalizedPath(locale, "home")}#top`}
           prefetch={false}
@@ -36,39 +36,41 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           <span className="min-w-0 truncate">{siteConfig.name}</span>
         </Link>
 
-        <nav aria-label="Primary navigation" className="hidden min-w-0 flex-1 min-[1360px]:block">
-          <ul className="flex min-w-0 items-center justify-center gap-1 text-sm text-slate-700 dark:text-slate-200">
-            {navRoutes.map((route) => (
-              <li key={route} className="min-w-0">
-                <Link
-                  href={getNavHref(route)}
-                  prefetch={false}
-                  className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
-                >
-                  {messages.nav[route]}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        <div className="hidden min-w-0 flex-1 items-center justify-between gap-6 min-[1360px]:flex">
+          <nav aria-label="Primary navigation" className="min-w-0">
+            <ul className="flex min-w-0 items-center gap-1 text-sm text-slate-700 dark:text-slate-200">
+              {navRoutes.map((route) => (
+                <li key={route} className="min-w-0">
+                  <Link
+                    href={getNavHref(route)}
+                    prefetch={false}
+                    className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3 text-sm transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
+                  >
+                    {messages.nav[route]}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
 
-        <div className="ml-auto hidden shrink-0 items-center gap-2 min-[1360px]:flex">
-          <LanguageSwitcher locale={locale} label={messages.localeSwitcherLabel} />
-          <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
-          <Link
-            href={buildLocalizedPath(locale, "demo")}
-            prefetch={false}
-            className="inline-flex h-11 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
-          >
-            {messages.nav.primaryCta}
-          </Link>
-          <Link
-            href={buildLocalizedPath(locale, "downloads")}
-            prefetch={false}
-            className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/82 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
-          >
-            {messages.nav.secondaryCta}
-          </Link>
+          <div className="hidden shrink-0 items-center gap-2 min-[1360px]:flex">
+            <LanguageSwitcher locale={locale} label={messages.localeSwitcherLabel} />
+            <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
+            <Link
+              href={buildLocalizedPath(locale, "demo")}
+              prefetch={false}
+              className="inline-flex h-11 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-5 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
+            >
+              {messages.nav.primaryCta}
+            </Link>
+            <Link
+              href={buildLocalizedPath(locale, "downloads")}
+              prefetch={false}
+              className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/82 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
+            >
+              {messages.nav.secondaryCta}
+            </Link>
+          </div>
         </div>
 
         <button
