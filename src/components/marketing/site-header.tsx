@@ -32,13 +32,13 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           <span className="truncate">{siteConfig.name}</span>
         </Link>
 
-        <nav aria-label="Primary navigation" className="hidden min-w-0 flex-1 lg:block">
-          <ul className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+        <nav aria-label="Primary navigation" className="hidden min-w-0 flex-1 2xl:block">
+          <ul className="flex min-w-max items-center gap-1 text-xs text-slate-700 dark:text-slate-200 2xl:text-sm">
             {navRoutes.map((route) => (
               <li key={route}>
                 <Link
                   href={buildLocalizedPath(locale, route)}
-                  className="inline-flex h-9 items-center justify-center rounded-full px-4 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
+                  className="inline-flex h-9 items-center justify-center rounded-full px-2.5 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white 2xl:px-3"
                 >
                   {messages.nav[route]}
                 </Link>
@@ -47,18 +47,18 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           </ul>
         </nav>
 
-        <div className="ml-auto hidden items-center gap-2 lg:flex">
+        <div className="ml-auto hidden shrink-0 items-center gap-2 2xl:flex">
           <LanguageSwitcher locale={locale} label={messages.localeSwitcherLabel} />
           <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
           <Link
             href={buildLocalizedPath(locale, "demo")}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white/80 px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-slate-300 bg-white/80 px-3 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
           >
             {messages.nav.primaryCta}
           </Link>
           <Link
             href={buildLocalizedPath(locale, "downloads")}
-            className="inline-flex h-10 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-4 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:text-studio-100"
+            className="inline-flex h-10 items-center justify-center rounded-full border border-studio-400/70 bg-studio-500/20 px-3 text-sm font-semibold text-studio-700 transition hover:bg-studio-500/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:text-studio-100"
           >
             {messages.nav.secondaryCta}
           </Link>
@@ -67,7 +67,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
         <button
           type="button"
           onClick={() => setMobileOpen((open) => !open)}
-          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white/80 text-sm font-semibold text-slate-700 transition hover:border-studio-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 lg:hidden"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 bg-white/80 text-sm font-semibold text-slate-700 transition hover:border-studio-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-100 2xl:hidden"
           aria-expanded={mobileOpen}
           aria-label={mobileOpen ? messages.nav.mobileClose : messages.nav.mobileOpen}
         >
@@ -76,7 +76,7 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
       </div>
 
       {mobileOpen ? (
-        <div className="border-t border-slate-300/70 bg-white/95 px-4 pb-4 pt-3 dark:border-slate-800/70 dark:bg-slate-950/95 lg:hidden">
+        <div className="border-t border-slate-300/70 bg-white/95 px-4 pb-4 pt-3 dark:border-slate-800/70 dark:bg-slate-950/95 2xl:hidden">
           <nav aria-label="Mobile navigation" className="content-shell">
             <ul className="grid gap-2 text-sm text-slate-700 dark:text-slate-200">
               {navRoutes.map((route) => (
