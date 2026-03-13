@@ -72,6 +72,20 @@
     };
   }
 
+  function buildMemoryGuideResponse(context) {
+    const help = context.workspaceHelp?.settings;
+    return {
+      title: "Memory panel guide",
+      summary: "The memory panel lives in Settings and shows validated, failed, partial, auto-promoted and manual override patterns.",
+      analysis: help?.steps || [
+        "Use filters to isolate validated, failed or partial patterns.",
+        "Focus a specific issue code to inspect its history.",
+        "Use Promote solution only when you want a deliberate manual override with traceability.",
+      ],
+      actions: [{ id: "switch-settings", label: "Open learning memory" }],
+    };
+  }
+
   function buildPrioritiesResponse(context) {
     const report = context.report;
     if (!report) {
@@ -311,6 +325,28 @@
     };
   }
 
+  function buildLatestRunResponse(context) {
+    const report = context.report;
+    if (!report) {
+      return {
+        title: "No run loaded",
+        summary: "There is no current or last run loaded in the desktop.",
+        analysis: ["Run or load an audit first."],
+        actions: [{ id: "switch-overview", label: "Prepare audit" }],
+      };
+    }
+    return {
+      title: "Latest loaded run",
+      summary: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore}`,
+      analysis: [
+        `Generated: ${report.meta.generatedAt}`,
+        `Routes checked: ${report.summary.routesChecked}`,
+        `Actions mapped: ${report.summary.actionsMapped}`,
+      ],
+      actions: [{ id: "switch-reports", label: "Open reports" }],
+    };
+  }
+
   function buildMemoryResponse(context, query) {
     const issueCode = inferIssueCode(query, context);
     const memory = summarizeMemory(context.learningMemory, issueCode);
@@ -374,6 +410,7 @@
 
   function resolveIntent(query) {
     if (!query) return "priorities";
+    if (matchesAny(query, ["painel de memoria", "memory panel", "painel de aprendizados"])) return "memory_guide";
     if (matchesAny(query, ["como usar", "how do i use", "como usar o painel", "guide", "what does", "me ensine", "ensine"])) return "guide";
     if (matchesAny(query, ["analise o log", "analyze the log", "problemas prioritarios de seo", "seo priorities"])) return "seo";
     if (matchesAny(query, ["o que significa", "what means", "explain", "explique"])) return "issue_explain";
@@ -385,6 +422,7 @@
     if (matchesAny(query, ["compare", "comparar", "compare a run", "run atual com a anterior"])) return "compare";
     if (matchesAny(query, ["gere um prompt", "generate a prompt", "crie um prompt"])) return "prompt";
     if (matchesAny(query, ["abra a memoria", "open memory", "aprendizados validados"])) return "memory";
+    if (matchesAny(query, ["ultima run", "latest run", "open last run", "abrir ultima run"])) return "latest_run";
     if (matchesAny(query, ["me diga o que devo fazer primeiro", "what should i do first", "prioritize"])) return "priorities";
     if (matchesAny(query, ["audite", "run audit", "audit "])) return "audit";
     if (matchesAny(query, ["log", "logs"])) return "logs";
@@ -397,6 +435,7 @@
         const context = options.getContext();
         const query = toLower(rawQuery);
         const intent = resolveIntent(query);
+        if (intent === "memory_guide") return buildMemoryGuideResponse(context);
         if (intent === "guide") return buildGuideResponse(context);
         if (intent === "seo") return buildSeoResponse(context);
         if (intent === "issue_explain") return buildIssueExplanation(context, rawQuery);
@@ -408,6 +447,7 @@
         if (intent === "compare") return buildCompareResponse(context);
         if (intent === "prompt") return buildPromptResponse(context, rawQuery);
         if (intent === "memory") return buildMemoryResponse(context, rawQuery);
+        if (intent === "latest_run") return buildLatestRunResponse(context);
         if (intent === "audit") return buildAuditSiteResponse(rawQuery);
         if (intent === "logs") return buildLogsResponse(context);
         return buildPrioritiesResponse(context);
