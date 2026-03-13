@@ -185,6 +185,42 @@ Responsibilities:
 This is not a generic chatbot.
 It uses the current app state passed from the renderer.
 
+### Cognitive Modes
+
+The assistant now routes each request through an explicit cognitive mode instead of treating all requests as one generic assistant flow.
+
+Implemented modes:
+
+- `operator`
+- `audit_analyst`
+- `prompt_engineer`
+- `product_guide`
+- `strategy_advisor`
+
+Each mode declares:
+
+- name
+- description
+- capabilities
+- allowed actions
+- context sources
+- priority rules
+- response style
+
+This lives in the mode registry inside [assistant-service.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\assistant-service.js).
+
+### Mode Routing
+
+The assistant request flow is now:
+
+1. detect intent
+2. select the matching cognitive mode
+3. build mode-specific context
+4. execute the mode handler
+5. filter suggested actions against the mode's allowed action list
+
+This keeps operator-like requests from behaving like prompt generation, and keeps strategy answers separate from UI help.
+
 ### Assistant Context Inputs
 
 The assistant can consume:
@@ -222,6 +258,14 @@ The assistant can consume:
 - teach me how to use the memory panel
 - open the latest run
 - promote this solution manually
+
+Example mappings:
+
+- `audite https://example.com` -> `operator`
+- `analise o log da ultima execucao` -> `audit_analyst`
+- `gere um prompt para corrigir SEO_CANONICAL_MISSING` -> `prompt_engineer`
+- `como usar o painel de memoria?` -> `product_guide`
+- `o que devo corrigir primeiro?` -> `strategy_advisor`
 
 ## Manual Override Flow
 
@@ -312,3 +356,12 @@ Initial version created after these desktop AI commits:
 - `18d1406` `feat(desktop): add persistent operational learning memory`
 - `aab1c48` `feat(desktop): add operational assistant and manual memory override`
 - `a781339` `fix(desktop): cover memory guide and latest run assistant intents`
+
+### 2026-03-13
+
+Assistant cognitive modes added:
+
+- mode registry
+- automatic mode detection
+- mode-specific context routing
+- UI display for active mode and detected intent

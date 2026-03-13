@@ -1,4 +1,137 @@
 (function attachSitePulseAssistant(globalScope) {
+  const MODE_REGISTRY = {
+    operator: {
+      key: "operator",
+      name: "Operator",
+      description: "Executes supported workstation actions, confirms operational steps and keeps the user in control.",
+      capabilities: ["run-audit", "open-memory", "open-run", "manual-override", "switch-workspace"],
+      allowedActions: [
+        "run-audit",
+        "switch-overview",
+        "switch-operations",
+        "switch-findings",
+        "switch-seo",
+        "switch-prompts",
+        "switch-compare",
+        "switch-reports",
+        "switch-settings",
+        "open-memory",
+        "manual-override",
+        "generate-prompt",
+      ],
+      contextSources: ["ui", "report", "commands", "history"],
+      priorityRules: [
+        "Prefer actions that can be executed safely right now.",
+        "Confirm operational context before changing memory.",
+      ],
+      responseStyle: "directive",
+    },
+    audit_analyst: {
+      key: "audit_analyst",
+      name: "Audit Analyst",
+      description: "Interprets the current run, logs, issue severity and operational memory to explain technical risk.",
+      capabilities: ["analyze-issues", "triage-severity", "read-logs", "use-memory"],
+      allowedActions: [
+        "switch-findings",
+        "switch-seo",
+        "switch-operations",
+        "switch-compare",
+        "switch-settings",
+        "open-memory",
+        "findings-search",
+        "generate-prompt",
+      ],
+      contextSources: ["report", "issues", "logs", "memory"],
+      priorityRules: [
+        "Prioritize high severity and SEO-impacting failures first.",
+        "Use validated memory before generic recommendations.",
+      ],
+      responseStyle: "analytical",
+    },
+    prompt_engineer: {
+      key: "prompt_engineer",
+      name: "Prompt Engineer",
+      description: "Builds fix prompts from the active issue, validated memory and failed patterns to avoid weak guidance.",
+      capabilities: ["generate-prompt", "cite-memory", "avoid-failed-patterns"],
+      allowedActions: [
+        "copy-text",
+        "switch-prompts",
+        "switch-findings",
+        "open-memory",
+        "generate-prompt",
+      ],
+      contextSources: ["report", "memory", "prompt-workspace"],
+      priorityRules: [
+        "Prefer validated fixes when they exist.",
+        "Call out failed patterns before proposing another attempt.",
+      ],
+      responseStyle: "structured",
+    },
+    product_guide: {
+      key: "product_guide",
+      name: "Product Guide",
+      description: "Explains the interface, workspaces and operational flows using the actual desktop surface and available actions.",
+      capabilities: ["explain-ui", "guide-workspace", "teach-memory-panel"],
+      allowedActions: [
+        "switch-overview",
+        "switch-operations",
+        "switch-findings",
+        "switch-seo",
+        "switch-prompts",
+        "switch-compare",
+        "switch-reports",
+        "switch-settings",
+        "open-memory",
+      ],
+      contextSources: ["ui", "workspace-help", "commands"],
+      priorityRules: [
+        "Keep explanations tied to the active workspace.",
+        "Prefer the shortest path that gets the user unstuck.",
+      ],
+      responseStyle: "instructional",
+    },
+    strategy_advisor: {
+      key: "strategy_advisor",
+      name: "Strategy Advisor",
+      description: "Prioritizes what to fix first using critical issues, business risk signals, SEO impact and run history.",
+      capabilities: ["prioritize-work", "compare-runs", "sequence-actions"],
+      allowedActions: [
+        "switch-findings",
+        "switch-prompts",
+        "switch-compare",
+        "switch-reports",
+        "switch-seo",
+        "open-memory",
+        "generate-prompt",
+      ],
+      contextSources: ["report", "issues", "memory", "history", "compare"],
+      priorityRules: [
+        "Sequence fixes by severity, validation gap and business impact.",
+        "Use comparison context when available before recommending the next move.",
+      ],
+      responseStyle: "prioritized",
+    },
+  };
+
+  const INTENT_DEFINITIONS = [
+    { id: "memory_guide", mode: "product_guide", terms: ["painel de memoria", "memory panel", "painel de aprendizados", "painel de memoria"], builder: (context) => buildMemoryGuideResponse(context) },
+    { id: "guide", mode: "product_guide", terms: ["como usar", "how do i use", "como usar o painel", "guide", "what does", "me ensine", "ensine", "painel atual"], builder: (context) => buildGuideResponse(context) },
+    { id: "seo", mode: "audit_analyst", terms: ["analise o log", "analyze the log", "problemas prioritarios de seo", "seo priorities"], builder: (context) => buildSeoResponse(context) },
+    { id: "issue_explain", mode: "audit_analyst", terms: ["o que significa", "what means", "explain", "explique"], builder: (context, rawQuery) => buildIssueExplanation(context, rawQuery) },
+    { id: "unresolved_critical", mode: "audit_analyst", terms: ["ainda nao tem solucao", "still lack", "sem solucao validada", "without final resolution"], builder: (context) => buildUnresolvedCriticalResponse(context) },
+    { id: "validated", mode: "audit_analyst", terms: ["quais problemas criticos", "critical issues", "solucao validada"], builder: (context) => buildValidatedResponse(context) },
+    { id: "failed", mode: "audit_analyst", terms: ["quais solucoes falharam", "failed solutions", "failed attempts"], builder: (context, rawQuery) => buildFailedResponse(context, rawQuery) },
+    { id: "manual_override", mode: "operator", terms: ["promova", "manual override", "promote solution"], builder: (context, rawQuery) => buildManualOverrideResponse(context, rawQuery) },
+    { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
+    { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
+    { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
+    { id: "memory", mode: "audit_analyst", terms: ["abra a memoria", "open memory", "aprendizados validados"], builder: (context, rawQuery) => buildMemoryResponse(context, rawQuery) },
+    { id: "latest_run", mode: "operator", terms: ["ultima run", "latest run", "open last run", "abrir ultima run"], builder: (context) => buildLatestRunResponse(context) },
+    { id: "priorities", mode: "strategy_advisor", terms: ["me diga o que devo fazer primeiro", "what should i do first", "prioritize"], builder: (context) => buildPrioritiesResponse(context) },
+    { id: "audit", mode: "operator", terms: ["audite", "run audit", "audit "], builder: (context, rawQuery) => buildAuditSiteResponse(context, rawQuery) },
+    { id: "logs", mode: "audit_analyst", terms: ["log", "logs"], builder: (context) => buildLogsResponse(context) },
+  ];
+
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
   }
@@ -28,6 +161,8 @@
     if (!entry) return null;
     return {
       issueCode: entry.issueCode,
+      category: normalizeText(entry.category),
+      severity: normalizeText(entry.severity),
       validated: Number(entry.learningCounts?.validated || 0),
       failed: Number(entry.learningCounts?.failed || 0),
       partial: Number(entry.learningCounts?.partial || 0),
@@ -51,6 +186,121 @@
       if (validatedLeft !== validatedRight) return validatedLeft - validatedRight;
       return normalizeText(left.code).localeCompare(normalizeText(right.code));
     });
+  }
+
+  function getIntentDefinition(query) {
+    if (!query) {
+      return INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
+    }
+    return INTENT_DEFINITIONS.find((definition) => matchesAny(query, definition.terms))
+      || INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
+  }
+
+  function filterActionsForMode(modeKey, actions) {
+    const mode = MODE_REGISTRY[modeKey];
+    if (!mode || !Array.isArray(actions)) return [];
+    const allowed = new Set(mode.allowedActions);
+    return actions.filter((action) => allowed.has(String(action?.id || "")));
+  }
+
+  function buildModeContext(modeKey, appContext, rawQuery) {
+    const report = appContext.report || null;
+    const issueCode = inferIssueCode(rawQuery, appContext);
+    const prioritizedIssues = prioritizeIssues(report);
+    const issue = findIssueByCode(appContext, issueCode);
+    const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
+    const history = Array.isArray(appContext.runHistory) ? appContext.runHistory : [];
+    const availableCommands = Array.isArray(appContext.availableCommands) ? appContext.availableCommands : [];
+
+    const baseContext = {
+      ...appContext,
+      mode: MODE_REGISTRY[modeKey],
+      modeKey,
+      rawQuery,
+      issueCode,
+      issue,
+      issueMemory,
+      prioritizedIssues,
+      criticalIssues: prioritizedIssues.filter((entry) => entry.severity === "high"),
+      runHistory: history,
+      availableCommands,
+    };
+
+    if (modeKey === "operator") {
+      return {
+        ...baseContext,
+        operatorContext: {
+          activeView: appContext.activeView,
+          commands: availableCommands.slice(0, 12),
+          currentRun: report
+            ? {
+                baseUrl: report.meta.baseUrl,
+                totalIssues: report.summary.totalIssues,
+                seoScore: report.summary.seoScore,
+              }
+            : null,
+        },
+      };
+    }
+
+    if (modeKey === "audit_analyst") {
+      return {
+        ...baseContext,
+        auditContext: {
+          topIssues: prioritizedIssues.slice(0, 8),
+          logs: Array.isArray(appContext.logs) ? appContext.logs.slice(-12) : [],
+          memorySummary: appContext.learningMemory?.summary || null,
+        },
+      };
+    }
+
+    if (modeKey === "prompt_engineer") {
+      return {
+        ...baseContext,
+        promptContext: {
+          issueCode,
+          issue,
+          issueMemory,
+          promptWorkspaceReady: typeof appContext.buildIssuePrompt === "function",
+        },
+      };
+    }
+
+    if (modeKey === "product_guide") {
+      return {
+        ...baseContext,
+        guideContext: {
+          activeView: appContext.activeView,
+          workspaceHelp: appContext.workspaceHelp || {},
+          commands: availableCommands.slice(0, 10),
+        },
+      };
+    }
+
+    return {
+      ...baseContext,
+      strategyContext: {
+        topIssues: prioritizedIssues.slice(0, 5),
+        compareDigest: appContext.compareDigest || "",
+        runHistory: history.slice(0, 5),
+      },
+    };
+  }
+
+  function wrapModeResult(modeKey, intentId, result) {
+    const mode = MODE_REGISTRY[modeKey] || MODE_REGISTRY.strategy_advisor;
+    return {
+      ...result,
+      modeKey: mode.key,
+      modeName: mode.name,
+      modeDescription: mode.description,
+      modeCapabilities: [...mode.capabilities],
+      modeContextSources: [...mode.contextSources],
+      modePriorityRules: [...mode.priorityRules],
+      responseStyle: mode.responseStyle,
+      intentId,
+      actions: filterActionsForMode(mode.key, Array.isArray(result.actions) ? result.actions : []),
+    };
   }
 
   function buildGuideResponse(context) {
@@ -97,7 +347,7 @@
       };
     }
 
-    const topIssues = prioritizeIssues(report).slice(0, 3);
+    const topIssues = context.strategyContext?.topIssues || prioritizeIssues(report).slice(0, 3);
     const lines = topIssues.length
       ? topIssues.map((issue, index) => {
           const memory = summarizeMemory(context.learningMemory, issue.code);
@@ -109,6 +359,10 @@
           return `${index + 1}. ${issue.code} on ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}. ${suffix}`;
         })
       : ["No issues are currently loaded."];
+
+    if (context.strategyContext?.runHistory?.length > 1) {
+      lines.push(`Recent history loaded: ${context.strategyContext.runHistory.length} snapshot(s).`);
+    }
 
     return {
       title: "What to do first",
@@ -199,7 +453,8 @@
     const lines = [];
     if (issue) {
       lines.push(`What it means: ${issue.detail}`);
-      lines.push(`Recommended fix: ${issue.recommendedResolution}`);
+      lines.push(`Impact: ${issue.diagnosis?.laymanExplanation || issue.recommendedResolution}`);
+      lines.push(`Priority: ${issue.severity || "unknown"}`);
     }
     if (memory?.finalResolution) {
       lines.push(`Final resolution: ${memory.finalResolution}`);
@@ -224,12 +479,17 @@
   function buildPromptResponse(context, query) {
     const issueCode = inferIssueCode(query, context);
     const promptText = context.buildIssuePrompt(issueCode);
+    const memory = summarizeMemory(context.learningMemory, issueCode);
+    const analysis = [
+      "The prompt below prioritizes validated solutions, cites failed attempts when they exist and stays anchored to the current run.",
+    ];
+    if (memory?.failed) {
+      analysis.push(`This issue has ${memory.failed} failed attempt(s) in memory; the prompt is expected to avoid them.`);
+    }
     return {
       title: `Prompt intelligence${issueCode ? ` | ${issueCode}` : ""}`,
       summary: "Generated from the current report plus operational memory.",
-      analysis: [
-        "The prompt below prioritizes validated solutions, cites failed attempts when they exist and stays anchored to the current run.",
-      ],
+      analysis,
       promptText,
       actions: [
         { id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } },
@@ -306,7 +566,7 @@
     };
   }
 
-  function buildAuditSiteResponse(query) {
+  function buildAuditSiteResponse(context, query) {
     const match = normalizeText(query).match(/https?:\/\/[^\s]+/i);
     if (!match) {
       return {
@@ -317,10 +577,14 @@
       };
     }
     const baseUrl = match[0];
+    const commandCount = context.operatorContext?.commands?.length || 0;
     return {
       title: "Audit target detected",
       summary: `The assistant can prepare and run an audit for ${baseUrl}.`,
-      analysis: ["This action uses the real engine and the current desktop profile."],
+      analysis: [
+        "This action uses the real engine and the current desktop profile.",
+        commandCount ? `Operator mode currently sees ${commandCount} actionable workstation command(s).` : "Operator mode is ready to dispatch the audit through the desktop engine.",
+      ],
       actions: [{ id: "run-audit", label: "Run audit now", payload: { baseUrl } }],
     };
   }
@@ -335,14 +599,20 @@
         actions: [{ id: "switch-overview", label: "Prepare audit" }],
       };
     }
+
+    const lines = [
+      `Generated: ${report.meta.generatedAt}`,
+      `Routes checked: ${report.summary.routesChecked}`,
+      `Actions mapped: ${report.summary.actionsMapped}`,
+    ];
+    if (Array.isArray(context.runHistory) && context.runHistory.length > 1) {
+      lines.push(`History available: ${context.runHistory.length} snapshot(s).`);
+    }
+
     return {
       title: "Latest loaded run",
       summary: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore}`,
-      analysis: [
-        `Generated: ${report.meta.generatedAt}`,
-        `Routes checked: ${report.summary.routesChecked}`,
-        `Actions mapped: ${report.summary.actionsMapped}`,
-      ],
+      analysis: lines,
       actions: [{ id: "switch-reports", label: "Open reports" }],
     };
   }
@@ -408,49 +678,25 @@
     };
   }
 
-  function resolveIntent(query) {
-    if (!query) return "priorities";
-    if (matchesAny(query, ["painel de memoria", "memory panel", "painel de aprendizados"])) return "memory_guide";
-    if (matchesAny(query, ["como usar", "how do i use", "como usar o painel", "guide", "what does", "me ensine", "ensine"])) return "guide";
-    if (matchesAny(query, ["analise o log", "analyze the log", "problemas prioritarios de seo", "seo priorities"])) return "seo";
-    if (matchesAny(query, ["o que significa", "what means", "explain", "explique"])) return "issue_explain";
-    if (matchesAny(query, ["ainda nao tem solucao", "still lack", "sem solucao validada", "without final resolution"])) return "unresolved_critical";
-    if (matchesAny(query, ["quais problemas criticos", "critical issues", "solucao validada"])) return "validated";
-    if (matchesAny(query, ["quais solucoes falharam", "failed solutions", "failed attempts"])) return "failed";
-    if (matchesAny(query, ["promova", "manual override", "promote solution"])) return "manual_override";
-    if (matchesAny(query, ["o que piorou", "what got worse", "piorou"])) return "regression";
-    if (matchesAny(query, ["compare", "comparar", "compare a run", "run atual com a anterior"])) return "compare";
-    if (matchesAny(query, ["gere um prompt", "generate a prompt", "crie um prompt"])) return "prompt";
-    if (matchesAny(query, ["abra a memoria", "open memory", "aprendizados validados"])) return "memory";
-    if (matchesAny(query, ["ultima run", "latest run", "open last run", "abrir ultima run"])) return "latest_run";
-    if (matchesAny(query, ["me diga o que devo fazer primeiro", "what should i do first", "prioritize"])) return "priorities";
-    if (matchesAny(query, ["audite", "run audit", "audit "])) return "audit";
-    if (matchesAny(query, ["log", "logs"])) return "logs";
-    return "priorities";
+  function routeQuery(rawQuery, appContext) {
+    const normalizedQuery = toLower(rawQuery);
+    const intentDefinition = getIntentDefinition(normalizedQuery);
+    const modeKey = intentDefinition?.mode || "strategy_advisor";
+    const modeContext = buildModeContext(modeKey, appContext, rawQuery);
+    const result = intentDefinition?.builder
+      ? intentDefinition.builder(modeContext, rawQuery)
+      : buildPrioritiesResponse(modeContext);
+    return wrapModeResult(modeKey, intentDefinition?.id || "priorities", result);
   }
 
   globalScope.createSitePulseAssistantService = function createSitePulseAssistantService(options) {
     return {
+      getModeRegistry() {
+        return MODE_REGISTRY;
+      },
       respond(rawQuery) {
         const context = options.getContext();
-        const query = toLower(rawQuery);
-        const intent = resolveIntent(query);
-        if (intent === "memory_guide") return buildMemoryGuideResponse(context);
-        if (intent === "guide") return buildGuideResponse(context);
-        if (intent === "seo") return buildSeoResponse(context);
-        if (intent === "issue_explain") return buildIssueExplanation(context, rawQuery);
-        if (intent === "unresolved_critical") return buildUnresolvedCriticalResponse(context);
-        if (intent === "validated") return buildValidatedResponse(context);
-        if (intent === "failed") return buildFailedResponse(context, rawQuery);
-        if (intent === "manual_override") return buildManualOverrideResponse(context, rawQuery);
-        if (intent === "regression") return buildRegressionResponse(context);
-        if (intent === "compare") return buildCompareResponse(context);
-        if (intent === "prompt") return buildPromptResponse(context, rawQuery);
-        if (intent === "memory") return buildMemoryResponse(context, rawQuery);
-        if (intent === "latest_run") return buildLatestRunResponse(context);
-        if (intent === "audit") return buildAuditSiteResponse(rawQuery);
-        if (intent === "logs") return buildLogsResponse(context);
-        return buildPrioritiesResponse(context);
+        return routeQuery(rawQuery, context);
       },
     };
   };

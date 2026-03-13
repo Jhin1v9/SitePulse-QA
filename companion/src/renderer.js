@@ -388,6 +388,9 @@ const stateEl = {
   assistantQuickPrompt: document.getElementById("assistantQuickPrompt"),
   assistantQuickGuide: document.getElementById("assistantQuickGuide"),
   assistantContextSummary: document.getElementById("assistantContextSummary"),
+  assistantModePill: document.getElementById("assistantModePill"),
+  assistantIntentPill: document.getElementById("assistantIntentPill"),
+  assistantModeSummary: document.getElementById("assistantModeSummary"),
   assistantResponse: document.getElementById("assistantResponse"),
   assistantActions: document.getElementById("assistantActions"),
   evidenceLightbox: document.getElementById("evidenceLightbox"),
@@ -3562,6 +3565,17 @@ function ensureAssistantService() {
       learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
       logs: [...uiState.logs],
       compareDigest: buildCompareDigest(getVisibleReport()),
+      runHistory: uiState.history.slice(0, 8).map((entry) => ({
+        stamp: String(entry?.stamp || ""),
+        baseUrl: String(entry?.meta?.baseUrl || ""),
+        totalIssues: toNumber(entry?.summary?.totalIssues, 0),
+        seoScore: toNumber(entry?.summary?.seoScore, 0),
+      })),
+      availableCommands: getCommandPaletteItems().map((item) => ({
+        id: String(item.id || ""),
+        label: String(item.label || ""),
+        description: String(item.description || ""),
+      })),
       workspaceHelp: WORKSPACE_HELP,
       buildIssuePrompt: buildLearningAwareIssuePrompt,
     }),
@@ -3578,10 +3592,18 @@ function renderAssistantState() {
 
   const result = uiState.assistantResult;
   if (!result) {
+    stateEl.assistantModePill.textContent = "Mode: auto";
+    stateEl.assistantIntentPill.textContent = "Intent: waiting";
+    stateEl.assistantModeSummary.textContent = "The assistant will auto-route each request into the correct operational mode.";
     stateEl.assistantResponse.textContent = "Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.";
     stateEl.assistantActions.innerHTML = '<article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>';
     return;
   }
+
+  stateEl.assistantModePill.textContent = `Mode: ${result.modeName || "Operational"}`;
+  stateEl.assistantIntentPill.textContent = `Intent: ${result.intentId || "unknown"}`;
+  stateEl.assistantModeSummary.textContent = result.modeDescription
+    || "The assistant is answering from the current report, memory and desktop state.";
 
   const lines = [
     result.title || "Operational response",
@@ -3649,6 +3671,10 @@ async function executeAssistantAction(action) {
       title: `Prompt intelligence${payload.issueCode ? ` | ${payload.issueCode}` : ""}`,
       summary: "Generated from the current report and operational memory.",
       analysis: [],
+      modeKey: "prompt_engineer",
+      modeName: "Prompt Engineer",
+      modeDescription: "Builds structured prompts from the current issue and operational memory.",
+      intentId: "prompt",
       promptText,
       actions: [{ id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } }],
     };
