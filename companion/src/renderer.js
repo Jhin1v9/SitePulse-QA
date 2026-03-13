@@ -88,6 +88,8 @@ const stateEl = {
   versionText: document.getElementById("versionText"),
   runtimePath: document.getElementById("runtimePath"),
   reportsPath: document.getElementById("reportsPath"),
+  learningMemorySummary: document.getElementById("learningMemorySummary"),
+  learningMemoryList: document.getElementById("learningMemoryList"),
   bridgeAddress: document.getElementById("bridgeAddress"),
   launchOnLogin: document.getElementById("launchOnLogin"),
   startBridge: document.getElementById("startBridge"),
@@ -892,6 +894,50 @@ function normalizeMobileSweepMeta(input) {
   };
 }
 
+function normalizeLearningMemory(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const entries = Array.isArray(source.entries)
+    ? source.entries.map((item, index) => ({
+        id: String(item?.key || `memory-${index + 1}`),
+        issueCode: String(item?.issueCode || "UNKNOWN"),
+        title: String(item?.title || "Operational memory"),
+        category: String(item?.category || "general"),
+        severity: String(item?.severity || "low"),
+        route: String(item?.route || "/"),
+        action: String(item?.action || ""),
+        possibleResolution: String(item?.possibleResolution || ""),
+        finalResolution: String(item?.finalResolution || ""),
+        learningSource: String(item?.learningSource || ""),
+        resolutionConfidence: String(item?.resolutionConfidence || ""),
+        promotionSource: String(item?.promotionSource || ""),
+        promotionCount: toNumber(item?.promotionCount, 0),
+        lastValidatedAt: String(item?.lastValidatedAt || ""),
+        lastSeenAt: String(item?.lastSeenAt || ""),
+        latestValidatedFix: String(item?.latestValidatedFix || ""),
+        avoidText: String(item?.avoidText || ""),
+        learningCounts: {
+          validated: toNumber(item?.learningCounts?.validated, 0),
+          failed: toNumber(item?.learningCounts?.failed, 0),
+          partial: toNumber(item?.learningCounts?.partial, 0),
+        },
+      }))
+    : [];
+
+  return {
+    updatedAt: String(source.updatedAt || ""),
+    contextKey: String(source.contextKey || ""),
+    storePath: String(source.storePath || ""),
+    summary: {
+      entries: toNumber(source.summary?.entries, entries.length),
+      validatedEntries: toNumber(source.summary?.validatedEntries, entries.filter((item) => item.learningCounts.validated > 0).length),
+      failedEntries: toNumber(source.summary?.failedEntries, entries.filter((item) => item.learningCounts.failed > 0).length),
+      partialEntries: toNumber(source.summary?.partialEntries, entries.filter((item) => item.learningCounts.partial > 0).length),
+      promotedEntries: toNumber(source.summary?.promotedEntries, entries.filter((item) => item.promotionCount > 0).length),
+    },
+    entries,
+  };
+}
+
 function normalizeLearningCase(item, index) {
   const entry = item && typeof item === "object" ? item : {};
   return {
@@ -1067,6 +1113,7 @@ function normalizeReport(raw) {
       overallScore: toNumber(seo.overallScore, 0),
       topRecommendations: Array.isArray(seo.topRecommendations) ? seo.topRecommendations.map((item) => String(item)).filter(Boolean) : [],
     },
+    learningMemory: normalizeLearningMemory(source.learningMemory),
     issues: issues.sort((left, right) => severityRank(right.severity) - severityRank(left.severity)),
     actions,
     routes,
@@ -1611,6 +1658,7 @@ function createCompactStoredReport(report, limits = {}) {
     summary: report.summary,
     assistantGuide: report.assistantGuide,
     seo: report.seo,
+    learningMemory: report.learningMemory,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -2940,6 +2988,48 @@ function renderHistory() {
     .join("");
 }
 
+function renderLearningMemory(report) {
+  const memory = report?.learningMemory;
+  if (!memory || !Array.isArray(memory.entries) || memory.entries.length === 0) {
+    stateEl.learningMemorySummary.textContent = "Run the engine to build persistent operational memory from validated, failed and partial outcomes.";
+    stateEl.learningMemoryList.innerHTML = '<article class="empty-state">No operational learnings loaded yet.</article>';
+    return;
+  }
+
+  stateEl.learningMemorySummary.textContent =
+    `${memory.summary.entries} learned pattern(s) | ${memory.summary.validatedEntries} with validated history | ${memory.summary.failedEntries} with failed attempts | ${memory.summary.promotedEntries} auto-promoted resolution(s)` +
+    (memory.updatedAt ? ` | updated ${formatLocalDate(memory.updatedAt)}` : "");
+
+  stateEl.learningMemoryList.innerHTML = memory.entries
+    .map((entry) => `
+      <article class="history-item">
+        <div class="issue-top">
+          <div>
+            <p class="issue-title">${escapeHtml(entry.title)}</p>
+            <div class="history-meta">${escapeHtml(entry.issueCode)} | ${escapeHtml(entry.route)}${entry.action ? ` | ${escapeHtml(entry.action)}` : ""}</div>
+          </div>
+          <div class="issue-meta">
+            <span class="severity-pill severity-${escapeHtml(entry.severity)}">${escapeHtml(entry.severity)}</span>
+            ${entry.resolutionConfidence ? `<span class="pill ok">${escapeHtml(entry.resolutionConfidence)}</span>` : ""}
+            <span class="pill">${escapeHtml(`ok ${entry.learningCounts.validated}`)}</span>
+            <span class="pill">${escapeHtml(`fail ${entry.learningCounts.failed}`)}</span>
+            ${entry.learningCounts.partial ? `<span class="pill">${escapeHtml(`partial ${entry.learningCounts.partial}`)}</span>` : ""}
+          </div>
+        </div>
+        ${entry.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(entry.possibleResolution)}</p>` : ""}
+        ${entry.finalResolution ? `<p class="issue-checks"><strong>Final solution:</strong> ${escapeHtml(entry.finalResolution)}</p>` : ""}
+        ${entry.latestValidatedFix ? `<p class="issue-checks"><strong>Validated pattern:</strong> ${escapeHtml(entry.latestValidatedFix)}</p>` : ""}
+        ${entry.avoidText ? `<p class="issue-checks"><strong>Avoid this:</strong> ${escapeHtml(entry.avoidText)}</p>` : ""}
+        ${entry.learningSource ? `<p class="issue-checks"><strong>Source:</strong> ${escapeHtml(entry.learningSource)}</p>` : ""}
+        <div class="history-meta">
+          ${entry.lastValidatedAt ? `last validated ${escapeHtml(formatLocalDate(entry.lastValidatedAt))}` : "not validated yet"}
+          ${entry.promotionSource ? ` | promoted via ${escapeHtml(entry.promotionSource)} (${escapeHtml(String(entry.promotionCount))}x)` : ""}
+        </div>
+      </article>
+    `)
+    .join("");
+}
+
 function getCommandPaletteItems() {
   return [
     { id: "run-native", label: "Run native audit", hint: "Ctrl+Enter", description: "Run the engine with the current profile.", action: () => handleAuditRun() },
@@ -3318,6 +3408,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderRouteContactSheet(report, { transient });
   renderReportSummary(report, { transient });
   renderComparison(report, { transient });
+  renderLearningMemory(report);
   renderMissionBrief();
 }
 
@@ -3341,6 +3432,7 @@ function clearLiveReportState() {
   renderRouteContactSheet(fallbackReport);
   renderReportSummary(fallbackReport);
   renderComparison(fallbackReport);
+  renderLearningMemory(fallbackReport);
   renderMissionBrief();
 }
 

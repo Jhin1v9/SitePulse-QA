@@ -6,7 +6,8 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
-import { getIssueLearning } from "./issue-learning-library.mjs";
+import { loadIssueLearningStore, saveIssueLearningStore } from "./issue-learning-store.mjs";
+import { attachLearningSnapshot, ingestCompletedRun, resolveLearningForIssue } from "./issue-learning-service.mjs";
 
 const EXIT_OK = 0;
 const EXIT_FAIL = 1;
@@ -113,6 +114,11 @@ const LANGUAGE_LABEL = {
   ca: "catalao",
   en: "ingles",
   pt: "portugues",
+};
+
+let activeLearningRuntime = {
+  storePath: "",
+  store: { entries: {}, lastRunByContext: {}, processedRuns: [], updatedAt: "" },
 };
 
 const CODE = {
@@ -822,10 +828,6 @@ function detectLanguageConflict(snapshot = {}) {
     conflictingTexts: strongestConflict.items.slice(0, 4).map((item) => item.text),
     confidence: strongestConflict.items.length >= 3 ? "high" : "medium",
   };
-}
-
-function learningForIssue(code) {
-  return getIssueLearning(code);
 }
 
 function normalizeLearningOutcome(value) {
@@ -1661,10 +1663,23 @@ function finalizeSeoReport(report, enabled = true) {
 
   const issues = Array.from(grouped.values())
     .map((item) => {
-      const learning = learningForIssue(item.code);
+      const learning = resolveLearningForIssue(activeLearningRuntime.store, {
+        code: item.code,
+        route: Array.from(item.affectedRoutes)[0] || "/",
+        action: item.category ? `seo:${item.category}` : "",
+        detail: item.detail,
+      });
       const learningCases = Array.isArray(learning?.cases)
         ? learning.cases.map((entry, index) => normalizeLearningCase(entry, index)).filter((entry) => entry.outcome || entry.title)
         : [];
+      const learningCounts =
+        learning?.learningCounts && typeof learning.learningCounts === "object"
+          ? {
+              validated: Number(learning.learningCounts.validated || 0),
+              failed: Number(learning.learningCounts.failed || 0),
+              partial: Number(learning.learningCounts.partial || 0),
+            }
+          : summarizeLearningCases(learningCases);
       return {
         code: item.code,
         severity: item.severity,
@@ -1675,7 +1690,12 @@ function finalizeSeoReport(report, enabled = true) {
         finalResolution: learning?.finalSolution ?? "",
         learningSource: learning?.source ?? "",
         learningCases,
-        learningCounts: summarizeLearningCases(learningCases),
+        learningCounts,
+        learningStatus: learning?.learningStatus ?? "",
+        resolutionConfidence: learning?.resolutionConfidence ?? "",
+        promotionSource: learning?.promotionSource ?? "",
+        promotionCount: learning?.promotionCount ?? 0,
+        lastValidatedAt: learning?.lastValidatedAt ?? "",
         count: item.count,
         affectedRoutes: Array.from(item.affectedRoutes).sort(),
       };
@@ -3226,6 +3246,9 @@ function buildIssueFixPrompt(issue) {
     `Detalhe observado: ${issue.detail}`,
     `Explicacao tecnica: ${issue.technicalExplanation}`,
     `Resolucao recomendada: ${issue.recommendedResolution}`,
+    issue.possibleResolution ? `Solucao possivel conhecida: ${issue.possibleResolution}` : "",
+    issue.finalResolution ? `Solucao final conhecida: ${issue.finalResolution}` : "",
+    issue.resolutionConfidence ? `Confianca da resolucao: ${issue.resolutionConfidence}` : "",
     "",
     "Requisitos obrigatorios:",
     "1. Reproduzir o problema localmente antes da mudanca.",
@@ -3243,29 +3266,37 @@ function buildIssueFixPrompt(issue) {
   if (issue.diagnosis?.title) {
     lines.splice(10, 0, `Classificacao inteligente: ${issue.diagnosis.title} (${issue.diagnosis.subtype})`);
   }
+  const compactLines = lines.filter(Boolean);
+  if (Array.isArray(issue.learningCases) && issue.learningCases.length) {
+    compactLines.push("");
+    compactLines.push("Memoria operacional:");
+    for (const caseItem of issue.learningCases.slice(0, 3)) {
+      compactLines.push(`- [${caseItem.outcome || "known"}] ${caseItem.title} | tentativa: ${caseItem.attempt || "n/a"} | resultado: ${caseItem.result || "n/a"}`);
+    }
+  }
   if (issue.diagnosis?.probableCauses?.length) {
-    lines.push("");
-    lines.push("Causas provaveis detectadas:");
+    compactLines.push("");
+    compactLines.push("Causas provaveis detectadas:");
     for (const cause of issue.diagnosis.probableCauses.slice(0, 5)) {
-      lines.push(`- ${cause}`);
+      compactLines.push(`- ${cause}`);
     }
   }
   if (issue.diagnosis?.technicalChecks?.length) {
-    lines.push("");
-    lines.push("Checks tecnicos sugeridos:");
+    compactLines.push("");
+    compactLines.push("Checks tecnicos sugeridos:");
     for (const check of issue.diagnosis.technicalChecks.slice(0, 5)) {
-      lines.push(`- ${check}`);
+      compactLines.push(`- ${check}`);
     }
   }
   if (Array.isArray(issue.evidence) && issue.evidence.length) {
-    lines.push("");
-    lines.push("Evidencias capturadas:");
+    compactLines.push("");
+    compactLines.push("Evidencias capturadas:");
     for (const evidence of issue.evidence.slice(0, 4)) {
-      lines.push(`- ${evidence.label || "evidence"} | ${evidence.path}`);
+      compactLines.push(`- ${evidence.label || "evidence"} | ${evidence.path}`);
     }
   }
 
-  return lines.join("\n");
+  return compactLines.join("\n");
 }
 
 function guideForIssueCode(code) {
@@ -3294,6 +3325,10 @@ function createIssueLogEntry(issue) {
     learningStatus: issue.learningStatus,
     learningCounts: issue.learningCounts,
     learningCases: issue.learningCases,
+    resolutionConfidence: issue.resolutionConfidence,
+    promotionSource: issue.promotionSource,
+    promotionCount: issue.promotionCount,
+    lastValidatedAt: issue.lastValidatedAt,
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
     diagnosis: issue.diagnosis,
@@ -3304,13 +3339,26 @@ function createIssueLogEntry(issue) {
 function hydrateIssue(rawIssue) {
   const guide = guideForIssueCode(rawIssue.code);
   const diagnosis = rawIssue.diagnosis ?? inferIssueIntelligence(rawIssue, guide);
-  const learning = learningForIssue(rawIssue.code);
+  const learning = resolveLearningForIssue(activeLearningRuntime.store, rawIssue);
   const learningCases = Array.isArray(rawIssue.learningCases)
     ? rawIssue.learningCases.map((item, index) => normalizeLearningCase(item, index)).filter((item) => item.outcome || item.title)
     : Array.isArray(learning?.cases)
       ? learning.cases.map((item, index) => normalizeLearningCase(item, index)).filter((item) => item.outcome || item.title)
       : [];
-  const learningCounts = summarizeLearningCases(learningCases);
+  const learningCounts =
+    rawIssue.learningCounts && typeof rawIssue.learningCounts === "object"
+      ? {
+          validated: Number(rawIssue.learningCounts.validated || 0),
+          failed: Number(rawIssue.learningCounts.failed || 0),
+          partial: Number(rawIssue.learningCounts.partial || 0),
+        }
+      : learning?.learningCounts && typeof learning.learningCounts === "object"
+        ? {
+            validated: Number(learning.learningCounts.validated || 0),
+            failed: Number(learning.learningCounts.failed || 0),
+            partial: Number(learning.learningCounts.partial || 0),
+          }
+        : summarizeLearningCases(learningCases);
 
   const issue = {
     id:
@@ -3341,6 +3389,10 @@ function hydrateIssue(rawIssue) {
       (learningCounts.validated > 0 ? "validated" : learningCounts.partial > 0 ? "partial" : learningCounts.failed > 0 ? "failed" : ""),
     learningCounts,
     learningCases,
+    resolutionConfidence: String(rawIssue.resolutionConfidence || learning?.resolutionConfidence || ""),
+    promotionSource: String(rawIssue.promotionSource || learning?.promotionSource || ""),
+    promotionCount: Number(rawIssue.promotionCount ?? learning?.promotionCount ?? 0),
+    lastValidatedAt: String(rawIssue.lastValidatedAt || learning?.lastValidatedAt || ""),
     evidence: Array.isArray(rawIssue.evidence)
       ? rawIssue.evidence
           .map((item) => ({
@@ -3557,6 +3609,10 @@ function buildAssistantGuide(report) {
       learningStatus: issue.learningStatus,
       learningCounts: issue.learningCounts,
       learningCases: issue.learningCases,
+      resolutionConfidence: issue.resolutionConfidence,
+      promotionSource: issue.promotionSource,
+      promotionCount: issue.promotionCount,
+      lastValidatedAt: issue.lastValidatedAt,
       assistantHint: issue.assistantHint ?? buildIssueActionHint(issue, issue.diagnosis),
     })),
   };
@@ -3613,6 +3669,15 @@ function toAssistantBrief(report) {
         lines.push(
           `  memoria: ${issue.learningStatus} | ok=${issue.learningCounts?.validated ?? 0} falhou=${issue.learningCounts?.failed ?? 0} parcial=${issue.learningCounts?.partial ?? 0}`,
         );
+      }
+      if (issue.resolutionConfidence) {
+        lines.push(`  confianca_resolucao: ${issue.resolutionConfidence}`);
+      }
+      if (issue.promotionSource) {
+        lines.push(`  origem_promocao: ${issue.promotionSource} (${issue.promotionCount ?? 0}x)`);
+      }
+      if (issue.lastValidatedAt) {
+        lines.push(`  ultima_validacao: ${issue.lastValidatedAt}`);
       }
       if (Array.isArray(issue.learningCases) && issue.learningCases.length) {
         for (const caseItem of issue.learningCases.slice(0, 2)) {
@@ -4048,6 +4113,10 @@ function toIssueLog(report) {
         `fonte_aprendizado: ${entry.learningSource ?? ""}`,
         `memoria_status: ${entry.learningStatus ?? ""}`,
         `memoria_contagens: ok=${entry.learningCounts?.validated ?? 0} falhou=${entry.learningCounts?.failed ?? 0} parcial=${entry.learningCounts?.partial ?? 0}`,
+        `confianca_resolucao: ${entry.resolutionConfidence ?? ""}`,
+        `origem_promocao: ${entry.promotionSource ?? ""}`,
+        `contador_promocao: ${entry.promotionCount ?? 0}`,
+        `ultima_validacao: ${entry.lastValidatedAt ?? ""}`,
         `memoria_casos: ${(entry.learningCases ?? [])
           .slice(0, 2)
           .map((item) => `[${item.outcome || "known"}] ${item.title}: ${item.result || item.attempt || "n/a"}`)
@@ -6204,6 +6273,19 @@ function createEmptyReport(cfg, args, maxRunMs) {
       quickStartPrompt: "",
       topIssues: [],
     },
+    learningMemory: {
+      updatedAt: "",
+      contextKey: "",
+      storePath: "",
+      summary: {
+        entries: 0,
+        validatedEntries: 0,
+        failedEntries: 0,
+        partialEntries: 0,
+        promotedEntries: 0,
+      },
+      entries: [],
+    },
     summary: {},
   };
 }
@@ -6259,6 +6341,21 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
       replayCommand: "",
       quickStartPrompt: "",
       topIssues: [],
+    };
+  }
+  if (!report.learningMemory || typeof report.learningMemory !== "object") {
+    report.learningMemory = {
+      updatedAt: "",
+      contextKey: "",
+      storePath: "",
+      summary: {
+        entries: 0,
+        validatedEntries: 0,
+        failedEntries: 0,
+        partialEntries: 0,
+        promotedEntries: 0,
+      },
+      entries: [],
     };
   }
 
@@ -6500,16 +6597,27 @@ async function resolveChromiumLaunchPlan(args) {
   };
 }
 
-function finalizeReport(report, paused) {
+async function finalizeReport(report, reportDir, paused) {
+  report.meta.finishedAt = nowIso();
+  report.meta.paused = paused;
   report.issues = dedupeIssues(report.issues);
   report.issues = report.issues.map((issue) => hydrateIssue(issue));
   report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
   finalizeSeoReport(report, shouldRunSeoForScope(report?.meta?.auditScope));
+  if (!paused) {
+    const runtimeResult = ingestCompletedRun(activeLearningRuntime.store, report);
+    activeLearningRuntime.store = runtimeResult.store;
+    await saveIssueLearningStore(reportDir, activeLearningRuntime.store);
+    report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
+    report.issues = report.issues.map((issue) => hydrateIssue(issue));
+    report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
+    finalizeSeoReport(report, shouldRunSeoForScope(report?.meta?.auditScope));
+  } else {
+    report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
+  }
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
-  report.meta.finishedAt = nowIso();
-  report.meta.paused = paused;
 }
 
 async function writeReportArtifacts(report, reportDir, paused) {
@@ -6546,6 +6654,7 @@ async function run() {
         ? Math.max(320, Number(args.viewportHeightOverride))
         : cfgBase.viewportHeight,
   };
+  activeLearningRuntime = await loadIssueLearningStore(cfg.reportDir);
   cfg.pauseRequestFile = args.pauseRequestFile
     ? path.resolve(process.cwd(), args.pauseRequestFile)
     : path.join(cfg.reportDir, "sitepulse-pause-request.flag");
@@ -7212,7 +7321,7 @@ async function run() {
     report.progress.nextLabelIndex = 0;
   }
 
-  finalizeReport(report, paused);
+  await finalizeReport(report, cfg.reportDir, paused);
   const artifacts = await writeReportArtifacts(report, cfg.reportDir, paused);
 
   if (paused) {
