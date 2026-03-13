@@ -8,6 +8,8 @@ import process from "node:process";
 import { chromium } from "playwright";
 import { loadIssueLearningStore, saveIssueLearningStore } from "./issue-learning-store.mjs";
 import { attachLearningSnapshot, ingestCompletedRun, resolveLearningForIssue } from "./issue-learning-service.mjs";
+import { attachHealingSnapshot, createEmptySelfHealingSnapshot, ingestCompletedHealingRun } from "./healing-engine-service.mjs";
+import { loadHealingStore, saveHealingStore } from "./healing-store.mjs";
 
 const EXIT_OK = 0;
 const EXIT_FAIL = 1;
@@ -119,6 +121,11 @@ const LANGUAGE_LABEL = {
 let activeLearningRuntime = {
   storePath: "",
   store: { entries: {}, lastRunByContext: {}, processedRuns: [], updatedAt: "" },
+};
+
+let activeHealingRuntime = {
+  storePath: "",
+  store: { attempts: [], updatedAt: "" },
 };
 
 const CODE = {
@@ -3845,6 +3852,7 @@ function buildPromptPack(issues) {
     "Nao aplique correcoes cosmeticas. Garanta comportamento funcional correto em desktop e mobile.",
     "Exigencias minimas: sem botao sem efeito, sem callback solto, sem erro fetch sem feedback, sem 4xx/5xx inesperado no fluxo principal e sem ordem de secoes quebrada.",
     "Workflow obrigatorio: reproduzir, identificar causa raiz, corrigir com menor impacto, validar novamente via auditor.",
+    "Quando houver healing strategy validada, use-a primeiro e respeite o modo sugerido (suggest_only, prompt_assisted ou orchestrated_healing).",
     "Entregue ao final: codigo corrigido, resumo da causa raiz por categoria e evidencias de revalidacao.",
     ...prompts,
   ].join("\n\n");
@@ -3855,7 +3863,7 @@ function buildPromptPack(issues) {
     severity: issue.severity,
     route: issue.route,
     action: issue.action,
-    prompt: issue.recommendedPrompt ?? buildIssueFixPrompt(issue),
+    prompt: issue.selfHealing?.promptText || issue.recommendedPrompt || buildIssueFixPrompt(issue),
   }));
 
   return { masterPrompt, prompts, issuePrompts };
@@ -6192,6 +6200,12 @@ function summarize(report) {
     seoPagesAnalyzed: Number(report?.seo?.pagesAnalyzed ?? 0),
     seoCriticalIssues: seoIssues.filter((item) => item.severity === "high").length,
     seoTotalIssues: seoIssues.length,
+    healingEligible: Number(report?.selfHealing?.summary?.eligible ?? 0),
+    healingAssistOnly: Number(report?.selfHealing?.summary?.assistOnly ?? 0),
+    healingManualOnly: Number(report?.selfHealing?.summary?.manualOnly ?? 0),
+    healingUnsafe: Number(report?.selfHealing?.summary?.unsafe ?? 0),
+    healingPromptReady: Number(report?.selfHealing?.summary?.promptReady ?? 0),
+    healingPendingAttempts: Number(report?.selfHealing?.summary?.pendingAttempts ?? 0),
     totalIssues: report.issues.length,
   };
 }
@@ -6296,6 +6310,7 @@ function createEmptyReport(cfg, args, maxRunMs) {
       },
       entries: [],
     },
+    selfHealing: createEmptySelfHealingSnapshot(),
     summary: {},
   };
 }
@@ -6367,6 +6382,9 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
       },
       entries: [],
     };
+  }
+  if (!report.selfHealing || typeof report.selfHealing !== "object") {
+    report.selfHealing = createEmptySelfHealingSnapshot();
   }
 
   report.meta.project = cfg.name;
@@ -6617,7 +6635,11 @@ async function finalizeReport(report, reportDir, paused) {
   if (!paused) {
     const runtimeResult = ingestCompletedRun(activeLearningRuntime.store, report);
     activeLearningRuntime.store = runtimeResult.store;
+    const healingResult = ingestCompletedHealingRun(activeHealingRuntime.store, activeLearningRuntime.store, report);
+    activeHealingRuntime.store = healingResult.store;
+    activeLearningRuntime.store = healingResult.learningStore;
     await saveIssueLearningStore(reportDir, activeLearningRuntime.store);
+    await saveHealingStore(reportDir, activeHealingRuntime.store);
     report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
     report.issues = report.issues.map((issue) => hydrateIssue(issue));
     report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
@@ -6625,6 +6647,7 @@ async function finalizeReport(report, reportDir, paused) {
   } else {
     report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
   }
+  report.selfHealing = attachHealingSnapshot(activeHealingRuntime.store, report, activeHealingRuntime.storePath);
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
@@ -6665,6 +6688,7 @@ async function run() {
         : cfgBase.viewportHeight,
   };
   activeLearningRuntime = await loadIssueLearningStore(cfg.reportDir);
+  activeHealingRuntime = await loadHealingStore(cfg.reportDir);
   cfg.pauseRequestFile = args.pauseRequestFile
     ? path.resolve(process.cwd(), args.pauseRequestFile)
     : path.join(cfg.reportDir, "sitepulse-pause-request.flag");

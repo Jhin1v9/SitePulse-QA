@@ -1522,6 +1522,50 @@ async function runLearningAdmin(action, payload = {}) {
   });
 }
 
+async function runHealingAdmin(action, payload = {}) {
+  if (!qaRuntimeDir) {
+    await ensureQaRuntime();
+  }
+
+  const modulePath = path.join(qaRuntimeDir, "src", "healing-admin.mjs");
+  const input = JSON.stringify(payload);
+  return await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [modulePath, action], {
+      cwd: qaRuntimeDir,
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
+        NODE_PATH: getNodePathForRuntime(),
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error((stderr || stdout || `healing_admin_failed_${code}`).trim()));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout || "{}"));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    child.stdin.end(input);
+  });
+}
+
 async function startBridge() {
   if (bridgeHandle) return { ok: true, alreadyRunning: true };
   if (!qaRuntimeDir) {
@@ -2782,6 +2826,39 @@ ipcMain.handle("companion:apply-learning-manual-override", async (_event, payloa
     const message = error instanceof Error ? error.message : String(error || "manual_override_failed");
     pushLog(`[memory] failed to save manual override: ${message}`);
     return { ok: false, error: "manual_override_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:get-healing-snapshot", async (_event, payload) => {
+  try {
+    if (!reportsDir) {
+      await ensureQaRuntime();
+    }
+    const result = await runHealingAdmin("snapshot", {
+      reportDir: reportsDir,
+      report: payload && typeof payload === "object" ? payload.report : null,
+    });
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "healing_snapshot_failed");
+    pushLog(`[healing] failed to load self-healing snapshot: ${message}`);
+    return { ok: false, error: "healing_snapshot_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:prepare-healing-attempt", async (_event, payload) => {
+  try {
+    if (!reportsDir) {
+      await ensureQaRuntime();
+    }
+    const result = await runHealingAdmin("prepare-attempt", {
+      reportDir: reportsDir,
+      ...(payload && typeof payload === "object" ? payload : {}),
+    });
+    pushLog(`[healing] prepared attempt for ${String(payload?.issueCode || "UNKNOWN")}.`);
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "healing_prepare_failed");
+    pushLog(`[healing] failed to prepare attempt: ${message}`);
+    return { ok: false, error: "healing_prepare_failed", detail: message };
   }
 });
 ipcMain.handle("companion:open-latest-evidence", async () => {

@@ -339,6 +339,9 @@ const stateEl = {
   quickPromptBox: document.getElementById("quickPromptBox"),
   promptWorkspaceHeadline: document.getElementById("promptWorkspaceHeadline"),
   promptWorkspaceFix: document.getElementById("promptWorkspaceFix"),
+  selfHealingSummary: document.getElementById("selfHealingSummary"),
+  selfHealingList: document.getElementById("selfHealingList"),
+  copySelfHealingSummary: document.getElementById("copySelfHealingSummary"),
   promptWorkspaceReplay: document.getElementById("promptWorkspaceReplay"),
   promptWorkspaceIssues: document.getElementById("promptWorkspaceIssues"),
   promptWorkspaceCompare: document.getElementById("promptWorkspaceCompare"),
@@ -442,6 +445,8 @@ const uiState = {
   assistantResult: null,
   learningMemorySnapshot: null,
   learningMemoryRefreshInFlight: false,
+  selfHealingSnapshot: null,
+  selfHealingRefreshInFlight: false,
   learningMemoryFilters: {
     status: "all",
     issueCode: "",
@@ -1081,6 +1086,114 @@ function normalizeLearningMemory(input) {
   };
 }
 
+function normalizeSelfHealingAttempt(input, index = 0) {
+  const item = input && typeof input === "object" ? input : {};
+  return {
+    id: String(item.id || `healing-attempt-${index + 1}`),
+    issueKey: String(item.issueKey || ""),
+    issueCode: String(item.issueCode || "UNKNOWN"),
+    title: String(item.title || item.issueCode || `Healing attempt ${index + 1}`),
+    route: String(item.route || "/"),
+    action: String(item.action || ""),
+    severity: String(item.severity || "low"),
+    eligibility: String(item.eligibility || "blocked"),
+    healingMode: String(item.healingMode || "suggest_only"),
+    confidenceScore: toNumber(item.confidenceScore, 0),
+    confidenceLevel: String(item.confidenceLevel || ""),
+    strategyId: String(item.strategyId || ""),
+    strategySummary: String(item.strategySummary || ""),
+    suggestedNextStep: String(item.suggestedNextStep || ""),
+    attemptedResolution: String(item.attemptedResolution || ""),
+    promptText: String(item.promptText || ""),
+    requiresConfirmation: item.requiresConfirmation === true,
+    promptReady: item.promptReady === true,
+    directActionAvailable: item.directActionAvailable === true,
+    status: String(item.status || "prepared"),
+    outcome: String(item.outcome || "pending"),
+    outcomeSummary: String(item.outcomeSummary || ""),
+    collateralRegressionCount: toNumber(item.collateralRegressionCount, 0),
+    updatedAt: String(item.updatedAt || item.createdAt || ""),
+    revalidatedAt: String(item.revalidatedAt || ""),
+  };
+}
+
+function normalizeSelfHealingStrategy(input, index = 0) {
+  const item = input && typeof input === "object" ? input : {};
+  const hasIdentity = [
+    item.issueKey,
+    item.issueCode,
+    item.strategyId,
+    item.eligibility,
+    item.promptText,
+    item.resolutionLead,
+  ].some((value) => String(value || "").trim().length > 0);
+  if (!hasIdentity) {
+    return null;
+  }
+  const rationale = Array.isArray(item.rationale) ? item.rationale.map((entry) => String(entry)).filter(Boolean) : [];
+  const lastAttemptInput = item.lastAttempt && typeof item.lastAttempt === "object" ? item.lastAttempt : {};
+  return {
+    issueKey: String(item.issueKey || `healing-issue-${index + 1}`),
+    issueCode: String(item.issueCode || item.code || "UNKNOWN"),
+    route: String(item.route || "/"),
+    action: String(item.action || ""),
+    severity: String(item.severity || "low"),
+    eligibility: String(item.eligibility || "blocked"),
+    healingMode: String(item.healingMode || "suggest_only"),
+    confidenceScore: toNumber(item.confidenceScore, 0),
+    confidenceLabel: String(item.confidenceLabel || ""),
+    confidenceReason: String(item.confidenceReason || ""),
+    strategyId: String(item.strategyId || ""),
+    strategyDescription: String(item.strategyDescription || ""),
+    resolutionLead: String(item.resolutionLead || ""),
+    resolutionSource: String(item.resolutionSource || ""),
+    promptReady: item.promptReady === true,
+    directActionAvailable: item.directActionAvailable === true,
+    requiresConfirmation: item.requiresConfirmation === true,
+    suggestedNextStep: String(item.suggestedNextStep || ""),
+    avoidText: String(item.avoidText || ""),
+    promptText: String(item.promptText || ""),
+    rationale,
+    lastAttempt: String(lastAttemptInput.id || "")
+      ? {
+          id: String(lastAttemptInput.id || ""),
+          status: String(lastAttemptInput.status || "prepared"),
+          outcome: String(lastAttemptInput.outcome || "pending"),
+          updatedAt: String(lastAttemptInput.updatedAt || ""),
+          confidenceLevel: String(lastAttemptInput.confidenceLevel || ""),
+          healingMode: String(lastAttemptInput.healingMode || ""),
+        }
+      : null,
+  };
+}
+
+function normalizeSelfHealingSnapshot(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const issues = Array.isArray(source.issues) ? source.issues.map(normalizeSelfHealingStrategy).filter(Boolean) : [];
+  const attempts = Array.isArray(source.attempts) ? source.attempts.map(normalizeSelfHealingAttempt) : [];
+  return {
+    updatedAt: String(source.updatedAt || ""),
+    contextKey: String(source.contextKey || ""),
+    storePath: String(source.storePath || ""),
+    summary: {
+      issues: toNumber(source.summary?.issues, issues.length),
+      eligible: toNumber(source.summary?.eligible, issues.filter((item) => item.eligibility === "eligible_for_healing").length),
+      assistOnly: toNumber(source.summary?.assistOnly, issues.filter((item) => item.eligibility === "assist_only").length),
+      manualOnly: toNumber(source.summary?.manualOnly, issues.filter((item) => item.eligibility === "manual_only").length),
+      blocked: toNumber(source.summary?.blocked, issues.filter((item) => item.eligibility === "blocked").length),
+      unsafe: toNumber(source.summary?.unsafe, issues.filter((item) => item.eligibility === "unsafe").length),
+      promptReady: toNumber(source.summary?.promptReady, issues.filter((item) => item.promptReady === true).length),
+      orchestrated: toNumber(source.summary?.orchestrated, issues.filter((item) => item.healingMode === "orchestrated_healing").length),
+      pendingAttempts: toNumber(source.summary?.pendingAttempts, attempts.filter((item) => item.outcome === "pending").length),
+      validatedAttempts: toNumber(source.summary?.validatedAttempts, attempts.filter((item) => item.outcome === "validated").length),
+      failedAttempts: toNumber(source.summary?.failedAttempts, attempts.filter((item) => item.outcome === "failed").length),
+      partialAttempts: toNumber(source.summary?.partialAttempts, attempts.filter((item) => item.outcome === "partial").length),
+    },
+    issues,
+    attempts,
+  };
+}
+
 function normalizeLearningCase(item, index) {
   const entry = item && typeof item === "object" ? item : {};
   return {
@@ -1132,6 +1245,7 @@ function normalizeIssue(item, index) {
     assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
     diagnosis: normalizeDiagnosis(issue.diagnosis && typeof issue.diagnosis === "object" ? issue.diagnosis : {}),
     evidence: Array.isArray(issue.evidence) ? issue.evidence.map(normalizeEvidenceItem).filter((item) => item.path) : [],
+    selfHealing: normalizeSelfHealingStrategy(issue.selfHealing, index),
   };
 }
 
@@ -1266,6 +1380,7 @@ function normalizeReport(raw) {
       topRecommendations: Array.isArray(seo.topRecommendations) ? seo.topRecommendations.map((item) => String(item)).filter(Boolean) : [],
     },
     learningMemory: normalizeLearningMemory(source.learningMemory),
+    selfHealing: normalizeSelfHealingSnapshot(source.selfHealing),
     issues: issues.sort((left, right) => severityRank(right.severity) - severityRank(left.severity)),
     actions,
     routes,
@@ -1811,6 +1926,7 @@ function createCompactStoredReport(report, limits = {}) {
     assistantGuide: report.assistantGuide,
     seo: report.seo,
     learningMemory: report.learningMemory,
+    selfHealing: report.selfHealing,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -1868,6 +1984,46 @@ function getOperationalMemorySnapshot(report = null) {
   return uiState.learningMemorySnapshot || report?.learningMemory || null;
 }
 
+function getVisibleSelfHealing(report = null) {
+  return uiState.selfHealingSnapshot || report?.selfHealing || null;
+}
+
+function buildHealingIssueKey(issueLike) {
+  return [
+    String(issueLike?.code || issueLike?.issueCode || "").trim().toUpperCase(),
+    String(issueLike?.route || "/").trim(),
+    String(issueLike?.action || "").trim(),
+  ].join("|");
+}
+
+function buildHealingIssueFingerprint(issueLike) {
+  return [
+    String(issueLike?.code || issueLike?.issueCode || "").trim().toUpperCase(),
+    String(issueLike?.route || "/").trim(),
+    String(issueLike?.action || "").trim(),
+    String(issueLike?.severity || "low").trim(),
+  ].join("|");
+}
+
+function formatHealingEligibility(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "eligible_for_healing") return "healing available";
+  if (normalized === "assist_only") return "assist only";
+  if (normalized === "manual_only") return "manual only";
+  if (normalized === "unsafe") return "unsafe";
+  if (normalized === "blocked") return "blocked";
+  return normalized || "blocked";
+}
+
+function formatHealingMode(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (normalized === "orchestrated_healing") return "orchestrated";
+  if (normalized === "prompt_assisted") return "prompt assisted";
+  if (normalized === "suggest_only") return "suggest only";
+  if (normalized === "direct_action") return "direct action";
+  return normalized || "suggest only";
+}
+
 function getLearningEntryForIssue(issueLike, memoryInput = null) {
   const memory = memoryInput || getOperationalMemorySnapshot(getVisibleReport());
   if (!memory || !Array.isArray(memory.entries)) return null;
@@ -1897,6 +2053,10 @@ function buildLearningAwareIssuePrompt(issueCode = "") {
   }
 
   const learningEntry = getLearningEntryForIssue(targetIssue);
+  const healing = targetIssue.selfHealing && typeof targetIssue.selfHealing === "object" ? targetIssue.selfHealing : null;
+  if (healing?.promptReady && healing?.promptText) {
+    return healing.promptText;
+  }
   const lines = [
     "Act as a senior software engineer focused on root cause, evidence and revalidation.",
     `Target issue: ${targetIssue.code}`,
@@ -1930,6 +2090,21 @@ function buildLearningAwareIssuePrompt(issueCode = "") {
     lines.push(`Avoid repeating this: ${failedCase?.result || failedCase?.attempt || "A previous attempt already failed."}`);
   }
 
+  if (healing) {
+    lines.push(`Self-healing eligibility: ${formatHealingEligibility(healing.eligibility)}`);
+    lines.push(`Self-healing mode: ${formatHealingMode(healing.healingMode)}`);
+    lines.push(`Self-healing confidence: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`);
+    if (healing.resolutionLead) {
+      lines.push(`Best healing lead: ${healing.resolutionLead}`);
+    }
+    if (healing.avoidText) {
+      lines.push(`Healing avoid list: ${healing.avoidText}`);
+    }
+    if (Array.isArray(healing.rationale) && healing.rationale.length) {
+      lines.push(`Healing rationale: ${healing.rationale.slice(0, 3).join(" | ")}`);
+    }
+  }
+
   lines.push(
     "Constraints:",
     "- do not propose cosmetic fixes",
@@ -1961,6 +2136,7 @@ function buildLearningAwareFixPrompt(report) {
     `Current target: ${report.meta.baseUrl}`,
     `Total issues: ${report.summary.totalIssues}`,
     `SEO score: ${report.summary.seoScore}`,
+    `Self-healing ready: ${report.selfHealing?.summary?.eligible || 0} eligible | ${report.selfHealing?.summary?.promptReady || 0} prompt-ready | ${report.selfHealing?.summary?.pendingAttempts || 0} pending attempt(s)`,
     "Attack order:",
     "- high severity without a validated final resolution",
     "- medium severity with repeated failed attempts",
@@ -2986,6 +3162,15 @@ function buildIssueCard(issue, actionContext) {
   const failedPattern = failedLearning[0]
     ? `${failedLearning[0].title}: ${failedLearning[0].result || failedLearning[0].attempt}`
     : "";
+  const healing = issue.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+  const healingSummary = healing
+    ? `${formatHealingEligibility(healing.eligibility)} | ${formatHealingMode(healing.healingMode)} | ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`
+    : "";
+  const healingAttempt = healing?.lastAttempt
+    ? `${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${formatLocalDate(healing.lastAttempt.updatedAt)}` : ""}`
+    : "";
+  const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
+  const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
   const evidenceMarkup = evidence.length
     ? `
@@ -3040,12 +3225,20 @@ function buildIssueCard(issue, actionContext) {
       ${validatedPattern ? `<p class="issue-checks"><strong>Validated pattern:</strong> ${escapeHtml(validatedPattern)}</p>` : ""}
       ${failedPattern ? `<p class="issue-checks"><strong>Avoid this:</strong> ${escapeHtml(failedPattern)}</p>` : ""}
       ${issue.manualOverrideCount ? `<p class="issue-checks"><strong>Manual override:</strong> ${escapeHtml(`${issue.manualOverrideCount} recorded${issue.lastManualOverrideNote ? ` | ${issue.lastManualOverrideNote}` : ""}`)}</p>` : ""}
+      ${healingSummary ? `<p class="issue-checks"><strong>Self-healing:</strong> ${escapeHtml(healingSummary)}</p>` : ""}
+      ${healing?.strategyDescription ? `<p class="issue-checks"><strong>Healing strategy:</strong> ${escapeHtml(healing.strategyDescription)}</p>` : ""}
+      ${healing?.resolutionLead ? `<p class="issue-checks"><strong>Best healing lead:</strong> ${escapeHtml(healing.resolutionLead)}</p>` : ""}
+      ${healing?.suggestedNextStep ? `<p class="issue-checks"><strong>Healing next step:</strong> ${escapeHtml(healing.suggestedNextStep)}</p>` : ""}
+      ${healingAttempt ? `<p class="issue-checks"><strong>Last healing attempt:</strong> ${escapeHtml(healingAttempt)}</p>` : ""}
       ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
       ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
       ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
       <div class="history-actions wrap">
         <button type="button" class="ghost small" data-issue-action="open-memory" data-issue-code="${escapeHtml(issue.code)}">Open memory</button>
         <button type="button" class="ghost small" data-issue-action="generate-prompt" data-issue-code="${escapeHtml(issue.code)}">Generate prompt</button>
+        ${canPrepareHealing ? `<button type="button" class="ghost small" data-issue-action="prepare-healing" data-issue-code="${escapeHtml(issue.code)}">Prepare healing</button>` : ""}
+        ${healing?.promptReady && healing?.promptText ? `<button type="button" class="ghost small" data-issue-action="copy-healing-prompt" data-issue-code="${escapeHtml(issue.code)}">Copy healing prompt</button>` : ""}
+        ${canRevalidateHealing ? `<button type="button" class="ghost small" data-issue-action="revalidate-healing" data-issue-code="${escapeHtml(issue.code)}">Revalidate</button>` : ""}
         ${(issue.possibleResolution || issue.finalResolution || issue.recommendedResolution) ? `<button type="button" class="ghost small" data-issue-action="manual-override" data-issue-code="${escapeHtml(issue.code)}">Promote solution</button>` : ""}
       </div>
       ${evidenceMarkup}
@@ -3186,6 +3379,7 @@ function renderPromptWorkspace(report) {
   stateEl.promptWorkspaceActions.textContent = buildActionDigest(report);
   stateEl.promptWorkspaceClientPrompt.textContent = buildClientOutreachPrompt(report);
   stateEl.promptWorkspaceClientMessage.textContent = buildClientOutreachMessage(report);
+  renderSelfHealingPanel(report);
   stateEl.promptWorkspaceHeadline.textContent = report
     ? "Prompt pack loaded from the current report and operational memory. Copy technical, operational or client-facing material from one workspace."
     : "Run an audit to generate prompts and digests.";
@@ -3357,6 +3551,28 @@ function patchVisibleReportLearning(entry) {
   }
 }
 
+function patchVisibleReportSelfHealing(snapshotInput) {
+  const snapshot = normalizeSelfHealingSnapshot(snapshotInput);
+  const reports = [uiState.report, uiState.liveReport].filter(Boolean);
+  for (const report of reports) {
+    report.selfHealing = snapshot;
+    if (Array.isArray(report.issues)) {
+      report.issues = report.issues.map((issue, index) => {
+        const issueKey = buildHealingIssueKey(issue);
+        const strategy = snapshot.issues.find((entry) => entry.issueKey === issue.selfHealing?.issueKey || entry.issueKey === issueKey)
+          || snapshot.issues.find((entry) =>
+            String(entry.issueCode || "").toUpperCase() === String(issue.code || "").toUpperCase()
+            && String(entry.route || "/") === String(issue.route || "/")
+            && String(entry.action || "") === String(issue.action || ""));
+        return {
+          ...issue,
+          selfHealing: strategy ? normalizeSelfHealingStrategy(strategy, index) : normalizeSelfHealingStrategy(issue.selfHealing, index),
+        };
+      });
+    }
+  }
+}
+
 async function refreshOperationalMemorySnapshot() {
   if (uiState.learningMemoryRefreshInFlight === true) return;
   if (!window.sitePulseCompanion || typeof window.sitePulseCompanion.getLearningMemory !== "function") return;
@@ -3367,10 +3583,246 @@ async function refreshOperationalMemorySnapshot() {
       uiState.learningMemorySnapshot = normalizeLearningMemory(result.snapshot);
       renderLearningMemory(getVisibleReport());
       renderPromptWorkspace(getVisibleReport());
+      await refreshSelfHealingSnapshot();
     }
   } finally {
     uiState.learningMemoryRefreshInFlight = false;
   }
+}
+
+async function refreshSelfHealingSnapshot() {
+  if (uiState.selfHealingRefreshInFlight === true) return;
+  if (!window.sitePulseCompanion || typeof window.sitePulseCompanion.getHealingSnapshot !== "function") return;
+  const report = getVisibleReport();
+  if (!report) return;
+  uiState.selfHealingRefreshInFlight = true;
+  try {
+    const result = await window.sitePulseCompanion.getHealingSnapshot({
+      report: createCompactStoredReport(report, { issueLimit: 180, actionLimit: 120, routeLimit: 80 }),
+    });
+    if (result?.ok && result.snapshot) {
+      uiState.selfHealingSnapshot = normalizeSelfHealingSnapshot(result.snapshot);
+      patchVisibleReportSelfHealing(uiState.selfHealingSnapshot);
+      renderIssues(getVisibleReport());
+      renderPrompt(getVisibleReport());
+      renderPromptWorkspace(getVisibleReport());
+      renderAssistantState();
+    }
+  } finally {
+    uiState.selfHealingRefreshInFlight = false;
+  }
+}
+
+function buildSelfHealingSummary(report) {
+  const healing = getVisibleSelfHealing(report);
+  if (!report || !healing || !Array.isArray(healing.issues) || healing.issues.length === 0) {
+    return "No self-healing context is loaded yet. Run or load an audit first.";
+  }
+
+  const lines = [
+    `Target: ${report.meta.baseUrl}`,
+    `Eligible: ${healing.summary.eligible} | Assist only: ${healing.summary.assistOnly} | Manual only: ${healing.summary.manualOnly} | Unsafe: ${healing.summary.unsafe}`,
+    `Prompt-ready: ${healing.summary.promptReady} | Orchestrated: ${healing.summary.orchestrated} | Pending attempts: ${healing.summary.pendingAttempts}`,
+    "",
+    "Top healing candidates:",
+  ];
+
+  const topIssues = [...healing.issues]
+    .sort((left, right) =>
+      severityRank(right.severity) - severityRank(left.severity)
+      || toNumber(right.confidenceScore, 0) - toNumber(left.confidenceScore, 0))
+    .slice(0, 8);
+
+  topIssues.forEach((item, index) => {
+    lines.push(
+      `${index + 1}. ${item.issueCode} | ${item.route}${item.action ? ` | ${item.action}` : ""} | ${formatHealingEligibility(item.eligibility)} | ${formatHealingMode(item.healingMode)} | ${item.confidenceLabel || "n/a"}${item.resolutionLead ? ` | lead=${item.resolutionLead}` : ""}`,
+    );
+  });
+
+  return lines.join("\n");
+}
+
+function renderSelfHealingPanel(report) {
+  const healing = getVisibleSelfHealing(report);
+  if (!report || !healing || !Array.isArray(healing.issues) || healing.issues.length === 0) {
+    stateEl.selfHealingSummary.textContent = "Run an audit to see which issues are eligible for assisted correction.";
+    stateEl.selfHealingList.innerHTML = '<article class="empty-state">No self-healing context is loaded yet.</article>';
+    return;
+  }
+
+  stateEl.selfHealingSummary.textContent = buildSelfHealingSummary(report);
+  const items = [...healing.issues]
+    .sort((left, right) =>
+      severityRank(right.severity) - severityRank(left.severity)
+      || toNumber(right.confidenceScore, 0) - toNumber(left.confidenceScore, 0))
+    .slice(0, 10);
+
+  stateEl.selfHealingList.innerHTML = items
+    .map((item) => {
+      const canPrepare = ["eligible_for_healing", "assist_only"].includes(item.eligibility) && item.promptReady === true;
+      const canRevalidate = item.lastAttempt?.outcome === "pending";
+      return `
+        <article class="history-item">
+          <div class="issue-top">
+            <div>
+              <p class="issue-title">${escapeHtml(item.issueCode)}</p>
+              <div class="history-meta">${escapeHtml(item.route)}${item.action ? ` | ${escapeHtml(item.action)}` : ""} | ${escapeHtml(item.strategyId || "healing-strategy")}</div>
+            </div>
+            <div class="issue-meta">
+              <span class="severity-pill severity-${escapeHtml(item.severity)}">${escapeHtml(item.severity)}</span>
+              <span class="pill">${escapeHtml(formatHealingEligibility(item.eligibility))}</span>
+              <span class="pill">${escapeHtml(formatHealingMode(item.healingMode))}</span>
+              <span class="pill ok">${escapeHtml(item.confidenceLabel || "n/a")}</span>
+            </div>
+          </div>
+          ${item.strategyDescription ? `<p class="issue-checks"><strong>Strategy:</strong> ${escapeHtml(item.strategyDescription)}</p>` : ""}
+          ${item.resolutionLead ? `<p class="issue-checks"><strong>Best known correction:</strong> ${escapeHtml(item.resolutionLead)}</p>` : ""}
+          ${item.avoidText ? `<p class="issue-checks"><strong>Avoid this:</strong> ${escapeHtml(item.avoidText)}</p>` : ""}
+          ${item.suggestedNextStep ? `<p class="issue-checks"><strong>Next step:</strong> ${escapeHtml(item.suggestedNextStep)}</p>` : ""}
+          ${item.lastAttempt ? `<p class="issue-checks"><strong>Last attempt:</strong> ${escapeHtml(`${item.lastAttempt.outcome || item.lastAttempt.status}${item.lastAttempt.updatedAt ? ` | ${formatLocalDate(item.lastAttempt.updatedAt)}` : ""}`)}</p>` : ""}
+          <div class="history-actions wrap">
+            ${canPrepare ? `<button type="button" data-healing-action="prepare" data-healing-code="${escapeHtml(item.issueCode)}" data-healing-route="${escapeHtml(item.route)}" data-healing-action-name="${escapeHtml(item.action)}">Prepare healing</button>` : ""}
+            ${item.promptReady && item.promptText ? `<button type="button" class="ghost" data-healing-action="copy-prompt" data-healing-code="${escapeHtml(item.issueCode)}">Copy healing prompt</button>` : ""}
+            ${canRevalidate ? `<button type="button" class="ghost" data-healing-action="revalidate" data-healing-code="${escapeHtml(item.issueCode)}">Revalidate</button>` : ""}
+            <button type="button" class="ghost" data-healing-action="open-memory" data-healing-code="${escapeHtml(item.issueCode)}">Open memory</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function findVisibleIssue(issueCode, route = "/", action = "") {
+  const report = getVisibleReport();
+  if (!report || !Array.isArray(report.issues)) return null;
+  const normalizedCode = String(issueCode || "").trim().toUpperCase();
+  const normalizedRoute = String(route || "/").trim();
+  const normalizedAction = String(action || "").trim();
+  const exact = report.issues.find((issue) =>
+    String(issue.code || "").trim().toUpperCase() === normalizedCode
+    && String(issue.route || "/").trim() === normalizedRoute
+    && String(issue.action || "").trim() === normalizedAction);
+  if (exact) return exact;
+  return report.issues.find((issue) => String(issue.code || "").trim().toUpperCase() === normalizedCode) || null;
+}
+
+async function requestHealingPreparation(issueLike) {
+  if (!window.sitePulseCompanion || typeof window.sitePulseCompanion.prepareHealingAttempt !== "function") {
+    showToast("This runtime does not expose self-healing preparation yet.", "warn");
+    return;
+  }
+  const report = getVisibleReport();
+  const issue = issueLike && typeof issueLike === "object" ? issueLike : null;
+  const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+  if (!report || !issue || !healing) {
+    showToast("No self-healing context is loaded for the selected issue.", "warn");
+    return;
+  }
+  if (!["eligible_for_healing", "assist_only"].includes(healing.eligibility)) {
+    showToast(`This issue is marked as ${formatHealingEligibility(healing.eligibility)}. Review it manually instead of preparing healing.`, "warn");
+    return;
+  }
+  const confirmed = window.confirm(
+    `Prepare a ${formatHealingMode(healing.healingMode)} flow for ${issue.code}?\n\nEligibility: ${formatHealingEligibility(healing.eligibility)}\nConfidence: ${healing.confidenceLabel || "n/a"} (${healing.confidenceScore || 0}/100)\nStrategy: ${healing.strategyDescription || healing.strategyId || "n/a"}`,
+  );
+  if (!confirmed) {
+    return;
+  }
+  const note = window.prompt("Optional operator note for this healing attempt. Leave blank if not needed.", "");
+  const result = await window.sitePulseCompanion.prepareHealingAttempt({
+    contextKey: String(report.selfHealing?.contextKey || "").trim(),
+    runId: [
+      String(report.meta.baseUrl || "").trim(),
+      String(report.meta.generatedAt || "").trim(),
+      String(report.summary.totalIssues || 0),
+    ].join("|"),
+    issueKey: String(healing.issueKey || buildHealingIssueKey(issue)).trim(),
+    issueCode: String(issue.code || "").trim(),
+    title: String(issue.group || issue.code || "Self-healing issue").trim(),
+    route: String(issue.route || "/").trim(),
+    action: String(issue.action || "").trim(),
+    category: String(issue.group || "general").trim(),
+    severity: String(issue.severity || "medium").trim(),
+    baseUrl: String(report.meta.baseUrl || "").trim(),
+    auditScope: String(report.summary.auditScope || uiState.scope || "full").trim(),
+    viewportLabel: String(issue.viewportLabel || report.meta.viewportLabel || report.meta.viewport || "").trim(),
+    eligibility: String(healing.eligibility || "blocked").trim(),
+    healingMode: String(healing.healingMode || "suggest_only").trim(),
+    confidenceScore: toNumber(healing.confidenceScore, 0),
+    confidenceLevel: String(healing.confidenceLabel || "").trim(),
+    confidenceReason: String(healing.confidenceReason || "").trim(),
+    strategyId: String(healing.strategyId || "").trim(),
+    strategySource: "self_healing_engine",
+    strategySummary: String(healing.strategyDescription || healing.strategyId || "").trim(),
+    suggestedNextStep: String(healing.suggestedNextStep || "").trim(),
+    requiresConfirmation: healing.requiresConfirmation === true,
+    promptReady: healing.promptReady === true,
+    directActionAvailable: healing.directActionAvailable === true,
+    recommendedResolution: String(issue.recommendedResolution || "").trim(),
+    possibleResolution: String(issue.possibleResolution || "").trim(),
+    finalResolution: String(issue.finalResolution || "").trim(),
+    attemptedResolution: String(healing.resolutionLead || issue.finalResolution || issue.possibleResolution || issue.recommendedResolution || "").trim(),
+    avoidText: String(healing.avoidText || "").trim(),
+    promptText: String(healing.promptText || buildLearningAwareIssuePrompt(issue.code)).trim(),
+    replayCommand: String(report.meta.replayCommand || report.assistantGuide?.replayCommand || "").trim(),
+    baselineIssueKey: String(healing.issueKey || buildHealingIssueKey(issue)).trim(),
+    baselineSeverity: String(issue.severity || "medium").trim(),
+    baselineTotalIssues: toNumber(report.summary.totalIssues, 0),
+    baselineIssueKeys: Array.isArray(report.issues) ? report.issues.map((entry) => buildHealingIssueFingerprint(entry)).filter(Boolean) : [],
+    origin: "self_healing_engine",
+    note: String(note || "").trim(),
+    actor: "desktop-operator",
+  });
+
+  if (!result?.ok || !result.attempt) {
+    appendLog(`[healing] preparation failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Could not prepare the self-healing flow.", "bad");
+    return;
+  }
+
+  appendLog(`[healing] prepared ${result.attempt.healingMode} for ${result.attempt.issueCode}.`);
+  showToast("Self-healing flow prepared. Apply the fix and rerun the audit to validate the outcome.", "ok");
+  await refreshSelfHealingSnapshot();
+  switchView("prompts");
+  uiState.assistantResult = {
+    title: `Self-healing prepared | ${issue.code}`,
+    summary: `Prepared ${formatHealingMode(result.attempt.healingMode)} with ${result.attempt.confidenceLevel || "n/a"} confidence.`,
+    analysis: [
+      `Eligibility: ${formatHealingEligibility(result.attempt.eligibility)}`,
+      `Strategy: ${result.attempt.strategySummary || result.attempt.strategyId || "n/a"}`,
+      `Next step: ${result.attempt.suggestedNextStep || "Apply the fix and rerun the audit."}`,
+    ],
+    modeKey: "operator",
+    modeName: "Operator",
+    modeDescription: "Executes supported workstation actions and keeps self-healing traceable.",
+    intentId: "healing_prepare",
+    promptText: String(result.attempt.promptText || "").trim(),
+    actions: [
+      result.attempt.promptText
+        ? { id: "copy-text", label: "Copy healing prompt", payload: { text: result.attempt.promptText, successMessage: "[studio] healing prompt copied." } }
+        : null,
+      { id: "revalidate-healing", label: "Revalidate after fix", payload: { issueCode: issue.code } },
+      { id: "open-memory", label: "Open learning memory", payload: { issueCode: issue.code } },
+    ].filter(Boolean),
+  };
+  renderAssistantState();
+}
+
+async function requestHealingRevalidation(issueLike) {
+  const issue = issueLike && typeof issueLike === "object" ? issueLike : null;
+  const report = getVisibleReport();
+  if (!issue || !report) {
+    showToast("No issue is loaded for revalidation.", "warn");
+    return;
+  }
+  const confirmed = window.confirm(`Rerun the audit for ${report.meta.baseUrl} and let the Self-Healing Engine validate the latest attempt for ${issue.code}?`);
+  if (!confirmed) {
+    return;
+  }
+  stateEl.targetUrl.value = String(report.meta.baseUrl || stateEl.targetUrl.value || "").trim();
+  appendLog(`[healing] revalidation requested for ${issue.code}.`);
+  showToast("Revalidation requested. The next run will resolve pending healing attempts.", "ok");
+  await handleAuditRun();
 }
 
 async function requestManualOverride(issueLike) {
@@ -3423,6 +3875,7 @@ async function requestManualOverride(issueLike) {
   renderPrompt(getVisibleReport());
   renderPromptWorkspace(getVisibleReport());
   renderLearningMemory(getVisibleReport());
+  await refreshSelfHealingSnapshot();
   appendLog(`[memory] manual override applied to ${result.entry.issueCode}.`);
   showToast("Manual override saved in operational memory.", "ok");
 }
@@ -3523,6 +3976,7 @@ function getCommandPaletteItems() {
     { id: "switch-reports", label: "Go to reports", hint: "Ctrl+7", description: "Open evidence, contact sheets and history.", action: () => switchView("reports") },
     { id: "switch-settings", label: "Go to settings", hint: "Ctrl+8", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
     { id: "open-memory", label: "Open validated learnings", hint: "", description: "Open the operational memory panel and inspect learned patterns.", action: () => switchView("settings") },
+    { id: "open-healing", label: "Open self-healing queue", hint: "", description: "Open the assisted correction queue and review healing strategies.", action: () => switchView("prompts") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
@@ -3563,11 +4017,12 @@ function ensureAssistantService() {
       activeView: uiState.activeView,
       report: getVisibleReport(),
       learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
+      selfHealing: getVisibleSelfHealing(getVisibleReport()),
       logs: [...uiState.logs],
       compareDigest: buildCompareDigest(getVisibleReport()),
       runHistory: uiState.history.slice(0, 8).map((entry) => ({
         stamp: String(entry?.stamp || ""),
-        baseUrl: String(entry?.meta?.baseUrl || ""),
+        baseUrl: String(entry?.baseUrl || entry?.meta?.baseUrl || ""),
         totalIssues: toNumber(entry?.summary?.totalIssues, 0),
         seoScore: toNumber(entry?.summary?.seoScore, 0),
       })),
@@ -3586,9 +4041,10 @@ function ensureAssistantService() {
 function renderAssistantState() {
   const report = getVisibleReport();
   const memory = getOperationalMemorySnapshot(report);
+  const healing = getVisibleSelfHealing(report);
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | memory ${memory?.summary?.entries || 0} pattern(s) | view ${uiState.activeView}`
-    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | view ${uiState.activeView}`;
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | view ${uiState.activeView}`
+    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
   if (!result) {
@@ -3665,6 +4121,11 @@ async function executeAssistantAction(action) {
     }
     return;
   }
+  if (action.id === "open-healing") {
+    switchView("prompts");
+    renderPromptWorkspace(getVisibleReport());
+    return;
+  }
   if (action.id === "generate-prompt") {
     const promptText = buildLearningAwareIssuePrompt(payload.issueCode || "");
     uiState.assistantResult = {
@@ -3679,6 +4140,24 @@ async function executeAssistantAction(action) {
       actions: [{ id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } }],
     };
     renderAssistantState();
+    return;
+  }
+  if (action.id === "prepare-healing") {
+    const issue = findVisibleIssue(payload.issueCode || "", payload.route || "/", payload.action || "");
+    if (issue) {
+      await requestHealingPreparation(issue);
+    } else {
+      showToast("The requested healing issue is not loaded right now.", "warn");
+    }
+    return;
+  }
+  if (action.id === "revalidate-healing") {
+    const issue = findVisibleIssue(payload.issueCode || "", payload.route || "/", payload.action || "");
+    if (issue) {
+      await requestHealingRevalidation(issue);
+    } else {
+      showToast("The requested healing issue is not loaded right now.", "warn");
+    }
     return;
   }
   if (action.id === "manual-override") {
@@ -4010,6 +4489,7 @@ function renderWorkspaceReport(report, options = {}) {
     uiState.report = report;
     uiState.liveReport = null;
     uiState.liveReportKey = "";
+    uiState.selfHealingSnapshot = report?.selfHealing?.issues?.length ? report.selfHealing : null;
   }
 
   renderMetrics(report);
@@ -4122,6 +4602,7 @@ function renderCompanionState(payload) {
 function renderAllReportState(report) {
   renderWorkspaceReport(report, { transient: false });
   void refreshOperationalMemorySnapshot();
+  void refreshSelfHealingSnapshot();
 }
 
 function renderLiveReportState(report) {
@@ -4650,6 +5131,7 @@ function bindButtons() {
   stateEl.copyQuickPrompt.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
   stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
   stateEl.copyQuickPromptPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceFix.textContent, "[studio] fix prompt copied."));
+  stateEl.copySelfHealingSummary.addEventListener("click", async () => copyText(buildSelfHealingSummary(getVisibleReport()), "[studio] self-healing summary copied."));
   stateEl.copyReplayCommandPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
   stateEl.copyReplayCommandSecondary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
   stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
@@ -4889,6 +5371,26 @@ function bindButtons() {
           await runAssistantQuery(stateEl.assistantInput.value);
           return;
         }
+        if (issueAction === "prepare-healing") {
+          const issue = findVisibleIssue(issueCode);
+          if (issue) {
+            await requestHealingPreparation(issue);
+          }
+          return;
+        }
+        if (issueAction === "copy-healing-prompt") {
+          const issue = findVisibleIssue(issueCode);
+          const promptText = String(issue?.selfHealing?.promptText || "").trim();
+          await copyText(promptText, "[studio] healing prompt copied.");
+          return;
+        }
+        if (issueAction === "revalidate-healing") {
+          const issue = findVisibleIssue(issueCode);
+          if (issue) {
+            await requestHealingRevalidation(issue);
+          }
+          return;
+        }
         if (issueAction === "manual-override") {
           const issue = getVisibleReport()?.issues?.find((item) => String(item.code || "").toUpperCase() === String(issueCode || "").toUpperCase());
           if (issue) {
@@ -4932,6 +5434,34 @@ function bindButtons() {
       if (entry) {
         await requestManualOverride(entry);
       }
+    }
+  });
+  stateEl.selfHealingList.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-healing-action]");
+    if (!(button instanceof HTMLElement)) return;
+    const action = button.dataset.healingAction || "";
+    const issueCode = button.dataset.healingCode || "";
+    if (action === "open-memory") {
+      focusLearningMemoryIssue(issueCode);
+      return;
+    }
+    const issue = findVisibleIssue(issueCode, button.dataset.healingRoute || "/", button.dataset.healingActionName || "");
+    if (!issue) {
+      showToast("The requested healing issue is not loaded right now.", "warn");
+      return;
+    }
+    if (action === "prepare") {
+      await requestHealingPreparation(issue);
+      return;
+    }
+    if (action === "copy-prompt") {
+      await copyText(String(issue.selfHealing?.promptText || "").trim(), "[studio] healing prompt copied.");
+      return;
+    }
+    if (action === "revalidate") {
+      await requestHealingRevalidation(issue);
     }
   });
 }

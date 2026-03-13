@@ -16,6 +16,9 @@
         "switch-reports",
         "switch-settings",
         "open-memory",
+        "open-healing",
+        "prepare-healing",
+        "revalidate-healing",
         "manual-override",
         "generate-prompt",
       ],
@@ -38,6 +41,7 @@
         "switch-compare",
         "switch-settings",
         "open-memory",
+        "open-healing",
         "findings-search",
         "generate-prompt",
       ],
@@ -58,6 +62,8 @@
         "switch-prompts",
         "switch-findings",
         "open-memory",
+        "open-healing",
+        "prepare-healing",
         "generate-prompt",
       ],
       contextSources: ["report", "memory", "prompt-workspace"],
@@ -82,6 +88,7 @@
         "switch-reports",
         "switch-settings",
         "open-memory",
+        "open-healing",
       ],
       contextSources: ["ui", "workspace-help", "commands"],
       priorityRules: [
@@ -102,6 +109,8 @@
         "switch-reports",
         "switch-seo",
         "open-memory",
+        "open-healing",
+        "prepare-healing",
         "generate-prompt",
       ],
       contextSources: ["report", "issues", "memory", "history", "compare"],
@@ -122,6 +131,11 @@
     { id: "validated", mode: "audit_analyst", terms: ["quais problemas criticos", "critical issues", "solucao validada"], builder: (context) => buildValidatedResponse(context) },
     { id: "failed", mode: "audit_analyst", terms: ["quais solucoes falharam", "failed solutions", "failed attempts"], builder: (context, rawQuery) => buildFailedResponse(context, rawQuery) },
     { id: "manual_override", mode: "operator", terms: ["promova", "manual override", "promote solution"], builder: (context, rawQuery) => buildManualOverrideResponse(context, rawQuery) },
+    { id: "healing_candidates", mode: "strategy_advisor", terms: ["auto-curadas", "auto curadas", "healing available", "healing candidates", "maior chance de resolucao automatica", "eligible for healing"], builder: (context) => buildHealingCandidatesResponse(context) },
+    { id: "healing_strategy", mode: "strategy_advisor", terms: ["melhor estrategia", "best strategy", "healing strategy", "melhor forma de corrigir", "best fix strategy"], builder: (context, rawQuery) => buildHealingStrategyResponse(context, rawQuery) },
+    { id: "healing_decision", mode: "strategy_advisor", terms: ["manualmente ou assistida", "manual or assisted", "assistida ou manual", "deve ser corrigida manualmente"], builder: (context, rawQuery) => buildHealingDecisionResponse(context, rawQuery) },
+    { id: "healing_failures", mode: "audit_analyst", terms: ["falhou nas tentativas anteriores", "what failed before", "tentativas anteriores", "healing failed"], builder: (context, rawQuery) => buildHealingFailureResponse(context, rawQuery) },
+    { id: "healing_revalidate", mode: "operator", terms: ["revalide a ultima tentativa", "revalidate the last attempt", "revalidar a correcao", "revalidate this fix"], builder: (context, rawQuery) => buildHealingRevalidateResponse(context, rawQuery) },
     { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
     { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
     { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
@@ -175,6 +189,49 @@
     };
   }
 
+  function summarizeHealing(selfHealing, issueCode) {
+    const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
+    const code = normalizeText(issueCode).toUpperCase();
+    if (!code) return null;
+    const issue = issues.find((item) => normalizeText(item.issueCode).toUpperCase() === code) || null;
+    if (!issue) return null;
+    return {
+      issueCode: issue.issueCode,
+      route: normalizeText(issue.route || "/"),
+      action: normalizeText(issue.action),
+      severity: normalizeText(issue.severity),
+      eligibility: normalizeText(issue.eligibility),
+      healingMode: normalizeText(issue.healingMode),
+      confidenceScore: Number(issue.confidenceScore || 0),
+      confidenceLabel: normalizeText(issue.confidenceLabel),
+      strategyId: normalizeText(issue.strategyId),
+      strategyDescription: normalizeText(issue.strategyDescription),
+      resolutionLead: normalizeText(issue.resolutionLead),
+      resolutionSource: normalizeText(issue.resolutionSource),
+      promptReady: issue.promptReady === true,
+      suggestedNextStep: normalizeText(issue.suggestedNextStep),
+      avoidText: normalizeText(issue.avoidText),
+      promptText: normalizeText(issue.promptText),
+      rationale: Array.isArray(issue.rationale) ? issue.rationale.map((entry) => normalizeText(entry)).filter(Boolean) : [],
+      lastAttempt: issue.lastAttempt && typeof issue.lastAttempt === "object"
+        ? {
+            outcome: normalizeText(issue.lastAttempt.outcome),
+            status: normalizeText(issue.lastAttempt.status),
+            updatedAt: normalizeText(issue.lastAttempt.updatedAt),
+            healingMode: normalizeText(issue.lastAttempt.healingMode),
+          }
+        : null,
+    };
+  }
+
+  function getHealingCandidates(selfHealing) {
+    const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
+    return [...issues]
+      .filter((item) => ["eligible_for_healing", "assist_only"].includes(normalizeText(item.eligibility)))
+      .sort((left, right) => Number(right.confidenceScore || 0) - Number(left.confidenceScore || 0))
+      .slice(0, 8);
+  }
+
   function prioritizeIssues(report) {
     const issues = Array.isArray(report?.issues) ? report.issues : [];
     return [...issues].sort((left, right) => {
@@ -209,6 +266,7 @@
     const prioritizedIssues = prioritizeIssues(report);
     const issue = findIssueByCode(appContext, issueCode);
     const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
+    const issueHealing = summarizeHealing(appContext.selfHealing, issueCode);
     const history = Array.isArray(appContext.runHistory) ? appContext.runHistory : [];
     const availableCommands = Array.isArray(appContext.availableCommands) ? appContext.availableCommands : [];
 
@@ -220,6 +278,7 @@
       issueCode,
       issue,
       issueMemory,
+      issueHealing,
       prioritizedIssues,
       criticalIssues: prioritizedIssues.filter((entry) => entry.severity === "high"),
       runHistory: history,
@@ -239,6 +298,7 @@
                 seoScore: report.summary.seoScore,
               }
             : null,
+          healingSummary: appContext.selfHealing?.summary || null,
         },
       };
     }
@@ -250,6 +310,7 @@
           topIssues: prioritizedIssues.slice(0, 8),
           logs: Array.isArray(appContext.logs) ? appContext.logs.slice(-12) : [],
           memorySummary: appContext.learningMemory?.summary || null,
+          healingSummary: appContext.selfHealing?.summary || null,
         },
       };
     }
@@ -261,6 +322,7 @@
           issueCode,
           issue,
           issueMemory,
+          issueHealing,
           promptWorkspaceReady: typeof appContext.buildIssuePrompt === "function",
         },
       };
@@ -283,6 +345,8 @@
         topIssues: prioritizedIssues.slice(0, 5),
         compareDigest: appContext.compareDigest || "",
         runHistory: history.slice(0, 5),
+        healingSummary: appContext.selfHealing?.summary || null,
+        healingCandidates: getHealingCandidates(appContext.selfHealing),
       },
     };
   }
@@ -480,11 +544,18 @@
     const issueCode = inferIssueCode(query, context);
     const promptText = context.buildIssuePrompt(issueCode);
     const memory = summarizeMemory(context.learningMemory, issueCode);
+    const healing = summarizeHealing(context.selfHealing, issueCode);
     const analysis = [
       "The prompt below prioritizes validated solutions, cites failed attempts when they exist and stays anchored to the current run.",
     ];
     if (memory?.failed) {
       analysis.push(`This issue has ${memory.failed} failed attempt(s) in memory; the prompt is expected to avoid them.`);
+    }
+    if (healing) {
+      analysis.push(`Self-healing says ${healing.issueCode} is ${healing.eligibility || "blocked"} with ${healing.confidenceLabel || "n/a"} confidence.`);
+      if (healing.avoidText) {
+        analysis.push(`Healing avoid list: ${healing.avoidText}`);
+      }
     }
     return {
       title: `Prompt intelligence${issueCode ? ` | ${issueCode}` : ""}`,
@@ -493,8 +564,167 @@
       promptText,
       actions: [
         { id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } },
+        healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility)
+          ? { id: "prepare-healing", label: "Prepare healing flow", payload: { issueCode: healing.issueCode, route: healing.route, action: healing.action } }
+          : null,
+        { id: "open-healing", label: "Open self-healing queue" },
         { id: "switch-prompts", label: "Open prompts" },
+      ].filter(Boolean),
+    };
+  }
+
+  function buildHealingCandidatesResponse(context) {
+    const summary = context.strategyContext?.healingSummary;
+    const candidates = context.strategyContext?.healingCandidates || [];
+    if (!summary || candidates.length === 0) {
+      return {
+        title: "No healing candidates",
+        summary: "No issue is currently marked as eligible or assist-only for self-healing.",
+        analysis: ["Run a fresh audit or strengthen operational memory to unlock safer healing strategies."],
+        actions: [{ id: "open-healing", label: "Open self-healing queue" }],
+      };
+    }
+
+    return {
+      title: "Self-healing candidates",
+      summary: `${summary.eligible} eligible | ${summary.assistOnly} assist only | ${summary.promptReady} prompt-ready | ${summary.pendingAttempts} pending attempt(s).`,
+      analysis: candidates.map((item, index) => `${index + 1}. ${item.issueCode} | ${item.route}${item.action ? ` | ${item.action}` : ""} | ${item.eligibility} | ${item.healingMode} | ${item.confidenceLabel || "n/a"}${item.resolutionLead ? ` | lead ${item.resolutionLead}` : ""}`),
+      actions: [
+        { id: "open-healing", label: "Open self-healing queue" },
+        candidates[0] ? { id: "prepare-healing", label: "Prepare top candidate", payload: { issueCode: candidates[0].issueCode, route: candidates[0].route, action: candidates[0].action } } : null,
+      ].filter(Boolean),
+    };
+  }
+
+  function buildHealingStrategyResponse(context, query) {
+    const issueCode = inferIssueCode(query, context);
+    const issue = findIssueByCode(context, issueCode);
+    const healing = summarizeHealing(context.selfHealing, issueCode);
+    if (!issue || !healing) {
+      return {
+        title: "Healing strategy unavailable",
+        summary: `No self-healing strategy is loaded for ${issueCode || "the requested issue"}.`,
+        analysis: ["Load a report that contains the issue or ask the assistant which issues are eligible for healing."],
+        actions: [{ id: "open-healing", label: "Open self-healing queue" }],
+      };
+    }
+
+    const analysis = [
+      `Eligibility: ${healing.eligibility}`,
+      `Healing mode: ${healing.healingMode}`,
+      `Confidence: ${healing.confidenceLabel || "n/a"} (${healing.confidenceScore}/100)`,
+      `Strategy: ${healing.strategyDescription || healing.strategyId || "n/a"}`,
+      healing.resolutionLead ? `Best known correction: ${healing.resolutionLead}` : "No correction lead is locked yet.",
+      healing.avoidText ? `Avoid this: ${healing.avoidText}` : "No failed pattern is recorded for this issue yet.",
+      ...(Array.isArray(healing.rationale) ? healing.rationale.slice(0, 3) : []),
+    ].filter(Boolean);
+
+    return {
+      title: `Healing strategy | ${healing.issueCode}`,
+      summary: healing.suggestedNextStep || "Operational healing strategy prepared from runtime memory.",
+      analysis,
+      actions: [
+        ["eligible_for_healing", "assist_only"].includes(healing.eligibility)
+          ? { id: "prepare-healing", label: "Prepare healing", payload: { issueCode: healing.issueCode, route: healing.route, action: healing.action } }
+          : null,
+        healing.promptReady ? { id: "generate-prompt", label: "Generate healing-aware prompt", payload: { issueCode: healing.issueCode } } : null,
+        { id: "open-healing", label: "Open self-healing queue" },
+      ].filter(Boolean),
+    };
+  }
+
+  function buildHealingDecisionResponse(context, query) {
+    const issueCode = inferIssueCode(query, context);
+    const healing = summarizeHealing(context.selfHealing, issueCode);
+    if (!healing) {
+      return {
+        title: "Healing decision unavailable",
+        summary: `No self-healing decision context is loaded for ${issueCode || "the requested issue"}.`,
+        analysis: ["Ask which issues are eligible for healing or load a report that contains the target issue."],
+        actions: [{ id: "open-healing", label: "Open self-healing queue" }],
+      };
+    }
+
+    const verdict = healing.eligibility === "eligible_for_healing"
+      ? "This issue is a candidate for assisted correction and can be prepared safely."
+      : healing.eligibility === "assist_only"
+      ? "This issue should stay prompt-assisted and human-reviewed before revalidation."
+      : healing.eligibility === "manual_only"
+      ? "This issue should stay manual until the memory is stronger."
+      : healing.eligibility === "unsafe"
+      ? "This issue is unsafe for automated correction."
+      : "This issue is blocked until more context is available.";
+
+    return {
+      title: `Healing decision | ${healing.issueCode}`,
+      summary: verdict,
+      analysis: [
+        `Mode: ${healing.healingMode}`,
+        `Confidence: ${healing.confidenceLabel || "n/a"} (${healing.confidenceScore}/100)`,
+        healing.resolutionLead ? `Correction lead: ${healing.resolutionLead}` : "No correction lead is currently stored.",
+        healing.avoidText ? `Avoid: ${healing.avoidText}` : "No failed pattern is stored for this issue.",
       ],
+      actions: [
+        { id: "open-healing", label: "Open self-healing queue" },
+        ["eligible_for_healing", "assist_only"].includes(healing.eligibility)
+          ? { id: "prepare-healing", label: "Prepare healing", payload: { issueCode: healing.issueCode, route: healing.route, action: healing.action } }
+          : null,
+      ].filter(Boolean),
+    };
+  }
+
+  function buildHealingFailureResponse(context, query) {
+    const issueCode = inferIssueCode(query, context);
+    const healing = summarizeHealing(context.selfHealing, issueCode);
+    const memory = summarizeMemory(context.learningMemory, issueCode);
+    const lines = [];
+    if (memory?.failed) {
+      lines.push(`Operational memory shows ${memory.failed} failed attempt(s).`);
+    }
+    if (memory?.avoidText) {
+      lines.push(`Avoid this pattern: ${memory.avoidText}`);
+    }
+    if (healing?.lastAttempt) {
+      lines.push(`Last healing attempt: ${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${healing.lastAttempt.updatedAt}` : ""}`);
+    }
+    if (!lines.length) {
+      lines.push("No failed healing pattern is currently recorded for this issue.");
+    }
+
+    return {
+      title: issueCode ? `What failed before | ${issueCode}` : "What failed before",
+      summary: "Review failed patterns before repeating a correction attempt.",
+      analysis: lines,
+      actions: [
+        issueCode ? { id: "open-memory", label: "Open learning memory", payload: { issueCode } } : null,
+        { id: "open-healing", label: "Open self-healing queue" },
+      ].filter(Boolean),
+    };
+  }
+
+  function buildHealingRevalidateResponse(context, query) {
+    const issueCode = inferIssueCode(query, context);
+    const healing = summarizeHealing(context.selfHealing, issueCode)
+      || getHealingCandidates(context.selfHealing).find((item) => item.lastAttempt && item.lastAttempt.outcome === "pending")
+      || null;
+    if (!healing || healing.lastAttempt?.outcome !== "pending") {
+      return {
+        title: "No pending healing attempt",
+        summary: "There is no pending self-healing attempt ready for revalidation.",
+        analysis: ["Prepare a healing attempt first, apply the fix, then rerun the audit through the operator mode."],
+        actions: [{ id: "open-healing", label: "Open self-healing queue" }],
+      };
+    }
+
+    return {
+      title: `Revalidate healing | ${healing.issueCode}`,
+      summary: "The assistant can trigger a new audit so the Self-Healing Engine can resolve the pending attempt.",
+      analysis: [
+        `Pending attempt mode: ${healing.lastAttempt.healingMode || healing.healingMode}`,
+        healing.resolutionLead ? `Expected correction: ${healing.resolutionLead}` : "No correction lead is stored.",
+        "Only trigger this after the actual fix has been applied.",
+      ],
+      actions: [{ id: "revalidate-healing", label: "Revalidate now", payload: { issueCode: healing.issueCode, route: healing.route, action: healing.action } }],
     };
   }
 

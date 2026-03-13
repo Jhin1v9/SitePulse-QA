@@ -6,7 +6,7 @@ This document is the internal technical reference for the SitePulse Desktop AI l
 It exists to keep future changes anchored to the real architecture instead of ad-hoc UI work.
 
 Update this file whenever the desktop AI, operational memory, Prompt Workspace enrichment,
-or Electron bridge changes.
+Electron bridge, or Self-Healing Engine changes.
 
 ## Objectives
 
@@ -18,6 +18,7 @@ It exists to:
 - improve prompt generation with validated operational history
 - expose safe actions inside the app
 - preserve traceability for learned resolutions
+- orchestrate safe healing flows with explicit revalidation
 
 ## Core Principles
 
@@ -30,12 +31,13 @@ It exists to:
 
 ## Architecture Overview
 
-The desktop AI system is split into four layers:
+The desktop AI system is split into five layers:
 
 1. QA runtime learning layer
 2. Electron bridge layer
 3. Renderer state and UX layer
 4. Assistant reasoning and action layer
+5. Self-Healing orchestration layer
 
 ### 1. QA Runtime Learning Layer
 
@@ -113,6 +115,8 @@ Current memory-related IPC:
 
 - `getLearningMemory`
 - `applyLearningManualOverride`
+- `getHealingSnapshot`
+- `prepareHealingAttempt`
 
 ## 3. Renderer State and UX Layer
 
@@ -128,6 +132,7 @@ Responsibilities:
 - expose filters over learned memory
 - enrich Prompt Workspace with real learning history
 - host the assistant drawer and action UI
+- expose the Self-Healing queue inside the Prompt Workspace
 
 ### Memory Panel
 
@@ -168,6 +173,25 @@ Prompt generation should consider:
 - current run context
 
 The goal is to reduce generic prompts and repeated bad suggestions.
+
+### Self-Healing Panel
+
+The Prompt Workspace now includes a Self-Healing queue.
+
+It should answer:
+
+- which issues are eligible for assisted correction
+- which ones are assist-only, manual-only, blocked or unsafe
+- what the best known correction lead is
+- which prompt is ready to copy
+- whether a pending healing attempt is waiting for revalidation
+
+The panel is intentionally operational:
+
+- prepare healing
+- copy healing prompt
+- revalidate the latest pending attempt
+- jump to operational memory
 
 ## 4. Assistant Reasoning and Action Layer
 
@@ -230,6 +254,7 @@ The assistant can consume:
 - issue list
 - severity and category data
 - operational memory snapshot
+- self-healing snapshot and attempt queue
 - compare digest
 - active workspace
 - logs and summaries
@@ -241,6 +266,8 @@ The assistant can consume:
 - memory guide
 - audit intelligence
 - prompt intelligence
+- self-healing strategy and eligibility
+- self-healing revalidation
 - action requests
 - issue explanation
 - run comparison
@@ -258,6 +285,10 @@ The assistant can consume:
 - teach me how to use the memory panel
 - open the latest run
 - promote this solution manually
+- which issues can be auto-healed?
+- what is the best healing strategy for issue X?
+- should this issue stay manual or prompt-assisted?
+- revalidate the latest healing attempt
 
 Example mappings:
 
@@ -266,6 +297,68 @@ Example mappings:
 - `gere um prompt para corrigir SEO_CANONICAL_MISSING` -> `prompt_engineer`
 - `como usar o painel de memoria?` -> `product_guide`
 - `o que devo corrigir primeiro?` -> `strategy_advisor`
+- `quais issues podem ser auto-curadas?` -> `strategy_advisor`
+- `qual a melhor estrategia para esta issue?` -> `strategy_advisor`
+- `revalide a ultima tentativa` -> `operator`
+
+## 5. Self-Healing Orchestration Layer
+
+Files:
+
+- [healing-engine-service.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\healing-engine-service.mjs)
+- [healing-store.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\healing-store.mjs)
+- [healing-strategy-registry.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\healing-strategy-registry.mjs)
+- [healing-admin.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\healing-admin.mjs)
+
+Responsibilities:
+
+- classify issue eligibility
+- choose healing mode
+- compute confidence
+- build healing prompts from current evidence and memory
+- persist healing attempts
+- revalidate pending attempts on the next completed run
+- feed healing outcomes back into operational memory
+
+### Healing Eligibility
+
+Each issue can be classified as:
+
+- `eligible_for_healing`
+- `assist_only`
+- `manual_only`
+- `blocked`
+- `unsafe`
+
+This classification must drive whether the desktop prepares a healing flow or stays conservative.
+
+### Healing Modes
+
+Implemented modes:
+
+- `suggest_only`
+- `prompt_assisted`
+- `orchestrated_healing`
+
+`direct_action` is kept as a structural placeholder only. It is not used as an automatic path today.
+
+### Healing Attempt Lifecycle
+
+1. issue receives a self-healing strategy
+2. operator prepares a healing attempt
+3. attempt is persisted as pending
+4. fix is applied outside the desktop
+5. operator reruns the audit
+6. runtime resolves the attempt as `validated`, `failed` or `partial`
+7. outcome is recorded back into operational memory
+
+### Safety Rules For Self-Healing
+
+- never claim a fix was applied by the desktop if it only prepared a prompt
+- never call a pending attempt validated without a completed rerun
+- never hide failed or partial outcomes
+- never auto-promote dangerous patterns into action
+- keep operator confirmation explicit before preparing corrective flows
 
 ## Manual Override Flow
 
@@ -289,6 +382,16 @@ Traceability must always include:
 - actor/context if available
 - optional note
 
+Healing attempts must also retain:
+
+- strategy id
+- healing mode
+- confidence score and label
+- attempted resolution
+- outcome summary
+- collateral regression count
+- replay command
+
 ## Confidence Hierarchy
 
 The recommendation hierarchy should remain:
@@ -301,11 +404,14 @@ The recommendation hierarchy should remain:
 
 Previously failed patterns should always be surfaced when relevant.
 
+Self-healing should consume this hierarchy instead of bypassing it.
+
 ## Current UX Entry Points
 
 - Findings issue actions
 - Settings memory panel
 - Prompt Workspace prompt generation
+- Prompt Workspace self-healing queue
 - Assistant drawer
 - keyboard shortcut `Ctrl+J`
 
@@ -316,6 +422,7 @@ Previously failed patterns should always be surfaced when relevant.
 - Do not promote solutions silently.
 - Do not mutate memory without traceability.
 - Do not bypass confirmation for manual overrides.
+- Do not claim a healing attempt succeeded until a rerun proves it.
 
 ## Validation Checklist
 
@@ -325,6 +432,10 @@ When changing this architecture, validate at minimum:
 - `node --check qa/src/issue-learning-service.mjs`
 - `node --check qa/src/issue-learning-store.mjs`
 - `node --check qa/src/issue-learning-admin.mjs`
+- `node --check qa/src/healing-engine-service.mjs`
+- `node --check qa/src/healing-store.mjs`
+- `node --check qa/src/healing-strategy-registry.mjs`
+- `node --check qa/src/healing-admin.mjs`
 - `node --check companion/src/main.cjs`
 - `node --check companion/src/preload.cjs`
 - `node --check companion/src/renderer.js`
@@ -346,6 +457,7 @@ Recommended next steps that fit the current design:
 - manual promotion history viewer
 - richer prompt templates by issue family
 - guided repair plans per issue cluster
+- direct-action support only after explicit safety gating and deterministic validation
 
 ## Change Log
 
@@ -365,3 +477,14 @@ Assistant cognitive modes added:
 - automatic mode detection
 - mode-specific context routing
 - UI display for active mode and detected intent
+
+### 2026-03-13
+
+Self-Healing Engine added:
+
+- healing strategy registry
+- healing store
+- healing admin bridge
+- self-healing queue in Prompt Workspace
+- preparation of healing attempts
+- revalidation outcome ingestion into operational memory

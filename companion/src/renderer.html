@@ -684,6 +684,20 @@
               <article class="panel prompt-panel">
                 <div class="panel-head split-head">
                   <div>
+                    <p class="eyebrow">self-healing engine</p>
+                    <h3>Healing queue</h3>
+                  </div>
+                  <button id="copySelfHealingSummary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="selfHealingSummary">Run an audit to see which issues are eligible for assisted correction.</div>
+                <div id="selfHealingList" class="history-list">
+                  <article class="empty-state">No self-healing context is loaded yet.</article>
+                </div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
                     <p class="eyebrow">replay command</p>
                     <h3>Reproduce the run</h3>
                   </div>

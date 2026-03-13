@@ -611,6 +611,85 @@ export function applyManualResolutionOverride(storeInput, overrideInput) {
   return { store, entry };
 }
 
+export function recordHealingOutcome(storeInput, outcomeInput) {
+  const store = storeInput && typeof storeInput === "object" ? storeInput : { entries: {}, lastRunByContext: {}, processedRuns: [] };
+  const outcome = outcomeInput && typeof outcomeInput === "object" ? outcomeInput : {};
+  const issueCode = normalizeText(outcome.issueCode).toUpperCase();
+  const route = normalizeText(outcome.route || "/");
+  const action = normalizeText(outcome.action);
+  const timestamp = normalizeText(outcome.timestamp || new Date().toISOString());
+  const result = normalizeOutcome(outcome.outcome);
+  if (!issueCode || !result) {
+    throw new Error("healing_outcome_requires_issue_code_and_outcome");
+  }
+
+  const observation = {
+    code: issueCode,
+    route,
+    action,
+    title: normalizeText(outcome.title || codeToTitle(issueCode)),
+    severity: normalizeText(outcome.severity || "medium"),
+    possibleResolution: normalizeText(outcome.possibleResolution || outcome.attemptedResolution),
+    finalResolution: normalizeText(result === "validated" ? outcome.attemptedResolution : outcome.finalResolution),
+    recommendedResolution: normalizeText(outcome.recommendedResolution || outcome.strategySummary),
+    learningSource: normalizeText(outcome.learningSource || "Self-healing outcome recorded in SitePulse Desktop."),
+    category: normalizeText(outcome.category || deriveCategory(issueCode)),
+    baseUrl: normalizeText(outcome.baseUrl),
+    auditScope: normalizeText(outcome.auditScope),
+    viewportLabel: normalizeText(outcome.viewportLabel),
+    detail: normalizeText(outcome.detail || outcome.outcomeSummary),
+  };
+
+  const entry = ensureEntry(
+    store,
+    toObservation(observation, { meta: { baseUrl: observation.baseUrl, auditScope: observation.auditScope, viewportLabel: observation.viewportLabel, finishedAt: timestamp } }),
+    timestamp,
+  );
+
+  if (!entry.possibleResolution && outcome.attemptedResolution) {
+    entry.possibleResolution = normalizeText(outcome.attemptedResolution);
+  }
+  if (!entry.recommendedResolution && outcome.strategySummary) {
+    entry.recommendedResolution = normalizeText(outcome.strategySummary);
+  }
+  entry.learningSource = entry.learningSource || "Self-healing outcome recorded in SitePulse Desktop.";
+
+  const caseRecord = {
+    outcome: result,
+    title: normalizeText(outcome.caseTitle || `${issueCode} self-healing ${result}`),
+    symptom: normalizeText(outcome.detail || outcome.title),
+    attempt: normalizeText(outcome.attemptedResolution || outcome.possibleResolution || outcome.recommendedResolution),
+    result: normalizeText(outcome.outcomeSummary),
+    finalFix: result === "validated" ? normalizeText(outcome.attemptedResolution || outcome.finalResolution) : "",
+    source: normalizeText(outcome.learningSource || "Self-healing outcome recorded in SitePulse Desktop."),
+    route,
+    action,
+    baseUrl: normalizeText(outcome.baseUrl),
+    timestamp,
+    revalidated: outcome.revalidated === true,
+    zeroedIssue: outcome.zeroedIssue === true,
+  };
+
+  registerCase(entry, caseRecord);
+  entry.contexts = dedupeContexts([
+    ...entry.contexts,
+    {
+      route,
+      action,
+      baseUrl: observation.baseUrl,
+      auditScope: observation.auditScope,
+      viewportLabel: observation.viewportLabel,
+      detail: observation.detail,
+      lastResult: result,
+      lastSeenAt: timestamp,
+    },
+  ]);
+
+  maybePromoteResolution(entry, observation, caseRecord);
+
+  return { store, entry };
+}
+
 export function ingestCompletedRun(storeInput, report) {
   const store = storeInput && typeof storeInput === "object" ? storeInput : { entries: {}, lastRunByContext: {}, processedRuns: [] };
   const timestamp = normalizeText(report?.meta?.finishedAt || report?.meta?.startedAt || new Date().toISOString());
