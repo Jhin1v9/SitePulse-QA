@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "playwright";
+import { getIssueLearning } from "./issue-learning-library.mjs";
 
 const EXIT_OK = 0;
 const EXIT_FAIL = 1;
@@ -148,16 +149,6 @@ const ACTION_STATUS = {
   CLICK_ERROR: "click_error",
   ANALYSIS_ONLY: "analysis_only",
   ROUTE_LIMIT: "route_limit",
-};
-
-const ISSUE_LEARNING_LIBRARY = {
-  [CODE.CONTENT_LANGUAGE_CONFLICT]: {
-    source: "Aprendizado validado durante o rework multilocale do SitePulse Studio.",
-    possibleSolution:
-      "Centralizar toda a copy em um dicionario de i18n, definir idioma principal por rota e revisar header, footer, hero, screenshots, formularios e estados para remover textos fixos fora da traducao.",
-    finalSolution:
-      "Mover os textos residuais para a camada oficial de traducao, alinhar o atributo lang do documento com o locale ativo e reexecutar a auditoria ate nao restarem trechos visiveis em idioma errado.",
-  },
 };
 
 const ISSUE_GUIDE = {
@@ -834,7 +825,43 @@ function detectLanguageConflict(snapshot = {}) {
 }
 
 function learningForIssue(code) {
-  return ISSUE_LEARNING_LIBRARY[code] ?? null;
+  return getIssueLearning(code);
+}
+
+function normalizeLearningOutcome(value) {
+  const normalized = normalizeText(value).toLowerCase();
+  if (normalized === "validated") return "validated";
+  if (normalized === "failed") return "failed";
+  if (normalized === "partial") return "partial";
+  return "";
+}
+
+function normalizeLearningCase(input, index = 0) {
+  const entry = input && typeof input === "object" ? input : {};
+  return {
+    id: String(entry.id || `learning-${index + 1}`),
+    outcome: normalizeLearningOutcome(entry.outcome),
+    title: normalizeText(entry.title || `Learning case ${index + 1}`),
+    symptom: normalizeText(entry.symptom),
+    attempt: normalizeText(entry.attempt),
+    result: normalizeText(entry.result),
+    finalFix: normalizeText(entry.finalFix),
+    source: normalizeText(entry.source),
+  };
+}
+
+function summarizeLearningCases(cases) {
+  const summary = {
+    validated: 0,
+    failed: 0,
+    partial: 0,
+  };
+  for (const item of cases) {
+    if (item.outcome === "validated") summary.validated += 1;
+    if (item.outcome === "failed") summary.failed += 1;
+    if (item.outcome === "partial") summary.partial += 1;
+  }
+  return summary;
 }
 
 function sanitizeFileToken(value, fallback = "item") {
@@ -1207,7 +1234,9 @@ function buildSeoFixPrompt(input) {
     ...missing.map((row, index) => `${index + 1}. ${row.label} | por que importa: ${row.why} | o que fazer: ${row.recommendation}`),
     "",
     "Issues SEO detectadas:",
-    ...topIssues.map((issue, index) => `${index + 1}. [${issue.code}] (${issue.severity}) ${issue.detail} | recomendacao: ${issue.recommendation}`),
+    ...topIssues.map((issue, index) =>
+      `${index + 1}. [${issue.code}] (${issue.severity}) ${issue.detail} | recomendacao: ${issue.recommendation}${issue.finalResolution ? ` | padrao_validado: ${issue.finalResolution}` : issue.possibleResolution ? ` | tentativa_sugerida: ${issue.possibleResolution}` : ""}`,
+    ),
     "",
     "Entrega obrigatoria:",
     "- listar arquivos alterados e motivo de cada alteracao",
@@ -1631,15 +1660,26 @@ function finalizeSeoReport(report, enabled = true) {
   }
 
   const issues = Array.from(grouped.values())
-    .map((item) => ({
-      code: item.code,
-      severity: item.severity,
-      category: item.category,
-      detail: item.detail,
-      recommendation: item.recommendation,
-      count: item.count,
-      affectedRoutes: Array.from(item.affectedRoutes).sort(),
-    }))
+    .map((item) => {
+      const learning = learningForIssue(item.code);
+      const learningCases = Array.isArray(learning?.cases)
+        ? learning.cases.map((entry, index) => normalizeLearningCase(entry, index)).filter((entry) => entry.outcome || entry.title)
+        : [];
+      return {
+        code: item.code,
+        severity: item.severity,
+        category: item.category,
+        detail: item.detail,
+        recommendation: item.recommendation,
+        possibleResolution: learning?.possibleSolution ?? "",
+        finalResolution: learning?.finalSolution ?? "",
+        learningSource: learning?.source ?? "",
+        learningCases,
+        learningCounts: summarizeLearningCases(learningCases),
+        count: item.count,
+        affectedRoutes: Array.from(item.affectedRoutes).sort(),
+      };
+    })
     .sort((a, b) => severityRank(b.severity) - severityRank(a.severity) || b.count - a.count || a.code.localeCompare(b.code));
 
   const checklist = buildSeoChecklist(issues);
@@ -1655,7 +1695,7 @@ function finalizeSeoReport(report, enabled = true) {
     pagesAnalyzed: pages.length,
     categoryScore,
     issues,
-    topRecommendations: issues.slice(0, 8).map((item) => item.recommendation),
+    topRecommendations: issues.slice(0, 8).map((item) => item.finalResolution || item.possibleResolution || item.recommendation),
     checklist,
     fixPrompt,
     pages,
@@ -3251,6 +3291,9 @@ function createIssueLogEntry(issue) {
     possibleResolution: issue.possibleResolution,
     finalResolution: issue.finalResolution,
     learningSource: issue.learningSource,
+    learningStatus: issue.learningStatus,
+    learningCounts: issue.learningCounts,
+    learningCases: issue.learningCases,
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
     diagnosis: issue.diagnosis,
@@ -3262,6 +3305,12 @@ function hydrateIssue(rawIssue) {
   const guide = guideForIssueCode(rawIssue.code);
   const diagnosis = rawIssue.diagnosis ?? inferIssueIntelligence(rawIssue, guide);
   const learning = learningForIssue(rawIssue.code);
+  const learningCases = Array.isArray(rawIssue.learningCases)
+    ? rawIssue.learningCases.map((item, index) => normalizeLearningCase(item, index)).filter((item) => item.outcome || item.title)
+    : Array.isArray(learning?.cases)
+      ? learning.cases.map((item, index) => normalizeLearningCase(item, index)).filter((item) => item.outcome || item.title)
+      : [];
+  const learningCounts = summarizeLearningCases(learningCases);
 
   const issue = {
     id:
@@ -3287,6 +3336,11 @@ function hydrateIssue(rawIssue) {
       rawIssue.possibleResolution ?? learning?.possibleSolution ?? diagnosis.recommendedResolution ?? guide.recommendation,
     finalResolution: rawIssue.finalResolution ?? learning?.finalSolution ?? "",
     learningSource: rawIssue.learningSource ?? learning?.source ?? "",
+    learningStatus:
+      String(rawIssue.learningStatus || "") ||
+      (learningCounts.validated > 0 ? "validated" : learningCounts.partial > 0 ? "partial" : learningCounts.failed > 0 ? "failed" : ""),
+    learningCounts,
+    learningCases,
     evidence: Array.isArray(rawIssue.evidence)
       ? rawIssue.evidence
           .map((item) => ({
@@ -3500,6 +3554,9 @@ function buildAssistantGuide(report) {
       possibleResolution: issue.possibleResolution,
       finalResolution: issue.finalResolution,
       learningSource: issue.learningSource,
+      learningStatus: issue.learningStatus,
+      learningCounts: issue.learningCounts,
+      learningCases: issue.learningCases,
       assistantHint: issue.assistantHint ?? buildIssueActionHint(issue, issue.diagnosis),
     })),
   };
@@ -3551,6 +3608,18 @@ function toAssistantBrief(report) {
       }
       if (issue.learningSource) {
         lines.push(`  fonte_aprendizado: ${issue.learningSource}`);
+      }
+      if (issue.learningStatus) {
+        lines.push(
+          `  memoria: ${issue.learningStatus} | ok=${issue.learningCounts?.validated ?? 0} falhou=${issue.learningCounts?.failed ?? 0} parcial=${issue.learningCounts?.partial ?? 0}`,
+        );
+      }
+      if (Array.isArray(issue.learningCases) && issue.learningCases.length) {
+        for (const caseItem of issue.learningCases.slice(0, 2)) {
+          lines.push(
+            `  caso_${caseItem.outcome || "known"}: ${caseItem.title} | tentativa: ${caseItem.attempt || "n/a"} | resultado: ${caseItem.result || "n/a"}`,
+          );
+        }
       }
       lines.push(`  prioridade: ${issue.assistantHint.priority}`);
       lines.push(`  checks: ${issue.assistantHint.firstChecks.join(" | ")}`);
@@ -3977,6 +4046,12 @@ function toIssueLog(report) {
         `solucao_possivel: ${entry.possibleResolution ?? ""}`,
         `solucao_final: ${entry.finalResolution ?? ""}`,
         `fonte_aprendizado: ${entry.learningSource ?? ""}`,
+        `memoria_status: ${entry.learningStatus ?? ""}`,
+        `memoria_contagens: ok=${entry.learningCounts?.validated ?? 0} falhou=${entry.learningCounts?.failed ?? 0} parcial=${entry.learningCounts?.partial ?? 0}`,
+        `memoria_casos: ${(entry.learningCases ?? [])
+          .slice(0, 2)
+          .map((item) => `[${item.outcome || "known"}] ${item.title}: ${item.result || item.attempt || "n/a"}`)
+          .join(" | ")}`,
         `prioridade_assistente: ${entry.assistantHint?.priority ?? "P2"}`,
         `checks_assistente: ${(entry.assistantHint?.firstChecks ?? []).join(" | ")}`,
         `comandos_assistente: ${(entry.assistantHint?.commandHints ?? []).join(" || ")}`,

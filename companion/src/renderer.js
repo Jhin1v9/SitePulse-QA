@@ -892,9 +892,24 @@ function normalizeMobileSweepMeta(input) {
   };
 }
 
+function normalizeLearningCase(item, index) {
+  const entry = item && typeof item === "object" ? item : {};
+  return {
+    id: String(entry.id || `learning-${index + 1}`),
+    outcome: String(entry.outcome || ""),
+    title: String(entry.title || `Learning case ${index + 1}`),
+    symptom: String(entry.symptom || ""),
+    attempt: String(entry.attempt || ""),
+    result: String(entry.result || ""),
+    finalFix: String(entry.finalFix || ""),
+    source: String(entry.source || ""),
+  };
+}
+
 function normalizeIssue(item, index) {
   const issue = item && typeof item === "object" ? item : {};
   const code = String(issue.code || "UNKNOWN");
+  const learningCases = Array.isArray(issue.learningCases) ? issue.learningCases.map(normalizeLearningCase) : [];
   return {
     id: String(issue.id || `issue-${index + 1}`),
     code,
@@ -906,6 +921,13 @@ function normalizeIssue(item, index) {
     possibleResolution: String(issue.possibleResolution || ""),
     finalResolution: String(issue.finalResolution || ""),
     learningSource: String(issue.learningSource || ""),
+    learningStatus: String(issue.learningStatus || ""),
+    learningCounts: {
+      validated: toNumber(issue.learningCounts?.validated, learningCases.filter((item) => item.outcome === "validated").length),
+      failed: toNumber(issue.learningCounts?.failed, learningCases.filter((item) => item.outcome === "failed").length),
+      partial: toNumber(issue.learningCounts?.partial, learningCases.filter((item) => item.outcome === "partial").length),
+    },
+    learningCases,
     group: ISSUE_GROUP[code] || "Other issue",
     viewportLabel: String(issue.viewportLabel || ""),
     viewport: String(issue.viewport || ""),
@@ -2628,6 +2650,17 @@ function buildIssueCard(issue, actionContext) {
   const whyItMatters = issue.diagnosis.laymanExplanation || issue.diagnosis.technicalExplanation || "This issue can reduce trust, break navigation or hide failures from operators.";
   const technicalLead = issue.diagnosis.technicalChecks[0] || issue.diagnosis.likelyAreas[0] || "";
   const commands = issue.diagnosis.commandHints.slice(0, 2);
+  const validatedLearning = Array.isArray(issue.learningCases) ? issue.learningCases.filter((item) => item.outcome === "validated") : [];
+  const failedLearning = Array.isArray(issue.learningCases) ? issue.learningCases.filter((item) => item.outcome === "failed") : [];
+  const learningSummary = issue.learningStatus
+    ? `${issue.learningStatus} | ${issue.learningCounts.validated} validated | ${issue.learningCounts.failed} failed${issue.learningCounts.partial ? ` | ${issue.learningCounts.partial} partial` : ""}`
+    : "";
+  const validatedPattern = validatedLearning[0]
+    ? `${validatedLearning[0].title}: ${validatedLearning[0].finalFix || validatedLearning[0].result || validatedLearning[0].attempt}`
+    : "";
+  const failedPattern = failedLearning[0]
+    ? `${failedLearning[0].title}: ${failedLearning[0].result || failedLearning[0].attempt}`
+    : "";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
   const evidenceMarkup = evidence.length
     ? `
@@ -2678,6 +2711,9 @@ function buildIssueCard(issue, actionContext) {
       ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
       ${issue.finalResolution ? `<p class="issue-checks"><strong>Final solution:</strong> ${escapeHtml(issue.finalResolution)}</p>` : ""}
       ${issue.learningSource ? `<p class="issue-checks"><strong>Learning source:</strong> ${escapeHtml(issue.learningSource)}</p>` : ""}
+      ${learningSummary ? `<p class="issue-checks"><strong>Learning memory:</strong> ${escapeHtml(learningSummary)}</p>` : ""}
+      ${validatedPattern ? `<p class="issue-checks"><strong>Validated pattern:</strong> ${escapeHtml(validatedPattern)}</p>` : ""}
+      ${failedPattern ? `<p class="issue-checks"><strong>Avoid this:</strong> ${escapeHtml(failedPattern)}</p>` : ""}
       ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
       ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
       ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
