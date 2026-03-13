@@ -81,6 +81,89 @@ const VIEW_META = {
   },
 };
 
+const WORKSPACE_HELP = {
+  overview: {
+    title: "Overview",
+    description: "Use this surface to define the target, choose scope and depth, then hand the run to the native engine or CMD flow.",
+    steps: [
+      "Set the target URL and execution profile before starting a run.",
+      "Use Native Audit for the default engine flow and CMD Flow when you need the full local replay path.",
+      "Copy the replay command when you want to revalidate after a fix.",
+    ],
+    actions: [{ id: "switch-overview", label: "Stay on overview" }],
+  },
+  operations: {
+    title: "Operations",
+    description: "This is the live execution room. Follow the timeline, stage board and runtime log while the engine moves across routes and actions.",
+    steps: [
+      "Use the live protocol to see what the engine is checking right now.",
+      "Watch the stage board for route discovery, loading and runtime boot checkpoints.",
+      "When something fails, open logs first before jumping into prompts.",
+    ],
+    actions: [{ id: "switch-operations", label: "Open operations" }],
+  },
+  findings: {
+    title: "Findings",
+    description: "This board is the fix queue. Filter severity, search by route/action/code and inspect the learning memory attached to each issue.",
+    steps: [
+      "Start with high severity items and issues without validated memory.",
+      "Use the learning block on each card to see validated patterns or failed attempts.",
+      "Promote a final solution manually only when you can justify it.",
+    ],
+    actions: [{ id: "switch-findings", label: "Open findings" }],
+  },
+  seo: {
+    title: "SEO",
+    description: "This workspace combines internal SEO diagnostics with optional Search Console data.",
+    steps: [
+      "Use the internal SEO score and recommendation list first.",
+      "Refresh Google data only when you need live position, clicks and impressions.",
+      "Copy the SEO digest when you want a compact search-focused brief.",
+    ],
+    actions: [{ id: "switch-seo", label: "Open SEO" }],
+  },
+  prompts: {
+    title: "Prompt Workspace",
+    description: "This workspace turns the current report into reusable prompts, digests and replay commands.",
+    steps: [
+      "Use the professional fix prompt for Codex or another coding agent.",
+      "Use comparison, route and action digests when you need narrower operational context.",
+      "The fix prompt is memory-aware and will cite validated and failed patterns when they exist.",
+    ],
+    actions: [{ id: "switch-prompts", label: "Open prompts" }],
+  },
+  compare: {
+    title: "Compare",
+    description: "Use this surface to understand what improved, what regressed and what is still unresolved versus baseline or previous run.",
+    steps: [
+      "Pin a clean baseline from Reports or History first.",
+      "Read critical regressions before looking at raw issue delta.",
+      "Use the compare digest when you need a concise summary for another engineer.",
+    ],
+    actions: [{ id: "switch-compare", label: "Open compare" }],
+  },
+  reports: {
+    title: "Reports",
+    description: "This room keeps evidence, route contact sheets and stored snapshots for replay and review.",
+    steps: [
+      "Use History to load a previous snapshot or set a baseline.",
+      "Open evidence or reveal artifacts when you need proof for a fix or a client discussion.",
+      "This is the fastest way to recover context from an earlier run.",
+    ],
+    actions: [{ id: "switch-reports", label: "Open reports" }],
+  },
+  settings: {
+    title: "Settings",
+    description: "This is where runtime policy, updates and operational memory live.",
+    steps: [
+      "Use Validated Learnings to inspect patterns that already worked or failed before.",
+      "Apply manual override only when you want to mark a resolution deliberately with traceability.",
+      "Use filters to isolate failed, validated, partial, auto-promoted or manual patterns.",
+    ],
+    actions: [{ id: "switch-settings", label: "Open settings" }],
+  },
+};
+
 const stateEl = {
   serviceName: document.getElementById("serviceName"),
   bridgeStatus: document.getElementById("bridgeStatus"),
@@ -90,6 +173,12 @@ const stateEl = {
   reportsPath: document.getElementById("reportsPath"),
   learningMemorySummary: document.getElementById("learningMemorySummary"),
   learningMemoryList: document.getElementById("learningMemoryList"),
+  learningMemoryStatusFilter: document.getElementById("learningMemoryStatusFilter"),
+  learningMemoryIssueFilter: document.getElementById("learningMemoryIssueFilter"),
+  learningMemoryCategoryFilter: document.getElementById("learningMemoryCategoryFilter"),
+  learningMemorySeverityFilter: document.getElementById("learningMemorySeverityFilter"),
+  learningMemorySourceFilter: document.getElementById("learningMemorySourceFilter"),
+  learningMemorySort: document.getElementById("learningMemorySort"),
   bridgeAddress: document.getElementById("bridgeAddress"),
   launchOnLogin: document.getElementById("launchOnLogin"),
   startBridge: document.getElementById("startBridge"),
@@ -131,6 +220,7 @@ const stateEl = {
   copyReplayCommand: document.getElementById("copyReplayCommand"),
   copyQuickPrompt: document.getElementById("copyQuickPrompt"),
   copyQuickPromptSecondary: document.getElementById("copyQuickPromptSecondary"),
+  openAssistant: document.getElementById("openAssistant"),
   openCommandPalette: document.getElementById("openCommandPalette"),
   menuFlyout: document.getElementById("menuFlyout"),
   workspaceEyebrow: document.getElementById("workspaceEyebrow"),
@@ -289,6 +379,17 @@ const stateEl = {
   dismissCommandPalette: document.getElementById("dismissCommandPalette"),
   commandPaletteSearch: document.getElementById("commandPaletteSearch"),
   commandPaletteList: document.getElementById("commandPaletteList"),
+  assistantOverlay: document.getElementById("assistantOverlay"),
+  dismissAssistant: document.getElementById("dismissAssistant"),
+  assistantInput: document.getElementById("assistantInput"),
+  assistantAsk: document.getElementById("assistantAsk"),
+  assistantQuickPriorities: document.getElementById("assistantQuickPriorities"),
+  assistantQuickSeo: document.getElementById("assistantQuickSeo"),
+  assistantQuickPrompt: document.getElementById("assistantQuickPrompt"),
+  assistantQuickGuide: document.getElementById("assistantQuickGuide"),
+  assistantContextSummary: document.getElementById("assistantContextSummary"),
+  assistantResponse: document.getElementById("assistantResponse"),
+  assistantActions: document.getElementById("assistantActions"),
   evidenceLightbox: document.getElementById("evidenceLightbox"),
   dismissEvidenceLightbox: document.getElementById("dismissEvidenceLightbox"),
   evidenceLightboxTitle: document.getElementById("evidenceLightboxTitle"),
@@ -331,8 +432,21 @@ const uiState = {
   onboardingDismissed: loadOnboardingState(),
   shortcutsOpen: false,
   commandPaletteOpen: false,
+  assistantOpen: false,
   activeMenu: "",
   commandPaletteQuery: "",
+  assistantQuery: "",
+  assistantResult: null,
+  learningMemorySnapshot: null,
+  learningMemoryRefreshInFlight: false,
+  learningMemoryFilters: {
+    status: "all",
+    issueCode: "",
+    category: "all",
+    severity: "all",
+    source: "",
+    sort: "recent",
+  },
   auditRequestInFlight: false,
   activeEvidence: null,
   activeEvidenceReference: null,
@@ -743,6 +857,9 @@ function toggleCommandPalette(forceOpen = null) {
   uiState.commandPaletteOpen = forceOpen === null ? !uiState.commandPaletteOpen : forceOpen === true;
   stateEl.commandPaletteOverlay.classList.toggle("hidden", !uiState.commandPaletteOpen);
   if (uiState.commandPaletteOpen) {
+    if (uiState.assistantOpen) {
+      toggleAssistant(false);
+    }
     window.setTimeout(() => {
       stateEl.commandPaletteSearch.focus();
       stateEl.commandPaletteSearch.select();
@@ -753,6 +870,22 @@ function toggleCommandPalette(forceOpen = null) {
   }
   if (uiState.commandPaletteOpen) hideMenuFlyout();
   renderCommandPalette();
+}
+
+function toggleAssistant(forceOpen = null) {
+  uiState.assistantOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
+  stateEl.assistantOverlay.classList.toggle("hidden", !uiState.assistantOpen);
+  if (uiState.assistantOpen) {
+    hideMenuFlyout();
+    if (uiState.commandPaletteOpen) {
+      toggleCommandPalette(false);
+    }
+    window.setTimeout(() => {
+      stateEl.assistantInput.focus();
+      stateEl.assistantInput.select();
+    }, 0);
+  }
+  renderAssistantState();
 }
 
 function showToast(message, tone = "ok") {
@@ -898,6 +1031,7 @@ function normalizeLearningMemory(input) {
   const source = input && typeof input === "object" ? input : {};
   const entries = Array.isArray(source.entries)
     ? source.entries.map((item, index) => ({
+        key: String(item?.key || item?.id || `memory-${index + 1}`),
         id: String(item?.key || `memory-${index + 1}`),
         issueCode: String(item?.issueCode || "UNKNOWN"),
         title: String(item?.title || "Operational memory"),
@@ -907,11 +1041,16 @@ function normalizeLearningMemory(input) {
         action: String(item?.action || ""),
         possibleResolution: String(item?.possibleResolution || ""),
         finalResolution: String(item?.finalResolution || ""),
+        finalResolutionOrigin: String(item?.finalResolutionOrigin || ""),
         learningSource: String(item?.learningSource || ""),
         resolutionConfidence: String(item?.resolutionConfidence || ""),
         promotionSource: String(item?.promotionSource || ""),
         promotionCount: toNumber(item?.promotionCount, 0),
         lastValidatedAt: String(item?.lastValidatedAt || ""),
+        manualOverrideCount: toNumber(item?.manualOverrideCount, 0),
+        lastManualOverrideAt: String(item?.lastManualOverrideAt || ""),
+        lastManualOverrideBy: String(item?.lastManualOverrideBy || ""),
+        lastManualOverrideNote: String(item?.lastManualOverrideNote || ""),
         lastSeenAt: String(item?.lastSeenAt || ""),
         latestValidatedFix: String(item?.latestValidatedFix || ""),
         avoidText: String(item?.avoidText || ""),
@@ -933,6 +1072,7 @@ function normalizeLearningMemory(input) {
       failedEntries: toNumber(source.summary?.failedEntries, entries.filter((item) => item.learningCounts.failed > 0).length),
       partialEntries: toNumber(source.summary?.partialEntries, entries.filter((item) => item.learningCounts.partial > 0).length),
       promotedEntries: toNumber(source.summary?.promotedEntries, entries.filter((item) => item.promotionCount > 0).length),
+      manualOverrideEntries: toNumber(source.summary?.manualOverrideEntries, entries.filter((item) => item.manualOverrideCount > 0).length),
     },
     entries,
   };
@@ -968,6 +1108,15 @@ function normalizeIssue(item, index) {
     finalResolution: String(issue.finalResolution || ""),
     learningSource: String(issue.learningSource || ""),
     learningStatus: String(issue.learningStatus || ""),
+    finalResolutionOrigin: String(issue.finalResolutionOrigin || ""),
+    resolutionConfidence: String(issue.resolutionConfidence || ""),
+    promotionSource: String(issue.promotionSource || ""),
+    promotionCount: toNumber(issue.promotionCount, 0),
+    lastValidatedAt: String(issue.lastValidatedAt || ""),
+    manualOverrideCount: toNumber(issue.manualOverrideCount, 0),
+    lastManualOverrideAt: String(issue.lastManualOverrideAt || ""),
+    lastManualOverrideBy: String(issue.lastManualOverrideBy || ""),
+    lastManualOverrideNote: String(issue.lastManualOverrideNote || ""),
     learningCounts: {
       validated: toNumber(issue.learningCounts?.validated, learningCases.filter((item) => item.outcome === "validated").length),
       failed: toNumber(issue.learningCounts?.failed, learningCases.filter((item) => item.outcome === "failed").length),
@@ -1672,10 +1821,15 @@ function buildIssueDigest(report) {
 
   return report.issues
     .slice(0, 12)
-    .map(
-      (issue, index) =>
-        `${index + 1}. [${issue.severity.toUpperCase()}] ${issue.code}${issue.viewportLabel ? ` | ${issue.viewportLabel}` : ""} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""} | ${issue.detail}`,
-    )
+    .map((issue, index) => {
+      const learningEntry = getLearningEntryForIssue(issue);
+      const learningTail = learningEntry?.finalResolution
+        ? ` | final=${learningEntry.finalResolution}`
+        : learningEntry?.avoidText
+        ? ` | avoid=${learningEntry.avoidText}`
+        : "";
+      return `${index + 1}. [${issue.severity.toUpperCase()}] ${issue.code}${issue.viewportLabel ? ` | ${issue.viewportLabel}` : ""} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""} | ${issue.detail}${learningTail}`;
+    })
     .join("\n");
 }
 
@@ -1705,6 +1859,126 @@ function buildActionDigest(report) {
         `${index + 1}. ${action.viewportLabel ? `[${action.viewportLabel}] ` : ""}${action.route} | ${action.label} | expected=${action.expectedForUser || action.expectedFunction || "n/a"} | actual=${action.actualFunction || action.detail || action.statusLabel || "n/a"}`,
     )
     .join("\n");
+}
+
+function getOperationalMemorySnapshot(report = null) {
+  return uiState.learningMemorySnapshot || report?.learningMemory || null;
+}
+
+function getLearningEntryForIssue(issueLike, memoryInput = null) {
+  const memory = memoryInput || getOperationalMemorySnapshot(getVisibleReport());
+  if (!memory || !Array.isArray(memory.entries)) return null;
+  const code = String(issueLike?.code || issueLike || "").trim().toUpperCase();
+  const route = String(issueLike?.route || "/").trim();
+  const action = String(issueLike?.action || "").trim();
+  const exact = memory.entries.find((entry) =>
+    String(entry.issueCode || "").trim().toUpperCase() === code
+    && String(entry.route || "/").trim() === route
+    && String(entry.action || "").trim() === action);
+  if (exact) return exact;
+  return memory.entries.find((entry) => String(entry.issueCode || "").trim().toUpperCase() === code) || null;
+}
+
+function buildLearningAwareIssuePrompt(issueCode = "") {
+  const report = getVisibleReport();
+  if (!report) {
+    return "Run an audit to generate a learning-aware prompt.";
+  }
+
+  const targetIssue = issueCode
+    ? report.issues.find((issue) => String(issue.code).toUpperCase() === String(issueCode).toUpperCase())
+    : report.issues[0];
+
+  if (!targetIssue) {
+    return "No matching issue is loaded in SitePulse Studio.";
+  }
+
+  const learningEntry = getLearningEntryForIssue(targetIssue);
+  const lines = [
+    "Act as a senior software engineer focused on root cause, evidence and revalidation.",
+    `Target issue: ${targetIssue.code}`,
+    `Severity: ${targetIssue.severity}`,
+    `Route: ${targetIssue.route}${targetIssue.action ? ` | action: ${targetIssue.action}` : ""}`,
+    `Observed problem: ${targetIssue.detail}`,
+    `Recommended fix direction: ${targetIssue.recommendedResolution}`,
+  ];
+
+  if (learningEntry?.finalResolution) {
+    lines.push(`Validated final resolution available: ${learningEntry.finalResolution}`);
+    if (learningEntry.finalResolutionOrigin) {
+      lines.push(`Final resolution origin: ${learningEntry.finalResolutionOrigin}`);
+    }
+  } else if (targetIssue.finalResolution) {
+    lines.push(`Current final resolution attached to the report: ${targetIssue.finalResolution}`);
+  }
+
+  if (learningEntry?.possibleResolution || targetIssue.possibleResolution) {
+    lines.push(`Best current hypothesis: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`);
+  }
+
+  if (learningEntry?.latestValidatedFix) {
+    lines.push(`Validated pattern: ${learningEntry.latestValidatedFix}`);
+  }
+
+  if (learningEntry?.avoidText) {
+    lines.push(`Avoid repeating this: ${learningEntry.avoidText}`);
+  } else if (targetIssue.learningCases?.some((item) => item.outcome === "failed")) {
+    const failedCase = targetIssue.learningCases.find((item) => item.outcome === "failed");
+    lines.push(`Avoid repeating this: ${failedCase?.result || failedCase?.attempt || "A previous attempt already failed."}`);
+  }
+
+  lines.push(
+    "Constraints:",
+    "- do not propose cosmetic fixes",
+    "- prioritize the solution with the strongest evidence first",
+    "- if the final resolution is only a manual override, mention that it still needs technical confirmation",
+    `Replay command: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
+    "End with a short validation plan.",
+  );
+
+  return lines.join("\n");
+}
+
+function buildLearningAwareFixPrompt(report) {
+  if (!report) {
+    return "Run an audit to generate a professional fix prompt.";
+  }
+
+  const prioritized = [...report.issues].sort((left, right) => {
+    const leftRank = left.severity === "high" ? 3 : left.severity === "medium" ? 2 : 1;
+    const rightRank = right.severity === "high" ? 3 : right.severity === "medium" ? 2 : 1;
+    if (rightRank !== leftRank) return rightRank - leftRank;
+    const leftValidated = Number(getLearningEntryForIssue(left)?.learningCounts?.validated || left.learningCounts?.validated || 0);
+    const rightValidated = Number(getLearningEntryForIssue(right)?.learningCounts?.validated || right.learningCounts?.validated || 0);
+    return leftValidated - rightValidated;
+  });
+
+  const lines = [
+    "Act as a senior software engineer with a bias for operational clarity and clean verification.",
+    `Current target: ${report.meta.baseUrl}`,
+    `Total issues: ${report.summary.totalIssues}`,
+    `SEO score: ${report.summary.seoScore}`,
+    "Attack order:",
+    "- high severity without a validated final resolution",
+    "- medium severity with repeated failed attempts",
+    "- low severity and residual cleanup after revalidation",
+    "",
+    "Priority issues:",
+  ];
+
+  prioritized.slice(0, 6).forEach((issue, index) => {
+    const memory = getLearningEntryForIssue(issue);
+    const resolutionLead = memory?.finalResolution
+      ? `final=${memory.finalResolution}`
+      : memory?.possibleResolution
+      ? `possible=${memory.possibleResolution}`
+      : `recommended=${issue.recommendedResolution}`;
+    const failedLead = memory?.avoidText ? ` | avoid=${memory.avoidText}` : "";
+    lines.push(`${index + 1}. [${issue.code}] (${issue.severity}) ${issue.route}${issue.action ? ` -> ${issue.action}` : ""} | ${issue.detail} | ${resolutionLead}${failedLead}`);
+  });
+
+  lines.push("", `Replay command: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`, "Finish with a concrete revalidation sequence.");
+  return lines.join("\n");
 }
 
 function buildSeoDigest(report) {
@@ -2762,9 +3036,15 @@ function buildIssueCard(issue, actionContext) {
       ${learningSummary ? `<p class="issue-checks"><strong>Learning memory:</strong> ${escapeHtml(learningSummary)}</p>` : ""}
       ${validatedPattern ? `<p class="issue-checks"><strong>Validated pattern:</strong> ${escapeHtml(validatedPattern)}</p>` : ""}
       ${failedPattern ? `<p class="issue-checks"><strong>Avoid this:</strong> ${escapeHtml(failedPattern)}</p>` : ""}
+      ${issue.manualOverrideCount ? `<p class="issue-checks"><strong>Manual override:</strong> ${escapeHtml(`${issue.manualOverrideCount} recorded${issue.lastManualOverrideNote ? ` | ${issue.lastManualOverrideNote}` : ""}`)}</p>` : ""}
       ${technicalLead ? `<p class="issue-checks"><strong>First technical check:</strong> ${escapeHtml(technicalLead)}</p>` : ""}
       ${firstChecks.length ? `<p class="issue-checks"><strong>Next checks:</strong> ${escapeHtml(firstChecks.join(" | "))}</p>` : ""}
       ${commands.length ? `<p class="issue-checks"><strong>Command hints:</strong> ${escapeHtml(commands.join(" | "))}</p>` : ""}
+      <div class="history-actions wrap">
+        <button type="button" class="ghost small" data-issue-action="open-memory" data-issue-code="${escapeHtml(issue.code)}">Open memory</button>
+        <button type="button" class="ghost small" data-issue-action="generate-prompt" data-issue-code="${escapeHtml(issue.code)}">Generate prompt</button>
+        ${(issue.possibleResolution || issue.finalResolution || issue.recommendedResolution) ? `<button type="button" class="ghost small" data-issue-action="manual-override" data-issue-code="${escapeHtml(issue.code)}">Promote solution</button>` : ""}
+      </div>
       ${evidenceMarkup}
     </article>
   `;
@@ -2794,7 +3074,7 @@ function renderIssues(report, options = {}) {
 }
 
 function renderPrompt(report) {
-  stateEl.quickPromptBox.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
+  stateEl.quickPromptBox.textContent = buildLearningAwareFixPrompt(report);
 }
 
 function renderGoogleSeoSource(sourceInput) {
@@ -2895,7 +3175,7 @@ function renderSeoWorkspace(report, options = {}) {
 }
 
 function renderPromptWorkspace(report) {
-  stateEl.promptWorkspaceFix.textContent = report?.assistantGuide.quickStartPrompt || "Run an audit to generate a professional fix prompt.";
+  stateEl.promptWorkspaceFix.textContent = buildLearningAwareFixPrompt(report);
   stateEl.promptWorkspaceReplay.textContent = report?.meta?.replayCommand || report?.assistantGuide?.replayCommand || "Run an audit to generate a replay command.";
   stateEl.promptWorkspaceIssues.textContent = buildIssueDigest(report);
   stateEl.promptWorkspaceCompare.textContent = buildCompareDigest(report);
@@ -2904,7 +3184,7 @@ function renderPromptWorkspace(report) {
   stateEl.promptWorkspaceClientPrompt.textContent = buildClientOutreachPrompt(report);
   stateEl.promptWorkspaceClientMessage.textContent = buildClientOutreachMessage(report);
   stateEl.promptWorkspaceHeadline.textContent = report
-    ? "Prompt pack loaded from the current report. Copy technical, operational or client-facing material from one workspace."
+    ? "Prompt pack loaded from the current report and operational memory. Copy technical, operational or client-facing material from one workspace."
     : "Run an audit to generate prompts and digests.";
 }
 
@@ -2988,19 +3268,181 @@ function renderHistory() {
     .join("");
 }
 
+function getFilteredLearningMemoryEntries(memory) {
+  const source = memory && Array.isArray(memory.entries) ? memory.entries : [];
+  const filters = uiState.learningMemoryFilters;
+  const filtered = source.filter((entry) => {
+    const status = String(filters.status || "all");
+    if (status === "validated" && Number(entry.learningCounts.validated || 0) <= 0) return false;
+    if (status === "failed" && Number(entry.learningCounts.failed || 0) <= 0) return false;
+    if (status === "partial" && Number(entry.learningCounts.partial || 0) <= 0) return false;
+    if (status === "auto-promoted" && Number(entry.promotionCount || 0) <= 0) return false;
+    if (status === "manual-override" && Number(entry.manualOverrideCount || 0) <= 0) return false;
+    if (filters.issueCode && !String(entry.issueCode || "").toLowerCase().includes(filters.issueCode.toLowerCase())) return false;
+    if (filters.category !== "all" && String(entry.category || "").toLowerCase() !== filters.category) return false;
+    if (filters.severity !== "all" && String(entry.severity || "").toLowerCase() !== filters.severity) return false;
+    if (filters.source && !String(entry.learningSource || "").toLowerCase().includes(filters.source.toLowerCase())) return false;
+    return true;
+  });
+
+  const sortKey = String(filters.sort || "recent");
+  filtered.sort((left, right) => {
+    if (sortKey === "most-validated") {
+      return Number(right.learningCounts.validated || 0) - Number(left.learningCounts.validated || 0)
+        || String(right.lastSeenAt || "").localeCompare(String(left.lastSeenAt || ""));
+    }
+    if (sortKey === "most-failed") {
+      return Number(right.learningCounts.failed || 0) - Number(left.learningCounts.failed || 0)
+        || String(right.lastSeenAt || "").localeCompare(String(left.lastSeenAt || ""));
+    }
+    return String(right.lastSeenAt || "").localeCompare(String(left.lastSeenAt || ""));
+  });
+  return filtered;
+}
+
+function getVisibleLearningMemory(report) {
+  return getOperationalMemorySnapshot(report);
+}
+
+function patchVisibleReportLearning(entry) {
+  const reports = [uiState.report, uiState.liveReport].filter(Boolean);
+  for (const report of reports) {
+    const normalizedEntry = normalizeLearningMemory({ entries: [entry], summary: {} }).entries[0];
+    if (Array.isArray(report.learningMemory?.entries)) {
+      const existingIndex = report.learningMemory.entries.findIndex((item) => item.key === entry.key || (
+        String(item.issueCode || "").toUpperCase() === String(entry.issueCode || "").toUpperCase()
+        && String(item.route || "/") === String(entry.route || "/")
+        && String(item.action || "") === String(entry.action || "")
+      ));
+      if (existingIndex >= 0) {
+        report.learningMemory.entries[existingIndex] = normalizedEntry;
+      } else {
+        report.learningMemory.entries = [normalizedEntry, ...report.learningMemory.entries];
+      }
+    }
+    if (Array.isArray(report.issues)) {
+      report.issues = report.issues.map((issue) => {
+        if (
+          String(issue.code || "").toUpperCase() === String(entry.issueCode || "").toUpperCase()
+          && String(issue.route || "/") === String(entry.route || "/")
+          && String(issue.action || "") === String(entry.action || "")
+        ) {
+          return {
+            ...issue,
+            finalResolution: String(entry.finalResolution || issue.finalResolution || ""),
+            possibleResolution: String(entry.possibleResolution || issue.possibleResolution || ""),
+            learningSource: String(entry.learningSource || issue.learningSource || ""),
+            finalResolutionOrigin: String(entry.finalResolutionOrigin || issue.finalResolutionOrigin || ""),
+            resolutionConfidence: String(entry.resolutionConfidence || issue.resolutionConfidence || ""),
+            promotionSource: String(entry.promotionSource || issue.promotionSource || ""),
+            promotionCount: toNumber(entry.promotionCount, issue.promotionCount || 0),
+            lastValidatedAt: String(entry.lastValidatedAt || issue.lastValidatedAt || ""),
+            manualOverrideCount: toNumber(entry.manualOverrideCount, issue.manualOverrideCount || 0),
+            lastManualOverrideAt: String(entry.lastManualOverrideAt || issue.lastManualOverrideAt || ""),
+            lastManualOverrideBy: String(entry.lastManualOverrideBy || issue.lastManualOverrideBy || ""),
+            lastManualOverrideNote: String(entry.lastManualOverrideNote || issue.lastManualOverrideNote || ""),
+            learningCounts: {
+              validated: toNumber(entry.learningCounts?.validated, issue.learningCounts?.validated || 0),
+              failed: toNumber(entry.learningCounts?.failed, issue.learningCounts?.failed || 0),
+              partial: toNumber(entry.learningCounts?.partial, issue.learningCounts?.partial || 0),
+            },
+          };
+        }
+        return issue;
+      });
+    }
+  }
+}
+
+async function refreshOperationalMemorySnapshot() {
+  if (uiState.learningMemoryRefreshInFlight === true) return;
+  if (!window.sitePulseCompanion || typeof window.sitePulseCompanion.getLearningMemory !== "function") return;
+  uiState.learningMemoryRefreshInFlight = true;
+  try {
+    const result = await window.sitePulseCompanion.getLearningMemory();
+    if (result?.ok && result.snapshot) {
+      uiState.learningMemorySnapshot = normalizeLearningMemory(result.snapshot);
+      renderLearningMemory(getVisibleReport());
+      renderPromptWorkspace(getVisibleReport());
+    }
+  } finally {
+    uiState.learningMemoryRefreshInFlight = false;
+  }
+}
+
+async function requestManualOverride(issueLike) {
+  if (!window.sitePulseCompanion || typeof window.sitePulseCompanion.applyLearningManualOverride !== "function") {
+    showToast("This runtime does not expose manual override yet.", "warn");
+    return;
+  }
+  const subject = issueLike && typeof issueLike === "object" ? issueLike : {};
+  const suggestedResolution = String(subject.finalResolution || subject.possibleResolution || subject.recommendedResolution || "").trim();
+  const resolution = window.prompt(
+    `Promote or override the final resolution for ${subject.code || subject.issueCode || "this issue"}. Edit the text before saving if needed.`,
+    suggestedResolution,
+  );
+  if (!String(resolution || "").trim()) {
+    return;
+  }
+  const confirmed = window.confirm(`Apply this final resolution to ${subject.code || subject.issueCode || "the selected issue"} and record it as a manual override?`);
+  if (!confirmed) {
+    return;
+  }
+  const note = window.prompt("Optional note for traceability. Leave blank if you do not need to add one.", "");
+  const result = await window.sitePulseCompanion.applyLearningManualOverride({
+    issueCode: String(subject.code || subject.issueCode || "").trim(),
+    route: String(subject.route || "/").trim(),
+    action: String(subject.action || "").trim(),
+    title: String(subject.group || subject.title || subject.issueCode || subject.code || "Operational memory").trim(),
+    category: String(subject.category || "").trim(),
+    severity: String(subject.severity || "medium").trim(),
+    possibleResolution: String(subject.possibleResolution || "").trim(),
+    recommendedResolution: String(subject.recommendedResolution || "").trim(),
+    finalResolution: String(resolution || "").trim(),
+    note: String(note || "").trim(),
+    type: "manual_override",
+    actor: "desktop-operator",
+    baseUrl: String(getVisibleReport()?.meta?.baseUrl || "").trim(),
+    auditScope: String(getVisibleReport()?.summary?.auditScope || uiState.scope || "full").trim(),
+    viewportLabel: String(getVisibleReport()?.meta?.viewportLabel || getVisibleReport()?.meta?.viewport || "").trim(),
+    detail: String(subject.detail || "").trim(),
+  });
+
+  if (!result?.ok || !result.entry) {
+    appendLog(`[memory] manual override failed: ${result?.detail || result?.error || "unknown"}`);
+    showToast("Could not save the manual override.", "bad");
+    return;
+  }
+
+  uiState.learningMemorySnapshot = normalizeLearningMemory(result.snapshot || {});
+  patchVisibleReportLearning(result.entry);
+  renderIssues(getVisibleReport());
+  renderPrompt(getVisibleReport());
+  renderPromptWorkspace(getVisibleReport());
+  renderLearningMemory(getVisibleReport());
+  appendLog(`[memory] manual override applied to ${result.entry.issueCode}.`);
+  showToast("Manual override saved in operational memory.", "ok");
+}
+
 function renderLearningMemory(report) {
-  const memory = report?.learningMemory;
+  const memory = getVisibleLearningMemory(report);
   if (!memory || !Array.isArray(memory.entries) || memory.entries.length === 0) {
     stateEl.learningMemorySummary.textContent = "Run the engine to build persistent operational memory from validated, failed and partial outcomes.";
     stateEl.learningMemoryList.innerHTML = '<article class="empty-state">No operational learnings loaded yet.</article>';
     return;
   }
 
+  const entries = getFilteredLearningMemoryEntries(memory);
   stateEl.learningMemorySummary.textContent =
-    `${memory.summary.entries} learned pattern(s) | ${memory.summary.validatedEntries} with validated history | ${memory.summary.failedEntries} with failed attempts | ${memory.summary.promotedEntries} auto-promoted resolution(s)` +
+    `${memory.summary.entries} learned pattern(s) | ${memory.summary.validatedEntries} with validated history | ${memory.summary.failedEntries} with failed attempts | ${memory.summary.promotedEntries} auto-promoted resolution(s) | ${memory.summary.manualOverrideEntries || 0} manual override(s)` +
     (memory.updatedAt ? ` | updated ${formatLocalDate(memory.updatedAt)}` : "");
 
-  stateEl.learningMemoryList.innerHTML = memory.entries
+  if (!entries.length) {
+    stateEl.learningMemoryList.innerHTML = '<article class="empty-state">No learned pattern matches the active filters.</article>';
+    return;
+  }
+
+  stateEl.learningMemoryList.innerHTML = entries
     .map((entry) => `
       <article class="history-item">
         <div class="issue-top">
@@ -3011,6 +3453,7 @@ function renderLearningMemory(report) {
           <div class="issue-meta">
             <span class="severity-pill severity-${escapeHtml(entry.severity)}">${escapeHtml(entry.severity)}</span>
             ${entry.resolutionConfidence ? `<span class="pill ok">${escapeHtml(entry.resolutionConfidence)}</span>` : ""}
+            ${entry.finalResolutionOrigin ? `<span class="pill">${escapeHtml(entry.finalResolutionOrigin)}</span>` : ""}
             <span class="pill">${escapeHtml(`ok ${entry.learningCounts.validated}`)}</span>
             <span class="pill">${escapeHtml(`fail ${entry.learningCounts.failed}`)}</span>
             ${entry.learningCounts.partial ? `<span class="pill">${escapeHtml(`partial ${entry.learningCounts.partial}`)}</span>` : ""}
@@ -3024,10 +3467,26 @@ function renderLearningMemory(report) {
         <div class="history-meta">
           ${entry.lastValidatedAt ? `last validated ${escapeHtml(formatLocalDate(entry.lastValidatedAt))}` : "not validated yet"}
           ${entry.promotionSource ? ` | promoted via ${escapeHtml(entry.promotionSource)} (${escapeHtml(String(entry.promotionCount))}x)` : ""}
+          ${entry.manualOverrideCount ? ` | manual override ${escapeHtml(String(entry.manualOverrideCount))}x` : ""}
+        </div>
+        ${entry.lastManualOverrideNote ? `<p class="issue-checks"><strong>Override note:</strong> ${escapeHtml(entry.lastManualOverrideNote)}</p>` : ""}
+        <div class="history-actions wrap">
+          <button type="button" data-learning-action="open-memory" data-learning-code="${escapeHtml(entry.issueCode)}">Focus entry</button>
+          <button type="button" data-learning-action="manual-override" data-learning-code="${escapeHtml(entry.issueCode)}" data-learning-route="${escapeHtml(entry.route)}" data-learning-entry="${escapeHtml(entry.key || entry.id)}">Promote solution</button>
         </div>
       </article>
     `)
     .join("");
+}
+
+function focusLearningMemoryIssue(issueCode) {
+  if (!issueCode) return;
+  uiState.learningMemoryFilters.issueCode = String(issueCode || "").trim();
+  if (stateEl.learningMemoryIssueFilter) {
+    stateEl.learningMemoryIssueFilter.value = uiState.learningMemoryFilters.issueCode;
+  }
+  switchView("settings");
+  renderLearningMemory(getVisibleReport());
 }
 
 function getCommandPaletteItems() {
@@ -3050,6 +3509,7 @@ function getCommandPaletteItems() {
     { id: "copy-prompt", label: "Copy fix prompt", hint: "", description: "Copy the current professional fix prompt.", action: () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied.") },
     { id: "copy-client-prompt", label: "Copy client outreach prompt", hint: "", description: "Copy the AI-ready commercial prompt based on the current audit.", action: () => copyText(buildClientOutreachPrompt(getVisibleReport()), "[studio] client outreach prompt copied.") },
     { id: "copy-client-message", label: "Copy client outreach message", hint: "", description: "Copy the ready-to-send client-facing pitch based on the current audit.", action: () => copyText(buildClientOutreachMessage(getVisibleReport()), "[studio] client outreach message copied.") },
+    { id: "open-assistant", label: "Open operational assistant", hint: "Ctrl+J", description: "Ask the local assistant about runs, memory, prompts and next actions.", action: () => toggleAssistant(true) },
     { id: "switch-overview", label: "Go to overview", hint: "Ctrl+1", description: "Open setup, target profile and top-level mission control.", action: () => switchView("overview") },
     { id: "switch-preview", label: "Go to preview", hint: "Ctrl+9", description: "Open the embedded operator preview and follow the current route.", action: () => switchView("preview") },
     { id: "switch-operations", label: "Go to operations", hint: "Ctrl+2", description: "Open live progress, stage evidence and the engine log.", action: () => switchView("operations") },
@@ -3059,6 +3519,7 @@ function getCommandPaletteItems() {
     { id: "switch-compare", label: "Go to compare", hint: "Ctrl+6", description: "Open baseline deltas, regressions and resolved work.", action: () => switchView("compare") },
     { id: "switch-reports", label: "Go to reports", hint: "Ctrl+7", description: "Open evidence, contact sheets and history.", action: () => switchView("reports") },
     { id: "switch-settings", label: "Go to settings", hint: "Ctrl+8", description: "Open engine controls and runtime settings.", action: () => switchView("settings") },
+    { id: "open-memory", label: "Open validated learnings", hint: "", description: "Open the operational memory panel and inspect learned patterns.", action: () => switchView("settings") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
@@ -3087,6 +3548,138 @@ function renderCommandPalette() {
       </button>
     `)
     .join("");
+}
+
+function ensureAssistantService() {
+  if (uiState.assistantService) return uiState.assistantService;
+  if (typeof window.createSitePulseAssistantService !== "function") {
+    return null;
+  }
+  uiState.assistantService = window.createSitePulseAssistantService({
+    getContext: () => ({
+      activeView: uiState.activeView,
+      report: getVisibleReport(),
+      learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
+      logs: [...uiState.logs],
+      compareDigest: buildCompareDigest(getVisibleReport()),
+      workspaceHelp: WORKSPACE_HELP,
+      buildIssuePrompt: buildLearningAwareIssuePrompt,
+    }),
+  });
+  return uiState.assistantService;
+}
+
+function renderAssistantState() {
+  const report = getVisibleReport();
+  const memory = getOperationalMemorySnapshot(report);
+  stateEl.assistantContextSummary.textContent = report
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | memory ${memory?.summary?.entries || 0} pattern(s) | view ${uiState.activeView}`
+    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | view ${uiState.activeView}`;
+
+  const result = uiState.assistantResult;
+  if (!result) {
+    stateEl.assistantResponse.textContent = "Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.";
+    stateEl.assistantActions.innerHTML = '<article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>';
+    return;
+  }
+
+  const lines = [
+    result.title || "Operational response",
+    "",
+    result.summary || "",
+    ...(Array.isArray(result.analysis) && result.analysis.length ? ["", ...result.analysis] : []),
+    ...(result.promptText ? ["", "Prompt output:", result.promptText] : []),
+  ].filter(Boolean);
+  stateEl.assistantResponse.textContent = lines.join("\n");
+
+  const actions = Array.isArray(result.actions) ? result.actions : [];
+  if (!actions.length) {
+    stateEl.assistantActions.innerHTML = '<article class="empty-state">No direct action was suggested for this answer.</article>';
+    return;
+  }
+
+  stateEl.assistantActions.innerHTML = actions
+    .map((action, index) => `
+      <button type="button" class="command-item" data-assistant-index="${index}">
+        <div class="command-item-top">
+          <strong>${escapeHtml(action.label || action.id || `action-${index + 1}`)}</strong>
+        </div>
+        <p class="command-item-description">${escapeHtml(action.id || "assistant-action")}</p>
+      </button>
+    `)
+    .join("");
+}
+
+async function executeAssistantAction(action) {
+  if (!action || typeof action !== "object") return;
+  const payload = action.payload && typeof action.payload === "object" ? action.payload : {};
+
+  if (action.id === "copy-text") {
+    await copyText(String(payload.text || ""), payload.successMessage || "[studio] assistant output copied.");
+    return;
+  }
+  if (action.id === "run-audit") {
+    if (payload.baseUrl) {
+      stateEl.targetUrl.value = payload.baseUrl;
+      persistProfile();
+      queuePreviewSync("assistant");
+    }
+    switchView("overview");
+    await handleAuditRun();
+    return;
+  }
+  if (action.id === "findings-search") {
+    stateEl.findingsSearch.value = String(payload.query || "");
+    uiState.findingsSearch = stateEl.findingsSearch.value.trim();
+    switchView("findings");
+    renderIssues(getVisibleReport());
+    return;
+  }
+  if (action.id === "open-memory") {
+    if (payload.issueCode) {
+      focusLearningMemoryIssue(payload.issueCode);
+    } else {
+      switchView("settings");
+    }
+    return;
+  }
+  if (action.id === "generate-prompt") {
+    const promptText = buildLearningAwareIssuePrompt(payload.issueCode || "");
+    uiState.assistantResult = {
+      title: `Prompt intelligence${payload.issueCode ? ` | ${payload.issueCode}` : ""}`,
+      summary: "Generated from the current report and operational memory.",
+      analysis: [],
+      promptText,
+      actions: [{ id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } }],
+    };
+    renderAssistantState();
+    return;
+  }
+  if (action.id === "manual-override") {
+    const issue = getVisibleReport()?.issues?.find((item) => String(item.code || "").toUpperCase() === String(payload.issueCode || "").toUpperCase());
+    if (issue) {
+      await requestManualOverride(issue);
+    } else {
+      showToast("The requested issue is not loaded right now.", "warn");
+    }
+    return;
+  }
+
+  const commandItem = getCommandPaletteItems().find((item) => item.id === action.id);
+  if (commandItem) {
+    await commandItem.action();
+  }
+}
+
+async function runAssistantQuery(rawQuery) {
+  const service = ensureAssistantService();
+  if (!service) {
+    showToast("Assistant service is not available.", "bad");
+    return;
+  }
+  uiState.assistantQuery = String(rawQuery || "").trim();
+  uiState.assistantResult = service.respond(uiState.assistantQuery);
+  renderAssistantState();
 }
 
 async function executeCommandPaletteAction(commandId) {
@@ -3410,6 +4003,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderComparison(report, { transient });
   renderLearningMemory(report);
   renderMissionBrief();
+  renderAssistantState();
 }
 
 function clearLiveReportState() {
@@ -3434,6 +4028,7 @@ function clearLiveReportState() {
   renderComparison(fallbackReport);
   renderLearningMemory(fallbackReport);
   renderMissionBrief();
+  renderAssistantState();
 }
 
 function renderCompanionState(payload) {
@@ -3495,10 +4090,12 @@ function renderCompanionState(payload) {
   clearLiveReportState();
   renderMissionBrief();
   renderReportSummary(getVisibleReport());
+  renderAssistantState();
 }
 
 function renderAllReportState(report) {
   renderWorkspaceReport(report, { transient: false });
+  void refreshOperationalMemorySnapshot();
 }
 
 function renderLiveReportState(report) {
@@ -3960,6 +4557,31 @@ function bindSelectionEvents() {
     renderCommandPalette();
   });
 
+  [
+    stateEl.learningMemoryStatusFilter,
+    stateEl.learningMemoryCategoryFilter,
+    stateEl.learningMemorySeverityFilter,
+    stateEl.learningMemorySort,
+  ].forEach((node) => {
+    node.addEventListener("change", () => {
+      uiState.learningMemoryFilters.status = stateEl.learningMemoryStatusFilter.value || "all";
+      uiState.learningMemoryFilters.category = stateEl.learningMemoryCategoryFilter.value || "all";
+      uiState.learningMemoryFilters.severity = stateEl.learningMemorySeverityFilter.value || "all";
+      uiState.learningMemoryFilters.sort = stateEl.learningMemorySort.value || "recent";
+      renderLearningMemory(getVisibleReport());
+    });
+  });
+
+  stateEl.learningMemoryIssueFilter.addEventListener("input", () => {
+    uiState.learningMemoryFilters.issueCode = stateEl.learningMemoryIssueFilter.value.trim();
+    renderLearningMemory(getVisibleReport());
+  });
+
+  stateEl.learningMemorySourceFilter.addEventListener("input", () => {
+    uiState.learningMemoryFilters.source = stateEl.learningMemorySourceFilter.value.trim();
+    renderLearningMemory(getVisibleReport());
+  });
+
   stateEl.navButtons.forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.view || "overview"));
   });
@@ -4067,6 +4689,7 @@ function bindButtons() {
   });
   stateEl.startTourAudit.addEventListener("click", applyPresetFirstAudit);
   stateEl.openShortcuts.addEventListener("click", () => toggleShortcutsOverlay());
+  stateEl.openAssistant.addEventListener("click", () => toggleAssistant());
   stateEl.openCommandPalette.addEventListener("click", () => toggleCommandPalette());
   stateEl.menuButtons.forEach((button) => {
     button.addEventListener("click", (event) => {
@@ -4085,11 +4708,44 @@ function bindButtons() {
       toggleShortcutsOverlay(false);
     }
   });
+  stateEl.dismissAssistant.addEventListener("click", () => toggleAssistant(false));
+  stateEl.assistantOverlay.addEventListener("click", (event) => {
+    if (event.target === stateEl.assistantOverlay) {
+      toggleAssistant(false);
+    }
+  });
+  stateEl.assistantAsk.addEventListener("click", async () => runAssistantQuery(stateEl.assistantInput.value));
+  stateEl.assistantQuickPriorities.addEventListener("click", async () => {
+    stateEl.assistantInput.value = "me diga o que devo fazer primeiro";
+    await runAssistantQuery(stateEl.assistantInput.value);
+  });
+  stateEl.assistantQuickSeo.addEventListener("click", async () => {
+    stateEl.assistantInput.value = "analise o log da ultima execucao e me diga os problemas prioritarios de SEO";
+    await runAssistantQuery(stateEl.assistantInput.value);
+  });
+  stateEl.assistantQuickPrompt.addEventListener("click", async () => {
+    const code = getVisibleReport()?.issues?.[0]?.code || "";
+    stateEl.assistantInput.value = code ? `gere um prompt para corrigir a issue ${code}` : "gere um prompt para corrigir a top issue";
+    await runAssistantQuery(stateEl.assistantInput.value);
+  });
+  stateEl.assistantQuickGuide.addEventListener("click", async () => {
+    stateEl.assistantInput.value = "me ensine a usar o painel atual";
+    await runAssistantQuery(stateEl.assistantInput.value);
+  });
   stateEl.dismissCommandPalette.addEventListener("click", () => toggleCommandPalette(false));
   stateEl.commandPaletteOverlay.addEventListener("click", (event) => {
     if (event.target === stateEl.commandPaletteOverlay) {
       toggleCommandPalette(false);
     }
+  });
+  stateEl.assistantActions.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-assistant-index]");
+    if (!(button instanceof HTMLElement)) return;
+    const index = Number(button.dataset.assistantIndex);
+    const actions = Array.isArray(uiState.assistantResult?.actions) ? uiState.assistantResult.actions : [];
+    await executeAssistantAction(actions[index]);
   });
   stateEl.dismissEvidenceLightbox.addEventListener("click", closeEvidencePreview);
   stateEl.evidenceLightbox.addEventListener("click", (event) => {
@@ -4193,6 +4849,28 @@ function bindButtons() {
     container.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
+      const issueActionButton = target.closest("[data-issue-action]");
+      if (issueActionButton instanceof HTMLElement) {
+        const issueCode = issueActionButton.dataset.issueCode || "";
+        const issueAction = issueActionButton.dataset.issueAction || "";
+        if (issueAction === "open-memory") {
+          focusLearningMemoryIssue(issueCode);
+          return;
+        }
+        if (issueAction === "generate-prompt") {
+          toggleAssistant(true);
+          stateEl.assistantInput.value = `gere um prompt para corrigir a issue ${issueCode}`;
+          await runAssistantQuery(stateEl.assistantInput.value);
+          return;
+        }
+        if (issueAction === "manual-override") {
+          const issue = getVisibleReport()?.issues?.find((item) => String(item.code || "").toUpperCase() === String(issueCode || "").toUpperCase());
+          if (issue) {
+            await requestManualOverride(issue);
+          }
+          return;
+        }
+      }
       const preview = target.closest("[data-evidence-preview]");
       if (preview instanceof HTMLElement) {
         const item = findEvidenceItemByPath(preview.dataset.evidencePath || "");
@@ -4210,6 +4888,25 @@ function bindButtons() {
       if (!(button instanceof HTMLElement)) return;
       await openArtifactPath(button.dataset.artifactPath || "");
     });
+  });
+  stateEl.learningMemoryList.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const button = target.closest("[data-learning-action]");
+    if (!(button instanceof HTMLElement)) return;
+    const action = button.dataset.learningAction || "";
+    const issueCode = button.dataset.learningCode || "";
+    if (action === "open-memory") {
+      focusLearningMemoryIssue(issueCode);
+      return;
+    }
+    if (action === "manual-override") {
+      const memory = getVisibleLearningMemory(getVisibleReport());
+      const entry = memory?.entries?.find((item) => String(item.issueCode || "").toUpperCase() === String(issueCode || "").toUpperCase());
+      if (entry) {
+        await requestManualOverride(entry);
+      }
+    }
   });
 }
 
@@ -4235,6 +4932,11 @@ function bindKeyboardShortcuts() {
         toggleCommandPalette(false);
         return;
       }
+      if (uiState.assistantOpen) {
+        event.preventDefault();
+        toggleAssistant(false);
+        return;
+      }
       if (uiState.shortcutsOpen) {
         event.preventDefault();
         toggleShortcutsOverlay(false);
@@ -4254,6 +4956,12 @@ function bindKeyboardShortcuts() {
       return;
     }
 
+    if (event.ctrlKey && event.key.toLowerCase() === "j") {
+      event.preventDefault();
+      toggleAssistant();
+      return;
+    }
+
     if (uiState.commandPaletteOpen && event.key === "Enter") {
       event.preventDefault();
       const firstCommand = stateEl.commandPaletteList.querySelector("[data-command-id]");
@@ -4261,6 +4969,14 @@ function bindKeyboardShortcuts() {
         await executeCommandPaletteAction(firstCommand.dataset.commandId);
       }
       return;
+    }
+
+    if (uiState.assistantOpen && event.key === "Enter" && !event.shiftKey) {
+      if (document.activeElement === stateEl.assistantInput) {
+        event.preventDefault();
+        await runAssistantQuery(stateEl.assistantInput.value);
+        return;
+      }
     }
 
     if (editing && !(event.ctrlKey && ["Enter", "f", "o", "s"].includes(event.key.toLowerCase()))) {
@@ -4380,6 +5096,8 @@ async function bootstrap() {
 
   renderCompanionState(payload);
   stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
+  await refreshOperationalMemorySnapshot();
+  renderAssistantState();
   queuePreviewSync("bootstrap");
 }
 

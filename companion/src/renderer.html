@@ -23,6 +23,7 @@
           <span class="status-chip" id="bridgeChip">engine offline</span>
           <span class="status-chip" id="auditChip">audit idle</span>
           <span class="status-chip ok" id="buildChip">studio build</span>
+          <button id="openAssistant" class="status-chip status-btn" type="button">assistant</button>
           <button id="openCommandPalette" class="status-chip status-btn" type="button">command palette</button>
         </div>
 
@@ -59,7 +60,7 @@
             </div>
 
             <div class="workbench-utility">
-              <span class="utility-hint">Ctrl+K for command palette</span>
+              <span class="utility-hint">Ctrl+K for command palette · Ctrl+J for assistant</span>
             </div>
           </section>
 
@@ -1057,6 +1058,58 @@
                     <h3>Validated learnings</h3>
                   </div>
                 </div>
+                <div class="settings-grid compact-grid">
+                  <label class="toolbar-field">
+                    <span class="field-label">Memory status</span>
+                    <select id="learningMemoryStatusFilter" class="toolbar-select">
+                      <option value="all">All</option>
+                      <option value="validated">Validated</option>
+                      <option value="failed">Failed</option>
+                      <option value="partial">Partial</option>
+                      <option value="auto-promoted">Auto-promoted</option>
+                      <option value="manual-override">Manual override</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    <span class="field-label">Issue code</span>
+                    <input id="learningMemoryIssueFilter" class="toolbar-input" type="search" placeholder="SEO_CANONICAL_MISSING" />
+                  </label>
+                  <label class="toolbar-field">
+                    <span class="field-label">Category</span>
+                    <select id="learningMemoryCategoryFilter" class="toolbar-select">
+                      <option value="all">All</option>
+                      <option value="seo">SEO</option>
+                      <option value="visual">Visual</option>
+                      <option value="runtime">Runtime</option>
+                      <option value="interaction">Interaction</option>
+                      <option value="content">Content</option>
+                      <option value="network">Network</option>
+                      <option value="http">HTTP</option>
+                      <option value="general">General</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    <span class="field-label">Severity</span>
+                    <select id="learningMemorySeverityFilter" class="toolbar-select">
+                      <option value="all">All</option>
+                      <option value="high">High</option>
+                      <option value="medium">Medium</option>
+                      <option value="low">Low</option>
+                    </select>
+                  </label>
+                  <label class="toolbar-field">
+                    <span class="field-label">Source</span>
+                    <input id="learningMemorySourceFilter" class="toolbar-input" type="search" placeholder="manual override, runtime, curated..." />
+                  </label>
+                  <label class="toolbar-field">
+                    <span class="field-label">Sort</span>
+                    <select id="learningMemorySort" class="toolbar-select">
+                      <option value="recent">Recent</option>
+                      <option value="most-validated">Most validated</option>
+                      <option value="most-failed">Most failed</option>
+                    </select>
+                  </label>
+                </div>
                 <div id="learningMemorySummary" class="prompt-box">Run the engine to start building persistent operational memory.</div>
                 <div id="learningMemoryList" class="history-list">
                   <article class="empty-state">No operational learnings loaded yet.</article>
@@ -1110,6 +1163,7 @@
           <article><strong>Ctrl+1..8</strong><span>Switch between overview, operations, findings, SEO, prompts, compare, reports and settings</span></article>
           <article><strong>Ctrl+9</strong><span>Open the embedded preview workspace</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
+          <article><strong>Ctrl+J</strong><span>Open the operational assistant</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
           <article><strong>Ctrl+Shift+C</strong><span>Open the full CMD flow</span></article>
@@ -1135,6 +1189,34 @@
           <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, go to findings..." />
         </label>
         <div id="commandPaletteList" class="explorer-list command-palette-list"></div>
+      </div>
+    </div>
+
+    <div id="assistantOverlay" class="shortcuts-overlay hidden">
+      <div class="shortcuts-card command-palette-card">
+        <div class="panel-head split-head">
+          <div>
+            <p class="eyebrow">operational assistant</p>
+            <h3>Reason over the real app state</h3>
+          </div>
+          <button id="dismissAssistant" class="ghost" type="button">Close</button>
+        </div>
+        <div id="assistantContextSummary" class="prompt-box">The assistant will use the current report, memory, logs and workspace state.</div>
+        <label class="toolbar-field">
+          <span class="field-label">Ask the assistant</span>
+          <input id="assistantInput" class="toolbar-input" type="search" placeholder="analyse the latest SEO issues, compare runs, explain SEO_LANG_MISSING..." />
+        </label>
+        <div class="action-row wrap">
+          <button id="assistantAsk" class="primary" type="button">Run analysis</button>
+          <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
+          <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
+          <button id="assistantQuickPrompt" type="button">Generate prompt</button>
+          <button id="assistantQuickGuide" type="button">Explain this workspace</button>
+        </div>
+        <div id="assistantResponse" class="prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
+        <div id="assistantActions" class="explorer-list command-palette-list">
+          <article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>
+        </div>
       </div>
     </div>
 
@@ -1221,6 +1303,7 @@
 
     <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
+    <script src="./assistant-service.js"></script>
     <script src="./renderer.js"></script>
   </body>
 </html>

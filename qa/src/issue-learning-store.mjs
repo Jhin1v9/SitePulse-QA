@@ -67,9 +67,14 @@ function normalizeEntry(input, key) {
     recommendedResolution: normalizeText(item.recommendedResolution),
     learningSource: normalizeText(item.learningSource),
     resolutionConfidence: normalizeText(item.resolutionConfidence),
+    finalResolutionOrigin: normalizeText(item.finalResolutionOrigin),
     promotionSource: normalizeText(item.promotionSource),
     promotionCount: Number.isFinite(Number(item.promotionCount)) ? Number(item.promotionCount) : 0,
     lastValidatedAt: normalizeText(item.lastValidatedAt),
+    manualOverrideCount: Number.isFinite(Number(item.manualOverrideCount)) ? Number(item.manualOverrideCount) : 0,
+    lastManualOverrideAt: normalizeText(item.lastManualOverrideAt),
+    lastManualOverrideBy: normalizeText(item.lastManualOverrideBy),
+    lastManualOverrideNote: normalizeText(item.lastManualOverrideNote),
     firstSeenAt: normalizeText(item.firstSeenAt),
     lastSeenAt: normalizeText(item.lastSeenAt),
     aggregateCounts: {
@@ -82,6 +87,19 @@ function normalizeEntry(input, key) {
     },
     contexts: Array.isArray(item.contexts) ? item.contexts.map(normalizeContext).filter((entry) => entry.route) : [],
     cases: Array.isArray(item.cases) ? item.cases.map(normalizeCase).filter((entry) => entry.title) : [],
+    manualOverrides: Array.isArray(item.manualOverrides)
+      ? item.manualOverrides
+          .map((override, index) => ({
+            id: String(override?.id || `override-${index + 1}`),
+            type: normalizeText(override?.type || "manual_override"),
+            finalResolution: normalizeText(override?.finalResolution),
+            note: normalizeText(override?.note),
+            actor: normalizeText(override?.actor),
+            source: normalizeText(override?.source || "manual override"),
+            timestamp: normalizeText(override?.timestamp),
+          }))
+          .filter((entry) => entry.finalResolution)
+      : [],
   };
 }
 

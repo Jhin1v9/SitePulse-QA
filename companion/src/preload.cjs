@@ -16,6 +16,8 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
   copyText: (value) => ipcRenderer.invoke("companion:copy-text", value),
   pickReportFile: () => ipcRenderer.invoke("companion:pick-report-file"),
   exportReportFile: (payload) => ipcRenderer.invoke("companion:export-report-file", payload),
+  getLearningMemory: () => ipcRenderer.invoke("companion:get-learning-memory"),
+  applyLearningManualOverride: (payload) => ipcRenderer.invoke("companion:apply-learning-manual-override", payload),
   checkForUpdates: () => ipcRenderer.invoke("companion:check-for-updates"),
   downloadUpdate: () => ipcRenderer.invoke("companion:download-update"),
   installUpdate: () => ipcRenderer.invoke("companion:install-update"),

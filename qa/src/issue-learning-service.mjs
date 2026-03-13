@@ -2,7 +2,8 @@ import { getIssueLearning } from "./issue-learning-library.mjs";
 
 const MAX_CASES_PER_ENTRY = 18;
 const MAX_CONTEXTS_PER_ENTRY = 8;
-const MAX_PANEL_ENTRIES = 18;
+const MAX_MANUAL_OVERRIDES_PER_ENTRY = 12;
+const MAX_PANEL_ENTRIES = 60;
 
 function normalizeText(value) {
   return String(value ?? "").replace(/\s+/g, " ").trim();
@@ -53,6 +54,19 @@ function normalizeCase(input, index = 0) {
     timestamp: normalizeText(item.timestamp),
     revalidated: item.revalidated === true,
     zeroedIssue: item.zeroedIssue === true,
+  };
+}
+
+function normalizeManualOverride(input, index = 0) {
+  const item = input && typeof input === "object" ? input : {};
+  return {
+    id: String(item.id || `override-${index + 1}`),
+    type: normalizeText(item.type || "manual_override"),
+    finalResolution: normalizeText(item.finalResolution),
+    note: normalizeText(item.note),
+    actor: normalizeText(item.actor),
+    source: normalizeText(item.source || "Manual override"),
+    timestamp: normalizeText(item.timestamp),
   };
 }
 
@@ -185,6 +199,24 @@ function dedupeContexts(contexts) {
     .slice(0, MAX_CONTEXTS_PER_ENTRY);
 }
 
+function dedupeManualOverrides(overrides) {
+  const map = new Map();
+  for (const item of (overrides ?? []).map((entry, index) => normalizeManualOverride(entry, index))) {
+    if (!item.finalResolution) continue;
+    const key = [
+      item.type.toLowerCase(),
+      item.finalResolution.toLowerCase(),
+      item.note.toLowerCase(),
+      item.actor.toLowerCase(),
+      item.timestamp,
+    ].join("|");
+    map.set(key, item);
+  }
+  return Array.from(map.values())
+    .sort((left, right) => String(right.timestamp).localeCompare(String(left.timestamp)))
+    .slice(0, MAX_MANUAL_OVERRIDES_PER_ENTRY);
+}
+
 function ensureEntry(store, observation, timestamp) {
   const existing = store.entries[observation.entryKey];
   if (existing) {
@@ -226,9 +258,14 @@ function ensureEntry(store, observation, timestamp) {
     recommendedResolution: observation.recommendedResolution,
     learningSource: observation.learningSource,
     resolutionConfidence: "",
+    finalResolutionOrigin: "",
     promotionSource: "",
     promotionCount: 0,
     lastValidatedAt: "",
+    manualOverrideCount: 0,
+    lastManualOverrideAt: "",
+    lastManualOverrideBy: "",
+    lastManualOverrideNote: "",
     firstSeenAt: timestamp,
     lastSeenAt: timestamp,
     aggregateCounts: {
@@ -252,6 +289,7 @@ function ensureEntry(store, observation, timestamp) {
       },
     ]),
     cases: [],
+    manualOverrides: [],
   };
   store.entries[observation.entryKey] = created;
   return created;
@@ -279,6 +317,7 @@ function maybePromoteResolution(entry, observation, caseRecord) {
   const curated = getIssueLearning(observation.issueCode);
   if (normalizeText(curated?.finalSolution)) {
     entry.resolutionConfidence = "curated";
+    entry.finalResolutionOrigin = "curated";
     return;
   }
 
@@ -301,6 +340,7 @@ function maybePromoteResolution(entry, observation, caseRecord) {
   }
 
   entry.finalResolution = attemptedResolution;
+  entry.finalResolutionOrigin = "auto_promoted";
   entry.promotionSource = "auto_revalidation";
   entry.promotionCount = validatedMatches;
   entry.resolutionConfidence = validatedMatches >= 2 ? "high" : "medium";
@@ -366,11 +406,16 @@ function buildRuntimeSnapshot(store, report) {
       action: entry.action,
       possibleResolution: entry.possibleResolution,
       finalResolution: entry.finalResolution,
+      finalResolutionOrigin: entry.finalResolutionOrigin,
       learningSource: entry.learningSource,
       resolutionConfidence: entry.resolutionConfidence,
       promotionSource: entry.promotionSource,
       promotionCount: entry.promotionCount,
       lastValidatedAt: entry.lastValidatedAt,
+      manualOverrideCount: Number(entry.manualOverrideCount || 0),
+      lastManualOverrideAt: entry.lastManualOverrideAt,
+      lastManualOverrideBy: entry.lastManualOverrideBy,
+      lastManualOverrideNote: entry.lastManualOverrideNote,
       lastSeenAt: entry.lastSeenAt,
       learningCounts: {
         validated: Number(entry.aggregateCounts.validated || 0),
@@ -394,9 +439,10 @@ function buildRuntimeSnapshot(store, report) {
       if (Number(entry.aggregateCounts.failed || 0) > 0) acc.failedEntries += 1;
       if (Number(entry.aggregateCounts.partial || 0) > 0) acc.partialEntries += 1;
       if (Number(entry.promotionCount || 0) > 0) acc.promotedEntries += 1;
+      if (Number(entry.manualOverrideCount || 0) > 0) acc.manualOverrideEntries += 1;
       return acc;
     },
-    { entries: 0, validatedEntries: 0, failedEntries: 0, partialEntries: 0, promotedEntries: 0 },
+    { entries: 0, validatedEntries: 0, failedEntries: 0, partialEntries: 0, promotedEntries: 0, manualOverrideEntries: 0 },
   );
 
   return {
@@ -438,11 +484,16 @@ export function resolveLearningForIssue(store, issueLike) {
   };
   const learningCounts = mergeCounts(curatedCounts, runtimeCounts);
 
+  const runtimeFinalSolution = normalizeText(runtime?.finalResolution);
+  const runtimeOrigin = normalizeText(runtime?.finalResolutionOrigin);
+  const runtimeConfidence = normalizeText(runtime?.resolutionConfidence).toLowerCase();
   const finalSolution =
     normalizeText(curated?.finalSolution) ||
-    (normalizeText(runtime?.finalResolution) &&
-    ["high", "medium", "curated"].includes(normalizeText(runtime?.resolutionConfidence).toLowerCase())
-      ? normalizeText(runtime.finalResolution)
+    (runtimeFinalSolution && (
+      runtimeOrigin === "manual_override"
+      || ["high", "medium", "curated"].includes(runtimeConfidence)
+    )
+      ? runtimeFinalSolution
       : "");
   const possibleSolution =
     normalizeText(runtime?.possibleResolution) ||
@@ -453,6 +504,9 @@ export function resolveLearningForIssue(store, issueLike) {
   const resolutionConfidence = normalizeText(curated?.finalSolution)
     ? "curated"
     : normalizeText(runtime?.resolutionConfidence);
+  const finalResolutionOrigin = normalizeText(curated?.finalSolution)
+    ? "curated"
+    : runtimeOrigin;
   const promotionSource = normalizeText(runtime?.promotionSource);
   const promotionCount = Number(runtime?.promotionCount || 0);
   const lastValidatedAt = normalizeText(runtime?.lastValidatedAt);
@@ -474,14 +528,87 @@ export function resolveLearningForIssue(store, issueLike) {
     learningCounts,
     learningStatus,
     resolutionConfidence,
+    finalResolutionOrigin,
     promotionSource,
     promotionCount,
     lastValidatedAt,
+    manualOverrideCount: Number(runtime?.manualOverrideCount || 0),
+    lastManualOverrideAt: normalizeText(runtime?.lastManualOverrideAt),
+    lastManualOverrideBy: normalizeText(runtime?.lastManualOverrideBy),
+    lastManualOverrideNote: normalizeText(runtime?.lastManualOverrideNote),
     avoidPattern:
       combinedCases.find((item) => item.outcome === "failed")?.result ||
       combinedCases.find((item) => item.outcome === "failed")?.attempt ||
       "",
   };
+}
+
+export function applyManualResolutionOverride(storeInput, overrideInput) {
+  const store = storeInput && typeof storeInput === "object" ? storeInput : { entries: {}, lastRunByContext: {}, processedRuns: [] };
+  const override = overrideInput && typeof overrideInput === "object" ? overrideInput : {};
+  const timestamp = normalizeText(override.timestamp || new Date().toISOString());
+  const issueCode = normalizeText(override.issueCode).toUpperCase();
+  const route = normalizeText(override.route || "/");
+  const action = normalizeText(override.action);
+  const finalResolution = normalizeText(override.finalResolution);
+  if (!issueCode || !finalResolution) {
+    throw new Error("manual_override_requires_issue_code_and_final_resolution");
+  }
+
+  const observation = {
+    code: issueCode,
+    route,
+    action,
+    title: normalizeText(override.title || codeToTitle(issueCode)),
+    severity: normalizeText(override.severity || "medium"),
+    possibleResolution: normalizeText(override.possibleResolution),
+    finalResolution,
+    recommendedResolution: normalizeText(override.recommendedResolution),
+    learningSource: normalizeText(override.learningSource || "Manual override recorded in SitePulse Desktop."),
+    category: normalizeText(override.category || deriveCategory(issueCode)),
+    baseUrl: normalizeText(override.baseUrl),
+    auditScope: normalizeText(override.auditScope),
+    viewportLabel: normalizeText(override.viewportLabel),
+    detail: normalizeText(override.detail || ""),
+  };
+
+  const entry = ensureEntry(store, toObservation(observation, { meta: { baseUrl: observation.baseUrl, auditScope: observation.auditScope, viewportLabel: observation.viewportLabel, finishedAt: timestamp } }), timestamp);
+  const manualOverride = {
+    type: normalizeText(override.type || "manual_override"),
+    finalResolution,
+    note: normalizeText(override.note),
+    actor: normalizeText(override.actor || "local-operator"),
+    source: "Manual override from SitePulse Desktop.",
+    timestamp,
+  };
+
+  entry.possibleResolution = entry.possibleResolution || observation.possibleResolution;
+  entry.recommendedResolution = entry.recommendedResolution || observation.recommendedResolution;
+  entry.finalResolution = finalResolution;
+  entry.finalResolutionOrigin = "manual_override";
+  entry.resolutionConfidence = "manual_override";
+  entry.learningSource = entry.learningSource || "Manual override recorded in SitePulse Desktop.";
+  entry.manualOverrides = dedupeManualOverrides([manualOverride, ...(entry.manualOverrides || [])]);
+  entry.manualOverrideCount = Number(entry.manualOverrideCount || 0) + 1;
+  entry.lastManualOverrideAt = timestamp;
+  entry.lastManualOverrideBy = manualOverride.actor;
+  entry.lastManualOverrideNote = manualOverride.note;
+  entry.lastSeenAt = timestamp;
+  entry.contexts = dedupeContexts([
+    ...entry.contexts,
+    {
+      route,
+      action,
+      baseUrl: observation.baseUrl,
+      auditScope: observation.auditScope,
+      viewportLabel: observation.viewportLabel,
+      detail: observation.detail,
+      lastResult: manualOverride.type,
+      lastSeenAt: timestamp,
+    },
+  ]);
+
+  return { store, entry };
 }
 
 export function ingestCompletedRun(storeInput, report) {

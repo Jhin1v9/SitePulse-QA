@@ -1693,9 +1693,14 @@ function finalizeSeoReport(report, enabled = true) {
         learningCounts,
         learningStatus: learning?.learningStatus ?? "",
         resolutionConfidence: learning?.resolutionConfidence ?? "",
+        finalResolutionOrigin: learning?.finalResolutionOrigin ?? "",
         promotionSource: learning?.promotionSource ?? "",
         promotionCount: learning?.promotionCount ?? 0,
         lastValidatedAt: learning?.lastValidatedAt ?? "",
+        manualOverrideCount: learning?.manualOverrideCount ?? 0,
+        lastManualOverrideAt: learning?.lastManualOverrideAt ?? "",
+        lastManualOverrideBy: learning?.lastManualOverrideBy ?? "",
+        lastManualOverrideNote: learning?.lastManualOverrideNote ?? "",
         count: item.count,
         affectedRoutes: Array.from(item.affectedRoutes).sort(),
       };
@@ -3390,9 +3395,14 @@ function hydrateIssue(rawIssue) {
     learningCounts,
     learningCases,
     resolutionConfidence: String(rawIssue.resolutionConfidence || learning?.resolutionConfidence || ""),
+    finalResolutionOrigin: String(rawIssue.finalResolutionOrigin || learning?.finalResolutionOrigin || ""),
     promotionSource: String(rawIssue.promotionSource || learning?.promotionSource || ""),
     promotionCount: Number(rawIssue.promotionCount ?? learning?.promotionCount ?? 0),
     lastValidatedAt: String(rawIssue.lastValidatedAt || learning?.lastValidatedAt || ""),
+    manualOverrideCount: Number(rawIssue.manualOverrideCount ?? learning?.manualOverrideCount ?? 0),
+    lastManualOverrideAt: String(rawIssue.lastManualOverrideAt || learning?.lastManualOverrideAt || ""),
+    lastManualOverrideBy: String(rawIssue.lastManualOverrideBy || learning?.lastManualOverrideBy || ""),
+    lastManualOverrideNote: String(rawIssue.lastManualOverrideNote || learning?.lastManualOverrideNote || ""),
     evidence: Array.isArray(rawIssue.evidence)
       ? rawIssue.evidence
           .map((item) => ({

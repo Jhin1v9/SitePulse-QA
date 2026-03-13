@@ -4,7 +4,7 @@ const os = require("node:os");
 const path = require("node:path");
 const process = require("node:process");
 const { pathToFileURL } = require("node:url");
-const { app, BrowserWindow, clipboard, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, clipboard, dialog, ipcMain, screen, shell } = require("electron");
 const { fetchSearchConsoleSnapshot, normalizeSiteProperty } = require("./search-console-service.cjs");
 const { UpdateService } = require("./update-service.cjs");
 
@@ -14,6 +14,10 @@ const BRIDGE_PORT = Number(process.env.SITEPULSE_BRIDGE_PORT || (IS_SMOKE_MODE ?
 const BOOTSTRAP_TRACE_FILE = process.env.APPDATA
   ? path.join(process.env.APPDATA, "sitepulse-desktop", "bootstrap.log")
   : path.join(process.cwd(), "sitepulse-desktop-bootstrap.log");
+const WINDOW_DEFAULT_WIDTH = 1660;
+const WINDOW_DEFAULT_HEIGHT = 1020;
+const WINDOW_MIN_WIDTH = 900;
+const WINDOW_MIN_HEIGHT = 560;
 
 let mainWindow = null;
 let bridgeHandle = null;
@@ -31,6 +35,7 @@ let liveReportContext = null;
 let seoSourceState = null;
 let updateService = null;
 let fastResumePlan = null;
+let displayMetricsHandler = null;
 
 function createEmptySeoSourceState() {
   return {
@@ -1473,6 +1478,50 @@ async function loadBridgeCore() {
   return await import(pathToFileURL(modulePath).href);
 }
 
+async function runLearningAdmin(action, payload = {}) {
+  if (!qaRuntimeDir) {
+    await ensureQaRuntime();
+  }
+
+  const modulePath = path.join(qaRuntimeDir, "src", "issue-learning-admin.mjs");
+  const input = JSON.stringify(payload);
+  return await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [modulePath, action], {
+      cwd: qaRuntimeDir,
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: "1",
+        NODE_PATH: getNodePathForRuntime(),
+      },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += String(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += String(chunk);
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error((stderr || stdout || `learning_admin_failed_${code}`).trim()));
+        return;
+      }
+      try {
+        resolve(JSON.parse(stdout || "{}"));
+      } catch (error) {
+        reject(error);
+      }
+    });
+
+    child.stdin.end(input);
+  });
+}
+
 async function startBridge() {
   if (bridgeHandle) return { ok: true, alreadyRunning: true };
   if (!qaRuntimeDir) {
@@ -2421,12 +2470,60 @@ async function loadDesktopShell() {
   notifyWindowState();
 }
 
+function centerBounds(workArea, width, height) {
+  const x = workArea.x + Math.max(0, Math.floor((workArea.width - width) / 2));
+  const y = workArea.y + Math.max(0, Math.floor((workArea.height - height) / 2));
+  return { x, y, width, height };
+}
+
+function computeWindowSizing(workArea) {
+  const minWidth = Math.min(WINDOW_MIN_WIDTH, workArea.width);
+  const minHeight = Math.min(WINDOW_MIN_HEIGHT, workArea.height);
+  const width = Math.max(minWidth, Math.min(WINDOW_DEFAULT_WIDTH, workArea.width));
+  const height = Math.max(minHeight, Math.min(WINDOW_DEFAULT_HEIGHT, workArea.height));
+  return { minWidth, minHeight, width, height };
+}
+
+function normalizeWindowBounds(win, recenter = false) {
+  if (!win || win.isDestroyed()) return;
+
+  const currentBounds = win.getBounds();
+  const display = screen.getDisplayMatching(currentBounds);
+  const workArea = display?.workArea || screen.getPrimaryDisplay().workArea;
+  const sizing = computeWindowSizing(workArea);
+  win.setMinimumSize(sizing.minWidth, sizing.minHeight);
+
+  const width = Math.max(sizing.minWidth, Math.min(currentBounds.width, workArea.width));
+  const height = Math.max(sizing.minHeight, Math.min(currentBounds.height, workArea.height));
+  let x = currentBounds.x;
+  let y = currentBounds.y;
+
+  if (recenter || !Number.isFinite(x) || !Number.isFinite(y)) {
+    const centered = centerBounds(workArea, width, height);
+    x = centered.x;
+    y = centered.y;
+  } else {
+    const maxX = workArea.x + workArea.width - width;
+    const maxY = workArea.y + workArea.height - height;
+    x = Math.max(workArea.x, Math.min(x, maxX));
+    y = Math.max(workArea.y, Math.min(y, maxY));
+  }
+
+  win.setBounds({ x, y, width, height });
+}
+
 function createWindow() {
+  const primaryWorkArea = screen.getPrimaryDisplay().workArea;
+  const initialSizing = computeWindowSizing(primaryWorkArea);
+  const initialBounds = centerBounds(primaryWorkArea, initialSizing.width, initialSizing.height);
+
   mainWindow = new BrowserWindow({
-    width: 1660,
-    height: 1020,
-    minWidth: 1360,
-    minHeight: 880,
+    x: initialBounds.x,
+    y: initialBounds.y,
+    width: initialBounds.width,
+    height: initialBounds.height,
+    minWidth: initialSizing.minWidth,
+    minHeight: initialSizing.minHeight,
     frame: false,
     backgroundColor: "#0a0f16",
     autoHideMenuBar: true,
@@ -2462,16 +2559,29 @@ function createWindow() {
 
   mainWindow.once("ready-to-show", () => {
     if (mainWindow && !mainWindow.isDestroyed()) {
+      normalizeWindowBounds(mainWindow);
       mainWindow.show();
       notifyWindowState();
     }
   });
+
+  if (!displayMetricsHandler) {
+    displayMetricsHandler = () => {
+      if (!mainWindow || mainWindow.isDestroyed()) return;
+      normalizeWindowBounds(mainWindow);
+    };
+    screen.on("display-metrics-changed", displayMetricsHandler);
+  }
 
   mainWindow.on("maximize", () => notifyWindowState());
   mainWindow.on("unmaximize", () => notifyWindowState());
   mainWindow.on("focus", () => notifyWindowState());
   mainWindow.on("blur", () => notifyWindowState());
   mainWindow.on("closed", () => {
+    if (displayMetricsHandler) {
+      screen.off("display-metrics-changed", displayMetricsHandler);
+      displayMetricsHandler = null;
+    }
     mainWindow = null;
   });
 }
@@ -2642,6 +2752,36 @@ ipcMain.handle("companion:export-report-file", async (_event, reportPayload) => 
     const message = error instanceof Error ? error.message : String(error || "report_export_failed");
     pushLog(`[reports] falha ao exportar report: ${message}`);
     return { ok: false, error: "report_export_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:get-learning-memory", async () => {
+  try {
+    if (!reportsDir) {
+      await ensureQaRuntime();
+    }
+    const payload = await runLearningAdmin("snapshot", { reportDir: reportsDir });
+    return payload;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "learning_memory_failed");
+    pushLog(`[memory] failed to load learning snapshot: ${message}`);
+    return { ok: false, error: "learning_memory_failed", detail: message };
+  }
+});
+ipcMain.handle("companion:apply-learning-manual-override", async (_event, payload) => {
+  try {
+    if (!reportsDir) {
+      await ensureQaRuntime();
+    }
+    const result = await runLearningAdmin("manual-override", {
+      reportDir: reportsDir,
+      override: payload && typeof payload === "object" ? payload : {},
+    });
+    pushLog(`[memory] manual override saved for ${String(payload?.issueCode || "UNKNOWN")}.`);
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error || "manual_override_failed");
+    pushLog(`[memory] failed to save manual override: ${message}`);
+    return { ok: false, error: "manual_override_failed", detail: message };
   }
 });
 ipcMain.handle("companion:open-latest-evidence", async () => {
