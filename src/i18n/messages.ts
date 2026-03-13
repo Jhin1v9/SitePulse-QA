@@ -402,7 +402,10 @@ function createEnglishMessages(): SiteMessages {
       },
     },
     demo: {
-      meta: { title: "Audit workflow demo", description: "See SitePulse Studio in a real end-to-end flow." },
+      meta: {
+        title: "Audit workflow demo",
+        description: "See how SitePulse Studio turns one target URL into evidence, prioritized issues, and a clear release decision.",
+      },
       eyebrow: "Demo",
       title: "How SitePulse Studio works in a real workflow",
       description: "A commercial narrative with technical proof.",
@@ -416,7 +419,10 @@ function createEnglishMessages(): SiteMessages {
       ctaSecondary: "Talk to sales",
     },
     downloads: {
-      meta: { title: "Official installers", description: "Official channel with version, date, and status." },
+      meta: {
+        title: "Official installers",
+        description: "Access official installers with version history, package status, release notes, and rollout guidance for every package.",
+      },
       eyebrow: "Downloads",
       title: "Official distribution channel",
       description: "Publish full setup, web setup, and ZIP with release traceability.",
@@ -434,7 +440,10 @@ function createEnglishMessages(): SiteMessages {
       actions: { download: "Direct download", request: "Request link", releaseNotes: "Release notes", support: "Commercial support" },
     },
     pricing: {
-      meta: { title: "Plans and pricing", description: "Hybrid model for free demo, Pro, and Enterprise." },
+      meta: {
+        title: "Plans and pricing",
+        description: "Compare Starter, Pro, and Enterprise plans for teams that need release protection, evidence, and technical governance.",
+      },
       eyebrow: "Pricing",
       title: "Plans designed for conversion",
       description: "Consistent structure to avoid commercial friction.",
@@ -444,7 +453,10 @@ function createEnglishMessages(): SiteMessages {
       guaranteeItems: ["Guided onboarding", "No forced monthly lock-in", "Coordinated technical and sales support"],
     },
     faq: {
-      meta: { title: "Frequently asked questions", description: "Answers for buying, installation, and operation." },
+      meta: {
+        title: "Frequently asked questions",
+        description: "Read answers about rollout, installers, support, governance, and how SitePulse fits technical teams and agencies.",
+      },
       eyebrow: "FAQ",
       title: "Answers to real buying objections",
       description: "Common questions from technical teams and agencies.",
@@ -468,7 +480,10 @@ function createEnglishMessages(): SiteMessages {
       ],
     },
     contact: {
-      meta: { title: "Commercial contact", description: "Request a demo, proposal, or commercial support." },
+      meta: {
+        title: "Commercial contact",
+        description: "Request a demo, pricing guidance, installer access, or pre-sales support for your QA, SEO, and release workflow.",
+      },
       eyebrow: "Contact",
       title: "Talk to the commercial team",
       description: "Share clear context to get a useful and fast proposal.",
@@ -643,7 +658,8 @@ const esMap: Record<string, string> = {
   "Unified commercial model": "Modelo comercial unificado",
   "Same structure across home and pricing page.": "Misma estructura entre home y pricing.",
   "Audit workflow demo": "Demo del flujo de auditoria",
-  "See SitePulse Studio in a real end-to-end flow.": "Mira SitePulse Studio en un flujo real de punta a punta.",
+  "See how SitePulse Studio turns one target URL into evidence, prioritized issues, and a clear release decision.":
+    "Mira como SitePulse Studio convierte una URL objetivo en evidencia, prioridades y una decision de release clara.",
   "How SitePulse Studio works in a real workflow": "Como funciona SitePulse Studio en un flujo real",
   "A commercial narrative with technical proof.": "Narrativa comercial con prueba tecnica.",
   "Operational flow": "Flujo operacional",
@@ -652,7 +668,8 @@ const esMap: Record<string, string> = {
   "Update files in public/screenshots and Home + Demo refresh automatically.":
     "Actualiza archivos en public/screenshots y Home + Demo se refrescan automaticamente.",
   "Official installers": "Instaladores oficiales",
-  "Official channel with version, date, and status.": "Canal oficial con version, fecha y estado.",
+  "Access official installers with version history, package status, release notes, and rollout guidance for every package.":
+    "Accede a instaladores oficiales con historial de version, estado del paquete, notas de release y guia de rollout.",
   "Official distribution channel": "Canal oficial de distribucion",
   "Publish full setup, web setup, and ZIP with release traceability.":
     "Publica setup completo, web setup y ZIP con trazabilidad de release.",
@@ -682,7 +699,8 @@ const esMap: Record<string, string> = {
   "Coordinated technical and sales support": "Soporte tecnico y comercial coordinado",
   FAQ: "FAQ",
   "Frequently asked questions": "Preguntas frecuentes",
-  "Answers for buying, installation, and operation.": "Respuestas sobre compra, instalacion y operacion.",
+  "Read answers about rollout, installers, support, governance, and how SitePulse fits technical teams and agencies.":
+    "Lee respuestas sobre rollout, instaladores, soporte, gobernanza y como SitePulse encaja en equipos tecnicos y agencias.",
   "Answers to real buying objections": "Respuestas a objeciones reales de compra",
   "Common questions from technical teams and agencies.":
     "Preguntas comunes de equipos tecnicos y agencias.",
@@ -699,7 +717,8 @@ const esMap: Record<string, string> = {
   "Yes. Enterprise supports multi-account governance workflows.":
     "Si. Enterprise soporta flujos multi-cuenta con gobernanza.",
   "Commercial contact": "Contacto comercial",
-  "Request a demo, proposal, or commercial support.": "Solicita demo, propuesta o soporte comercial.",
+  "Request a demo, pricing guidance, installer access, or pre-sales support for your QA, SEO, and release workflow.":
+    "Solicita demo, orientacion comercial, acceso a instaladores o soporte de preventa para tu flujo de QA, SEO y release.",
   "Talk to the commercial team": "Habla con el equipo comercial",
   "Share clear context to get a useful and fast proposal.":
     "Comparte contexto claro para recibir una propuesta util y rapida.",
@@ -764,7 +783,8 @@ const esMap: Record<string, string> = {
   "Use dashboard and screenshots to build trust.": "Usa el panel y las capturas para construir confianza.",
   "Connect ROI": "Conectar ROI",
   "Translate findings into business impact.": "Traduce hallazgos a impacto de negocio.",
-  "Hybrid model for free demo, Pro, and Enterprise.": "Modelo hibrido para demo gratuita, Pro y Corporativo.",
+  "Compare Starter, Pro, and Enterprise plans for teams that need release protection, evidence, and technical governance.":
+    "Compara planes Starter, Pro y Enterprise para equipos que necesitan proteccion de release, evidencia y gobernanza tecnica.",
   "Consistent structure to avoid commercial friction.": "Estructura coherente para reducir friccion comercial.",
   "you@company.com": "tu@empresa.com",
 };
@@ -880,7 +900,8 @@ const caMap: Record<string, string> = {
   "Unified commercial model": "Model comercial unificat",
   "Same structure across home and pricing page.": "Mateixa estructura entre home i pricing.",
   "Audit workflow demo": "Demo del flux d auditoria",
-  "See SitePulse Studio in a real end-to-end flow.": "Mira SitePulse Studio en un flux real de punta a punta.",
+  "See how SitePulse Studio turns one target URL into evidence, prioritized issues, and a clear release decision.":
+    "Mira com SitePulse Studio converteix una URL objectiu en evidencia, prioritats i una decisio de release clara.",
   "How SitePulse Studio works in a real workflow": "Com funciona SitePulse Studio en un flux real",
   "A commercial narrative with technical proof.": "Narrativa comercial amb prova tecnica.",
   "Operational flow": "Flux operacional",
@@ -889,7 +910,8 @@ const caMap: Record<string, string> = {
   "Update files in public/screenshots and Home + Demo refresh automatically.":
     "Actualitza arxius a public/screenshots i Home + Demo es refresquen automaticament.",
   "Official installers": "Instal.ladors oficials",
-  "Official channel with version, date, and status.": "Canal oficial amb versio, data i estat.",
+  "Access official installers with version history, package status, release notes, and rollout guidance for every package.":
+    "Accedeix a instal.ladors oficials amb historial de versio, estat del paquet, notes de release i guia de rollout.",
   "Official distribution channel": "Canal oficial de distribucio",
   "Publish full setup, web setup, and ZIP with release traceability.":
     "Publica setup complet, web setup i ZIP amb tracabilitat de release.",
@@ -919,7 +941,8 @@ const caMap: Record<string, string> = {
   "Coordinated technical and sales support": "Suport tecnic i comercial coordinat",
   FAQ: "FAQ",
   "Frequently asked questions": "Preguntes frequents",
-  "Answers for buying, installation, and operation.": "Respostes sobre compra, instal.lacio i operacio.",
+  "Read answers about rollout, installers, support, governance, and how SitePulse fits technical teams and agencies.":
+    "Llegeix respostes sobre rollout, instal.ladors, suport, governanca i com SitePulse encaixa en equips tecnics i agencies.",
   "Answers to real buying objections": "Respostes a objeccions reals de compra",
   "Common questions from technical teams and agencies.": "Preguntes comunes d equips tecnics i agencies.",
   "Is this desktop software or cloud?": "Es software desktop o cloud?",
@@ -935,7 +958,8 @@ const caMap: Record<string, string> = {
   "Yes. Enterprise supports multi-account governance workflows.":
     "Si. Enterprise suporta fluxos multi-compte amb governanca.",
   "Commercial contact": "Contacte comercial",
-  "Request a demo, proposal, or commercial support.": "Solicita demo, proposta o suport comercial.",
+  "Request a demo, pricing guidance, installer access, or pre-sales support for your QA, SEO, and release workflow.":
+    "Solicita demo, orientacio comercial, acces a instal.ladors o suport de pre-venda per al teu flux de QA, SEO i release.",
   "Talk to the commercial team": "Parla amb l equip comercial",
   "Share clear context to get a useful and fast proposal.":
     "Comparteix context clar per rebre una proposta util i rapida.",
@@ -999,7 +1023,8 @@ const caMap: Record<string, string> = {
   "Use dashboard and screenshots to build trust.": "Fes servir el panell i les captures per construir confianca.",
   "Connect ROI": "Connectar ROI",
   "Translate findings into business impact.": "Tradueix troballes a impacte de negoci.",
-  "Hybrid model for free demo, Pro, and Enterprise.": "Model hibrid per demo gratuita, Pro i Corporatiu.",
+  "Compare Starter, Pro, and Enterprise plans for teams that need release protection, evidence, and technical governance.":
+    "Compara plans Starter, Pro i Enterprise per equips que necessiten proteccio de release, evidencia i governanca tecnica.",
   "Consistent structure to avoid commercial friction.": "Estructura coherent per reduir friccio comercial.",
   "you@company.com": "tu@empresa.com",
 };

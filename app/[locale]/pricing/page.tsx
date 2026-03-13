@@ -2,8 +2,9 @@
 import { notFound } from "next/navigation";
 import { PricingGrid } from "@/src/components/marketing/pricing-grid";
 import { getMarketingContent } from "@/src/config/marketing-content";
+import { siteConfig } from "@/src/config/site";
 import { isLocale, type Locale } from "@/src/i18n/config";
-import { createLocalizedMetadata } from "@/src/i18n/metadata";
+import { buildLocalizedUrl, createLocalizedMetadata } from "@/src/i18n/metadata";
 import { getMessages } from "@/src/i18n/messages";
 
 interface PricingPageProps {
@@ -32,9 +33,35 @@ export default function PricingPage({ params }: PricingPageProps) {
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
   const marketing = getMarketingContent(locale);
+  const canonicalUrl = buildLocalizedUrl(locale, "pricing");
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: messages.pricing.meta.title,
+    description: messages.pricing.meta.description,
+    url: canonicalUrl,
+    inLanguage: locale,
+    isPartOf: {
+      "@type": "WebSite",
+      name: siteConfig.name,
+      url: buildLocalizedUrl(locale, ""),
+    },
+    mainEntity: {
+      "@type": "OfferCatalog",
+      name: `${siteConfig.name} plans`,
+      itemListElement: messages.pricing.plans.map((plan, index) => ({
+        "@type": "Offer",
+        position: index + 1,
+        name: plan.name,
+        category: plan.id,
+        description: plan.description,
+      })),
+    },
+  };
 
   return (
     <div className="content-shell min-w-0 space-y-10 py-8 sm:space-y-12 sm:py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <section className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">
           {messages.pricing.eyebrow}

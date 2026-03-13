@@ -1,5 +1,13 @@
-export function formatIsoDate(dateString: string): string {
-  const formatted = new Intl.DateTimeFormat("pt-BR", {
+import type { Locale } from "@/src/i18n/config";
+
+const dateLocales: Record<Locale, string> = {
+  en: "en-US",
+  es: "es-ES",
+  ca: "ca-ES",
+};
+
+export function formatIsoDate(dateString: string, locale: Locale = "en"): string {
+  const formatted = new Intl.DateTimeFormat(dateLocales[locale], {
     day: "2-digit",
     month: "long",
     year: "numeric",

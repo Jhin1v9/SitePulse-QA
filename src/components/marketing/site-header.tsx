@@ -1,9 +1,10 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { Locale } from "@/src/i18n/config";
-import { buildLocalizedPath, type RouteKey } from "@/src/i18n/path";
+import { buildLocalizedPath, resolveRouteKeyFromPathname, type RouteKey } from "@/src/i18n/path";
 import type { SiteMessages } from "@/src/i18n/messages";
 import { LanguageSwitcher } from "@/src/components/marketing/language-switcher";
 import { ThemeToggle } from "@/src/components/marketing/theme-toggle";
@@ -18,6 +19,8 @@ const navRoutes: readonly RouteKey[] = ["pricing", "faq", "contact"];
 
 export function SiteHeader({ locale, messages }: SiteHeaderProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+  const currentRoute = resolveRouteKeyFromPathname(pathname);
 
   const getNavHref = (route: RouteKey) =>
     route === "home" ? `${buildLocalizedPath(locale, route)}#top` : buildLocalizedPath(locale, route);
@@ -41,13 +44,22 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
             <ul className="flex min-w-0 items-center justify-center gap-1.5 text-sm text-slate-700 dark:text-slate-200 min-[1600px]:gap-2.5">
               {navRoutes.map((route) => (
                 <li key={route} className="min-w-0">
-                  <Link
-                    href={getNavHref(route)}
-                    prefetch={false}
-                    className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
-                  >
-                    {messages.nav[route]}
-                  </Link>
+                  {currentRoute === route ? (
+                    <span
+                      aria-current="page"
+                      className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full bg-slate-100 px-3.5 text-sm font-semibold text-slate-900 dark:bg-slate-800/80 dark:text-white"
+                    >
+                      {messages.nav[route]}
+                    </span>
+                  ) : (
+                    <Link
+                      href={getNavHref(route)}
+                      prefetch={false}
+                      className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-full px-3.5 text-sm font-medium transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:bg-slate-800/70 dark:hover:text-white"
+                    >
+                      {messages.nav[route]}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -56,20 +68,38 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
           <div className="hidden shrink-0 items-center gap-2.5 min-[1360px]:flex">
             <LanguageSwitcher locale={locale} label={messages.localeSwitcherLabel} />
             <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
-            <Link
-              href={buildLocalizedPath(locale, "demo")}
-              prefetch={false}
-              className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(8,145,178,0.32)] ring-1 ring-cyan-300/40 transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
-            >
-              {messages.nav.primaryCta}
-            </Link>
-            <Link
-              href={buildLocalizedPath(locale, "downloads")}
-              prefetch={false}
-              className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/82 px-5 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
-            >
-              {messages.nav.secondaryCta}
-            </Link>
+            {currentRoute === "demo" ? (
+              <span
+                aria-current="page"
+                className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(8,145,178,0.32)] ring-1 ring-cyan-300/40"
+              >
+                {messages.nav.primaryCta}
+              </span>
+            ) : (
+              <Link
+                href={buildLocalizedPath(locale, "demo")}
+                prefetch={false}
+                className="inline-flex h-12 items-center justify-center rounded-full bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-6 text-sm font-semibold text-white shadow-[0_18px_44px_rgba(8,145,178,0.32)] ring-1 ring-cyan-300/40 transition hover:-translate-y-0.5 hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
+              >
+                {messages.nav.primaryCta}
+              </Link>
+            )}
+            {currentRoute === "downloads" ? (
+              <span
+                aria-current="page"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-studio-300/80 bg-studio-50/95 px-5 text-sm font-semibold text-studio-700 dark:border-studio-400/50 dark:bg-studio-500/10 dark:text-studio-100"
+              >
+                {messages.nav.secondaryCta}
+              </span>
+            ) : (
+              <Link
+                href={buildLocalizedPath(locale, "downloads")}
+                prefetch={false}
+                className="inline-flex h-11 items-center justify-center rounded-full border border-slate-300/80 bg-white/82 px-5 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700/80 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:text-studio-100"
+              >
+                {messages.nav.secondaryCta}
+              </Link>
+            )}
           </div>
         </div>
 
@@ -90,14 +120,23 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
             <ul className="grid gap-2 text-sm text-slate-700 dark:text-slate-200">
               {navRoutes.map((route) => (
                 <li key={route}>
-                  <Link
-                    href={getNavHref(route)}
-                    prefetch={false}
-                    onClick={() => setMobileOpen(false)}
-                    className="inline-flex h-11 w-full items-center rounded-2xl border border-slate-300 bg-white px-4 font-medium transition hover:border-studio-300 hover:text-studio-700 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:text-studio-100"
-                  >
-                    {messages.nav[route]}
-                  </Link>
+                  {currentRoute === route ? (
+                    <span
+                      aria-current="page"
+                      className="inline-flex h-11 w-full items-center rounded-2xl border border-studio-300 bg-studio-50 px-4 font-semibold text-studio-700 dark:border-studio-400/50 dark:bg-studio-500/10 dark:text-studio-100"
+                    >
+                      {messages.nav[route]}
+                    </span>
+                  ) : (
+                    <Link
+                      href={getNavHref(route)}
+                      prefetch={false}
+                      onClick={() => setMobileOpen(false)}
+                      className="inline-flex h-11 w-full items-center rounded-2xl border border-slate-300 bg-white px-4 font-medium transition hover:border-studio-300 hover:text-studio-700 dark:border-slate-700 dark:bg-slate-900/80 dark:hover:text-studio-100"
+                    >
+                      {messages.nav[route]}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>
@@ -106,22 +145,40 @@ export function SiteHeader({ locale, messages }: SiteHeaderProps) {
               <ThemeToggle darkLabel={messages.themeToggleLabel.dark} lightLabel={messages.themeToggleLabel.light} />
             </div>
             <div className="grid gap-2">
-              <Link
-                href={buildLocalizedPath(locale, "demo")}
-                prefetch={false}
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-4 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
-              >
-                {messages.nav.primaryCta}
-              </Link>
-              <Link
-                href={buildLocalizedPath(locale, "downloads")}
-                prefetch={false}
-                onClick={() => setMobileOpen(false)}
-                className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:text-studio-100"
-              >
-                {messages.nav.secondaryCta}
-              </Link>
+              {currentRoute === "demo" ? (
+                <span
+                  aria-current="page"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-4 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)]"
+                >
+                  {messages.nav.primaryCta}
+                </span>
+              ) : (
+                <Link
+                  href={buildLocalizedPath(locale, "demo")}
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-studio-500 via-cyan-500 to-sky-500 px-4 text-sm font-semibold text-white shadow-[0_16px_42px_rgba(8,145,178,0.28)] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300"
+                >
+                  {messages.nav.primaryCta}
+                </Link>
+              )}
+              {currentRoute === "downloads" ? (
+                <span
+                  aria-current="page"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-studio-300 bg-studio-50 px-4 text-sm font-semibold text-studio-700 dark:border-studio-400/50 dark:bg-studio-500/10 dark:text-studio-100"
+                >
+                  {messages.nav.secondaryCta}
+                </span>
+              ) : (
+                <Link
+                  href={buildLocalizedPath(locale, "downloads")}
+                  prefetch={false}
+                  onClick={() => setMobileOpen(false)}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-studio-300 hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:text-studio-100"
+                >
+                  {messages.nav.secondaryCta}
+                </Link>
+              )}
             </div>
           </nav>
         </div>

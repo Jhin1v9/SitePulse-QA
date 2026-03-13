@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ContactForm } from "@/src/components/marketing/contact-form";
 import { siteConfig } from "@/src/config/site";
 import { isLocale, type Locale } from "@/src/i18n/config";
-import { createLocalizedMetadata } from "@/src/i18n/metadata";
+import { buildLocalizedUrl, createLocalizedMetadata } from "@/src/i18n/metadata";
 import { getMessages } from "@/src/i18n/messages";
 
 interface ContactPageProps {
@@ -32,6 +32,7 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
 
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
+  const canonicalUrl = buildLocalizedUrl(locale, "contact");
   const sourceLabel = locale === "en" ? "Source" : locale === "ca" ? "Origen" : "Origen";
   const salesLabel = locale === "en" ? "Sales" : locale === "ca" ? "Vendes" : "Ventas";
   const supportLabel = locale === "en" ? "Support" : locale === "ca" ? "Suport" : "Soporte";
@@ -52,13 +53,44 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
             ? "notes de release"
             : "notas de release"
         : sourceTopic;
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "ContactPage",
+    name: messages.contact.meta.title,
+    description: messages.contact.meta.description,
+    url: canonicalUrl,
+    inLanguage: locale,
+    isPartOf: {
+      "@type": "WebSite",
+      name: siteConfig.name,
+      url: buildLocalizedUrl(locale, ""),
+    },
+    mainEntity: {
+      "@type": "Organization",
+      name: siteConfig.legalName,
+      email: siteConfig.email,
+      contactPoint: [
+        {
+          "@type": "ContactPoint",
+          contactType: "sales",
+          email: siteConfig.email,
+        },
+        {
+          "@type": "ContactPoint",
+          contactType: "support",
+          email: siteConfig.supportEmail,
+        },
+      ],
+    },
+  };
 
   return (
-    <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
-      <section className="space-y-3">
+    <div className="content-shell min-w-0 space-y-10 py-8 sm:space-y-12 sm:py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <section className="space-y-4">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.contact.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.contact.title}</h1>
-        <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.contact.description}</p>
+        <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.contact.description}</p>
         {sourceTopic ? (
           <p className="break-all text-sm font-medium text-studio-700 dark:text-studio-200">
             {sourceLabel}: {localizedSourceTopic} {sourcePackage ? `(${sourcePackage})` : ""}
@@ -66,11 +98,11 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
         ) : null}
       </section>
 
-      <section className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <article className="panel min-w-0 p-4 sm:p-6">
-          <h2 className="font-heading text-xl text-slate-900 dark:text-slate-100">{messages.contact.directTitle}</h2>
-          <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{messages.contact.directDescription}</p>
-          <div className="mt-5 space-y-3 text-sm text-slate-700 dark:text-slate-300">
+      <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] xl:gap-8">
+        <article className="panel min-w-0 rounded-[1.6rem] p-5 sm:p-7">
+          <h2 className="font-heading text-[clamp(1.45rem,2.8vw,1.9rem)] text-slate-900 dark:text-slate-100">{messages.contact.directTitle}</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-300">{messages.contact.directDescription}</p>
+          <div className="mt-6 space-y-4 text-sm text-slate-700 dark:text-slate-300">
             <p>
               {salesLabel}: <a href={`mailto:${siteConfig.email}`} className="break-all font-semibold text-slate-900 hover:text-studio-700 dark:text-slate-100 dark:hover:text-studio-200">{siteConfig.email}</a>
             </p>
@@ -80,9 +112,9 @@ export default function ContactPage({ params, searchParams }: ContactPageProps) 
           </div>
         </article>
 
-        <article className="panel min-w-0 p-4 sm:p-6">
-          <h2 className="font-heading text-xl text-slate-900 dark:text-slate-100">{messages.contact.formTitle}</h2>
-          <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">{messages.contact.formDescription}</p>
+        <article className="panel min-w-0 rounded-[1.6rem] p-5 sm:p-7">
+          <h2 className="font-heading text-[clamp(1.45rem,2.8vw,1.9rem)] text-slate-900 dark:text-slate-100">{messages.contact.formTitle}</h2>
+          <p className="mt-3 text-sm leading-7 text-slate-700 dark:text-slate-300">{messages.contact.formDescription}</p>
           <ContactForm labels={messages.contact} />
         </article>
       </section>

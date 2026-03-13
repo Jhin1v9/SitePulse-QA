@@ -1,9 +1,12 @@
-﻿import Link from "next/link";
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { getMarketingContent } from "@/src/config/marketing-content";
 import { siteConfig } from "@/src/config/site";
 import type { Locale } from "@/src/i18n/config";
 import type { SiteMessages } from "@/src/i18n/messages";
-import { localizeHref } from "@/src/i18n/path";
+import { localizeHref, resolveRouteKeyFromHref, resolveRouteKeyFromPathname } from "@/src/i18n/path";
 
 interface SiteFooterProps {
   locale: Locale;
@@ -12,6 +15,8 @@ interface SiteFooterProps {
 
 export function SiteFooter({ locale, messages }: SiteFooterProps) {
   const marketing = getMarketingContent(locale);
+  const pathname = usePathname();
+  const currentRoute = resolveRouteKeyFromPathname(pathname);
 
   return (
     <footer className="border-t border-slate-300/70 dark:border-slate-800/70">
@@ -40,7 +45,12 @@ export function SiteFooter({ locale, messages }: SiteFooterProps) {
                     : link.href === "/"
                       ? `${localizeHref(locale, link.href)}#top`
                       : localizeHref(locale, link.href);
-                  const commonClassName = "inline-flex min-w-0 break-words transition hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:text-studio-100";
+                  const isInternalActiveLink =
+                    !link.external &&
+                    !link.href.includes("#") &&
+                    resolveRouteKeyFromHref(link.href) === currentRoute;
+                  const commonClassName =
+                    "inline-flex min-w-0 break-words transition hover:text-studio-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-studio-300 dark:hover:text-studio-100";
 
                   return (
                     <li key={`${group.title}-${link.label}`}>
@@ -48,6 +58,10 @@ export function SiteFooter({ locale, messages }: SiteFooterProps) {
                         <a href={href} target="_blank" rel="noreferrer" className={commonClassName}>
                           {link.label}
                         </a>
+                      ) : isInternalActiveLink ? (
+                        <span className="inline-flex min-w-0 break-words font-semibold text-studio-700 dark:text-studio-100" aria-current="page">
+                          {link.label}
+                        </span>
                       ) : (
                         <Link href={href} prefetch={false} className={commonClassName}>
                           {link.label}

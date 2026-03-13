@@ -13,18 +13,21 @@ function localePath(locale: Locale, route: LocalizedMetadataInput["route"]): str
   return route ? `/${locale}/${route}` : `/${locale}`;
 }
 
+export function buildLocalizedUrl(locale: Locale, route: LocalizedMetadataInput["route"]): string {
+  return new URL(localePath(locale, route), siteConfig.url).toString();
+}
+
 export function createLocalizedMetadata({
   locale,
   title,
   description,
   route,
 }: LocalizedMetadataInput): Metadata {
-  const canonicalPath = localePath(locale, route);
-  const canonicalUrl = new URL(canonicalPath, siteConfig.url).toString();
+  const canonicalUrl = buildLocalizedUrl(locale, route);
   const previewImageUrl = new URL("/og/sitepulse-studio.svg", siteConfig.url).toString();
 
   const languageAlternates = Object.fromEntries(
-    supportedLocales.map((code) => [code, new URL(localePath(code, route), siteConfig.url).toString()]),
+    supportedLocales.map((code) => [code, buildLocalizedUrl(code, route)]),
   );
 
   return {

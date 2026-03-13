@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { downloadFeed, officialInstallers, type InstallerKind } from "@/src/config/downloads";
+import { siteConfig } from "@/src/config/site";
 import { formatIsoDate } from "@/src/lib/date";
 import { isLocale, type Locale } from "@/src/i18n/config";
-import { createLocalizedMetadata } from "@/src/i18n/metadata";
+import { buildLocalizedUrl, createLocalizedMetadata } from "@/src/i18n/metadata";
 import { getMessages } from "@/src/i18n/messages";
 import { buildLocalizedPath } from "@/src/i18n/path";
 
@@ -55,6 +56,7 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
 
   const locale = params.locale as Locale;
   const messages = getMessages(locale);
+  const canonicalUrl = buildLocalizedUrl(locale, "downloads");
   const localizedChannel = locale === "en" ? "stable" : "estable";
   const statusTitle =
     locale === "en"
@@ -72,35 +74,56 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
     locale === "en"
       ? [
           `Channel: ${localizedChannel}`,
-          `Updated: ${formatIsoDate(downloadFeed.updatedAt)}`,
+          `Updated: ${formatIsoDate(downloadFeed.updatedAt, locale)}`,
           "Distribution mode: signed packages on request",
         ]
       : locale === "ca"
         ? [
             `Canal: ${localizedChannel}`,
-            `Actualitzat: ${formatIsoDate(downloadFeed.updatedAt)}`,
+            `Actualitzat: ${formatIsoDate(downloadFeed.updatedAt, locale)}`,
             "Mode de distribucio: paquets signats sota sollicitud",
           ]
         : [
             `Canal: ${localizedChannel}`,
-            `Actualizado: ${formatIsoDate(downloadFeed.updatedAt)}`,
+            `Actualizado: ${formatIsoDate(downloadFeed.updatedAt, locale)}`,
             "Modo de distribucion: paquetes firmados bajo solicitud",
           ];
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: messages.downloads.meta.title,
+    description: messages.downloads.meta.description,
+    url: canonicalUrl,
+    inLanguage: locale,
+    isPartOf: {
+      "@type": "WebSite",
+      name: siteConfig.name,
+      url: buildLocalizedUrl(locale, ""),
+    },
+    hasPart: officialInstallers.map((installer) => ({
+      "@type": "SoftwareApplication",
+      name: `${siteConfig.name} ${messages.downloads.kindLabels[installer.kind]}`,
+      operatingSystem: "Windows",
+      softwareVersion: installer.version,
+      datePublished: installer.releaseDate,
+    })),
+  };
 
   return (
-    <div className="content-shell min-w-0 space-y-8 py-8 sm:py-14">
-      <section id="status" className="space-y-3 scroll-mt-28">
+    <div className="content-shell min-w-0 space-y-10 py-8 sm:space-y-12 sm:py-14">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <section id="status" className="space-y-4 scroll-mt-28">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-studio-600 dark:text-studio-200">{messages.downloads.eyebrow}</p>
         <h1 className="font-heading text-[clamp(1.9rem,4.2vw,3.2rem)] text-slate-900 dark:text-slate-100">{messages.downloads.title}</h1>
-        <p className="max-w-3xl text-base text-slate-700 dark:text-slate-300">{messages.downloads.description}</p>
+        <p className="max-w-3xl text-base leading-8 text-slate-700 dark:text-slate-300">{messages.downloads.description}</p>
         <div className="flex min-w-0 flex-wrap gap-x-6 gap-y-2 text-sm text-slate-700 dark:text-slate-300">
           <p className="break-words">{messages.downloads.feedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{localizedChannel}</span></p>
-          <p className="break-words">{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt)}</span></p>
+          <p className="break-words">{messages.downloads.updatedLabel}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(downloadFeed.updatedAt, locale)}</span></p>
         </div>
-        <article className="panel mt-5 min-w-0 rounded-[1.6rem] p-5 sm:p-6">
-          <h2 className="font-heading text-xl text-slate-900 dark:text-slate-100">{statusTitle}</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-700 dark:text-slate-300">{statusDescription}</p>
-          <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-3">
+        <article className="panel mt-6 min-w-0 rounded-[1.6rem] p-5 sm:p-7">
+          <h2 className="font-heading text-[clamp(1.55rem,3vw,2rem)] text-slate-900 dark:text-slate-100">{statusTitle}</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-700 dark:text-slate-300">{statusDescription}</p>
+          <div className="mt-5 grid min-w-0 gap-4 md:grid-cols-3">
             {statusItems.map((item) => (
               <div key={item} className="rounded-[1.15rem] border border-slate-300/80 bg-white/75 p-4 text-sm text-slate-700 dark:border-slate-700/80 dark:bg-slate-950/60 dark:text-slate-300">
                 {item}
@@ -110,25 +133,25 @@ export default function DownloadsPage({ params }: DownloadsPageProps) {
         </article>
       </section>
 
-      <section className="grid min-w-0 gap-4">
+      <section className="grid min-w-0 gap-6">
         {officialInstallers.map((installer) => {
           const hasDirectDownload = installer.availability === "available" && installer.downloadUrl;
           const checksum = installer.checksumSha256 ?? messages.downloads.availability.noChecksum;
 
           return (
-            <article key={installer.id} className="panel min-w-0 p-4 sm:p-6">
-              <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <article key={installer.id} className="panel min-w-0 rounded-[1.65rem] p-5 sm:p-7">
+              <div className="flex min-w-0 flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
                 <div className="min-w-0 max-w-3xl space-y-2">
-                  <h2 className="font-heading text-2xl text-slate-900 dark:text-slate-100">
+                  <h2 className="font-heading text-[clamp(1.6rem,3vw,2rem)] text-slate-900 dark:text-slate-100">
                     {messages.downloads.kindLabels[installer.kind]}
                   </h2>
                   <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-sm text-slate-700 dark:text-slate-300">
                     <p>{messages.downloads.fields.platform}: <span className="font-semibold text-slate-900 dark:text-slate-100">Windows x64</span></p>
                     <p>{messages.downloads.fields.version}: <span className="font-semibold text-slate-900 dark:text-slate-100">{installer.version}</span></p>
-                    <p>{messages.downloads.fields.release}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(installer.releaseDate)}</span></p>
+                    <p>{messages.downloads.fields.release}: <span className="font-semibold text-slate-900 dark:text-slate-100">{formatIsoDate(installer.releaseDate, locale)}</span></p>
                     <p>{messages.downloads.fields.size}: <span className="font-semibold text-slate-900 dark:text-slate-100">{installer.fileSize}</span></p>
                   </div>
-                  <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300">{installerNotes(locale, installer.kind)}</p>
+                  <p className="pt-1 text-sm leading-7 text-slate-700 dark:text-slate-300">{installerNotes(locale, installer.kind)}</p>
                   <p className="text-xs break-all text-slate-600 dark:text-slate-400">{messages.downloads.fields.checksum}: <span className="font-medium text-slate-800 dark:text-slate-200">{checksum}</span></p>
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-studio-600 dark:text-studio-200">
                     {hasDirectDownload ? messages.downloads.availability.available : messages.downloads.availability.requestOnly}
