@@ -45,7 +45,7 @@
         "findings-search",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "logs", "memory", "predictive", "data-intelligence"],
+      contextSources: ["report", "issues", "logs", "memory", "predictive", "data-intelligence", "optimization"],
       priorityRules: [
         "Prioritize high severity and SEO-impacting failures first.",
         "Use validated memory before generic recommendations.",
@@ -113,7 +113,7 @@
         "prepare-healing",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "memory", "history", "compare", "predictive", "data-intelligence"],
+      contextSources: ["report", "issues", "memory", "history", "compare", "predictive", "data-intelligence", "optimization"],
       priorityRules: [
         "Sequence fixes by severity, validation gap and business impact.",
         "Use comparison context when available before recommending the next move.",
@@ -147,6 +147,8 @@
     { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
     { id: "impact", mode: "strategy_advisor", terms: ["maior impacto", "highest impact", "issues tem maior impacto", "which issues have the highest impact"], builder: (context) => buildImpactResponse(context) },
     { id: "seo_risk", mode: "strategy_advisor", terms: ["maior risco de seo", "biggest seo risk", "seo risk now"], builder: (context) => buildSeoRiskResponse(context) },
+    { id: "optimization_opportunities", mode: "strategy_advisor", terms: ["seo opportunities", "ux improvements", "performance gains", "optimization opportunities", "top improvements", "oportunidades"], builder: (context) => buildOptimizationResponse(context) },
+    { id: "structural_improvements", mode: "strategy_advisor", terms: ["melhorias estruturais", "structural improvements", "template logic", "recommend fixing template logic"], builder: (context) => buildStructuralRecommendationsResponse(context) },
     { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
     { id: "memory", mode: "audit_analyst", terms: ["abra a memoria", "open memory", "aprendizados validados"], builder: (context, rawQuery) => buildMemoryResponse(context, rawQuery) },
     { id: "latest_run", mode: "operator", terms: ["ultima run", "latest run", "open last run", "abrir ultima run"], builder: (context) => buildLatestRunResponse(context) },
@@ -348,6 +350,7 @@
     const predictive = appContext.predictive && typeof appContext.predictive === "object" ? appContext.predictive : null;
     const autonomous = appContext.autonomous && typeof appContext.autonomous === "object" ? appContext.autonomous : null;
     const dataIntelligence = appContext.dataIntelligence && typeof appContext.dataIntelligence === "object" ? appContext.dataIntelligence : null;
+    const optimization = appContext.optimization && typeof appContext.optimization === "object" ? appContext.optimization : null;
     const dataIssue = summarizeDataIssue(dataIntelligence, issueCode);
 
     const baseContext = {
@@ -369,6 +372,7 @@
       predictive,
       autonomous,
       dataIntelligence,
+      optimization,
       dataIssue,
     };
 
@@ -402,6 +406,7 @@
           predictiveSummary: predictive?.summary || null,
           autonomousSummary: autonomous?.qualityScore || null,
           dataSummary: dataIntelligence?.RISK_STATE || null,
+          optimizationSummary: optimization?.summary || null,
         },
       };
     }
@@ -442,6 +447,7 @@
         predictive,
         autonomous,
         dataIntelligence,
+        optimization,
       },
     };
   }
@@ -677,6 +683,50 @@
       actions: [
         { id: "switch-seo", label: "Open SEO workspace" },
         { id: "generate-prompt", label: "Generate prompt", payload: { issueCode: seoLead.code } },
+      ],
+    };
+  }
+
+  function buildOptimizationResponse(context) {
+    const optimization = context.optimization;
+    if (!optimization?.topImprovements?.length) {
+      return {
+        title: "No optimization opportunity",
+        summary: "There is not enough clustered evidence yet to suggest structural improvements.",
+        analysis: ["Run an audit with related issues across routes or keep comparable history for the same target."],
+        actions: [{ id: "switch-overview", label: "Open overview" }],
+      };
+    }
+    return {
+      title: "Optimization opportunities",
+      summary: `${optimization.summary?.seoOpportunities || 0} SEO, ${optimization.summary?.uxImprovements || 0} UX and ${optimization.summary?.performanceGains || 0} performance opportunity cluster(s) detected.`,
+      analysis: optimization.topImprovements.slice(0, 5).map((item, index) =>
+        `${index + 1}. ${item.title} | score ${Number(item.compositeScore || 0).toFixed(2)} | ${item.issueCount} issue(s) across ${item.routesAffected} route(s) | ${item.recommendation}`),
+      actions: [
+        { id: "switch-overview", label: "Open overview" },
+        { id: "switch-findings", label: "Open findings" },
+      ],
+    };
+  }
+
+  function buildStructuralRecommendationsResponse(context) {
+    const optimization = context.optimization;
+    const recommendations = Array.isArray(optimization?.structuralRecommendations) ? optimization.structuralRecommendations : [];
+    if (!recommendations.length) {
+      return {
+        title: "No structural recommendation",
+        summary: "No structural recommendation is attached to the current optimization snapshot.",
+        analysis: ["The engine needs repeated or clustered issues before it can recommend a shared template or pipeline fix."],
+        actions: [{ id: "switch-findings", label: "Open findings" }],
+      };
+    }
+    return {
+      title: "Structural improvements",
+      summary: "The optimization engine found repeated issue clusters that should be fixed structurally instead of route by route.",
+      analysis: recommendations.slice(0, 5),
+      actions: [
+        { id: "switch-overview", label: "Open overview" },
+        { id: "switch-prompts", label: "Open prompts" },
       ],
     };
   }

@@ -31,7 +31,7 @@ It exists to:
 
 ## Architecture Overview
 
-The desktop AI system is split into five layers:
+The desktop AI system is split into these layers:
 
 1. QA runtime learning layer
 2. Electron bridge layer
@@ -40,6 +40,7 @@ The desktop AI system is split into five layers:
 5. Self-Healing orchestration layer
 6. Impact and continuous intelligence layer
 7. Data Intelligence consolidation layer
+8. Optimization Engine layer
 
 ### 1. QA Runtime Learning Layer
 
@@ -149,6 +150,7 @@ That snapshot groups:
 - continuous intelligence
 - predictive intelligence
 - autonomous QA
+- optimization engine
 
 This exists for two reasons:
 
@@ -187,6 +189,32 @@ Per-issue enrichment currently includes:
 - history
 
 The assistant consumes this layer as `dataIntelligence`, and Findings now uses the same merged issue context when rendering cards.
+
+### Optimization Engine
+
+Files:
+
+- [optimization-engine-service.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\optimization-engine-service.js)
+- [renderer.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\renderer.js)
+
+Responsibilities:
+
+- detect SEO opportunities, UX improvements and performance gains from clustered issue evidence
+- group related issues into structural clusters instead of route-by-route noise
+- produce top structural improvements from the current audit state
+- recommend shared fixes such as template logic, schema generation or layout system corrections
+
+Current outputs:
+
+- `summary`
+- `clusters`
+- `topImprovements`
+- `structuralRecommendations`
+- `opportunityGroups`
+
+The Optimization Engine is downstream from Data Intelligence.
+It does not recompute impact, predictive or healing logic from scratch.
+It consumes the normalized issue state and turns it into structural improvement guidance.
 
 ### Memory Panel
 

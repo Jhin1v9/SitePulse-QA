@@ -303,6 +303,9 @@ const stateEl = {
   riskMapTechnical: document.getElementById("riskMapTechnical"),
   priorityViewHeadline: document.getElementById("priorityViewHeadline"),
   priorityViewList: document.getElementById("priorityViewList"),
+  optimizationHeadline: document.getElementById("optimizationHeadline"),
+  optimizationTopImprovements: document.getElementById("optimizationTopImprovements"),
+  optimizationClusters: document.getElementById("optimizationClusters"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
@@ -485,6 +488,8 @@ const uiState = {
   continuousIntelligenceCache: null,
   dataIntelligenceService: null,
   dataIntelligenceCache: null,
+  optimizationService: null,
+  optimizationCache: null,
   predictiveService: null,
   predictiveCache: null,
   autonomousQaService: null,
@@ -2072,6 +2077,7 @@ function createCompactStoredReport(report, limits = {}) {
     predictive: intelligenceSnapshot.predictive,
     autonomous: intelligenceSnapshot.autonomous,
     dataIntelligence: intelligenceSnapshot.dataIntelligence,
+    optimization: intelligenceSnapshot.optimization,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -2187,6 +2193,33 @@ function createEmptyDataIntelligenceSnapshot() {
     },
     ISSUE_STATE: [],
     ISSUE_MAP: {},
+  };
+}
+
+function createEmptyOptimizationSnapshot() {
+  if (typeof window.createSitePulseOptimizationEngineService === "function") {
+    const service = ensureOptimizationService();
+    if (service?.createEmptyOptimizationSnapshot) {
+      return service.createEmptyOptimizationSnapshot();
+    }
+  }
+  return {
+    updatedAt: "",
+    contextKey: "",
+    summary: {
+      seoOpportunities: 0,
+      uxImprovements: 0,
+      performanceGains: 0,
+      structuralRecommendations: 0,
+    },
+    clusters: [],
+    topImprovements: [],
+    structuralRecommendations: [],
+    opportunityGroups: {
+      seo: [],
+      ux: [],
+      performance: [],
+    },
   };
 }
 
@@ -2742,6 +2775,15 @@ function ensureDataIntelligenceService() {
   return uiState.dataIntelligenceService;
 }
 
+function ensureOptimizationService() {
+  if (uiState.optimizationService) return uiState.optimizationService;
+  if (typeof window.createSitePulseOptimizationEngineService !== "function") {
+    return null;
+  }
+  uiState.optimizationService = window.createSitePulseOptimizationEngineService();
+  return uiState.optimizationService;
+}
+
 function buildPredictiveIntelligence(report) {
   if (!report) {
     return createEmptyPredictiveSnapshot();
@@ -2870,6 +2912,33 @@ function buildAutonomousQa(report, contextInput = null) {
   return autonomous;
 }
 
+function buildOptimizationSnapshot(report, contextInput = null) {
+  if (!report) {
+    return createEmptyOptimizationSnapshot();
+  }
+  const cacheKey = [
+    buildLiveReportKey(report),
+    String(uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(8),
+  ].join("::");
+  if (uiState.optimizationCache?.key === cacheKey) {
+    return uiState.optimizationCache.value;
+  }
+  const service = ensureOptimizationService();
+  const optimization = service?.buildOptimizationSnapshot
+    ? service.buildOptimizationSnapshot(report, {
+        dataIntelligence: contextInput?.dataIntelligence || createEmptyDataIntelligenceSnapshot(),
+        predictive: contextInput?.predictive || createEmptyPredictiveSnapshot(),
+        autonomous: contextInput?.autonomous || createEmptyAutonomousQaSnapshot(),
+      })
+    : createEmptyOptimizationSnapshot();
+  uiState.optimizationCache = {
+    key: cacheKey,
+    value: optimization,
+  };
+  return optimization;
+}
+
 function buildDesktopIntelligenceSnapshot(report) {
   if (!report) {
     return {
@@ -2879,6 +2948,7 @@ function buildDesktopIntelligenceSnapshot(report) {
       predictive: createEmptyPredictiveSnapshot(),
       autonomous: createEmptyAutonomousQaSnapshot(),
       dataIntelligence: createEmptyDataIntelligenceSnapshot(),
+      optimization: createEmptyOptimizationSnapshot(),
     };
   }
 
@@ -2918,6 +2988,11 @@ function buildDesktopIntelligenceSnapshot(report) {
         })),
       })
     : createEmptyDataIntelligenceSnapshot();
+  const optimization = buildOptimizationSnapshot(report, {
+    dataIntelligence,
+    predictive,
+    autonomous,
+  });
   const snapshot = {
     learningMemory,
     selfHealing,
@@ -2925,6 +3000,7 @@ function buildDesktopIntelligenceSnapshot(report) {
     predictive,
     autonomous,
     dataIntelligence,
+    optimization,
   };
   uiState.desktopIntelligenceCache = {
     key: cacheKey,
@@ -3519,6 +3595,28 @@ function renderQualityVisuals(report) {
         </article>
       `).join("")
     : '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
+}
+
+function renderOptimizationSummary(report) {
+  if (!report) {
+    stateEl.optimizationHeadline.textContent = "Run an audit to detect SEO opportunities, UX improvements and performance gains.";
+    stateEl.optimizationTopImprovements.innerHTML = "<li>No structural improvement list is available yet.</li>";
+    stateEl.optimizationClusters.innerHTML = "<li>No issue cluster is available yet.</li>";
+    return;
+  }
+
+  const optimization = buildDesktopIntelligenceSnapshot(report).optimization;
+  const summary = optimization.summary || {};
+  const topImprovements = Array.isArray(optimization.topImprovements) ? optimization.topImprovements : [];
+  const clusters = Array.isArray(optimization.clusters) ? optimization.clusters : [];
+
+  stateEl.optimizationHeadline.textContent = `${summary.seoOpportunities || 0} SEO opportunity cluster(s) | ${summary.uxImprovements || 0} UX improvement cluster(s) | ${summary.performanceGains || 0} performance gain cluster(s)`;
+  stateEl.optimizationTopImprovements.innerHTML = topImprovements.length
+    ? topImprovements.map((item) => `<li>${escapeHtml(`${item.title} | score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)} | confidence ${Number(toNumber(item.confidence, 0)).toFixed(2)} | ${item.issueCount} issue(s) across ${item.routesAffected} route(s)`)}</li>`).join("")
+    : "<li>No structural improvement list is available yet.</li>";
+  stateEl.optimizationClusters.innerHTML = clusters.length
+    ? clusters.slice(0, 5).map((cluster) => `<li>${escapeHtml(`${cluster.title}: ${cluster.recommendation}`)}</li>`).join("")
+    : "<li>No issue cluster is available yet.</li>";
 }
 
 function renderIssueMeta(report, filteredIssues, options = {}) {
@@ -4855,6 +4953,7 @@ function ensureAssistantService() {
         predictive: intelligenceSnapshot.predictive,
         autonomous: intelligenceSnapshot.autonomous,
         dataIntelligence: intelligenceSnapshot.dataIntelligence,
+        optimization: intelligenceSnapshot.optimization,
         logs: [...uiState.logs],
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -4885,9 +4984,10 @@ function renderAssistantState() {
   const predictive = intelligenceSnapshot.predictive;
   const autonomous = intelligenceSnapshot.autonomous;
   const dataIntelligence = intelligenceSnapshot.dataIntelligence;
+  const optimization = intelligenceSnapshot.optimization;
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
-    : `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
+    : `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
   if (!result) {
@@ -5342,6 +5442,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderSteps(report);
   renderExecutiveSummary(report);
   renderQualityVisuals(report);
+  renderOptimizationSummary(report);
   renderRouteFilterOptions(report);
   renderIssues(report, { transient });
   renderCoverageExplorers(report);
