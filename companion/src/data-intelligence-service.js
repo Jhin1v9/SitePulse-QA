@@ -12,6 +12,30 @@
     return Math.min(max, Math.max(min, value));
   }
 
+  function issueFamily(issueCode) {
+    const code = normalizeText(issueCode).toUpperCase();
+    if (code.startsWith("SEO_")) return "seo";
+    if (code.startsWith("VISUAL_") || code.startsWith("BTN_")) return "ux";
+    if (code.startsWith("ROUTE_LOAD_FAIL") || code.startsWith("HTTP_") || code.startsWith("NET_")) return "performance";
+    if (code.startsWith("JS_") || code.startsWith("CONSOLE_") || code.startsWith("ROUTE_")) return "technical";
+    return "technical";
+  }
+
+  function riskWeight(level) {
+    switch (normalizeText(level).toLowerCase()) {
+      case "critical":
+        return 1;
+      case "high":
+        return 0.78;
+      case "medium":
+        return 0.56;
+      case "low":
+        return 0.32;
+      default:
+        return 0.18;
+    }
+  }
+
   function createEmptyDataIntelligenceSnapshot() {
     return {
       updatedAt: "",
@@ -37,6 +61,8 @@
       },
       RISK_STATE: {
         topRisks: [],
+        familyRiskMap: {},
+        priorityQueue: [],
         predictiveAlerts: [],
         priorityCounts: { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 },
         highRiskAlertCount: 0,
@@ -101,6 +127,7 @@
       return {
         signature,
         issueCode: normalizeText(issue.code).toUpperCase(),
+        family: issueFamily(issue.code),
         route: normalizeText(issue.route || "/"),
         action: normalizeText(issue.action),
         severity: normalizeText(issue.severity || "low"),
@@ -158,12 +185,19 @@
       const history = entries
         .filter((entry) => entry?.report && normalizeText(entry.report.meta?.baseUrl) === normalizeText(report?.meta?.baseUrl))
         .slice(-7)
-        .map((entry) => ({
-          stamp: normalizeText(entry.stamp || entry.report?.meta?.generatedAt),
-          seoScore: toNumber(entry.report?.summary?.seoScore, 0),
-          totalIssues: toNumber(entry.report?.summary?.totalIssues, 0),
-          topImpactScore: toNumber(entry.report?.summary?.topImpactScore, 0),
-        }));
+        .map((entry) => {
+          const scoreCandidate = Number(
+            entry.report?.dataIntelligence?.QUALITY_STATE?.overallScore
+            ?? entry.report?.autonomous?.qualityScore?.total
+          );
+          return {
+            stamp: normalizeText(entry.stamp || entry.report?.meta?.generatedAt),
+            seoScore: toNumber(entry.report?.summary?.seoScore, 0),
+            totalIssues: toNumber(entry.report?.summary?.totalIssues, 0),
+            topImpactScore: toNumber(entry.report?.summary?.topImpactScore, 0),
+            qualityScore: Number.isFinite(scoreCandidate) ? scoreCandidate : null,
+          };
+        });
       const currentPoint = {
         stamp: normalizeText(report?.meta?.generatedAt),
         seoScore: toNumber(report?.summary?.seoScore, 0),
@@ -173,6 +207,85 @@
       };
       const merged = [...history.filter((item) => item.stamp !== currentPoint.stamp), currentPoint];
       return merged.slice(-8);
+    }
+
+    function buildFamilyRiskMap(issueState) {
+      const families = {
+        seo: [],
+        ux: [],
+        performance: [],
+        technical: [],
+      };
+      issueState.forEach((entry) => {
+        const family = entry.family in families ? entry.family : "technical";
+        families[family].push(entry);
+      });
+
+      return Object.fromEntries(Object.entries(families).map(([family, entries]) => {
+        const sorted = [...entries].sort((left, right) =>
+          riskWeight(right.predictiveRisk?.level) - riskWeight(left.predictiveRisk?.level)
+          || toNumber(right.predictiveRisk?.confidence, 0) - toNumber(left.predictiveRisk?.confidence, 0)
+          || right.impact.score - left.impact.score);
+        const lead = sorted[0] || null;
+        const averageRiskConfidence = sorted.length
+          ? sorted.reduce((sum, item) => sum + toNumber(item.predictiveRisk?.confidence, 0), 0) / sorted.length
+          : 0;
+        const averageImpact = sorted.length
+          ? sorted.reduce((sum, item) => sum + toNumber(item.impact?.score, 0), 0) / sorted.length
+          : 0;
+        return [family, {
+          family,
+          issueCount: sorted.length,
+          riskLevel: normalizeText(lead?.predictiveRisk?.level || (sorted.length ? "medium" : "low")),
+          riskConfidence: Number(clamp(
+            averageRiskConfidence > 0 ? averageRiskConfidence : averageImpact * 0.85,
+            0,
+            1,
+          ).toFixed(2)),
+          topIssueCode: normalizeText(lead?.issueCode),
+          label: sorted.length
+            ? `${family.toUpperCase()} risk ${normalizeText(lead?.predictiveRisk?.level || "medium")} | ${sorted.length} issue(s)`
+            : `${family.toUpperCase()} risk low | no active issue`,
+        }];
+      }));
+    }
+
+    function buildPriorityQueue(issueState) {
+      return [...issueState]
+        .map((entry) => {
+          const impactScore = toNumber(entry.impact?.score, 0);
+          const predictiveScore = toNumber(entry.predictiveRisk?.confidence, 0) * riskWeight(entry.predictiveRisk?.level);
+          const healingScore = clamp(toNumber(entry.healing?.confidenceScore, 0) / 100, 0, 1);
+          const composite = clamp(
+            impactScore * 0.48
+            + predictiveScore * 0.32
+            + healingScore * 0.2,
+            0,
+            1,
+          );
+          return {
+            issueCode: entry.issueCode,
+            route: entry.route,
+            action: entry.action,
+            family: entry.family,
+            impactScore: Number(impactScore.toFixed(2)),
+            predictiveRisk: entry.predictiveRisk
+              ? {
+                  level: entry.predictiveRisk.level,
+                  confidence: Number(toNumber(entry.predictiveRisk.confidence, 0).toFixed(2)),
+                }
+              : null,
+            healingConfidence: entry.healing
+              ? {
+                  score: toNumber(entry.healing.confidenceScore, 0),
+                  label: normalizeText(entry.healing.confidenceLabel),
+                }
+              : null,
+            compositeScore: Number(composite.toFixed(2)),
+          };
+        })
+        .sort((left, right) => right.compositeScore - left.compositeScore)
+        .slice(0, 8);
     }
 
     function buildDataIntelligence(report, contextInput = {}) {
@@ -201,6 +314,8 @@
       const topRisks = [
         ...(Array.isArray(context.autonomous?.insights?.topRisks) ? context.autonomous.insights.topRisks : []),
       ].slice(0, 5);
+      const familyRiskMap = buildFamilyRiskMap(issueState);
+      const priorityQueue = buildPriorityQueue(issueState);
       const predictiveAlerts = Array.isArray(context.predictive?.alerts) ? context.predictive.alerts.slice(0, 6) : [];
       const priorityCounts = {
         P0: toNumber(report.summary?.priorityP0, 0),
@@ -242,6 +357,8 @@
         },
         RISK_STATE: {
           topRisks,
+          familyRiskMap,
+          priorityQueue,
           predictiveAlerts,
           priorityCounts,
           highRiskAlertCount: predictiveAlerts.filter((item) => ["high", "critical"].includes(normalizeText(item?.riskLevel))).length,

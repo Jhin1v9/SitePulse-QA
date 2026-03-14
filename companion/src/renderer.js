@@ -288,6 +288,21 @@ const stateEl = {
   executiveSummaryActionOrder: document.getElementById("executiveSummaryActionOrder"),
   executiveSummaryPatterns: document.getElementById("executiveSummaryPatterns"),
   executiveSummaryPredictiveAlerts: document.getElementById("executiveSummaryPredictiveAlerts"),
+  qualityDashboardHeadline: document.getElementById("qualityDashboardHeadline"),
+  qualityDashboardOverall: document.getElementById("qualityDashboardOverall"),
+  qualityDashboardSeo: document.getElementById("qualityDashboardSeo"),
+  qualityDashboardUx: document.getElementById("qualityDashboardUx"),
+  qualityDashboardPerformance: document.getElementById("qualityDashboardPerformance"),
+  qualityDashboardTechnical: document.getElementById("qualityDashboardTechnical"),
+  qualityTimelineHeadline: document.getElementById("qualityTimelineHeadline"),
+  qualityTimelineList: document.getElementById("qualityTimelineList"),
+  riskMapHeadline: document.getElementById("riskMapHeadline"),
+  riskMapSeo: document.getElementById("riskMapSeo"),
+  riskMapUx: document.getElementById("riskMapUx"),
+  riskMapPerformance: document.getElementById("riskMapPerformance"),
+  riskMapTechnical: document.getElementById("riskMapTechnical"),
+  priorityViewHeadline: document.getElementById("priorityViewHeadline"),
+  priorityViewList: document.getElementById("priorityViewList"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
@@ -542,6 +557,10 @@ function buildLiveReportKey(report) {
 function toNumber(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function normalizeSeoSource(input) {
@@ -2041,6 +2060,7 @@ function createCompactStoredReport(report, limits = {}) {
   const issueLimit = toNumber(limits.issueLimit, 180);
   const actionLimit = toNumber(limits.actionLimit, 120);
   const routeLimit = toNumber(limits.routeLimit, 80);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
   return {
     meta: report.meta,
     summary: report.summary,
@@ -2049,6 +2069,9 @@ function createCompactStoredReport(report, limits = {}) {
     learningMemory: report.learningMemory,
     selfHealing: report.selfHealing,
     intelligence: report.intelligence,
+    predictive: intelligenceSnapshot.predictive,
+    autonomous: intelligenceSnapshot.autonomous,
+    dataIntelligence: intelligenceSnapshot.dataIntelligence,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -2143,6 +2166,8 @@ function createEmptyDataIntelligenceSnapshot() {
     },
     RISK_STATE: {
       topRisks: [],
+      familyRiskMap: {},
+      priorityQueue: [],
       predictiveAlerts: [],
       priorityCounts: { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 },
       highRiskAlertCount: 0,
@@ -3398,6 +3423,102 @@ function renderExecutiveSummary(report) {
   stateEl.executiveSummaryPredictiveAlerts.innerHTML = predictive.alerts.length
     ? predictive.alerts.slice(0, 4).map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
     : "<li>No predictive alert is available yet.</li>";
+}
+
+function renderQualityVisuals(report) {
+  if (!report) {
+    stateEl.qualityDashboardHeadline.textContent = "Run an audit to load quality dimensions.";
+    stateEl.qualityDashboardOverall.textContent = "0";
+    stateEl.qualityDashboardSeo.textContent = "0";
+    stateEl.qualityDashboardUx.textContent = "0";
+    stateEl.qualityDashboardPerformance.textContent = "0";
+    stateEl.qualityDashboardTechnical.textContent = "0";
+    stateEl.qualityTimelineHeadline.textContent = "Need comparable history to draw the quality timeline.";
+    stateEl.qualityTimelineList.innerHTML = '<article class="empty-state">Run an audit and keep history for the same target to unlock the quality timeline.</article>';
+    stateEl.riskMapHeadline.textContent = "Run an audit to classify SEO, UX, performance and technical risk.";
+    stateEl.riskMapSeo.textContent = "low";
+    stateEl.riskMapUx.textContent = "low";
+    stateEl.riskMapPerformance.textContent = "low";
+    stateEl.riskMapTechnical.textContent = "low";
+    stateEl.priorityViewHeadline.textContent = "Run an audit to rank issues by impact, predictive risk and healing confidence.";
+    stateEl.priorityViewList.innerHTML = '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
+    return;
+  }
+
+  const dataIntelligence = buildDesktopIntelligenceSnapshot(report).dataIntelligence;
+  const qualityState = dataIntelligence.QUALITY_STATE;
+  const riskState = dataIntelligence.RISK_STATE;
+  const qualityDimensions = qualityState.dimensions || {};
+
+  stateEl.qualityDashboardHeadline.textContent = `Quality ${qualityState.overallScore || 0} | trajectory ${qualityState.trajectory || "stable"} | confidence ${Number(qualityState.trajectoryConfidence || 0).toFixed(2)}`;
+  stateEl.qualityDashboardOverall.textContent = String(qualityState.overallScore || 0);
+  stateEl.qualityDashboardSeo.textContent = String(qualityState.seoScore || 0);
+  stateEl.qualityDashboardUx.textContent = String(toNumber(qualityDimensions.uxQuality, 0));
+  stateEl.qualityDashboardPerformance.textContent = String(toNumber(qualityDimensions.performanceQuality, 0));
+  stateEl.qualityDashboardTechnical.textContent = String(toNumber(qualityDimensions.technicalIntegrity, 0));
+
+  const history = Array.isArray(qualityState.qualityHistory) ? qualityState.qualityHistory : [];
+  stateEl.qualityTimelineHeadline.textContent = history.length > 1
+    ? `${history.length} comparable run(s) loaded for ${report.meta.baseUrl}.`
+    : "Need at least one previous comparable run to read the full trajectory.";
+  stateEl.qualityTimelineList.innerHTML = history.length
+    ? history.map((item, index) => {
+        const hasQualityScore = Number.isFinite(Number(item.qualityScore));
+        const score = hasQualityScore ? Number(item.qualityScore) : 0;
+        const width = hasQualityScore ? clamp(score, 0, 100) : 0;
+        const label = item.stamp ? formatLocalDate(item.stamp) : `Run ${index + 1}`;
+        return `
+          <article class="explorer-item">
+            <div class="split-head" style="align-items:center; gap:12px;">
+              <div class="history-meta">${escapeHtml(label)}</div>
+              <div class="nav-title">Quality ${escapeHtml(hasQualityScore ? String(score) : "n/a")}</div>
+            </div>
+            <div style="margin-top:8px; display:flex; align-items:center; gap:12px;">
+              <div style="flex:1; height:10px; border-radius:999px; background:rgba(125,145,180,0.18); overflow:hidden;">
+                <div style="width:${width}%; height:100%; border-radius:999px; background:${score >= 80 ? "#22c55e" : score >= 60 ? "#38bdf8" : score >= 40 ? "#f59e0b" : "#ef4444"};"></div>
+              </div>
+              <span class="pill">${escapeHtml(`SEO ${toNumber(item.seoScore, 0)}`)}</span>
+              <span class="pill">${escapeHtml(`${toNumber(item.totalIssues, 0)} issues`)}</span>
+            </div>
+          </article>
+        `;
+      }).join("")
+    : '<article class="empty-state">No quality timeline is available yet.</article>';
+
+  const familyRiskMap = riskState.familyRiskMap || {};
+  const formatFamilyRisk = (familyKey) => {
+    const family = familyRiskMap[familyKey];
+    if (!family) return "low";
+    return `${family.riskLevel || "low"} | ${Number(toNumber(family.riskConfidence, 0)).toFixed(2)} | ${family.issueCount || 0} issue(s)`;
+  };
+  stateEl.riskMapHeadline.textContent = riskState.topRisks?.[0]
+    ? `Top risk: ${riskState.topRisks[0]}`
+    : "Risk map is based on predictive signals, impact and recurring issue families.";
+  stateEl.riskMapSeo.textContent = formatFamilyRisk("seo");
+  stateEl.riskMapUx.textContent = formatFamilyRisk("ux");
+  stateEl.riskMapPerformance.textContent = formatFamilyRisk("performance");
+  stateEl.riskMapTechnical.textContent = formatFamilyRisk("technical");
+
+  const priorityQueue = Array.isArray(riskState.priorityQueue) ? riskState.priorityQueue : [];
+  stateEl.priorityViewHeadline.textContent = priorityQueue.length
+    ? `${priorityQueue.length} issue(s) ranked by impact, predictive risk and healing confidence.`
+    : "No ranked issue queue is available for the current run.";
+  stateEl.priorityViewList.innerHTML = priorityQueue.length
+    ? priorityQueue.map((item, index) => `
+        <article class="explorer-item">
+          <div class="split-head" style="align-items:flex-start; gap:12px;">
+            <div>
+              <div class="nav-title">${escapeHtml(`${index + 1}. ${item.issueCode}`)}</div>
+              <div class="history-meta">${escapeHtml(item.route)}${item.action ? ` -> ${escapeHtml(item.action)}` : ""}</div>
+            </div>
+            <span class="pill">${escapeHtml(`score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)}`)}</span>
+          </div>
+          <div class="history-copy" style="margin-top:8px;">
+            ${escapeHtml(`impact ${Number(toNumber(item.impactScore, 0)).toFixed(2)} | predictive ${item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a"} | healing ${item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : "n/a"}`)}
+          </div>
+        </article>
+      `).join("")
+    : '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
 }
 
 function renderIssueMeta(report, filteredIssues, options = {}) {
@@ -5220,6 +5341,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderVisualQuality(report);
   renderSteps(report);
   renderExecutiveSummary(report);
+  renderQualityVisuals(report);
   renderRouteFilterOptions(report);
   renderIssues(report, { transient });
   renderCoverageExplorers(report);
