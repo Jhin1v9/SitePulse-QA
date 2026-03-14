@@ -198,6 +198,7 @@ const stateEl = {
   copyBridgeUrlSecondary: document.getElementById("copyBridgeUrlSecondary"),
   quickAuditButton: document.getElementById("quickAuditButton"),
   deepAuditButton: document.getElementById("deepAuditButton"),
+  shellGrid: document.getElementById("shellGrid"),
   targetUrl: document.getElementById("targetUrl"),
   previewLocation: document.getElementById("previewLocation"),
   previewStatus: document.getElementById("previewStatus"),
@@ -440,10 +441,12 @@ const stateEl = {
   dismissCommandPalette: document.getElementById("dismissCommandPalette"),
   commandPaletteSearch: document.getElementById("commandPaletteSearch"),
   commandPaletteList: document.getElementById("commandPaletteList"),
-  assistantOverlay: document.getElementById("assistantOverlay"),
+  assistantWorkspace: document.getElementById("assistantWorkspace"),
   dismissAssistant: document.getElementById("dismissAssistant"),
+  assistantExpand: document.getElementById("assistantExpand"),
   assistantEyebrow: document.getElementById("assistantEyebrow"),
   assistantTitle: document.getElementById("assistantTitle"),
+  assistantContextPills: document.getElementById("assistantContextPills"),
   assistantInput: document.getElementById("assistantInput"),
   assistantInputLabel: document.getElementById("assistantInputLabel"),
   assistantAsk: document.getElementById("assistantAsk"),
@@ -458,6 +461,9 @@ const stateEl = {
   assistantLanguageLabel: document.getElementById("assistantLanguageLabel"),
   assistantLanguageSelect: document.getElementById("assistantLanguageSelect"),
   assistantModeSummary: document.getElementById("assistantModeSummary"),
+  assistantViewButtons: Array.from(document.querySelectorAll("[data-assistant-view]")),
+  assistantViewPanels: Array.from(document.querySelectorAll("[data-assistant-view-panel]")),
+  assistantInsights: document.getElementById("assistantInsights"),
   assistantResponse: document.getElementById("assistantResponse"),
   assistantActions: document.getElementById("assistantActions"),
   evidenceLightbox: document.getElementById("evidenceLightbox"),
@@ -515,6 +521,8 @@ const uiState = {
   shortcutsOpen: false,
   commandPaletteOpen: false,
   assistantOpen: false,
+  assistantExpanded: false,
+  assistantView: "conversation",
   activeMenu: "",
   commandPaletteQuery: "",
   assistantQuery: "",
@@ -1106,10 +1114,18 @@ function renderAssistantLanguageUi() {
   }
   if (stateEl.assistantTitle) {
     stateEl.assistantTitle.textContent = localizePromptLine(state.activeLanguage, {
-      pt: "Raciocínio operacional sobre o estado real do app",
-      es: "Razona sobre el estado real de la app",
-      en: "Reason over the real app state",
-      ca: "Raona sobre l'estat real de l'app",
+      pt: "Workspace de IA sobre o estado real do app",
+      es: "Workspace de IA sobre el estado real de la app",
+      en: "AI workspace over the real app state",
+      ca: "Workspace d'IA sobre l'estat real de l'app",
+    });
+  }
+  if (stateEl.dismissAssistant) {
+    stateEl.dismissAssistant.textContent = localizePromptLine(state.activeLanguage, {
+      pt: "Recolher",
+      es: "Plegar",
+      en: "Collapse",
+      ca: "Plegar",
     });
   }
   if (stateEl.assistantLanguageLabel) {
@@ -1147,6 +1163,25 @@ function renderAssistantLanguageUi() {
   }
   if (stateEl.assistantLanguagePill) {
     stateEl.assistantLanguagePill.textContent = formatAssistantLanguagePill(state);
+  }
+  if (Array.isArray(stateEl.assistantViewButtons)) {
+    stateEl.assistantViewButtons.forEach((button) => {
+      if (button.dataset.assistantView === "conversation") {
+        button.textContent = localizePromptLine(state.activeLanguage, {
+          pt: "Conversa",
+          es: "Conversacion",
+          en: "Conversation",
+          ca: "Conversa",
+        });
+      } else if (button.dataset.assistantView === "insights") {
+        button.textContent = localizePromptLine(state.activeLanguage, {
+          pt: "Insights",
+          es: "Insights",
+          en: "Insights",
+          ca: "Insights",
+        });
+      }
+    });
   }
 }
 
@@ -1367,6 +1402,206 @@ function renderAssistantCards(result) {
   stateEl.assistantActions.innerHTML = sections.join("");
 }
 
+function switchAssistantView(viewKey) {
+  uiState.assistantView = String(viewKey || "") === "insights" ? "insights" : "conversation";
+  if (Array.isArray(stateEl.assistantViewButtons)) {
+    stateEl.assistantViewButtons.forEach((button) => {
+      const isActive = button.dataset.assistantView === uiState.assistantView;
+      button.classList.toggle("active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+  }
+  if (Array.isArray(stateEl.assistantViewPanels)) {
+    stateEl.assistantViewPanels.forEach((panel) => {
+      const isActive = panel.dataset.assistantViewPanel === uiState.assistantView;
+      panel.classList.toggle("active", isActive);
+      panel.classList.toggle("hidden", !isActive);
+    });
+  }
+}
+
+function renderAssistantWorkspaceLayout() {
+  const isOpen = uiState.assistantOpen === true;
+  const isExpanded = isOpen && uiState.assistantExpanded === true;
+  if (stateEl.shellGrid) {
+    stateEl.shellGrid.classList.toggle("assistant-open", isOpen);
+    stateEl.shellGrid.classList.toggle("assistant-expanded", isExpanded);
+  }
+  if (stateEl.assistantWorkspace) {
+    stateEl.assistantWorkspace.classList.toggle("hidden", !isOpen);
+    stateEl.assistantWorkspace.classList.toggle("expanded", isExpanded);
+  }
+  if (stateEl.openAssistant) {
+    stateEl.openAssistant.classList.toggle("ok", isOpen);
+    stateEl.openAssistant.setAttribute("aria-pressed", isOpen ? "true" : "false");
+  }
+  if (stateEl.assistantExpand) {
+    stateEl.assistantExpand.textContent = localizePromptLine(getAssistantLanguage(), {
+      pt: isExpanded ? "Fixar lateral" : "Expandir",
+      es: isExpanded ? "Volver al lateral" : "Expandir",
+      en: isExpanded ? "Dock view" : "Expand",
+      ca: isExpanded ? "Tornar al lateral" : "Expandir",
+    });
+  }
+  switchAssistantView(uiState.assistantView);
+}
+
+function buildAssistantContextPills(report, intelligenceSnapshot) {
+  const languageKey = getAssistantLanguage();
+  const dataIntelligence = intelligenceSnapshot.dataIntelligence || {};
+  const qualityState = dataIntelligence.QUALITY_STATE || {};
+  const riskState = dataIntelligence.RISK_STATE || {};
+  const nextAction = intelligenceSnapshot.autonomous?.nextActions?.[0] || riskState.priorityQueue?.[0] || null;
+  const focusIssue = nextAction?.issueCode || report?.issues?.[0]?.code || "";
+  const pills = [
+    localizePromptLine(languageKey, {
+      pt: `Run: ${report ? "carregada" : "nenhuma"}`,
+      es: `Run: ${report ? "cargada" : "ninguna"}`,
+      en: `Run: ${report ? "loaded" : "none"}`,
+      ca: `Run: ${report ? "carregada" : "cap"}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Escopo: ${uiState.activeView}`,
+      es: `Scope: ${uiState.activeView}`,
+      en: `Scope: ${uiState.activeView}`,
+      ca: `Abast: ${uiState.activeView}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Trajetoria: ${qualityState.trajectory || "stable"}`,
+      es: `Trayectoria: ${qualityState.trajectory || "stable"}`,
+      en: `Trajectory: ${qualityState.trajectory || "stable"}`,
+      ca: `Trajectoria: ${qualityState.trajectory || "stable"}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `High risk: ${riskState.highRiskAlertCount || 0}`,
+      es: `High risk: ${riskState.highRiskAlertCount || 0}`,
+      en: `High risk: ${riskState.highRiskAlertCount || 0}`,
+      ca: `High risk: ${riskState.highRiskAlertCount || 0}`,
+    }),
+  ];
+  if (focusIssue) {
+    pills.push(localizePromptLine(languageKey, {
+      pt: `Foco: ${focusIssue}`,
+      es: `Foco: ${focusIssue}`,
+      en: `Focus: ${focusIssue}`,
+      ca: `Focus: ${focusIssue}`,
+    }));
+  }
+  return pills;
+}
+
+function buildAssistantInsightsMarkup(report, intelligenceSnapshot) {
+  if (!stateEl.assistantInsights) return;
+  const languageKey = getAssistantLanguage();
+  const dataIntelligence = intelligenceSnapshot.dataIntelligence || {};
+  const qualityState = dataIntelligence.QUALITY_STATE || {};
+  const riskState = dataIntelligence.RISK_STATE || {};
+  const trendState = dataIntelligence.TREND_STATE || {};
+  const memory = intelligenceSnapshot.learningMemory || {};
+  const healing = intelligenceSnapshot.selfHealing || {};
+  const optimization = intelligenceSnapshot.optimization || {};
+  const nextActions = intelligenceSnapshot.autonomous?.nextActions || [];
+  const predictiveAlerts = intelligenceSnapshot.predictive?.alerts || [];
+  const cards = [
+    {
+      label: localizePromptLine(languageKey, { pt: "Current context", es: "Contexto actual", en: "Current context", ca: "Context actual" }),
+      title: report ? String(report.meta?.baseUrl || "") : localizePromptLine(languageKey, { pt: "Nenhuma auditoria carregada", es: "Ninguna auditoria cargada", en: "No audit loaded", ca: "Cap auditoria carregada" }),
+      items: [
+        localizePromptLine(languageKey, {
+          pt: `View ativa: ${uiState.activeView}`,
+          es: `Vista activa: ${uiState.activeView}`,
+          en: `Active view: ${uiState.activeView}`,
+          ca: `Vista activa: ${uiState.activeView}`,
+        }),
+        localizePromptLine(languageKey, {
+          pt: `Modo da IA: ${uiState.assistantResult?.modeName || uiState.assistantResult?.modeKey || "auto"}`,
+          es: `Modo de IA: ${uiState.assistantResult?.modeName || uiState.assistantResult?.modeKey || "auto"}`,
+          en: `AI mode: ${uiState.assistantResult?.modeName || uiState.assistantResult?.modeKey || "auto"}`,
+          ca: `Mode d'IA: ${uiState.assistantResult?.modeName || uiState.assistantResult?.modeKey || "auto"}`,
+        }),
+      ],
+    },
+    {
+      label: localizePromptLine(languageKey, { pt: "Quality", es: "Quality", en: "Quality", ca: "Quality" }),
+      title: localizePromptLine(languageKey, {
+        pt: `Score ${qualityState.overallScore || 0} · ${qualityState.trajectory || "stable"}`,
+        es: `Score ${qualityState.overallScore || 0} · ${qualityState.trajectory || "stable"}`,
+        en: `Score ${qualityState.overallScore || 0} · ${qualityState.trajectory || "stable"}`,
+        ca: `Score ${qualityState.overallScore || 0} · ${qualityState.trajectory || "stable"}`,
+      }),
+      items: [
+        `SEO ${qualityState.seoScore || 0}`,
+        `UX ${Math.round(toNumber(qualityState.dimensions?.uxQuality, 0))}`,
+        localizePromptLine(languageKey, {
+          pt: `Confianca ${Math.round(toNumber(qualityState.trajectoryConfidence, 0) * 100)}%`,
+          es: `Confianza ${Math.round(toNumber(qualityState.trajectoryConfidence, 0) * 100)}%`,
+          en: `Confidence ${Math.round(toNumber(qualityState.trajectoryConfidence, 0) * 100)}%`,
+          ca: `Confianca ${Math.round(toNumber(qualityState.trajectoryConfidence, 0) * 100)}%`,
+        }),
+      ],
+    },
+    {
+      label: localizePromptLine(languageKey, { pt: "Risk", es: "Riesgo", en: "Risk", ca: "Risc" }),
+      title: localizePromptLine(languageKey, {
+        pt: `${riskState.highRiskAlertCount || 0} alertas altas`,
+        es: `${riskState.highRiskAlertCount || 0} alertas altas`,
+        en: `${riskState.highRiskAlertCount || 0} high alerts`,
+        ca: `${riskState.highRiskAlertCount || 0} alertes altes`,
+      }),
+      items: (predictiveAlerts.slice(0, 3).map((alert) => String(alert?.summary || alert?.title || "").trim()).filter(Boolean)),
+    },
+    {
+      label: localizePromptLine(languageKey, { pt: "Next actions", es: "Siguientes acciones", en: "Next actions", ca: "Següents accions" }),
+      title: localizePromptLine(languageKey, {
+        pt: nextActions[0]?.actionLabel || "Nenhuma acao lider",
+        es: nextActions[0]?.actionLabel || "Ninguna accion lider",
+        en: nextActions[0]?.actionLabel || "No lead action",
+        ca: nextActions[0]?.actionLabel || "Cap accio lider",
+      }),
+      items: nextActions.slice(0, 3).map((item) => `${item.issueCode || ""} · ${item.playbookTitle || item.actionLabel || ""}`),
+    },
+    {
+      label: localizePromptLine(languageKey, { pt: "Memory and healing", es: "Memoria y healing", en: "Memory and healing", ca: "Memoria i healing" }),
+      title: localizePromptLine(languageKey, {
+        pt: `${memory?.summary?.entries || 0} patterns · ${healing?.summary?.eligible || 0} elegiveis`,
+        es: `${memory?.summary?.entries || 0} patterns · ${healing?.summary?.eligible || 0} elegibles`,
+        en: `${memory?.summary?.entries || 0} patterns · ${healing?.summary?.eligible || 0} eligible`,
+        ca: `${memory?.summary?.entries || 0} patterns · ${healing?.summary?.eligible || 0} elegibles`,
+      }),
+      items: [
+        localizePromptLine(languageKey, {
+          pt: `Trend ${trendState.overallDirection || "stable"}`,
+          es: `Trend ${trendState.overallDirection || "stable"}`,
+          en: `Trend ${trendState.overallDirection || "stable"}`,
+          ca: `Trend ${trendState.overallDirection || "stable"}`,
+        }),
+        localizePromptLine(languageKey, {
+          pt: `${optimization?.topImprovements?.length || 0} oportunidades estruturais`,
+          es: `${optimization?.topImprovements?.length || 0} oportunidades estructurales`,
+          en: `${optimization?.topImprovements?.length || 0} structural opportunities`,
+          ca: `${optimization?.topImprovements?.length || 0} oportunitats estructurals`,
+        }),
+      ],
+    },
+  ];
+  stateEl.assistantInsights.innerHTML = cards.map((card) => `
+    <article class="assistant-insight-card">
+      <span class="info-label">${escapeHtml(card.label)}</span>
+      <strong>${escapeHtml(card.title || "")}</strong>
+      <div class="assistant-insight-items">
+        ${(Array.isArray(card.items) && card.items.length
+          ? card.items.map((item) => `<p>${escapeHtml(String(item || ""))}</p>`).join("")
+          : `<p>${escapeHtml(localizePromptLine(languageKey, {
+              pt: "Sem sinal relevante nesta area ainda.",
+              es: "Sin señal relevante en esta área todavía.",
+              en: "No relevant signal in this area yet.",
+              ca: "Sense cap senyal rellevant en aquesta àrea encara.",
+            }))}</p>`)}
+      </div>
+    </article>
+  `).join("");
+}
+
 function rerenderAssistantInActiveLanguage() {
   const service = ensureAssistantService();
   if (!service) {
@@ -1414,7 +1649,7 @@ function toggleCommandPalette(forceOpen = null) {
 
 function toggleAssistant(forceOpen = null) {
   uiState.assistantOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
-  stateEl.assistantOverlay.classList.toggle("hidden", !uiState.assistantOpen);
+  renderAssistantWorkspaceLayout();
   if (uiState.assistantOpen) {
     hideMenuFlyout();
     if (uiState.commandPaletteOpen) {
@@ -1426,6 +1661,11 @@ function toggleAssistant(forceOpen = null) {
     }, 0);
   }
   renderAssistantState();
+}
+
+function toggleAssistantExpanded(forceExpanded = null) {
+  uiState.assistantExpanded = forceExpanded === null ? !uiState.assistantExpanded : forceExpanded === true;
+  renderAssistantWorkspaceLayout();
 }
 
 function showToast(message, tone = "ok") {
@@ -6054,6 +6294,7 @@ function ensureAssistantService() {
 
 function renderAssistantState() {
   renderAssistantLanguageUi();
+  renderAssistantWorkspaceLayout();
   const report = getVisibleReport();
   const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
   const memory = intelligenceSnapshot.learningMemory;
@@ -6086,6 +6327,12 @@ function renderAssistantState() {
         en: `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | view ${uiState.activeView}`,
         ca: `Cap auditoria carregada | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunitats | view ${uiState.activeView}`,
       });
+  if (stateEl.assistantContextPills) {
+    stateEl.assistantContextPills.innerHTML = buildAssistantContextPills(report, intelligenceSnapshot)
+      .map((pill) => `<span class="assistant-context-chip">${escapeHtml(pill)}</span>`)
+      .join("");
+  }
+  buildAssistantInsightsMarkup(report, intelligenceSnapshot);
 
   const result = uiState.assistantResult;
   if (!result) {
@@ -7273,10 +7520,9 @@ function bindButtons() {
     }
   });
   stateEl.dismissAssistant.addEventListener("click", () => toggleAssistant(false));
-  stateEl.assistantOverlay.addEventListener("click", (event) => {
-    if (event.target === stateEl.assistantOverlay) {
-      toggleAssistant(false);
-    }
+  stateEl.assistantExpand.addEventListener("click", () => toggleAssistantExpanded());
+  stateEl.assistantViewButtons.forEach((button) => {
+    button.addEventListener("click", () => switchAssistantView(button.dataset.assistantView || "conversation"));
   });
   stateEl.assistantAsk.addEventListener("click", async () => runAssistantQuery(stateEl.assistantInput.value));
   stateEl.assistantQuickPriorities.addEventListener("click", async () => {

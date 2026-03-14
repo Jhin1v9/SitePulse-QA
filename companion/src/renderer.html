@@ -23,7 +23,7 @@
           <span class="status-chip" id="bridgeChip">engine offline</span>
           <span class="status-chip" id="auditChip">audit idle</span>
           <span class="status-chip ok" id="buildChip">studio build</span>
-          <button id="openAssistant" class="status-chip status-btn" type="button">assistant</button>
+          <button id="openAssistant" class="status-chip status-btn" type="button">AI workspace</button>
           <button id="openCommandPalette" class="status-chip status-btn" type="button">command palette</button>
         </div>
 
@@ -35,7 +35,7 @@
         </div>
       </header>
 
-      <main class="shell-grid">
+      <main id="shellGrid" class="shell-grid">
         <section class="workspace-shell">
           <section class="workbench-bar">
             <div class="menu-strip">
@@ -60,7 +60,7 @@
             </div>
 
             <div class="workbench-utility">
-              <span class="utility-hint">Ctrl+K for command palette · Ctrl+J for assistant</span>
+              <span class="utility-hint">Ctrl+K for command palette · Ctrl+J for AI workspace</span>
             </div>
           </section>
 
@@ -1441,6 +1441,118 @@
           </section>
           </section>
         </section>
+
+        <aside id="assistantWorkspace" class="assistant-workspace hidden" aria-label="AI Workspace">
+          <div class="assistant-workspace-shell">
+            <header class="assistant-workspace-head">
+              <div>
+                <p id="assistantEyebrow" class="eyebrow">operational assistant</p>
+                <h3 id="assistantTitle">Reason over the real app state</h3>
+              </div>
+              <div class="assistant-head-actions">
+                <button id="assistantExpand" class="ghost" type="button">Expand</button>
+                <button id="dismissAssistant" class="ghost" type="button">Collapse</button>
+              </div>
+            </header>
+
+            <div class="assistant-identity-row">
+              <span id="assistantModePill" class="pill">Mode: auto</span>
+              <span id="assistantIntentPill" class="pill">Intent: waiting</span>
+              <span id="assistantLanguagePill" class="pill">Language: auto</span>
+            </div>
+
+            <div id="assistantContextPills" class="assistant-context-pills">
+              <span class="assistant-context-chip">Run: not loaded</span>
+              <span class="assistant-context-chip">Scope: overview</span>
+              <span class="assistant-context-chip">Focus: waiting</span>
+            </div>
+
+            <div class="assistant-workspace-tabs">
+              <button class="assistant-view-tab active" data-assistant-view="conversation" type="button">Conversation</button>
+              <button class="assistant-view-tab" data-assistant-view="insights" type="button">Insights</button>
+            </div>
+
+            <div class="assistant-workspace-body">
+              <section class="assistant-view-panel assistant-view-panel-conversation active" data-assistant-view-panel="conversation">
+                <article class="assistant-stage-card">
+                  <div class="assistant-stage-head">
+                    <div>
+                      <p class="eyebrow">active scope</p>
+                      <h4>Live context</h4>
+                    </div>
+                  </div>
+                  <div id="assistantContextSummary" class="assistant-context-box">The assistant will use the current report, memory, logs and workspace state.</div>
+                  <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
+                </article>
+
+                <article class="assistant-stage-card assistant-conversation-card">
+                  <div class="assistant-stage-head">
+                    <div>
+                      <p class="eyebrow">conversation</p>
+                      <h4>Work beside the app</h4>
+                    </div>
+                  </div>
+                  <div id="assistantResponse" class="prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
+                </article>
+
+                <article class="assistant-stage-card">
+                  <div class="assistant-stage-head">
+                    <div>
+                      <p class="eyebrow">quick tools</p>
+                      <h4>Suggested actions</h4>
+                    </div>
+                  </div>
+                  <div class="assistant-quick-grid">
+                    <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
+                    <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
+                    <button id="assistantQuickPrompt" type="button">Generate prompt</button>
+                    <button id="assistantQuickGuide" type="button">Explain this workspace</button>
+                  </div>
+                  <div id="assistantActions" class="assistant-action-stack">
+                    <article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>
+                  </div>
+                </article>
+              </section>
+
+              <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
+                <article class="assistant-stage-card assistant-insights-card">
+                  <div class="assistant-stage-head">
+                    <div>
+                      <p class="eyebrow">ai metrics</p>
+                      <h4>Operational intelligence</h4>
+                    </div>
+                  </div>
+                  <div id="assistantInsights" class="assistant-insights-grid">
+                    <article class="assistant-insight-card">
+                      <span class="info-label">Current context</span>
+                      <strong>Load a report to unlock AI insights.</strong>
+                    </article>
+                  </div>
+                </article>
+              </section>
+            </div>
+
+            <footer class="assistant-composer">
+              <label class="toolbar-field assistant-composer-field">
+                <span id="assistantInputLabel" class="field-label">Ask the assistant</span>
+                <input id="assistantInput" class="toolbar-input" type="search" placeholder="analyse the latest SEO issues, compare runs, explain SEO_LANG_MISSING..." />
+              </label>
+              <div class="assistant-composer-actions">
+                <label class="toolbar-field toolbar-field-compact assistant-language-field">
+                  <span id="assistantLanguageLabel" class="field-label">Assistant language</span>
+                  <select id="assistantLanguageSelect" class="toolbar-select">
+                    <option value="auto">Auto</option>
+                    <option value="pt">Português</option>
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="ca">Català</option>
+                  </select>
+                </label>
+                <button id="assistantAsk" class="primary" type="button">Run analysis</button>
+              </div>
+            </footer>
+          </div>
+        </aside>
       </main>
     </div>
 
@@ -1485,7 +1597,7 @@
           <article><strong>Ctrl+1..8</strong><span>Switch between overview, operations, findings, SEO, prompts, compare, reports and settings</span></article>
           <article><strong>Ctrl+9</strong><span>Open the embedded preview workspace</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
-          <article><strong>Ctrl+J</strong><span>Open the operational assistant</span></article>
+          <article><strong>Ctrl+J</strong><span>Open the AI workspace</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
           <article><strong>Ctrl+Shift+C</strong><span>Open the full CMD flow</span></article>
@@ -1511,50 +1623,6 @@
           <input id="commandPaletteSearch" class="toolbar-input" type="search" placeholder="run audit, open reports, go to findings..." />
         </label>
         <div id="commandPaletteList" class="explorer-list command-palette-list"></div>
-      </div>
-    </div>
-
-    <div id="assistantOverlay" class="shortcuts-overlay hidden">
-      <div class="shortcuts-card command-palette-card">
-        <div class="panel-head split-head">
-          <div>
-            <p id="assistantEyebrow" class="eyebrow">operational assistant</p>
-            <h3 id="assistantTitle">Reason over the real app state</h3>
-          </div>
-          <button id="dismissAssistant" class="ghost" type="button">Close</button>
-        </div>
-        <div id="assistantContextSummary" class="prompt-box">The assistant will use the current report, memory, logs and workspace state.</div>
-        <div class="action-row wrap">
-          <span id="assistantModePill" class="pill">Mode: auto</span>
-          <span id="assistantIntentPill" class="pill">Intent: waiting</span>
-          <span id="assistantLanguagePill" class="pill">Language: auto</span>
-          <label class="toolbar-field toolbar-field-compact">
-            <span id="assistantLanguageLabel" class="field-label">Assistant language</span>
-            <select id="assistantLanguageSelect" class="toolbar-select">
-              <option value="auto">Auto</option>
-              <option value="pt">Português</option>
-              <option value="es">Español</option>
-              <option value="en">English</option>
-              <option value="ca">Català</option>
-            </select>
-          </label>
-        </div>
-        <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
-        <label class="toolbar-field">
-          <span id="assistantInputLabel" class="field-label">Ask the assistant</span>
-          <input id="assistantInput" class="toolbar-input" type="search" placeholder="analyse the latest SEO issues, compare runs, explain SEO_LANG_MISSING..." />
-        </label>
-        <div class="action-row wrap">
-          <button id="assistantAsk" class="primary" type="button">Run analysis</button>
-          <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
-          <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
-          <button id="assistantQuickPrompt" type="button">Generate prompt</button>
-          <button id="assistantQuickGuide" type="button">Explain this workspace</button>
-        </div>
-        <div id="assistantResponse" class="prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
-        <div id="assistantActions" class="explorer-list command-palette-list">
-          <article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>
-        </div>
       </div>
     </div>
 

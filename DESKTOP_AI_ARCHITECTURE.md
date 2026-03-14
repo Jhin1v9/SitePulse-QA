@@ -671,7 +671,7 @@ Current scope:
 
 Current integration points:
 
-- assistant drawer UI labels and quick actions
+- AI workspace UI labels and quick actions
 - assistant response rendering
 - prompt request generation
 - mode name / mode description localization
@@ -690,6 +690,11 @@ Files:
 
 Responsibilities:
 
+- render a docked AI workspace instead of a blocking modal:
+  - docked right workspace
+  - expandable mode
+  - conversation and insights as separate internal views
+  - usable in parallel with the rest of the app
 - detect conversational intent beyond operational commands:
   - greeting
   - thanks
@@ -717,6 +722,11 @@ Responsibilities:
   - copy
   - send to Prompt Workspace
   - save locally
+- keep metrics and operational intelligence out of the main conversation flow:
+  - context pills
+  - insights panel
+  - next actions
+  - quality / risk / memory summary
 
 Important constraint:
 
