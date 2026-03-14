@@ -1,10 +1,13 @@
-﻿const STORAGE_KEYS = {
+const STORAGE_KEYS = {
   lastReport: "sitepulse-studio:last-report-v1",
   lastProfile: "sitepulse-studio:last-profile-v1",
   runHistory: "sitepulse-studio:run-history-v1",
   onboarding: "sitepulse-studio:onboarding-v1",
   baseline: "sitepulse-studio:baseline-v1",
   assistantConversation: "sitepulse-studio:assistant-conversation-v1",
+  assistantConversationList: "sitepulse-studio:assistant-conversation-list-v1",
+  assistantConversationMessages: "sitepulse-studio:assistant-conversation-messages-v1",
+  assistantCurrentConversationId: "sitepulse-studio:assistant-current-conversation-id-v1",
   assistantSavedPrompts: "sitepulse-studio:assistant-saved-prompts-v1",
 };
 
@@ -458,6 +461,8 @@ const stateEl = {
   assistantModePill: document.getElementById("assistantModePill"),
   assistantIntentPill: document.getElementById("assistantIntentPill"),
   assistantLanguagePill: document.getElementById("assistantLanguagePill"),
+  assistantOperatorStatus: document.getElementById("assistantOperatorStatus"),
+  assistantOperatorStatusText: document.getElementById("assistantOperatorStatusText"),
   assistantLanguageLabel: document.getElementById("assistantLanguageLabel"),
   assistantLanguageSelect: document.getElementById("assistantLanguageSelect"),
   assistantModeSummary: document.getElementById("assistantModeSummary"),
@@ -466,6 +471,9 @@ const stateEl = {
   assistantInsights: document.getElementById("assistantInsights"),
   assistantResponse: document.getElementById("assistantResponse"),
   assistantActions: document.getElementById("assistantActions"),
+  assistantNewChat: document.getElementById("assistantNewChat"),
+  assistantConversationSearch: document.getElementById("assistantConversationSearch"),
+  assistantConversationList: document.getElementById("assistantConversationList"),
   evidenceLightbox: document.getElementById("evidenceLightbox"),
   dismissEvidenceLightbox: document.getElementById("dismissEvidenceLightbox"),
   evidenceLightboxTitle: document.getElementById("evidenceLightboxTitle"),
@@ -528,6 +536,9 @@ const uiState = {
   assistantQuery: "",
   assistantResult: null,
   assistantConversation: loadAssistantConversation(),
+  currentConversationId: loadCurrentConversationId(),
+  conversationList: loadConversationList(),
+  assistantConversationSearch: "",
   assistantSavedPrompts: loadAssistantSavedPrompts(),
   assistantService: null,
   adaptiveLanguageService: null,
@@ -1010,14 +1021,100 @@ function pruneAssistantConversation(entries) {
     .slice(-20);
 }
 
+const CONVERSATION_LIST_LIMIT = 50;
+const CONVERSATION_MESSAGE_LIMIT = 100;
+
+function loadConversationList() {
+  const raw = readStorage(STORAGE_KEYS.assistantConversationList, []);
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((c) => c && typeof c === "object" && c.id)
+    .map((c) => ({
+      id: String(c.id),
+      title: String(c.title || "New chat"),
+      createdAt: String(c.createdAt || c.at || ""),
+      updatedAt: String(c.updatedAt || c.createdAt || c.at || ""),
+      pinned: Boolean(c.pinned),
+    }))
+    .slice(-CONVERSATION_LIST_LIMIT);
+}
+
+function saveConversationList(list) {
+  writeStorage(STORAGE_KEYS.assistantConversationList, list.slice(-CONVERSATION_LIST_LIMIT));
+}
+
+function loadConversationMessages(conversationId) {
+  const store = readStorage(STORAGE_KEYS.assistantConversationMessages, {});
+  const entries = store && typeof store === "object" && store[conversationId];
+  return pruneAssistantConversation(Array.isArray(entries) ? entries : []);
+}
+
+function saveConversationMessages(conversationId, entries) {
+  const store = readStorage(STORAGE_KEYS.assistantConversationMessages, {});
+  const next = { ...(store && typeof store === "object" ? store : {}), [conversationId]: pruneAssistantConversation(entries) };
+  writeStorage(STORAGE_KEYS.assistantConversationMessages, next);
+}
+
+function loadCurrentConversationId() {
+  return String(readStorage(STORAGE_KEYS.assistantCurrentConversationId, "") || "").trim() || null;
+}
+
+function saveCurrentConversationId(id) {
+  writeStorage(STORAGE_KEYS.assistantCurrentConversationId, id || "");
+}
+
+function migrateLegacyAssistantConversationToConversations() {
+  const list = loadConversationList();
+  if (list.length > 0) return;
+  const legacy = readStorage(STORAGE_KEYS.assistantConversation, []);
+  const entries = pruneAssistantConversation(Array.isArray(legacy) ? legacy : []);
+  if (entries.length === 0) return;
+  const id = `conv-${Date.now()}`;
+  const now = new Date().toISOString();
+  const firstUser = entries.find((e) => e.role === "user");
+  const title = firstUser && firstUser.text ? String(firstUser.text).slice(0, 48).trim() || "New chat" : "New chat";
+  const meta = { id, title, createdAt: now, updatedAt: now, pinned: false };
+  saveConversationList([meta]);
+  saveConversationMessages(id, entries);
+  saveCurrentConversationId(id);
+}
+
 function loadAssistantConversation() {
-  const source = readStorage(STORAGE_KEYS.assistantConversation, []);
-  return pruneAssistantConversation(source);
+  migrateLegacyAssistantConversationToConversations();
+  const list = loadConversationList();
+  let currentId = loadCurrentConversationId();
+  if (!currentId && list.length > 0) currentId = list[list.length - 1].id;
+  if (!currentId) {
+    const id = `conv-${Date.now()}`;
+    const now = new Date().toISOString();
+    saveConversationList([{ id, title: "New chat", createdAt: now, updatedAt: now, pinned: false }]);
+    saveCurrentConversationId(id);
+    return [];
+  }
+  return loadConversationMessages(currentId);
 }
 
 function persistAssistantConversation() {
   uiState.assistantConversation = pruneAssistantConversation(uiState.assistantConversation);
-  writeStorage(STORAGE_KEYS.assistantConversation, uiState.assistantConversation);
+  const id = uiState.currentConversationId;
+  if (id) {
+    saveConversationMessages(id, uiState.assistantConversation);
+    const list = loadConversationList();
+    const idx = list.findIndex((c) => c.id === id);
+    if (idx >= 0) {
+      const meta = list[idx];
+      const firstUser = uiState.assistantConversation.find((e) => e.role === "user");
+      let title = meta.title;
+      if ((!title || title === "New chat") && firstUser && firstUser.text) {
+        title = String(firstUser.text).slice(0, 48).trim() || "New chat";
+      }
+      list[idx] = { ...meta, title, updatedAt: new Date().toISOString() };
+      saveConversationList(list);
+      uiState.conversationList = loadConversationList();
+    }
+  } else {
+    writeStorage(STORAGE_KEYS.assistantConversation, uiState.assistantConversation);
+  }
 }
 
 function loadAssistantSavedPrompts() {
@@ -1287,6 +1384,47 @@ function createAssistantResultEntry(result) {
     intentId: String(result?.intentId || ""),
     at: new Date().toISOString(),
   };
+}
+
+function createNewConversation() {
+  const id = `conv-${Date.now()}`;
+  const now = new Date().toISOString();
+  const list = [...uiState.conversationList, { id, title: "New chat", createdAt: now, updatedAt: now, pinned: false }];
+  uiState.conversationList = list.slice(-CONVERSATION_LIST_LIMIT);
+  uiState.currentConversationId = id;
+  uiState.assistantConversation = [];
+  saveConversationList(uiState.conversationList);
+  saveCurrentConversationId(id);
+  saveConversationMessages(id, []);
+  renderAssistantState();
+}
+
+function selectConversation(conversationId) {
+  if (!conversationId || conversationId === uiState.currentConversationId) return;
+  persistAssistantConversation();
+  uiState.currentConversationId = conversationId;
+  uiState.assistantConversation = loadConversationMessages(conversationId);
+  saveCurrentConversationId(conversationId);
+  renderAssistantState();
+}
+
+function renderConversationList() {
+  if (!stateEl.assistantConversationList) return;
+  const q = String(uiState.assistantConversationSearch || "").trim().toLowerCase();
+  let items = uiState.conversationList.slice().sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+  if (items.some((c) => c.pinned)) {
+    items = [...items.filter((c) => c.pinned), ...items.filter((c) => !c.pinned)];
+  }
+  if (q) items = items.filter((c) => (c.title || "").toLowerCase().includes(q));
+  stateEl.assistantConversationList.innerHTML = items.map((c) => {
+    const active = c.id === uiState.currentConversationId ? " active" : "";
+    const title = escapeHtml(c.title || "New chat");
+    const meta = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+    return `<button type="button" class="assistant-conversation-item${active}" data-conversation-id="${escapeHtml(c.id)}" role="listitem"><span class="conversation-title">${title}</span>${meta ? `<span class="conversation-meta">${escapeHtml(meta)}</span>` : ""}</button>`;
+  }).join("");
+  stateEl.assistantConversationList.querySelectorAll(".assistant-conversation-item").forEach((el) => {
+    el.addEventListener("click", () => selectConversation(el.getAttribute("data-conversation-id")));
+  });
 }
 
 function renderAssistantConversation() {
@@ -6295,6 +6433,7 @@ function ensureAssistantService() {
 function renderAssistantState() {
   renderAssistantLanguageUi();
   renderAssistantWorkspaceLayout();
+  renderConversationList();
   const report = getVisibleReport();
   const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
   const memory = intelligenceSnapshot.learningMemory;
@@ -7521,6 +7660,15 @@ function bindButtons() {
   });
   stateEl.dismissAssistant.addEventListener("click", () => toggleAssistant(false));
   stateEl.assistantExpand.addEventListener("click", () => toggleAssistantExpanded());
+  if (stateEl.assistantNewChat) {
+    stateEl.assistantNewChat.addEventListener("click", () => createNewConversation());
+  }
+  if (stateEl.assistantConversationSearch) {
+    stateEl.assistantConversationSearch.addEventListener("input", () => {
+      uiState.assistantConversationSearch = stateEl.assistantConversationSearch.value || "";
+      renderConversationList();
+    });
+  }
   stateEl.assistantViewButtons.forEach((button) => {
     button.addEventListener("click", () => switchAssistantView(button.dataset.assistantView || "conversation"));
   });

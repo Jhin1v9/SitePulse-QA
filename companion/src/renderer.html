@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -36,37 +36,55 @@
       </header>
 
       <main id="shellGrid" class="shell-grid">
+        <aside class="app-sidebar">
+          <div class="sidebar-section">
+            <p class="sidebar-label">Core</p>
+            <button class="sidebar-item active" data-view="overview" type="button" title="Mission control and audit setup">Overview</button>
+            <button class="sidebar-item" data-view="operations" type="button" title="Run progress and engine timeline">Runs</button>
+            <button class="sidebar-item" data-view="findings" type="button" title="Priority issues and decision board">Findings</button>
+            <button class="sidebar-item" data-view="seo" type="button" title="SEO command room">SEO</button>
+            <button class="sidebar-item" data-view="compare" type="button" title="Delta against baseline">Compare</button>
+          </div>
+          <div class="sidebar-section">
+            <p class="sidebar-label">Intelligence</p>
+            <button class="sidebar-item" type="button" disabled>Memory</button>
+            <button class="sidebar-item" type="button" disabled>Healing</button>
+            <button class="sidebar-item" type="button" disabled>Predictive</button>
+            <button class="sidebar-item" type="button" disabled>Optimization</button>
+          </div>
+          <div class="sidebar-section">
+            <p class="sidebar-label">Productivity</p>
+            <button class="sidebar-item" data-view="prompts" type="button" title="Prompt pack and replay">Prompts</button>
+            <button class="sidebar-item" data-view="reports" type="button" title="Evidence and report vault">Reports</button>
+            <button class="sidebar-item" data-view="preview" type="button" title="Embedded site preview">Preview</button>
+          </div>
+          <div class="sidebar-section">
+            <p class="sidebar-label">System</p>
+            <button class="sidebar-item" data-view="settings" type="button" title="Engine and desktop settings">Settings</button>
+          </div>
+        </aside>
+
         <section class="workspace-shell">
           <section class="workbench-bar">
-            <div class="menu-strip">
-              <button class="menu-btn" data-menu-action="file" type="button">File</button>
-              <button class="menu-btn" data-menu-action="run" type="button">Run</button>
-              <button class="menu-btn" data-menu-action="inspect" type="button">Inspect</button>
-              <button class="menu-btn" data-menu-action="reports" type="button">Reports</button>
-              <button class="menu-btn" data-menu-action="tools" type="button">Tools</button>
-              <button class="menu-btn" data-menu-action="help" type="button">Help</button>
-            </div>
+            <div class="top-toolbar">
+              <div class="menu-strip">
+                <button class="menu-btn" data-menu-action="file" type="button">File</button>
+                <button class="menu-btn" data-menu-action="run" type="button">Run</button>
+                <button class="menu-btn" data-menu-action="inspect" type="button">Inspect</button>
+                <button class="menu-btn" data-menu-action="reports" type="button">Reports</button>
+                <button class="menu-btn" data-menu-action="tools" type="button">Tools</button>
+                <button class="menu-btn" data-menu-action="help" type="button">Help</button>
+              </div>
 
-            <div class="workspace-tabbar">
-              <button class="workspace-tab active" data-view="overview" type="button">Overview</button>
-              <button class="workspace-tab" data-view="preview" type="button">Preview</button>
-              <button class="workspace-tab" data-view="operations" type="button">Operations</button>
-              <button class="workspace-tab" data-view="findings" type="button">Findings</button>
-              <button class="workspace-tab" data-view="seo" type="button">SEO</button>
-              <button class="workspace-tab" data-view="prompts" type="button">Prompts</button>
-              <button class="workspace-tab" data-view="compare" type="button">Compare</button>
-              <button class="workspace-tab" data-view="reports" type="button">Reports</button>
-              <button class="workspace-tab" data-view="settings" type="button">Settings</button>
-            </div>
-
-            <div class="workbench-utility">
-              <span class="utility-hint">Ctrl+K for command palette · Ctrl+J for AI workspace</span>
+              <div class="workbench-utility">
+                <span class="utility-hint">Ctrl+K &mdash; Command palette · Ctrl+J &mdash; AI workspace</span>
+              </div>
             </div>
           </section>
 
           <div id="menuFlyout" class="menu-flyout hidden"></div>
 
-          <header class="panel workspace-header">
+          <header class="panel workspace-header workspace-header-compact">
             <div class="workspace-copy">
               <p class="eyebrow" id="workspaceEyebrow">mission control</p>
               <h2 id="workspaceTitle">Overview</h2>
@@ -90,16 +108,12 @@
 
           <section class="workspace-body">
             <section class="view-panel active" data-view-panel="overview">
-              <section class="panel control-panel">
+              <div class="mission-control-board">
+              <section class="panel control-panel mission-control-profile">
                 <div class="panel-head split-head">
                   <div>
                     <p class="eyebrow">audit setup</p>
                     <h3>Execution profile</h3>
-                  </div>
-                  <div class="hero-badges">
-                    <span class="badge">runtime aware</span>
-                    <span class="badge">evidence driven</span>
-                    <span class="badge">fix oriented</span>
                   </div>
                 </div>
 
@@ -268,21 +282,6 @@
                   <ol id="stepsList" class="steps-list">
                     <li>Run an audit to generate the first operating brief.</li>
                   </ol>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">product DNA</p>
-                      <h3>Why this product exists</h3>
-                    </div>
-                  </div>
-                  <ul class="dna-list">
-                    <li>Detect runtime, visual and SEO regressions in one run.</li>
-                    <li>Translate technical failure into action for operators and developers.</li>
-                    <li>Preserve evidence, replay commands and issue history in every run.</li>
-                    <li>Operate locally, close to the runtime, instead of trusting browser limitations.</li>
-                  </ul>
                 </article>
 
                 <article class="panel overview-summary-panel">
@@ -485,6 +484,7 @@
                   </div>
                 </article>
               </section>
+              </div>
             </section>
 
             <section class="view-panel" data-view-panel="preview">
@@ -716,7 +716,7 @@
               </div>
             </section>
 
-            <section class="findings-grid">
+            <section class="findings-grid findings-split-layout">
               <div class="findings-main">
                 <section class="panel issue-distribution-panel">
                   <div class="panel-head">
@@ -738,6 +738,17 @@
               </div>
 
               <div class="findings-side">
+                <article class="panel findings-inspector-panel" id="findingsInspectorPanel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">detail</p>
+                      <h3>Issue inspector</h3>
+                    </div>
+                  </div>
+                  <div id="findingsInspector" class="findings-inspector-body">
+                    <p class="muted" id="findingsInspectorPlaceholder">Select an issue from the list to view detail, suggested fix, memory context and healing status.</p>
+                  </div>
+                </article>
                 <article class="panel signals-panel">
                   <div class="panel-head">
                     <div>
@@ -939,8 +950,8 @@
             </section>
           </section>
 
-          <section class="view-panel" data-view-panel="prompts">
-            <section class="panel reports-summary-panel">
+          <section class="view-panel prompt-workspace" data-view-panel="prompts">
+            <section class="panel reports-summary-panel prompt-workspace-header">
               <div class="panel-head split-head">
                 <div>
                   <p class="eyebrow">operator prompts</p>
@@ -967,7 +978,7 @@
                 <div class="prompt-box" id="promptWorkspaceFix">Run an audit to generate a professional fix prompt.</div>
               </article>
 
-              <article class="panel prompt-panel">
+              <article class="panel prompt-panel healing-queue-panel">
                 <div class="panel-head split-head">
                   <div>
                     <p class="eyebrow">self-healing engine</p>
@@ -976,7 +987,7 @@
                   <button id="copySelfHealingSummary" class="ghost" type="button">Copy</button>
                 </div>
                 <div class="prompt-box" id="selfHealingSummary">Run an audit to see which issues are eligible for assisted correction.</div>
-                <div id="selfHealingList" class="history-list">
+                <div id="selfHealingList" class="history-list healing-queue-list">
                   <article class="empty-state">No self-healing context is loaded yet.</article>
                 </div>
               </article>
@@ -1083,7 +1094,17 @@
           </section>
 
           <section class="view-panel" data-view-panel="compare">
-            <section class="panel comparison-panel">
+            <section class="panel comparison-panel compare-split-workspace">
+              <div class="compare-split-header">
+                <div class="compare-split-col">
+                  <p class="eyebrow">baseline</p>
+                  <h3>Reference run</h3>
+                </div>
+                <div class="compare-split-col">
+                  <p class="eyebrow">current</p>
+                  <h3>Active run</h3>
+                </div>
+              </div>
               <div class="panel-head split-head">
                 <div>
                   <p class="eyebrow">comparison</p>
@@ -1181,7 +1202,7 @@
             </section>
           </section>
 
-          <section class="view-panel" data-view-panel="reports">
+          <section class="view-panel reports-workspace" data-view-panel="reports">
             <section class="panel reports-summary-panel">
               <div class="panel-head split-head">
                 <div>
@@ -1274,7 +1295,7 @@
             </section>
           </section>
 
-          <section class="view-panel" data-view-panel="settings">
+          <section class="view-panel settings-workspace" data-view-panel="settings">
             <section class="panel settings-panel">
               <div class="panel-head split-head">
                 <div>
@@ -1373,14 +1394,14 @@
                 </article>
               </div>
 
-              <article class="panel nested-panel">
+              <article class="panel nested-panel memory-workspace-panel">
                 <div class="panel-head">
                   <div>
                     <p class="eyebrow">operational memory</p>
                     <h3>Validated learnings</h3>
                   </div>
                 </div>
-                <div class="settings-grid compact-grid">
+                <div class="settings-grid compact-grid memory-filters">
                   <label class="toolbar-field">
                     <span class="field-label">Memory status</span>
                     <select id="learningMemoryStatusFilter" class="toolbar-select">
@@ -1442,8 +1463,21 @@
           </section>
         </section>
 
-        <aside id="assistantWorkspace" class="assistant-workspace hidden" aria-label="AI Workspace">
-          <div class="assistant-workspace-shell">
+        <aside id="assistantWorkspace" class="assistant-workspace right-context-panel hidden" aria-label="AI Workspace">
+          <div class="assistant-workspace-layout">
+            <nav class="assistant-conversation-history" aria-label="Conversation history">
+              <div class="assistant-history-head">
+                <button id="assistantNewChat" class="primary" type="button">New chat</button>
+                <label class="toolbar-field assistant-history-search">
+                  <span class="visually-hidden">Search conversations</span>
+                  <input id="assistantConversationSearch" class="toolbar-input" type="search" placeholder="Search conversations..." />
+                </label>
+              </div>
+              <div id="assistantConversationList" class="assistant-conversation-list" role="list">
+                <!-- Filled by JS: recent and pinned conversations -->
+              </div>
+            </nav>
+            <div class="assistant-workspace-shell">
             <header class="assistant-workspace-head">
               <div>
                 <p id="assistantEyebrow" class="eyebrow">operational assistant</p>
@@ -1460,6 +1494,10 @@
               <span id="assistantIntentPill" class="pill">Intent: waiting</span>
               <span id="assistantLanguagePill" class="pill">Language: auto</span>
             </div>
+            <div id="assistantOperatorStatus" class="assistant-operator-status hidden" aria-live="polite">
+              <span class="assistant-operator-status-label">Operator</span>
+              <span id="assistantOperatorStatusText" class="assistant-operator-status-text">—</span>
+            </div>
 
             <div id="assistantContextPills" class="assistant-context-pills">
               <span class="assistant-context-chip">Run: not loaded</span>
@@ -1474,28 +1512,17 @@
 
             <div class="assistant-workspace-body">
               <section class="assistant-view-panel assistant-view-panel-conversation active" data-assistant-view-panel="conversation">
-                <article class="assistant-stage-card">
-                  <div class="assistant-stage-head">
-                    <div>
-                      <p class="eyebrow">active scope</p>
-                      <h4>Live context</h4>
-                    </div>
-                  </div>
-                  <div id="assistantContextSummary" class="assistant-context-box">The assistant will use the current report, memory, logs and workspace state.</div>
-                  <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
-                </article>
-
-                <article class="assistant-stage-card assistant-conversation-card">
+                <article class="assistant-stage-card assistant-conversation-card assistant-chat-primary">
                   <div class="assistant-stage-head">
                     <div>
                       <p class="eyebrow">conversation</p>
                       <h4>Work beside the app</h4>
                     </div>
                   </div>
-                  <div id="assistantResponse" class="prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
+                  <div id="assistantResponse" class="assistant-chat-thread prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
                 </article>
 
-                <article class="assistant-stage-card">
+                <article class="assistant-stage-card assistant-quick-actions-card">
                   <div class="assistant-stage-head">
                     <div>
                       <p class="eyebrow">quick tools</p>
@@ -1515,6 +1542,16 @@
               </section>
 
               <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
+                <article class="assistant-stage-card assistant-context-diagnostics">
+                  <div class="assistant-stage-head">
+                    <div>
+                      <p class="eyebrow">active scope</p>
+                      <h4>Live context</h4>
+                    </div>
+                  </div>
+                  <div id="assistantContextSummary" class="assistant-context-box">The assistant will use the current report, memory, logs and workspace state.</div>
+                  <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
+                </article>
                 <article class="assistant-stage-card assistant-insights-card">
                   <div class="assistant-stage-head">
                     <div>
@@ -1551,6 +1588,7 @@
                 <button id="assistantAsk" class="primary" type="button">Run analysis</button>
               </div>
             </footer>
+            </div>
           </div>
         </aside>
       </main>
