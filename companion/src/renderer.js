@@ -272,6 +272,17 @@ const stateEl = {
   visualQualityHeadline: document.getElementById("visualQualityHeadline"),
   visualQualityDetail: document.getElementById("visualQualityDetail"),
   stepsList: document.getElementById("stepsList"),
+  executiveSummaryHeadline: document.getElementById("executiveSummaryHeadline"),
+  executivePriorityP0: document.getElementById("executivePriorityP0"),
+  executivePriorityP1: document.getElementById("executivePriorityP1"),
+  executivePriorityP2: document.getElementById("executivePriorityP2"),
+  executiveTrendSeo: document.getElementById("executiveTrendSeo"),
+  executiveTrendRuntime: document.getElementById("executiveTrendRuntime"),
+  executiveTrendUx: document.getElementById("executiveTrendUx"),
+  executiveSummaryTopRisks: document.getElementById("executiveSummaryTopRisks"),
+  executiveSummaryTopOpportunities: document.getElementById("executiveSummaryTopOpportunities"),
+  executiveSummaryActionOrder: document.getElementById("executiveSummaryActionOrder"),
+  executiveSummaryPatterns: document.getElementById("executiveSummaryPatterns"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
@@ -789,6 +800,21 @@ function severityRank(severity) {
   return 1;
 }
 
+function priorityRank(priorityLevel) {
+  switch (String(priorityLevel || "").toUpperCase()) {
+    case "P0":
+      return 0;
+    case "P1":
+      return 1;
+    case "P2":
+      return 2;
+    case "P3":
+      return 3;
+    default:
+      return 4;
+  }
+}
+
 function scoreFromIssues(issues) {
   const high = issues.filter((issue) => issue.severity === "high").length;
   const medium = issues.filter((issue) => issue.severity === "medium").length;
@@ -1245,6 +1271,7 @@ function normalizeIssue(item, index) {
     assistantHint: issue.assistantHint && typeof issue.assistantHint === "object" ? issue.assistantHint : {},
     diagnosis: normalizeDiagnosis(issue.diagnosis && typeof issue.diagnosis === "object" ? issue.diagnosis : {}),
     evidence: Array.isArray(issue.evidence) ? issue.evidence.map(normalizeEvidenceItem).filter((item) => item.path) : [],
+    impact: normalizeImpact(issue.impact),
     selfHealing: normalizeSelfHealingStrategy(issue.selfHealing, index),
   };
 }
@@ -1301,6 +1328,72 @@ function summarizeAssistantGuide(guide = {}) {
   };
 }
 
+function normalizeImpact(input) {
+  const source = input && typeof input === "object" ? input : {};
+  return {
+    impactScore: toNumber(source.impactScore, 0),
+    impactCategory: String(source.impactCategory || ""),
+    priorityLevel: String(source.priorityLevel || "P4"),
+    riskType: String(source.riskType || ""),
+    confidence: String(source.confidence || ""),
+    recurringCount: toNumber(source.recurringCount, 0),
+    rationale: Array.isArray(source.rationale) ? source.rationale.map((item) => String(item)).filter(Boolean) : [],
+  };
+}
+
+function normalizeIntelligence(input) {
+  const source = input && typeof input === "object" ? input : {};
+  const executiveSummary = source.executiveSummary && typeof source.executiveSummary === "object" ? source.executiveSummary : {};
+  const patterns = Array.isArray(source.patterns)
+    ? source.patterns.map((item, index) => ({
+        id: String(item?.id || `pattern-${index + 1}`),
+        type: String(item?.type || ""),
+        label: String(item?.label || ""),
+        count: toNumber(item?.count, 0),
+        detail: String(item?.detail || ""),
+      })).filter((item) => item.label)
+    : [];
+  const topIssues = Array.isArray(source.topIssues)
+    ? source.topIssues.map((item) => ({
+        code: String(item?.code || "UNKNOWN"),
+        route: String(item?.route || "/"),
+        action: String(item?.action || ""),
+        severity: String(item?.severity || "low"),
+        detail: String(item?.detail || ""),
+        impactScore: toNumber(item?.impactScore, 0),
+        impactCategory: String(item?.impactCategory || ""),
+        priorityLevel: String(item?.priorityLevel || "P4"),
+        riskType: String(item?.riskType || ""),
+        confidence: String(item?.confidence || ""),
+      }))
+    : [];
+  return {
+    updatedAt: String(source.updatedAt || ""),
+    contextKey: String(source.contextKey || ""),
+    summary: {
+      p0: toNumber(source.summary?.p0, 0),
+      p1: toNumber(source.summary?.p1, 0),
+      p2: toNumber(source.summary?.p2, 0),
+      p3: toNumber(source.summary?.p3, 0),
+      p4: toNumber(source.summary?.p4, 0),
+      highImpactIssues: toNumber(source.summary?.highImpactIssues, 0),
+      recurringPatterns: toNumber(source.summary?.recurringPatterns, 0),
+      validatedPatterns: toNumber(source.summary?.validatedPatterns, 0),
+      failedPatterns: toNumber(source.summary?.failedPatterns, 0),
+      averageImpactScore: toNumber(source.summary?.averageImpactScore, 0),
+    },
+    executiveSummary: {
+      headline: String(executiveSummary.headline || ""),
+      topRisks: Array.isArray(executiveSummary.topRisks) ? executiveSummary.topRisks.map((item) => String(item)).filter(Boolean) : [],
+      topOpportunities: Array.isArray(executiveSummary.topOpportunities) ? executiveSummary.topOpportunities.map((item) => String(item)).filter(Boolean) : [],
+      criticalFixes: Array.isArray(executiveSummary.criticalFixes) ? executiveSummary.criticalFixes.map((item) => String(item)).filter(Boolean) : [],
+      recommendedActionOrder: Array.isArray(executiveSummary.recommendedActionOrder) ? executiveSummary.recommendedActionOrder.map((item) => String(item)).filter(Boolean) : [],
+    },
+    patterns,
+    topIssues,
+  };
+}
+
 function normalizeReport(raw) {
   const source = raw && typeof raw === "object" ? raw : {};
   const meta = source.meta && typeof source.meta === "object" ? source.meta : {};
@@ -1310,6 +1403,7 @@ function normalizeReport(raw) {
   const actions = Array.isArray(source.actionSweep) ? source.actionSweep.slice(0, 160).map(normalizeAction) : [];
   const routes = Array.isArray(source.routeSweep) ? source.routeSweep.slice(0, 120).map(normalizeRoute) : [];
   const assistantGuide = summarizeAssistantGuide(source.assistantGuide && typeof source.assistantGuide === "object" ? source.assistantGuide : {});
+  const intelligence = normalizeIntelligence(source.intelligence);
   const generatedAt = deriveGeneratedAt(meta);
   const startedAt = String(meta.startedAt || "");
   const finishedAt = String(meta.finishedAt || generatedAt);
@@ -1371,17 +1465,27 @@ function normalizeReport(raw) {
       seoCriticalIssues: toNumber(summary.seoCriticalIssues, 0),
       seoTotalIssues: toNumber(summary.seoTotalIssues, 0),
       seoPagesAnalyzed: toNumber(summary.seoPagesAnalyzed, seo.pagesAnalyzed),
+      priorityP0: toNumber(summary.priorityP0, issues.filter((item) => item.impact?.priorityLevel === "P0").length),
+      priorityP1: toNumber(summary.priorityP1, issues.filter((item) => item.impact?.priorityLevel === "P1").length),
+      priorityP2: toNumber(summary.priorityP2, issues.filter((item) => item.impact?.priorityLevel === "P2").length),
+      priorityP3: toNumber(summary.priorityP3, issues.filter((item) => item.impact?.priorityLevel === "P3").length),
+      priorityP4: toNumber(summary.priorityP4, issues.filter((item) => item.impact?.priorityLevel === "P4").length),
+      topImpactScore: toNumber(summary.topImpactScore, Math.max(...issues.map((item) => Number(item.impact?.impactScore || 0)), 0)),
       mobileProfilesAnalyzed: toNumber(summary.mobileProfilesAnalyzed, meta.mobileSweep?.profiles?.length || 0),
       durationMs,
     },
     assistantGuide,
+    intelligence,
     seo: {
       overallScore: toNumber(seo.overallScore, 0),
       topRecommendations: Array.isArray(seo.topRecommendations) ? seo.topRecommendations.map((item) => String(item)).filter(Boolean) : [],
     },
     learningMemory: normalizeLearningMemory(source.learningMemory),
     selfHealing: normalizeSelfHealingSnapshot(source.selfHealing),
-    issues: issues.sort((left, right) => severityRank(right.severity) - severityRank(left.severity)),
+    issues: issues.sort((left, right) =>
+      priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel)
+      || toNumber(right.impact?.impactScore, 0) - toNumber(left.impact?.impactScore, 0)
+      || severityRank(right.severity) - severityRank(left.severity)),
     actions,
     routes,
   };
@@ -1927,6 +2031,7 @@ function createCompactStoredReport(report, limits = {}) {
     seo: report.seo,
     learningMemory: report.learningMemory,
     selfHealing: report.selfHealing,
+    intelligence: report.intelligence,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -2123,6 +2228,10 @@ function buildLearningAwareFixPrompt(report) {
   }
 
   const prioritized = [...report.issues].sort((left, right) => {
+    const byPriority = priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel);
+    if (byPriority !== 0) return byPriority;
+    const byImpact = toNumber(right.impact?.impactScore, 0) - toNumber(left.impact?.impactScore, 0);
+    if (byImpact !== 0) return byImpact;
     const leftRank = left.severity === "high" ? 3 : left.severity === "medium" ? 2 : 1;
     const rightRank = right.severity === "high" ? 3 : right.severity === "medium" ? 2 : 1;
     if (rightRank !== leftRank) return rightRank - leftRank;
@@ -2353,6 +2462,14 @@ function compareReports(currentReport, referenceReport) {
     }))
     .filter(({ current, previous }) => severityRank(current.severity) > severityRank(previous?.severity || "low"))
     .map(({ current }) => current);
+  const reducedIssues = [...currentIssues.entries()]
+    .filter(([signature]) => referenceIssues.has(signature))
+    .map(([signature, issue]) => ({
+      current: issue,
+      previous: referenceIssues.get(signature),
+    }))
+    .filter(({ current, previous }) => severityRank(current.severity) < severityRank(previous?.severity || "low"))
+    .map(({ current }) => current);
   const criticalRegressions = [...newIssues, ...escalatedIssues]
     .filter((issue, index, list) => issue.severity === "high" && list.findIndex((candidate) => issueSignature(candidate) === issueSignature(issue)) === index);
 
@@ -2365,7 +2482,99 @@ function compareReports(currentReport, referenceReport) {
     newIssues,
     resolvedIssues,
     persistentIssues,
+    reducedIssues,
     criticalRegressions,
+  };
+}
+
+function summarizeCategoryIssues(report, categories) {
+  const allowed = new Set(categories);
+  return (report?.issues || []).filter((issue) => allowed.has(String(issue.group || "").toLowerCase()) || allowed.has(String(issue.code || "").split("_")[0].toLowerCase())).length;
+}
+
+function buildTrendDescriptor(label, currentValue, previousValue, threshold = 1) {
+  if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue)) {
+    return { label, direction: "stable", symbol: "=", delta: 0, text: `${label} = stable` };
+  }
+  const delta = currentValue - previousValue;
+  if (delta >= threshold) {
+    return { label, direction: "regression", symbol: "▼", delta, text: `${label} ▼ regression (${signedDelta(delta)})` };
+  }
+  if (delta <= -threshold) {
+    return { label, direction: "improving", symbol: "▲", delta, text: `${label} ▲ improving (${signedDelta(-delta)})` };
+  }
+  return { label, direction: "stable", symbol: "=", delta, text: `${label} = stable` };
+}
+
+function buildContinuousIntelligence(report) {
+  if (!report) {
+    return {
+      executiveSummary: normalizeIntelligence(null).executiveSummary,
+      patterns: [],
+      comparison: null,
+      topIssues: [],
+      recurringIssues: [],
+      trendSummary: {
+        seo: buildTrendDescriptor("SEO", Number.NaN, Number.NaN, 1),
+        runtime: buildTrendDescriptor("Runtime", Number.NaN, Number.NaN, 1),
+        ux: buildTrendDescriptor("UX", Number.NaN, Number.NaN, 1),
+      },
+      issueTrends: {},
+    };
+  }
+
+  const reference = getReferenceSnapshot(report);
+  const comparison = reference?.snapshot?.report ? compareReports(report, reference.snapshot.report) : null;
+  const sameTargetHistory = uiState.history
+    .filter((entry) => entry?.report && entry.report.meta?.baseUrl === report.meta.baseUrl && entry.stamp !== report.meta.generatedAt)
+    .slice(0, 6);
+  const recurrenceMap = new Map();
+  for (const snapshot of [report, ...sameTargetHistory.map((entry) => entry.report)]) {
+    const seen = new Set();
+    for (const issue of snapshot?.issues || []) {
+      const signature = issueSignature(issue);
+      if (seen.has(signature)) continue;
+      seen.add(signature);
+      recurrenceMap.set(signature, (recurrenceMap.get(signature) || 0) + 1);
+    }
+  }
+
+  const reducedSet = new Set((comparison?.reducedIssues || []).map((issue) => issueSignature(issue)));
+  const regressionSet = new Set([...(comparison?.criticalRegressions || []), ...(comparison?.newIssues || [])].map((issue) => issueSignature(issue)));
+  const persistentSet = new Set((comparison?.persistentIssues || []).map((issue) => issueSignature(issue)));
+  const issueTrends = Object.fromEntries((report.issues || []).map((issue) => {
+    const signature = issueSignature(issue);
+    const recurringCount = recurrenceMap.get(signature) || 1;
+    let trend = "stable";
+    if (reducedSet.has(signature)) trend = "improving";
+    else if (regressionSet.has(signature)) trend = "regression";
+    else if (persistentSet.has(signature)) trend = "stable";
+    return [signature, { trend, recurringCount }];
+  }));
+
+  const recurringIssues = (report.issues || [])
+    .map((issue) => ({ issue, recurringCount: recurrenceMap.get(issueSignature(issue)) || 1 }))
+    .filter((item) => item.recurringCount >= 2)
+    .sort((left, right) => right.recurringCount - left.recurringCount || toNumber(right.issue.impact?.impactScore, 0) - toNumber(left.issue.impact?.impactScore, 0))
+    .slice(0, 6);
+
+  const runtimeCurrent = (report.issues || []).filter((issue) => ["ROUTE_LOAD_FAIL", "HTTP_5XX", "NET_REQUEST_FAILED", "JS_RUNTIME_ERROR", "CONSOLE_ERROR"].includes(String(issue.code || ""))).length;
+  const runtimePrevious = comparison?.persistentIssues ? (reference?.snapshot?.report?.issues || []).filter((issue) => ["ROUTE_LOAD_FAIL", "HTTP_5XX", "NET_REQUEST_FAILED", "JS_RUNTIME_ERROR", "CONSOLE_ERROR"].includes(String(issue.code || ""))).length : Number.NaN;
+  const uxCurrent = (report.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length;
+  const uxPrevious = comparison?.persistentIssues ? (reference?.snapshot?.report?.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length : Number.NaN;
+
+  return {
+    executiveSummary: report.intelligence?.executiveSummary || normalizeIntelligence(null).executiveSummary,
+    patterns: Array.isArray(report.intelligence?.patterns) ? report.intelligence.patterns : [],
+    comparison,
+    topIssues: Array.isArray(report.intelligence?.topIssues) ? report.intelligence.topIssues : [],
+    recurringIssues,
+    trendSummary: {
+      seo: buildTrendDescriptor("SEO", Number(report.summary?.seoScore || 0), Number(reference?.snapshot?.report?.summary?.seoScore ?? Number.NaN), 3),
+      runtime: buildTrendDescriptor("Runtime", runtimeCurrent, runtimePrevious, 1),
+      ux: buildTrendDescriptor("UX", uxCurrent, uxPrevious, 1),
+    },
+    issueTrends,
   };
 }
 
@@ -2432,6 +2641,7 @@ function buildCompareDigest(report) {
     `Action delta: ${signedDelta(comparison.actionDelta)}`,
     `Critical regressions: ${comparison.criticalRegressions.length}`,
     `Persistent issues: ${comparison.persistentIssues.length}`,
+    `Reduced issues: ${comparison.reducedIssues.length}`,
   ];
 
   if (comparison.newIssues.length) {
@@ -2451,6 +2661,13 @@ function buildCompareDigest(report) {
   if (comparison.persistentIssues.length) {
     lines.push("Persistent issues:");
     comparison.persistentIssues.slice(0, 6).forEach((issue, index) => {
+      lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
+    });
+  }
+
+  if (comparison.reducedIssues.length) {
+    lines.push("Improving issues:");
+    comparison.reducedIssues.slice(0, 6).forEach((issue, index) => {
       lines.push(`${index + 1}. ${issue.code} | ${issue.route}${issue.action ? ` | ${issue.action}` : ""}`);
     });
   }
@@ -2501,7 +2718,10 @@ function getFilteredIssues(report) {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
     return severityMatch && routeMatch && searchMatch;
-  });
+  }).sort((left, right) =>
+    priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel)
+    || toNumber(right.impact?.impactScore, 0) - toNumber(left.impact?.impactScore, 0)
+    || severityRank(right.severity) - severityRank(left.severity));
 }
 
 function renderStaticSelections() {
@@ -2775,6 +2995,48 @@ function renderSteps(report) {
   stateEl.stepsList.innerHTML = steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
 }
 
+function renderExecutiveSummary(report) {
+  if (!report) {
+    stateEl.executiveSummaryHeadline.textContent = "Run an audit to generate impact scoring, priority and trend intelligence.";
+    stateEl.executivePriorityP0.textContent = "P0 0";
+    stateEl.executivePriorityP1.textContent = "P1 0";
+    stateEl.executivePriorityP2.textContent = "P2 0";
+    stateEl.executiveTrendSeo.textContent = "SEO = stable";
+    stateEl.executiveTrendRuntime.textContent = "Runtime = stable";
+    stateEl.executiveTrendUx.textContent = "UX = stable";
+    stateEl.executiveSummaryTopRisks.innerHTML = "<li>No impact summary loaded yet.</li>";
+    stateEl.executiveSummaryTopOpportunities.innerHTML = "<li>No opportunity snapshot loaded yet.</li>";
+    stateEl.executiveSummaryActionOrder.innerHTML = "<li>Run an audit to generate action order.</li>";
+    stateEl.executiveSummaryPatterns.innerHTML = "<li>No recurring pattern is loaded yet.</li>";
+    return;
+  }
+
+  const intelligence = buildContinuousIntelligence(report);
+  const executive = report.intelligence?.executiveSummary || {};
+  stateEl.executiveSummaryHeadline.textContent = executive.headline || "Impact scoring is available for the current run.";
+  stateEl.executivePriorityP0.textContent = `P0 ${report.summary.priorityP0 || 0}`;
+  stateEl.executivePriorityP1.textContent = `P1 ${report.summary.priorityP1 || 0}`;
+  stateEl.executivePriorityP2.textContent = `P2 ${report.summary.priorityP2 || 0}`;
+  stateEl.executiveTrendSeo.textContent = intelligence.trendSummary.seo.text;
+  stateEl.executiveTrendRuntime.textContent = intelligence.trendSummary.runtime.text;
+  stateEl.executiveTrendUx.textContent = intelligence.trendSummary.ux.text;
+  stateEl.executiveSummaryTopRisks.innerHTML = (executive.topRisks || []).length
+    ? executive.topRisks.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No top risk summary was attached to this run.</li>";
+  stateEl.executiveSummaryTopOpportunities.innerHTML = (executive.topOpportunities || []).length
+    ? executive.topOpportunities.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No fast opportunity is attached to this run yet.</li>";
+  stateEl.executiveSummaryActionOrder.innerHTML = (executive.recommendedActionOrder || []).length
+    ? executive.recommendedActionOrder.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No action order is available yet.</li>";
+  const patterns = [...(report.intelligence?.patterns || []), ...intelligence.recurringIssues.slice(0, 2).map((item) => ({
+    label: `${item.issue.code} recurring in ${item.recurringCount} run(s).`,
+  }))].slice(0, 4);
+  stateEl.executiveSummaryPatterns.innerHTML = patterns.length
+    ? patterns.map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
+    : "<li>No recurring pattern is loaded yet.</li>";
+}
+
 function renderIssueMeta(report, filteredIssues, options = {}) {
   if (!report) {
     stateEl.issueMetaPills.innerHTML = "";
@@ -2786,6 +3048,8 @@ function renderIssueMeta(report, filteredIssues, options = {}) {
   const filteredCount = filteredIssues.length;
   const seoCritical = report.summary.seoCriticalIssues || 0;
   stateEl.issueMetaPills.innerHTML = [
+    `<span class="pill bad">P0 ${report.summary.priorityP0 || 0}</span>`,
+    `<span class="pill warn">P1 ${report.summary.priorityP1 || 0}</span>`,
     `<span class="pill bad">high ${counts.high}</span>`,
     `<span class="pill warn">medium ${counts.medium}</span>`,
     `<span class="pill">low ${counts.low}</span>`,
@@ -2907,7 +3171,7 @@ function renderCoverageExplorers(report) {
   }
 }
 
-function renderCompareIssueList(element, issues, emptyText) {
+function renderCompareIssueList(element, issues, emptyText, trendKind = "") {
   if (!issues.length) {
     element.innerHTML = `<article class="empty-state">${escapeHtml(emptyText)}</article>`;
     return;
@@ -2922,7 +3186,11 @@ function renderCompareIssueList(element, issues, emptyText) {
             <div class="nav-title">${escapeHtml(issue.group)}</div>
             <div class="history-meta">${issue.viewportLabel ? `${escapeHtml(issue.viewportLabel)} | ` : ""}${escapeHtml(issue.route)}${issue.action ? ` | ${escapeHtml(issue.action)}` : ""}</div>
           </div>
-          <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
+          <div class="issue-meta">
+            ${issue.impact?.priorityLevel ? `<span class="pill">${escapeHtml(issue.impact.priorityLevel)}</span>` : ""}
+            ${trendKind ? `<span class="pill">${escapeHtml(trendKind)}</span>` : ""}
+            <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
+          </div>
         </div>
         <div class="history-copy">${escapeHtml(issue.detail)}</div>
       </article>
@@ -3137,13 +3405,19 @@ function renderComparison(report, options = {}) {
   stateEl.compareActionDelta.textContent = signedDelta(comparison.actionDelta);
   stateEl.compareRegressionDelta.textContent = String(comparison.criticalRegressions.length);
   stateEl.comparePersistentDelta.textContent = String(comparison.persistentIssues.length);
-  renderCompareIssueList(stateEl.compareNewIssuesList, comparison.newIssues, "No new issues versus the reference run.");
-  renderCompareIssueList(stateEl.compareResolvedIssuesList, comparison.resolvedIssues, "No issues were resolved versus the reference run.");
-  renderCompareIssueList(stateEl.comparePersistentIssuesList, comparison.persistentIssues, "No issues persisted from the reference run.");
-  renderCompareIssueList(stateEl.compareRegressionIssuesList, comparison.criticalRegressions, "No critical regression was detected.");
+  renderCompareIssueList(stateEl.compareNewIssuesList, comparison.newIssues, "No new issues versus the reference run.", "new");
+  renderCompareIssueList(stateEl.compareResolvedIssuesList, comparison.resolvedIssues, "No issues were resolved versus the reference run.", "resolved");
+  renderCompareIssueList(stateEl.comparePersistentIssuesList, comparison.persistentIssues, "No issues persisted from the reference run.", "=");
+  renderCompareIssueList(stateEl.compareRegressionIssuesList, comparison.criticalRegressions, "No critical regression was detected.", "▼");
 }
 
-function buildIssueCard(issue, actionContext) {
+function formatIssueTrend(trend) {
+  if (trend === "improving") return "▲ improving";
+  if (trend === "regression") return "▼ regression";
+  return "= stable";
+}
+
+function buildIssueCard(issue, actionContext, intelligenceContext) {
   const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
   const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
   const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
@@ -3169,6 +3443,11 @@ function buildIssueCard(issue, actionContext) {
   const healingAttempt = healing?.lastAttempt
     ? `${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${formatLocalDate(healing.lastAttempt.updatedAt)}` : ""}`
     : "";
+  const trendMeta = intelligenceContext?.issueTrends?.[issueSignature(issue)] || { trend: "stable", recurringCount: Number(issue.impact?.recurringCount || 0) };
+  const impactSummary = issue.impact?.impactScore
+    ? `${issue.impact.priorityLevel || "P4"} | impact ${issue.impact.impactScore.toFixed(2)} | ${issue.impact.riskType || issue.impact.impactCategory || "operational risk"}`
+    : "";
+  const impactWhy = Array.isArray(issue.impact?.rationale) ? issue.impact.rationale.slice(0, 2).join(" | ") : "";
   const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
   const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
@@ -3209,6 +3488,10 @@ function buildIssueCard(issue, actionContext) {
         </div>
         <div class="issue-meta">
           ${priority}
+          ${issue.impact?.priorityLevel ? `<span class="pill">${escapeHtml(issue.impact.priorityLevel)}</span>` : ""}
+          ${issue.impact?.impactScore ? `<span class="pill">${escapeHtml(issue.impact.impactScore.toFixed(2))}</span>` : ""}
+          ${issue.impact?.confidence ? `<span class="pill">${escapeHtml(issue.impact.confidence)}</span>` : ""}
+          <span class="pill">${escapeHtml(formatIssueTrend(trendMeta.trend))}</span>
           ${issue.viewportLabel ? `<span class="pill">${escapeHtml(issue.viewportLabel)}</span>` : ""}
           <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
           <span class="pill">${escapeHtml(issue.code)}</span>
@@ -3217,6 +3500,9 @@ function buildIssueCard(issue, actionContext) {
       <p class="issue-detail"><strong>Should do:</strong> ${escapeHtml(shouldDo)}</p>
       <p class="issue-detail"><strong>Actually did:</strong> ${escapeHtml(actualDid)}</p>
       <p class="issue-detail"><strong>Why it matters:</strong> ${escapeHtml(whyItMatters)}</p>
+      ${impactSummary ? `<p class="issue-checks"><strong>Impact:</strong> ${escapeHtml(impactSummary)}</p>` : ""}
+      ${impactWhy ? `<p class="issue-checks"><strong>Impact rationale:</strong> ${escapeHtml(impactWhy)}</p>` : ""}
+      ${trendMeta.recurringCount > 1 ? `<p class="issue-checks"><strong>Trend memory:</strong> ${escapeHtml(`Recurring in ${trendMeta.recurringCount} run(s) for this target.`)}</p>` : ""}
       <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
       ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
       ${issue.finalResolution ? `<p class="issue-checks"><strong>Final solution:</strong> ${escapeHtml(issue.finalResolution)}</p>` : ""}
@@ -3255,6 +3541,7 @@ function renderIssues(report, options = {}) {
   }
 
   const filteredIssues = getFilteredIssues(report);
+  const intelligenceContext = buildContinuousIntelligence(report);
   renderIssueMeta(report, filteredIssues, options);
   renderIssueGroups(report, filteredIssues);
 
@@ -3265,7 +3552,7 @@ function renderIssues(report, options = {}) {
 
   stateEl.issuesList.innerHTML = filteredIssues
     .slice(0, 18)
-    .map((issue) => buildIssueCard(issue, findActionContext(report, issue)))
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext))
     .join("");
 }
 
@@ -4018,6 +4305,7 @@ function ensureAssistantService() {
       report: getVisibleReport(),
       learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
       selfHealing: getVisibleSelfHealing(getVisibleReport()),
+      intelligence: buildContinuousIntelligence(getVisibleReport()),
       logs: [...uiState.logs],
       compareDigest: buildCompareDigest(getVisibleReport()),
       runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -4042,8 +4330,9 @@ function renderAssistantState() {
   const report = getVisibleReport();
   const memory = getOperationalMemorySnapshot(report);
   const healing = getVisibleSelfHealing(report);
+  const intelligence = buildContinuousIntelligence(report);
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | view ${uiState.activeView}`
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
     : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
@@ -4497,6 +4786,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderSignals(report);
   renderVisualQuality(report);
   renderSteps(report);
+  renderExecutiveSummary(report);
   renderRouteFilterOptions(report);
   renderIssues(report, { transient });
   renderCoverageExplorers(report);

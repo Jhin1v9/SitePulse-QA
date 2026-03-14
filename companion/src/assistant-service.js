@@ -138,6 +138,8 @@
     { id: "healing_revalidate", mode: "operator", terms: ["revalide a ultima tentativa", "revalidate the last attempt", "revalidar a correcao", "revalidate this fix"], builder: (context, rawQuery) => buildHealingRevalidateResponse(context, rawQuery) },
     { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
     { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
+    { id: "impact", mode: "strategy_advisor", terms: ["maior impacto", "highest impact", "issues tem maior impacto", "which issues have the highest impact"], builder: (context) => buildImpactResponse(context) },
+    { id: "seo_risk", mode: "strategy_advisor", terms: ["maior risco de seo", "biggest seo risk", "seo risk now"], builder: (context) => buildSeoRiskResponse(context) },
     { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
     { id: "memory", mode: "audit_analyst", terms: ["abra a memoria", "open memory", "aprendizados validados"], builder: (context, rawQuery) => buildMemoryResponse(context, rawQuery) },
     { id: "latest_run", mode: "operator", terms: ["ultima run", "latest run", "open last run", "abrir ultima run"], builder: (context) => buildLatestRunResponse(context) },
@@ -232,9 +234,28 @@
       .slice(0, 8);
   }
 
+  function priorityRank(priorityLevel) {
+    switch (normalizeText(priorityLevel).toUpperCase()) {
+      case "P0":
+        return 0;
+      case "P1":
+        return 1;
+      case "P2":
+        return 2;
+      case "P3":
+        return 3;
+      default:
+        return 4;
+    }
+  }
+
   function prioritizeIssues(report) {
     const issues = Array.isArray(report?.issues) ? report.issues : [];
     return [...issues].sort((left, right) => {
+      const byPriority = priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel);
+      if (byPriority !== 0) return byPriority;
+      const byImpact = Number(right.impact?.impactScore || 0) - Number(left.impact?.impactScore || 0);
+      if (byImpact !== 0) return byImpact;
       const severityRankLeft = left.severity === "high" ? 3 : left.severity === "medium" ? 2 : 1;
       const severityRankRight = right.severity === "high" ? 3 : right.severity === "medium" ? 2 : 1;
       if (severityRankRight !== severityRankLeft) return severityRankRight - severityRankLeft;
@@ -269,6 +290,7 @@
     const issueHealing = summarizeHealing(appContext.selfHealing, issueCode);
     const history = Array.isArray(appContext.runHistory) ? appContext.runHistory : [];
     const availableCommands = Array.isArray(appContext.availableCommands) ? appContext.availableCommands : [];
+    const intelligence = appContext.intelligence && typeof appContext.intelligence === "object" ? appContext.intelligence : null;
 
     const baseContext = {
       ...appContext,
@@ -283,6 +305,7 @@
       criticalIssues: prioritizedIssues.filter((entry) => entry.severity === "high"),
       runHistory: history,
       availableCommands,
+      intelligence,
     };
 
     if (modeKey === "operator") {
@@ -311,6 +334,7 @@
           logs: Array.isArray(appContext.logs) ? appContext.logs.slice(-12) : [],
           memorySummary: appContext.learningMemory?.summary || null,
           healingSummary: appContext.selfHealing?.summary || null,
+          impactSummary: intelligence?.executiveSummary || null,
         },
       };
     }
@@ -347,6 +371,7 @@
         runHistory: history.slice(0, 5),
         healingSummary: appContext.selfHealing?.summary || null,
         healingCandidates: getHealingCandidates(appContext.selfHealing),
+        intelligence,
       },
     };
   }
@@ -400,6 +425,13 @@
     };
   }
 
+  function describeImpact(issue) {
+    const priority = normalizeText(issue?.impact?.priorityLevel || "P4");
+    const impactScore = Number(issue?.impact?.impactScore || 0).toFixed(2);
+    const riskType = normalizeText(issue?.impact?.riskType || issue?.impact?.impactCategory || "operational risk");
+    return `${priority} | impact ${impactScore} | ${riskType}`;
+  }
+
   function buildPrioritiesResponse(context) {
     const report = context.report;
     if (!report) {
@@ -412,6 +444,7 @@
     }
 
     const topIssues = context.strategyContext?.topIssues || prioritizeIssues(report).slice(0, 3);
+    const executive = context.intelligence?.executiveSummary;
     const lines = topIssues.length
       ? topIssues.map((issue, index) => {
           const memory = summarizeMemory(context.learningMemory, issue.code);
@@ -420,17 +453,21 @@
             : memory?.failed
             ? `There are ${memory.failed} failed attempt(s); avoid repeating them blindly.`
             : "No validated fix is attached yet.";
-          return `${index + 1}. ${issue.code} on ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}. ${suffix}`;
+          return `${index + 1}. ${issue.code} on ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}. ${describeImpact(issue)}. ${suffix}`;
         })
       : ["No issues are currently loaded."];
 
     if (context.strategyContext?.runHistory?.length > 1) {
       lines.push(`Recent history loaded: ${context.strategyContext.runHistory.length} snapshot(s).`);
     }
+    if (Array.isArray(executive?.recommendedActionOrder) && executive.recommendedActionOrder.length) {
+      lines.push("Recommended action order:");
+      executive.recommendedActionOrder.slice(0, 4).forEach((step) => lines.push(step));
+    }
 
     return {
       title: "What to do first",
-      summary: `Current report has ${report.summary.totalIssues} issue(s) with SEO ${report.summary.seoScore}.`,
+      summary: executive?.headline || `Current report has ${report.summary.totalIssues} issue(s) with SEO ${report.summary.seoScore}.`,
       analysis: lines,
       actions: [
         { id: "switch-findings", label: "Open findings" },
@@ -450,13 +487,17 @@
       };
     }
 
-    const seoIssues = (report.issues || []).filter((issue) => normalizeText(issue.code).startsWith("SEO_"));
+    const seoIssues = (report.issues || [])
+      .filter((issue) => normalizeText(issue.code).startsWith("SEO_"))
+      .sort((left, right) =>
+        priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel)
+        || Number(right.impact?.impactScore || 0) - Number(left.impact?.impactScore || 0));
     const top = seoIssues.slice(0, 4);
     return {
       title: "SEO priorities",
       summary: `SEO score ${report.summary.seoScore}. ${report.summary.seoCriticalIssues || 0} critical SEO issue(s).`,
       analysis: top.length
-        ? top.map((issue, index) => `${index + 1}. ${issue.code} | ${issue.route} | ${issue.detail}`)
+        ? top.map((issue, index) => `${index + 1}. ${issue.code} | ${describeImpact(issue)} | ${issue.route} | ${issue.detail}`)
         : ["No dedicated SEO issue is loaded in the current report."],
       actions: [
         { id: "switch-seo", label: "Open SEO workspace" },
@@ -477,7 +518,7 @@
 
     return {
       title: "Run comparison",
-      summary: "The desktop already has comparison data available.",
+      summary: context.intelligence?.trendSummary?.seo?.text || "The desktop already has comparison data available.",
       analysis: context.compareDigest.split("\n").slice(0, 10),
       actions: [{ id: "switch-compare", label: "Open compare" }],
     };
@@ -495,9 +536,68 @@
 
     return {
       title: "What worsened",
-      summary: "Current regression view against the active baseline.",
-      analysis: context.compareDigest.split("\n").slice(0, 12),
+      summary: context.intelligence?.trendSummary?.seo?.text || "Current regression view against the active baseline.",
+      analysis: [
+        context.intelligence?.trendSummary?.runtime?.text || "Runtime trend unavailable.",
+        context.intelligence?.trendSummary?.ux?.text || "UX trend unavailable.",
+        ...context.compareDigest.split("\n").slice(0, 12),
+      ],
       actions: [{ id: "switch-compare", label: "Open compare" }],
+    };
+  }
+
+  function buildImpactResponse(context) {
+    const report = context.report;
+    if (!report) {
+      return {
+        title: "No report loaded",
+        summary: "Load a run before asking for impact prioritization.",
+        analysis: ["Run or load an audit first."],
+        actions: [{ id: "switch-overview", label: "Prepare audit" }],
+      };
+    }
+    const topIssues = prioritizeIssues(report).slice(0, 5);
+    return {
+      title: "Highest-impact issues",
+      summary: context.intelligence?.executiveSummary?.headline || "Impact Engine sorted the current issues by operational pressure.",
+      analysis: topIssues.length
+        ? topIssues.map((issue, index) => `${index + 1}. ${issue.code} | ${describeImpact(issue)} | ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}`)
+        : ["No issue is currently loaded."],
+      actions: [{ id: "switch-findings", label: "Open findings" }],
+    };
+  }
+
+  function buildSeoRiskResponse(context) {
+    const report = context.report;
+    if (!report) {
+      return {
+        title: "No report loaded",
+        summary: "There is no SEO context to analyze yet.",
+        analysis: ["Run or load an audit first."],
+        actions: [{ id: "switch-overview", label: "Prepare audit" }],
+      };
+    }
+    const seoLead = prioritizeIssues(report).find((issue) => normalizeText(issue.code).startsWith("SEO_"));
+    if (!seoLead) {
+      return {
+        title: "No SEO issue loaded",
+        summary: "The current report does not expose a dedicated SEO issue.",
+        analysis: ["Use the SEO workspace to confirm the score and checklist."],
+        actions: [{ id: "switch-seo", label: "Open SEO workspace" }],
+      };
+    }
+    return {
+      title: "Biggest SEO risk",
+      summary: `${seoLead.code} is currently the highest-impact SEO risk.`,
+      analysis: [
+        describeImpact(seoLead),
+        seoLead.detail,
+        ...(Array.isArray(seoLead.impact?.rationale) ? seoLead.impact.rationale.slice(0, 3) : []),
+      ],
+      actions: [
+        { id: "switch-seo", label: "Open SEO workspace" },
+        { id: "generate-prompt", label: "Generate prompt", payload: { issueCode: seoLead.code } },
+      ],
     };
   }
 

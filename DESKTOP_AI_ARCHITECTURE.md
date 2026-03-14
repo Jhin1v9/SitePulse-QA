@@ -38,6 +38,7 @@ The desktop AI system is split into five layers:
 3. Renderer state and UX layer
 4. Assistant reasoning and action layer
 5. Self-Healing orchestration layer
+6. Impact and continuous intelligence layer
 
 ### 1. QA Runtime Learning Layer
 
@@ -253,9 +254,11 @@ The assistant can consume:
 - loaded run
 - issue list
 - severity and category data
+- impact scoring and priority
 - operational memory snapshot
 - self-healing snapshot and attempt queue
 - compare digest
+- continuous intelligence snapshot
 - active workspace
 - logs and summaries
 - Prompt Workspace helpers
@@ -272,6 +275,8 @@ The assistant can consume:
 - issue explanation
 - run comparison
 - SEO prioritization
+- impact prioritization
+- regression and improvement trend analysis
 
 ### Examples of Supported Commands
 
@@ -297,6 +302,8 @@ Example mappings:
 - `gere um prompt para corrigir SEO_CANONICAL_MISSING` -> `prompt_engineer`
 - `como usar o painel de memoria?` -> `product_guide`
 - `o que devo corrigir primeiro?` -> `strategy_advisor`
+- `quais issues tem maior impacto?` -> `strategy_advisor`
+- `qual e o maior risco de SEO agora?` -> `strategy_advisor`
 - `quais issues podem ser auto-curadas?` -> `strategy_advisor`
 - `qual a melhor estrategia para esta issue?` -> `strategy_advisor`
 - `revalide a ultima tentativa` -> `operator`
@@ -406,6 +413,82 @@ Previously failed patterns should always be surfaced when relevant.
 
 Self-healing should consume this hierarchy instead of bypassing it.
 
+## 6. Impact And Continuous Intelligence Layer
+
+Files:
+
+- [impact-engine-service.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\impact-engine-service.mjs)
+- [index.mjs](C:\Users\Administrador\Documents\SitePulse-QA\qa\src\index.mjs)
+- [renderer.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\renderer.js)
+- [assistant-service.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\assistant-service.js)
+
+Responsibilities:
+
+- compute per-issue impact metadata
+- classify issues into `P0` to `P4`
+- explain why something is a priority
+- generate executive summary blocks from the current run
+- compare current report with baseline/previous run to detect regressions and improvements
+- surface recurring patterns from history
+- feed the assistant with the same impact and trend signals shown in the UI
+
+### Impact Engine
+
+Each issue can now carry:
+
+- `impactScore`
+- `impactCategory`
+- `priorityLevel`
+- `riskType`
+- `confidence`
+- `rationale`
+
+These fields are attached inside the QA runtime before prompt pack, assistant guide and summary are finalized.
+
+### Priority Engine
+
+Priority levels are operational:
+
+- `P0` critical
+- `P1` high priority
+- `P2` medium
+- `P3` low
+- `P4` monitor
+
+The renderer uses these levels to sort and display issues.
+The assistant uses the same levels when answering "what should I fix first?" style questions.
+
+### Continuous Intelligence
+
+Continuous intelligence is intentionally split:
+
+- runtime computes current-run impact and executive summary
+- renderer computes comparison- and history-based trend context
+
+This keeps one source of truth for issue impact while still using local baseline/history for drift detection.
+
+Current continuous signals:
+
+- new issues
+- resolved issues
+- persistent issues
+- reduced/improving issues
+- critical regressions
+- recurring issues across recent snapshots
+- SEO / Runtime / UX trend descriptors
+
+### Executive Summary
+
+The Overview surface now renders:
+
+- top risks
+- top opportunities
+- recommended action order
+- detected patterns
+- trend chips for SEO, Runtime and UX
+
+This summary should help the user understand what matters before reading the entire issue board.
+
 ## Current UX Entry Points
 
 - Findings issue actions
@@ -436,6 +519,7 @@ When changing this architecture, validate at minimum:
 - `node --check qa/src/healing-store.mjs`
 - `node --check qa/src/healing-strategy-registry.mjs`
 - `node --check qa/src/healing-admin.mjs`
+- `node --check qa/src/impact-engine-service.mjs`
 - `node --check companion/src/main.cjs`
 - `node --check companion/src/preload.cjs`
 - `node --check companion/src/renderer.js`
@@ -458,6 +542,7 @@ Recommended next steps that fit the current design:
 - richer prompt templates by issue family
 - guided repair plans per issue cluster
 - direct-action support only after explicit safety gating and deterministic validation
+- richer impact heuristics tied to page/business criticality once the product stores stronger project metadata
 
 ## Change Log
 
@@ -477,6 +562,16 @@ Assistant cognitive modes added:
 - automatic mode detection
 - mode-specific context routing
 - UI display for active mode and detected intent
+
+### 2026-03-14
+
+Impact and continuous intelligence added:
+
+- runtime Impact Engine with per-issue impact scoring and `P0`-`P4` priority
+- executive summary attached to reports
+- renderer-side continuous intelligence using baseline and run history
+- overview panel for impact, trends and action order
+- assistant responses upgraded to use impact, priority and trend context
 
 ### 2026-03-13
 

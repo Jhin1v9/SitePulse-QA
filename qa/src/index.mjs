@@ -10,6 +10,7 @@ import { loadIssueLearningStore, saveIssueLearningStore } from "./issue-learning
 import { attachLearningSnapshot, ingestCompletedRun, resolveLearningForIssue } from "./issue-learning-service.mjs";
 import { attachHealingSnapshot, createEmptySelfHealingSnapshot, ingestCompletedHealingRun } from "./healing-engine-service.mjs";
 import { loadHealingStore, saveHealingStore } from "./healing-store.mjs";
+import { attachImpactAnalysis, createEmptyImpactSnapshot } from "./impact-engine-service.mjs";
 
 const EXIT_OK = 0;
 const EXIT_FAIL = 1;
@@ -3341,6 +3342,7 @@ function createIssueLogEntry(issue) {
     promotionSource: issue.promotionSource,
     promotionCount: issue.promotionCount,
     lastValidatedAt: issue.lastValidatedAt,
+    impact: issue.impact,
     recommendedPrompt: issue.recommendedPrompt,
     assistantHint: issue.assistantHint,
     diagnosis: issue.diagnosis,
@@ -3406,6 +3408,18 @@ function hydrateIssue(rawIssue) {
     promotionSource: String(rawIssue.promotionSource || learning?.promotionSource || ""),
     promotionCount: Number(rawIssue.promotionCount ?? learning?.promotionCount ?? 0),
     lastValidatedAt: String(rawIssue.lastValidatedAt || learning?.lastValidatedAt || ""),
+    impact:
+      rawIssue.impact && typeof rawIssue.impact === "object"
+        ? {
+            impactScore: Number(rawIssue.impact.impactScore || 0),
+            impactCategory: String(rawIssue.impact.impactCategory || ""),
+            priorityLevel: String(rawIssue.impact.priorityLevel || ""),
+            riskType: String(rawIssue.impact.riskType || ""),
+            confidence: String(rawIssue.impact.confidence || ""),
+            recurringCount: Number(rawIssue.impact.recurringCount || 0),
+            rationale: Array.isArray(rawIssue.impact.rationale) ? rawIssue.impact.rationale.map((item) => String(item)).filter(Boolean) : [],
+          }
+        : undefined,
     manualOverrideCount: Number(rawIssue.manualOverrideCount ?? learning?.manualOverrideCount ?? 0),
     lastManualOverrideAt: String(rawIssue.lastManualOverrideAt || learning?.lastManualOverrideAt || ""),
     lastManualOverrideBy: String(rawIssue.lastManualOverrideBy || learning?.lastManualOverrideBy || ""),
@@ -3539,6 +3553,11 @@ function buildIssueActionHint(issue, diagnosis = null) {
 
 function buildAssistantGuide(report) {
   const sorted = [...report.issues].sort((a, b) => {
+    const leftPriority = String(a.impact?.priorityLevel || "P4");
+    const rightPriority = String(b.impact?.priorityLevel || "P4");
+    if (leftPriority !== rightPriority) return leftPriority.localeCompare(rightPriority);
+    const byImpact = Number(b.impact?.impactScore || 0) - Number(a.impact?.impactScore || 0);
+    if (byImpact !== 0) return byImpact;
     const bySeverity = severityWeight(a.severity) - severityWeight(b.severity);
     if (bySeverity !== 0) return bySeverity;
     return a.code.localeCompare(b.code);
@@ -3568,9 +3587,11 @@ function buildAssistantGuide(report) {
           "Se houver mudanca grande de layout, atualizar sectionOrderRules.",
         ]
       : [
+          ...(Array.isArray(report?.intelligence?.executiveSummary?.recommendedActionOrder)
+            ? report.intelligence.executiveSummary.recommendedActionOrder.slice(0, 3)
+            : []),
           "Corrigir primeiro erros high (runtime/5xx/ordem visual).",
-          "Depois tratar medium (clicks falhos/rede/secoes ausentes).",
-          "Finalizar com low e ruido de console.",
+          "Depois tratar medium e recorrencia com historico de falha.",
           "Atacar checklist SEO pendente antes da revalidacao final.",
           "Reexecutar auditoria completa e confirmar totalIssues=0.",
         ];
@@ -3593,7 +3614,7 @@ function buildAssistantGuide(report) {
           "Top issues para iniciar:",
           ...sorted.slice(0, 8).map((issue, idx) => {
             const action = issue.action ? ` -> ${issue.action}` : "";
-            return `${idx + 1}. [${issue.code}] (${issue.severity}) ${issue.route}${action} | ${issue.detail}`;
+            return `${idx + 1}. [${issue.code}] (${issue.impact?.priorityLevel || "P4"} | ${issue.severity} | impact ${Number(issue.impact?.impactScore || 0).toFixed(2)}) ${issue.route}${action} | ${issue.detail}`;
           }),
           "",
           "SEO (obrigatorio):",
@@ -3630,6 +3651,7 @@ function buildAssistantGuide(report) {
       promotionSource: issue.promotionSource,
       promotionCount: issue.promotionCount,
       lastValidatedAt: issue.lastValidatedAt,
+      impact: issue.impact,
       assistantHint: issue.assistantHint ?? buildIssueActionHint(issue, issue.diagnosis),
     })),
   };
@@ -3644,6 +3666,9 @@ function toAssistantBrief(report) {
   lines.push(`Base URL: ${report.meta.baseUrl}`);
   lines.push(`Status: ${guide.status}`);
   lines.push(`Total issues: ${guide.issueCount}`);
+  if (report?.intelligence?.executiveSummary?.headline) {
+    lines.push(`Executive summary: ${report.intelligence.executiveSummary.headline}`);
+  }
   lines.push("");
   lines.push("PASSOS IMEDIATOS");
   for (const step of guide.immediateSteps) {
@@ -3656,6 +3681,20 @@ function toAssistantBrief(report) {
   } else {
     for (const row of guide.routePriority) {
       lines.push(`- ${row.route}: total=${row.totalIssues} high=${row.high} medium=${row.medium} low=${row.low}`);
+    }
+  }
+  if (report?.intelligence?.executiveSummary?.topRisks?.length) {
+    lines.push("");
+    lines.push("TOP RISKS");
+    for (const item of report.intelligence.executiveSummary.topRisks.slice(0, 5)) {
+      lines.push(`- ${item}`);
+    }
+  }
+  if (report?.intelligence?.executiveSummary?.recommendedActionOrder?.length) {
+    lines.push("");
+    lines.push("ACTION ORDER");
+    for (const item of report.intelligence.executiveSummary.recommendedActionOrder.slice(0, 5)) {
+      lines.push(`- ${item}`);
     }
   }
   lines.push("");
@@ -3928,6 +3967,35 @@ function toMarkdown(report) {
   lines.push(`- SEO issues criticas: ${report.summary.seoCriticalIssues ?? 0}`);
   lines.push(`- SEO issues totais: ${report.summary.seoTotalIssues ?? 0}`);
   lines.push(`- Total issues: ${report.summary.totalIssues}`);
+  lines.push(`- Prioridades: P0=${report.summary.priorityP0 ?? 0} P1=${report.summary.priorityP1 ?? 0} P2=${report.summary.priorityP2 ?? 0} P3=${report.summary.priorityP3 ?? 0} P4=${report.summary.priorityP4 ?? 0}`);
+  lines.push(`- Top impact score: ${Number(report.summary.topImpactScore ?? 0).toFixed(2)}`);
+
+  lines.push("");
+  lines.push("## Executive Summary");
+  lines.push("");
+  if (report?.intelligence?.executiveSummary?.headline) {
+    lines.push(`- ${report.intelligence.executiveSummary.headline}`);
+  } else {
+    lines.push("- Nenhuma sintese executiva foi gerada.");
+  }
+  if (report?.intelligence?.executiveSummary?.topRisks?.length) {
+    lines.push("- Top risks:");
+    for (const item of report.intelligence.executiveSummary.topRisks.slice(0, 5)) {
+      lines.push(`  - ${item}`);
+    }
+  }
+  if (report?.intelligence?.executiveSummary?.topOpportunities?.length) {
+    lines.push("- Top opportunities:");
+    for (const item of report.intelligence.executiveSummary.topOpportunities.slice(0, 5)) {
+      lines.push(`  - ${item}`);
+    }
+  }
+  if (report?.intelligence?.executiveSummary?.recommendedActionOrder?.length) {
+    lines.push("- Recommended action order:");
+    for (const item of report.intelligence.executiveSummary.recommendedActionOrder.slice(0, 5)) {
+      lines.push(`  - ${item}`);
+    }
+  }
 
   lines.push("");
   lines.push("## Guia Rapido Para Assistente");
@@ -4135,6 +4203,8 @@ function toIssueLog(report) {
         `origem_promocao: ${entry.promotionSource ?? ""}`,
         `contador_promocao: ${entry.promotionCount ?? 0}`,
         `ultima_validacao: ${entry.lastValidatedAt ?? ""}`,
+        `impacto: score=${entry.impact?.impactScore ?? 0} prioridade=${entry.impact?.priorityLevel ?? "P4"} categoria=${entry.impact?.impactCategory ?? ""} risco=${entry.impact?.riskType ?? ""} confianca=${entry.impact?.confidence ?? ""}`,
+        `impacto_racional: ${(entry.impact?.rationale ?? []).slice(0, 3).join(" | ")}`,
         `memoria_casos: ${(entry.learningCases ?? [])
           .slice(0, 2)
           .map((item) => `[${item.outcome || "known"}] ${item.title}: ${item.result || item.attempt || "n/a"}`)
@@ -6152,6 +6222,7 @@ function summarize(report) {
   const actionSweep = Array.isArray(report.actionSweep) ? report.actionSweep : [];
   const actionCount = (status) => actionSweep.filter((item) => item.status === status).length;
   const seoIssues = Array.isArray(report?.seo?.issues) ? report.seo.issues : [];
+  const priorityCount = (priority) => report.issues.filter((item) => item?.impact?.priorityLevel === priority).length;
 
   return {
     auditScope: normalizeAuditScope(report?.meta?.auditScope),
@@ -6206,6 +6277,12 @@ function summarize(report) {
     healingUnsafe: Number(report?.selfHealing?.summary?.unsafe ?? 0),
     healingPromptReady: Number(report?.selfHealing?.summary?.promptReady ?? 0),
     healingPendingAttempts: Number(report?.selfHealing?.summary?.pendingAttempts ?? 0),
+    priorityP0: priorityCount("P0"),
+    priorityP1: priorityCount("P1"),
+    priorityP2: priorityCount("P2"),
+    priorityP3: priorityCount("P3"),
+    priorityP4: priorityCount("P4"),
+    topImpactScore: Math.max(...report.issues.map((item) => Number(item?.impact?.impactScore || 0)), 0),
     totalIssues: report.issues.length,
   };
 }
@@ -6311,6 +6388,7 @@ function createEmptyReport(cfg, args, maxRunMs) {
       entries: [],
     },
     selfHealing: createEmptySelfHealingSnapshot(),
+    intelligence: createEmptyImpactSnapshot(),
     summary: {},
   };
 }
@@ -6385,6 +6463,9 @@ function normalizeCheckpointReport(report, cfg, args, maxRunMs) {
   }
   if (!report.selfHealing || typeof report.selfHealing !== "object") {
     report.selfHealing = createEmptySelfHealingSnapshot();
+  }
+  if (!report.intelligence || typeof report.intelligence !== "object") {
+    report.intelligence = createEmptyImpactSnapshot();
   }
 
   report.meta.project = cfg.name;
@@ -6648,6 +6729,8 @@ async function finalizeReport(report, reportDir, paused) {
     report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
   }
   report.selfHealing = attachHealingSnapshot(activeHealingRuntime.store, report, activeHealingRuntime.storePath);
+  report.intelligence = attachImpactAnalysis(report);
+  report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
   report.summary = summarize(report);
