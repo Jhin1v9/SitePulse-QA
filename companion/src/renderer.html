@@ -297,6 +297,8 @@
                     <span id="executivePriorityP0" class="pill bad">P0 0</span>
                     <span id="executivePriorityP1" class="pill warn">P1 0</span>
                     <span id="executivePriorityP2" class="pill">P2 0</span>
+                    <span id="executiveQualityScore" class="pill ok">Quality 0</span>
+                    <span id="executiveQualityTrajectory" class="pill">Trajectory = stable</span>
                     <span id="executiveTrendSeo" class="pill">SEO = stable</span>
                     <span id="executiveTrendRuntime" class="pill">Runtime = stable</span>
                     <span id="executiveTrendUx" class="pill">UX = stable</span>
@@ -745,6 +747,28 @@
                 <div id="selfHealingList" class="history-list">
                   <article class="empty-state">No self-healing context is loaded yet.</article>
                 </div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">autonomous qa engine</p>
+                    <h3>Quality and next action</h3>
+                  </div>
+                  <button id="copyAutonomousSummary" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="autonomousQaSummary">Run an audit to generate the autonomous QA brief.</div>
+              </article>
+
+              <article class="panel prompt-panel">
+                <div class="panel-head split-head">
+                  <div>
+                    <p class="eyebrow">autonomous qa loop</p>
+                    <h3>Playbooks and loop trace</h3>
+                  </div>
+                  <button id="copyAutonomousLoop" class="ghost" type="button">Copy</button>
+                </div>
+                <div class="prompt-box" id="autonomousQaLoop">Run an audit to generate the autonomous QA loop trace.</div>
               </article>
 
               <article class="panel prompt-panel">
@@ -1375,6 +1399,7 @@
     <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
     <script src="./predictive-intelligence-service.js"></script>
+    <script src="./autonomous-qa-service.js"></script>
     <script src="./assistant-service.js"></script>
     <script src="./renderer.js"></script>
   </body>

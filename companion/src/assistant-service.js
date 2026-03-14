@@ -140,6 +140,9 @@
     { id: "worsening", mode: "audit_analyst", terms: ["quais problemas estao piorando", "what is getting worse", "worsening issues", "problemas piorando"], builder: (context) => buildWorseningResponse(context) },
     { id: "trend", mode: "strategy_advisor", terms: ["qual tendencia estou vendo", "what trend am i seeing", "trend analysis", "tendencia"], builder: (context) => buildTrendResponse(context) },
     { id: "systemic_patterns", mode: "strategy_advisor", terms: ["padroes sistemicos", "systemic patterns", "historico sistemico", "historical patterns"], builder: (context) => buildSystemicPatternsResponse(context) },
+    { id: "next_step", mode: "strategy_advisor", terms: ["qual e o proximo passo ideal", "next ideal step", "next action", "proximo passo"], builder: (context) => buildNextStepResponse(context) },
+    { id: "quality_trajectory", mode: "strategy_advisor", terms: ["site esta melhorando", "site esta piorando", "quality trajectory", "quality score", "trajectory"], builder: (context) => buildQualityTrajectoryResponse(context) },
+    { id: "biggest_risk", mode: "strategy_advisor", terms: ["qual e o maior risco atual", "biggest current risk", "maior risco atual"], builder: (context) => buildBiggestRiskResponse(context) },
     { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
     { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
     { id: "impact", mode: "strategy_advisor", terms: ["maior impacto", "highest impact", "issues tem maior impacto", "which issues have the highest impact"], builder: (context) => buildImpactResponse(context) },
@@ -249,6 +252,25 @@
     };
   }
 
+  function summarizeAutonomous(autonomous, issueCode) {
+    const code = normalizeText(issueCode).toUpperCase();
+    if (!code) return null;
+    const playbooks = autonomous?.playbooks && typeof autonomous.playbooks === "object" ? autonomous.playbooks : {};
+    const entry = Object.values(playbooks).find((item) => normalizeText(item.issueCode).toUpperCase() === code) || null;
+    if (!entry) return null;
+    return {
+      issueCode: entry.issueCode,
+      title: normalizeText(entry.title),
+      diagnosticStep: normalizeText(entry.diagnosticStep),
+      healingStrategy: normalizeText(entry.healingStrategy),
+      promptTemplate: normalizeText(entry.promptTemplate),
+      revalidationRule: normalizeText(entry.revalidationRule),
+      learningRule: normalizeText(entry.learningRule),
+      nextActionScore: Number(entry.nextActionScore || 0),
+      nextActionLabel: normalizeText(entry.nextActionLabel),
+    };
+  }
+
   function getHealingCandidates(selfHealing) {
     const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
     return [...issues]
@@ -312,10 +334,12 @@
     const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
     const issueHealing = summarizeHealing(appContext.selfHealing, issueCode);
     const issuePredictive = summarizePredictive(appContext.predictive, issueCode);
+    const issueAutonomous = summarizeAutonomous(appContext.autonomous, issueCode);
     const history = Array.isArray(appContext.runHistory) ? appContext.runHistory : [];
     const availableCommands = Array.isArray(appContext.availableCommands) ? appContext.availableCommands : [];
     const intelligence = appContext.intelligence && typeof appContext.intelligence === "object" ? appContext.intelligence : null;
     const predictive = appContext.predictive && typeof appContext.predictive === "object" ? appContext.predictive : null;
+    const autonomous = appContext.autonomous && typeof appContext.autonomous === "object" ? appContext.autonomous : null;
 
     const baseContext = {
       ...appContext,
@@ -327,12 +351,14 @@
       issueMemory,
       issueHealing,
       issuePredictive,
+      issueAutonomous,
       prioritizedIssues,
       criticalIssues: prioritizedIssues.filter((entry) => entry.severity === "high"),
       runHistory: history,
       availableCommands,
       intelligence,
       predictive,
+      autonomous,
     };
 
     if (modeKey === "operator") {
@@ -363,6 +389,7 @@
           healingSummary: appContext.selfHealing?.summary || null,
           impactSummary: intelligence?.executiveSummary || null,
           predictiveSummary: predictive?.summary || null,
+          autonomousSummary: autonomous?.qualityScore || null,
         },
       };
     }
@@ -401,6 +428,7 @@
         healingCandidates: getHealingCandidates(appContext.selfHealing),
         intelligence,
         predictive,
+        autonomous,
       },
     };
   }
@@ -472,9 +500,12 @@
       };
     }
 
+    const autonomousActions = Array.isArray(context.autonomous?.nextActions) ? context.autonomous.nextActions : [];
     const topIssues = context.strategyContext?.topIssues || prioritizeIssues(report).slice(0, 3);
     const executive = context.intelligence?.executiveSummary;
-    const lines = topIssues.length
+    const lines = autonomousActions.length
+      ? autonomousActions.slice(0, 4).map((item, index) => `${index + 1}. ${item.actionLabel} | score ${Number(item.score || 0).toFixed(2)} | ${item.playbookTitle}`)
+      : topIssues.length
       ? topIssues.map((issue, index) => {
           const memory = summarizeMemory(context.learningMemory, issue.code);
           const suffix = memory?.finalResolution
@@ -488,6 +519,9 @@
 
     if (context.strategyContext?.runHistory?.length > 1) {
       lines.push(`Recent history loaded: ${context.strategyContext.runHistory.length} snapshot(s).`);
+    }
+    if (context.autonomous?.qualityScore?.total) {
+      lines.push(`Current SitePulse Quality Score: ${context.autonomous.qualityScore.total}. Trajectory: ${context.autonomous.qualityTrajectory?.direction || "stable"}.`);
     }
     if (Array.isArray(executive?.recommendedActionOrder) && executive.recommendedActionOrder.length) {
       lines.push("Recommended action order:");
@@ -731,10 +765,88 @@
     };
   }
 
+  function buildNextStepResponse(context) {
+    const actions = Array.isArray(context.autonomous?.nextActions) ? context.autonomous.nextActions : [];
+    if (!actions.length) {
+      return {
+        title: "No next action available",
+        summary: "The autonomous QA engine could not derive a next action from the current state.",
+        analysis: ["Load a report with issues, impact and healing context first."],
+        actions: [{ id: "switch-findings", label: "Open findings" }],
+      };
+    }
+    const lead = actions[0];
+    return {
+      title: "Next ideal step",
+      summary: `${lead.actionLabel} is the current lead action.`,
+      analysis: [
+        `Score ${Number(lead.score || 0).toFixed(2)} | ${lead.playbookTitle}`,
+        ...(Array.isArray(lead.reasons) ? lead.reasons.slice(0, 3) : []),
+      ],
+      actions: [
+        lead.actionMode === "prepare_healing"
+          ? { id: "prepare-healing", label: "Prepare healing", payload: { issueCode: lead.issueCode, route: lead.route, action: lead.action } }
+          : { id: "switch-findings", label: "Open findings" },
+        { id: "switch-prompts", label: "Open prompts" },
+      ],
+    };
+  }
+
+  function buildQualityTrajectoryResponse(context) {
+    const autonomous = context.autonomous;
+    if (!autonomous) {
+      return {
+        title: "No autonomous QA state",
+        summary: "The autonomous QA engine is not available for the current report.",
+        analysis: ["Load a report first."],
+        actions: [{ id: "switch-overview", label: "Open overview" }],
+      };
+    }
+    return {
+      title: "Quality trajectory",
+      summary: `SitePulse Quality Score ${autonomous.qualityScore?.total || 0} | ${autonomous.qualityTrajectory?.direction || "stable"}.`,
+      analysis: [
+        ...(Array.isArray(autonomous.qualityScore?.rationale) ? autonomous.qualityScore.rationale.slice(0, 4) : []),
+        ...(Array.isArray(autonomous.qualityTrajectory?.evidence) ? autonomous.qualityTrajectory.evidence : []),
+      ],
+      actions: [
+        { id: "switch-overview", label: "Open overview" },
+        { id: "switch-compare", label: "Open compare" },
+      ],
+    };
+  }
+
+  function buildBiggestRiskResponse(context) {
+    const autonomous = context.autonomous;
+    const predictive = context.predictive;
+    const risk = autonomous?.insights?.topRisks?.[0] || predictive?.alerts?.[0]?.label || "";
+    if (!risk) {
+      return {
+        title: "No dominant risk",
+        summary: "There is no dominant risk signal attached to the current report.",
+        analysis: ["Run another comparable audit if you need stronger risk ranking."],
+        actions: [{ id: "switch-overview", label: "Open overview" }],
+      };
+    }
+    return {
+      title: "Biggest current risk",
+      summary: risk,
+      analysis: [
+        ...(predictive?.alerts?.[0]?.evidence || []).slice(0, 3),
+        ...(Array.isArray(autonomous?.insights?.recommendedActions) ? autonomous.insights.recommendedActions.slice(0, 2) : []),
+      ],
+      actions: [
+        { id: "switch-findings", label: "Open findings" },
+        { id: "switch-compare", label: "Open compare" },
+      ],
+    };
+  }
+
   function buildIssueExplanation(context, query) {
     const issueCode = inferIssueCode(query, context);
     const issue = findIssueByCode(context, issueCode);
     const memory = summarizeMemory(context.learningMemory, issueCode);
+    const autonomous = summarizeAutonomous(context.autonomous, issueCode);
     if (!issue && !memory) {
       return {
         title: "Issue not found",
@@ -758,6 +870,11 @@
     if (memory?.avoidText) {
       lines.push(`Avoid this: ${memory.avoidText}`);
     }
+    if (autonomous?.title) {
+      lines.push(`Playbook: ${autonomous.title}`);
+      if (autonomous.diagnosticStep) lines.push(`Diagnostic step: ${autonomous.diagnosticStep}`);
+      if (autonomous.revalidationRule) lines.push(`Revalidation rule: ${autonomous.revalidationRule}`);
+    }
 
     return {
       title: issueCode || issue?.code || "Issue explanation",
@@ -775,6 +892,7 @@
     const promptText = context.buildIssuePrompt(issueCode);
     const memory = summarizeMemory(context.learningMemory, issueCode);
     const healing = summarizeHealing(context.selfHealing, issueCode);
+    const autonomous = summarizeAutonomous(context.autonomous, issueCode);
     const analysis = [
       "The prompt below prioritizes validated solutions, cites failed attempts when they exist and stays anchored to the current run.",
     ];
@@ -786,6 +904,9 @@
       if (healing.avoidText) {
         analysis.push(`Healing avoid list: ${healing.avoidText}`);
       }
+    }
+    if (autonomous?.nextActionLabel) {
+      analysis.push(`Autonomous next action: ${autonomous.nextActionLabel}`);
     }
     return {
       title: `Prompt intelligence${issueCode ? ` | ${issueCode}` : ""}`,

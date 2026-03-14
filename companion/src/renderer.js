@@ -276,6 +276,8 @@ const stateEl = {
   executivePriorityP0: document.getElementById("executivePriorityP0"),
   executivePriorityP1: document.getElementById("executivePriorityP1"),
   executivePriorityP2: document.getElementById("executivePriorityP2"),
+  executiveQualityScore: document.getElementById("executiveQualityScore"),
+  executiveQualityTrajectory: document.getElementById("executiveQualityTrajectory"),
   executiveTrendSeo: document.getElementById("executiveTrendSeo"),
   executiveTrendRuntime: document.getElementById("executiveTrendRuntime"),
   executiveTrendUx: document.getElementById("executiveTrendUx"),
@@ -356,6 +358,10 @@ const stateEl = {
   selfHealingSummary: document.getElementById("selfHealingSummary"),
   selfHealingList: document.getElementById("selfHealingList"),
   copySelfHealingSummary: document.getElementById("copySelfHealingSummary"),
+  autonomousQaSummary: document.getElementById("autonomousQaSummary"),
+  autonomousQaLoop: document.getElementById("autonomousQaLoop"),
+  copyAutonomousSummary: document.getElementById("copyAutonomousSummary"),
+  copyAutonomousLoop: document.getElementById("copyAutonomousLoop"),
   promptWorkspaceReplay: document.getElementById("promptWorkspaceReplay"),
   promptWorkspaceIssues: document.getElementById("promptWorkspaceIssues"),
   promptWorkspaceCompare: document.getElementById("promptWorkspaceCompare"),
@@ -463,6 +469,8 @@ const uiState = {
   selfHealingRefreshInFlight: false,
   predictiveService: null,
   predictiveCache: null,
+  autonomousQaService: null,
+  autonomousQaCache: null,
   learningMemoryFilters: {
     status: "all",
     issueCode: "",
@@ -2652,6 +2660,111 @@ function buildPredictiveIntelligence(report) {
   return predictive;
 }
 
+function createEmptyAutonomousQaSnapshot() {
+  if (typeof window.createSitePulseAutonomousQaService === "function") {
+    const service = ensureAutonomousQaService();
+    if (service?.createEmptyAutonomousSnapshot) {
+      return service.createEmptyAutonomousSnapshot();
+    }
+  }
+  return {
+    updatedAt: "",
+    qualityScore: {
+      total: 0,
+      dimensions: {
+        seoQuality: 0,
+        uxQuality: 0,
+        performanceQuality: 0,
+        visualIntegrity: 0,
+        technicalIntegrity: 0,
+        trendStability: 0,
+      },
+      rationale: [],
+    },
+    qualityTrajectory: {
+      direction: "stable",
+      confidence: 0,
+      currentScore: 0,
+      previousScore: 0,
+      evidence: [],
+    },
+    nextActions: [],
+    playbooks: {},
+    insights: {
+      topRisks: [],
+      topImprovements: [],
+      criticalRegressions: [],
+      recommendedActions: [],
+    },
+    observability: {
+      loop: [],
+    },
+  };
+}
+
+function ensureAutonomousQaService() {
+  if (uiState.autonomousQaService) return uiState.autonomousQaService;
+  if (typeof window.createSitePulseAutonomousQaService !== "function") {
+    return null;
+  }
+  uiState.autonomousQaService = window.createSitePulseAutonomousQaService({
+    issueSignature,
+    severityRank,
+    priorityRank: (priorityLevel) => {
+      switch (String(priorityLevel || "").toUpperCase()) {
+        case "P0":
+          return 0;
+        case "P1":
+          return 1;
+        case "P2":
+          return 2;
+        case "P3":
+          return 3;
+        default:
+          return 4;
+      }
+    },
+  });
+  return uiState.autonomousQaService;
+}
+
+function buildAutonomousQa(report) {
+  if (!report) {
+    return createEmptyAutonomousQaSnapshot();
+  }
+  const learningMemory = getOperationalMemorySnapshot(report);
+  const selfHealing = getVisibleSelfHealing(report);
+  const cacheKey = [
+    String(report.meta?.generatedAt || ""),
+    String(uiState.baseline?.stamp || ""),
+    uiState.history.slice(0, 8).map((entry) => String(entry?.stamp || "")).join("|"),
+    String(selfHealing?.updatedAt || ""),
+    String(learningMemory?.updatedAt || ""),
+    String(learningMemory?.summary?.entries || 0),
+  ].join("::");
+  if (uiState.autonomousQaCache?.key === cacheKey) {
+    return uiState.autonomousQaCache.value;
+  }
+  const service = ensureAutonomousQaService();
+  const autonomous = service?.buildAutonomousQa
+    ? service.buildAutonomousQa(report, {
+        learningMemory,
+        selfHealing,
+        intelligence: buildContinuousIntelligence(report),
+        predictive: buildPredictiveIntelligence(report),
+        runHistory: uiState.history.slice(0, 8).map((entry) => ({
+          stamp: entry.stamp,
+          report: entry.report,
+        })),
+      })
+    : createEmptyAutonomousQaSnapshot();
+  uiState.autonomousQaCache = {
+    key: cacheKey,
+    value: autonomous,
+  };
+  return autonomous;
+}
+
 function findReferenceEvidenceItem(item, report) {
   if (!item || !report) return null;
   const reference = getReferenceSnapshot(report);
@@ -3075,6 +3188,8 @@ function renderExecutiveSummary(report) {
     stateEl.executivePriorityP0.textContent = "P0 0";
     stateEl.executivePriorityP1.textContent = "P1 0";
     stateEl.executivePriorityP2.textContent = "P2 0";
+    stateEl.executiveQualityScore.textContent = "Quality 0";
+    stateEl.executiveQualityTrajectory.textContent = "Trajectory = stable";
     stateEl.executiveTrendSeo.textContent = "SEO = stable";
     stateEl.executiveTrendRuntime.textContent = "Runtime = stable";
     stateEl.executiveTrendUx.textContent = "UX = stable";
@@ -3090,11 +3205,14 @@ function renderExecutiveSummary(report) {
 
   const intelligence = buildContinuousIntelligence(report);
   const predictive = buildPredictiveIntelligence(report);
+  const autonomous = buildAutonomousQa(report);
   const executive = report.intelligence?.executiveSummary || {};
   stateEl.executiveSummaryHeadline.textContent = executive.headline || "Impact scoring is available for the current run.";
   stateEl.executivePriorityP0.textContent = `P0 ${report.summary.priorityP0 || 0}`;
   stateEl.executivePriorityP1.textContent = `P1 ${report.summary.priorityP1 || 0}`;
   stateEl.executivePriorityP2.textContent = `P2 ${report.summary.priorityP2 || 0}`;
+  stateEl.executiveQualityScore.textContent = `Quality ${autonomous.qualityScore.total || 0}`;
+  stateEl.executiveQualityTrajectory.textContent = `Trajectory ${formatIssueTrend(autonomous.qualityTrajectory.direction)}`;
   stateEl.executiveTrendSeo.textContent = intelligence.trendSummary.seo.text;
   stateEl.executiveTrendRuntime.textContent = intelligence.trendSummary.runtime.text;
   stateEl.executiveTrendUx.textContent = intelligence.trendSummary.ux.text;
@@ -3503,7 +3621,7 @@ function formatIssueTrend(trend) {
   return "= stable";
 }
 
-function buildIssueCard(issue, actionContext, intelligenceContext, predictiveContext) {
+function buildIssueCard(issue, actionContext, intelligenceContext, predictiveContext, autonomousContext) {
   const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
   const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
   const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
@@ -3541,6 +3659,7 @@ function buildIssueCard(issue, actionContext, intelligenceContext, predictiveCon
     ? `${predictiveMeta.riskLevel} | ${predictiveMeta.riskCategory} | confidence ${predictiveMeta.riskConfidence.toFixed(2)}`
     : "";
   const predictiveWhy = predictiveMeta?.evidence?.length ? predictiveMeta.evidence.slice(0, 2).join(" | ") : "";
+  const autonomousMeta = autonomousContext?.playbooks?.[issueSignature(issue)] || null;
   const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
   const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
@@ -3598,6 +3717,8 @@ function buildIssueCard(issue, actionContext, intelligenceContext, predictiveCon
       ${impactWhy ? `<p class="issue-checks"><strong>Impact rationale:</strong> ${escapeHtml(impactWhy)}</p>` : ""}
       ${predictiveSummary ? `<p class="issue-checks"><strong>Predictive risk:</strong> ${escapeHtml(predictiveSummary)}</p>` : ""}
       ${predictiveWhy ? `<p class="issue-checks"><strong>Predictive evidence:</strong> ${escapeHtml(predictiveWhy)}</p>` : ""}
+      ${autonomousMeta?.title ? `<p class="issue-checks"><strong>Playbook:</strong> ${escapeHtml(`${autonomousMeta.title}${autonomousMeta.nextActionLabel ? ` | ${autonomousMeta.nextActionLabel}` : ""}`)}</p>` : ""}
+      ${autonomousMeta?.revalidationRule ? `<p class="issue-checks"><strong>Revalidation rule:</strong> ${escapeHtml(autonomousMeta.revalidationRule)}</p>` : ""}
       ${trendMeta.recurringCount > 1 ? `<p class="issue-checks"><strong>Trend memory:</strong> ${escapeHtml(`Recurring in ${trendMeta.recurringCount} run(s) for this target.`)}</p>` : ""}
       <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
       ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
@@ -3639,6 +3760,7 @@ function renderIssues(report, options = {}) {
   const filteredIssues = getFilteredIssues(report);
   const intelligenceContext = buildContinuousIntelligence(report);
   const predictiveContext = buildPredictiveIntelligence(report);
+  const autonomousContext = buildAutonomousQa(report);
   renderIssueMeta(report, filteredIssues, options);
   renderIssueGroups(report, filteredIssues);
 
@@ -3649,7 +3771,7 @@ function renderIssues(report, options = {}) {
 
   stateEl.issuesList.innerHTML = filteredIssues
     .slice(0, 18)
-    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext, predictiveContext))
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext, predictiveContext, autonomousContext))
     .join("");
 }
 
@@ -3755,6 +3877,7 @@ function renderSeoWorkspace(report, options = {}) {
 }
 
 function renderPromptWorkspace(report) {
+  const autonomous = buildAutonomousQa(report);
   stateEl.promptWorkspaceFix.textContent = buildLearningAwareFixPrompt(report);
   stateEl.promptWorkspaceReplay.textContent = report?.meta?.replayCommand || report?.assistantGuide?.replayCommand || "Run an audit to generate a replay command.";
   stateEl.promptWorkspaceIssues.textContent = buildIssueDigest(report);
@@ -3763,6 +3886,35 @@ function renderPromptWorkspace(report) {
   stateEl.promptWorkspaceActions.textContent = buildActionDigest(report);
   stateEl.promptWorkspaceClientPrompt.textContent = buildClientOutreachPrompt(report);
   stateEl.promptWorkspaceClientMessage.textContent = buildClientOutreachMessage(report);
+  stateEl.autonomousQaSummary.textContent = report
+    ? [
+        `SitePulse Quality Score: ${autonomous.qualityScore.total}`,
+        `Trajectory: ${autonomous.qualityTrajectory.direction} | confidence ${Number(autonomous.qualityTrajectory.confidence || 0).toFixed(2)}`,
+        `Top risk: ${autonomous.insights.topRisks[0] || "No top risk attached."}`,
+        `Recommended next action: ${autonomous.nextActions[0]?.actionLabel || "No next action generated."}`,
+        `Top improvement: ${autonomous.insights.topImprovements[0] || "No improvement detected yet."}`,
+        `Critical regression: ${autonomous.insights.criticalRegressions[0] || "No critical regression detected."}`,
+        "",
+        "Dimensions:",
+        ...Object.entries(autonomous.qualityScore.dimensions || {}).map(([key, value]) => `${key}: ${value}`),
+        "",
+        "Recommended action order:",
+        ...(autonomous.insights.recommendedActions.length ? autonomous.insights.recommendedActions : ["No recommended action order attached."]),
+      ].join("\n")
+    : "Run an audit to generate the autonomous QA brief.";
+  stateEl.autonomousQaLoop.textContent = report
+    ? [
+        "Loop trace:",
+        ...(autonomous.observability.loop.length
+          ? autonomous.observability.loop.map((entry, index) => `${index + 1}. ${entry.stage} | ${entry.status} | ${entry.evidence}`)
+          : ["No loop trace attached."]),
+        "",
+        "Playbook leads:",
+        ...(autonomous.nextActions.length
+          ? autonomous.nextActions.slice(0, 4).map((item, index) => `${index + 1}. ${item.issueCode} | ${item.playbookTitle} | ${item.actionLabel}`)
+          : ["No playbook lead attached."]),
+      ].join("\n")
+    : "Run an audit to generate the autonomous QA loop trace.";
   renderSelfHealingPanel(report);
   stateEl.promptWorkspaceHeadline.textContent = report
     ? "Prompt pack loaded from the current report and operational memory. Copy technical, operational or client-facing material from one workspace."
@@ -4404,6 +4556,7 @@ function ensureAssistantService() {
       selfHealing: getVisibleSelfHealing(getVisibleReport()),
       intelligence: buildContinuousIntelligence(getVisibleReport()),
       predictive: buildPredictiveIntelligence(getVisibleReport()),
+      autonomous: buildAutonomousQa(getVisibleReport()),
       logs: [...uiState.logs],
       compareDigest: buildCompareDigest(getVisibleReport()),
       runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -4430,9 +4583,10 @@ function renderAssistantState() {
   const healing = getVisibleSelfHealing(report);
   const intelligence = buildContinuousIntelligence(report);
   const predictive = buildPredictiveIntelligence(report);
+  const autonomous = buildAutonomousQa(report);
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
-    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | quality ${autonomous.qualityScore.total || 0} | ${autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
+    : `No audit loaded yet | quality ${autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
   if (!result) {
@@ -5521,6 +5675,8 @@ function bindButtons() {
   stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
   stateEl.copyQuickPromptPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceFix.textContent, "[studio] fix prompt copied."));
   stateEl.copySelfHealingSummary.addEventListener("click", async () => copyText(buildSelfHealingSummary(getVisibleReport()), "[studio] self-healing summary copied."));
+  stateEl.copyAutonomousSummary.addEventListener("click", async () => copyText(stateEl.autonomousQaSummary.textContent, "[studio] autonomous QA summary copied."));
+  stateEl.copyAutonomousLoop.addEventListener("click", async () => copyText(stateEl.autonomousQaLoop.textContent, "[studio] autonomous QA loop copied."));
   stateEl.copyReplayCommandPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
   stateEl.copyReplayCommandSecondary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
   stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
@@ -5542,6 +5698,10 @@ function bindButtons() {
   stateEl.copyPromptPack.addEventListener("click", async () => copyText(
     [
       stateEl.promptWorkspaceFix.textContent,
+      "",
+      stateEl.autonomousQaSummary.textContent,
+      "",
+      stateEl.autonomousQaLoop.textContent,
       "",
       stateEl.promptWorkspaceReplay.textContent,
       "",

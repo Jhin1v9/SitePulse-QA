@@ -521,6 +521,7 @@ When changing this architecture, validate at minimum:
 - `node --check qa/src/healing-admin.mjs`
 - `node --check qa/src/impact-engine-service.mjs`
 - `node --check companion/src/predictive-intelligence-service.js`
+- `node --check companion/src/autonomous-qa-service.js`
 - `node --check companion/src/main.cjs`
 - `node --check companion/src/preload.cjs`
 - `node --check companion/src/renderer.js`
@@ -545,6 +546,7 @@ Recommended next steps that fit the current design:
 - direct-action support only after explicit safety gating and deterministic validation
 - richer impact heuristics tied to page/business criticality once the product stores stronger project metadata
 - predictive intelligence filters and deeper historical forecasting once project metadata becomes richer
+- autonomous QA policy controls before introducing any future unattended execution
 
 ## Change Log
 
@@ -584,6 +586,18 @@ Predictive intelligence added:
 - predictive regression alerts with evidence lines and confidence
 - systemic pattern detection across recurring issue codes and families
 - assistant responses upgraded to answer regression-risk, worsening and history-pattern questions
+
+### 2026-03-14
+
+Autonomous QA Engine added:
+
+- autonomous QA loop with traceable stages from audit analysis through predictive update
+- playbook engine per issue family and code
+- next action engine combining impact, priority, healing confidence and predictive risk
+- quality score and quality trajectory summaries
+- autonomous insights for top risks, improvements, regressions and action order
+- prompt workspace panels for autonomous summary and loop observability
+- assistant responses upgraded to answer next-step, quality-trajectory and biggest-risk questions
 
 ### 2026-03-13
 
