@@ -300,6 +300,8 @@
                     <span id="executiveTrendSeo" class="pill">SEO = stable</span>
                     <span id="executiveTrendRuntime" class="pill">Runtime = stable</span>
                     <span id="executiveTrendUx" class="pill">UX = stable</span>
+                    <span id="executivePredictiveHighRisk" class="pill bad">High risk 0</span>
+                    <span id="executivePredictiveRecurring" class="pill">Patterns 0</span>
                   </div>
                   <div class="explorer-list">
                     <article class="explorer-item">
@@ -324,6 +326,12 @@
                       <div class="nav-title">Patterns detected</div>
                       <ul id="executiveSummaryPatterns" class="steps-list">
                         <li>No recurring pattern is loaded yet.</li>
+                      </ul>
+                    </article>
+                    <article class="explorer-item">
+                      <div class="nav-title">Predictive alerts</div>
+                      <ul id="executiveSummaryPredictiveAlerts" class="steps-list">
+                        <li>No predictive alert is available yet.</li>
                       </ul>
                     </article>
                   </div>
@@ -1366,6 +1374,7 @@
 
     <div id="toastStack" class="toast-stack" aria-live="polite"></div>
 
+    <script src="./predictive-intelligence-service.js"></script>
     <script src="./assistant-service.js"></script>
     <script src="./renderer.js"></script>
   </body>

@@ -279,10 +279,13 @@ const stateEl = {
   executiveTrendSeo: document.getElementById("executiveTrendSeo"),
   executiveTrendRuntime: document.getElementById("executiveTrendRuntime"),
   executiveTrendUx: document.getElementById("executiveTrendUx"),
+  executivePredictiveHighRisk: document.getElementById("executivePredictiveHighRisk"),
+  executivePredictiveRecurring: document.getElementById("executivePredictiveRecurring"),
   executiveSummaryTopRisks: document.getElementById("executiveSummaryTopRisks"),
   executiveSummaryTopOpportunities: document.getElementById("executiveSummaryTopOpportunities"),
   executiveSummaryActionOrder: document.getElementById("executiveSummaryActionOrder"),
   executiveSummaryPatterns: document.getElementById("executiveSummaryPatterns"),
+  executiveSummaryPredictiveAlerts: document.getElementById("executiveSummaryPredictiveAlerts"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
@@ -458,6 +461,8 @@ const uiState = {
   learningMemoryRefreshInFlight: false,
   selfHealingSnapshot: null,
   selfHealingRefreshInFlight: false,
+  predictiveService: null,
+  predictiveCache: null,
   learningMemoryFilters: {
     status: "all",
     issueCode: "",
@@ -2578,6 +2583,75 @@ function buildContinuousIntelligence(report) {
   };
 }
 
+function createEmptyPredictiveSnapshot() {
+  if (typeof window.createSitePulsePredictiveIntelligenceService === "function") {
+    const service = ensurePredictiveService();
+    if (service?.createEmptyPredictiveSnapshot) {
+      return service.createEmptyPredictiveSnapshot();
+    }
+  }
+  return {
+    updatedAt: "",
+    contextKey: "",
+    historyDepth: 0,
+    summary: {
+      degradingIssues: 0,
+      improvingIssues: 0,
+      oscillatingIssues: 0,
+      stableIssues: 0,
+      highRiskAlerts: 0,
+      mediumRiskAlerts: 0,
+      recurringPatterns: 0,
+    },
+    trendOverview: {
+      seo: { direction: "stable", strength: 0, confidence: 0, text: "SEO = stable" },
+      runtime: { direction: "stable", strength: 0, confidence: 0, text: "Runtime = stable" },
+      ux: { direction: "stable", strength: 0, confidence: 0, text: "UX = stable" },
+    },
+    alerts: [],
+    systemicPatterns: [],
+    issueSignals: {},
+    topPredictiveRisks: [],
+  };
+}
+
+function ensurePredictiveService() {
+  if (uiState.predictiveService) return uiState.predictiveService;
+  if (typeof window.createSitePulsePredictiveIntelligenceService !== "function") {
+    return null;
+  }
+  uiState.predictiveService = window.createSitePulsePredictiveIntelligenceService({
+    getHistory: () => [...uiState.history],
+    getReferenceSnapshot,
+    issueSignature,
+    severityRank,
+  });
+  return uiState.predictiveService;
+}
+
+function buildPredictiveIntelligence(report) {
+  if (!report) {
+    return createEmptyPredictiveSnapshot();
+  }
+  const cacheKey = [
+    String(report.meta?.generatedAt || ""),
+    String(uiState.baseline?.stamp || ""),
+    uiState.history.slice(0, 8).map((entry) => String(entry?.stamp || "")).join("|"),
+  ].join("::");
+  if (uiState.predictiveCache?.key === cacheKey) {
+    return uiState.predictiveCache.value;
+  }
+  const service = ensurePredictiveService();
+  const predictive = service?.buildPredictiveIntelligence
+    ? service.buildPredictiveIntelligence(report)
+    : createEmptyPredictiveSnapshot();
+  uiState.predictiveCache = {
+    key: cacheKey,
+    value: predictive,
+  };
+  return predictive;
+}
+
 function findReferenceEvidenceItem(item, report) {
   if (!item || !report) return null;
   const reference = getReferenceSnapshot(report);
@@ -3004,14 +3078,18 @@ function renderExecutiveSummary(report) {
     stateEl.executiveTrendSeo.textContent = "SEO = stable";
     stateEl.executiveTrendRuntime.textContent = "Runtime = stable";
     stateEl.executiveTrendUx.textContent = "UX = stable";
+    stateEl.executivePredictiveHighRisk.textContent = "High risk 0";
+    stateEl.executivePredictiveRecurring.textContent = "Patterns 0";
     stateEl.executiveSummaryTopRisks.innerHTML = "<li>No impact summary loaded yet.</li>";
     stateEl.executiveSummaryTopOpportunities.innerHTML = "<li>No opportunity snapshot loaded yet.</li>";
     stateEl.executiveSummaryActionOrder.innerHTML = "<li>Run an audit to generate action order.</li>";
     stateEl.executiveSummaryPatterns.innerHTML = "<li>No recurring pattern is loaded yet.</li>";
+    stateEl.executiveSummaryPredictiveAlerts.innerHTML = "<li>No predictive alert is available yet.</li>";
     return;
   }
 
   const intelligence = buildContinuousIntelligence(report);
+  const predictive = buildPredictiveIntelligence(report);
   const executive = report.intelligence?.executiveSummary || {};
   stateEl.executiveSummaryHeadline.textContent = executive.headline || "Impact scoring is available for the current run.";
   stateEl.executivePriorityP0.textContent = `P0 ${report.summary.priorityP0 || 0}`;
@@ -3020,6 +3098,8 @@ function renderExecutiveSummary(report) {
   stateEl.executiveTrendSeo.textContent = intelligence.trendSummary.seo.text;
   stateEl.executiveTrendRuntime.textContent = intelligence.trendSummary.runtime.text;
   stateEl.executiveTrendUx.textContent = intelligence.trendSummary.ux.text;
+  stateEl.executivePredictiveHighRisk.textContent = `High risk ${predictive.summary.highRiskAlerts || 0}`;
+  stateEl.executivePredictiveRecurring.textContent = `Patterns ${predictive.summary.recurringPatterns || 0}`;
   stateEl.executiveSummaryTopRisks.innerHTML = (executive.topRisks || []).length
     ? executive.topRisks.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
     : "<li>No top risk summary was attached to this run.</li>";
@@ -3031,10 +3111,15 @@ function renderExecutiveSummary(report) {
     : "<li>No action order is available yet.</li>";
   const patterns = [...(report.intelligence?.patterns || []), ...intelligence.recurringIssues.slice(0, 2).map((item) => ({
     label: `${item.issue.code} recurring in ${item.recurringCount} run(s).`,
+  })), ...predictive.systemicPatterns.slice(0, 2).map((item) => ({
+    label: item.label,
   }))].slice(0, 4);
   stateEl.executiveSummaryPatterns.innerHTML = patterns.length
     ? patterns.map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
     : "<li>No recurring pattern is loaded yet.</li>";
+  stateEl.executiveSummaryPredictiveAlerts.innerHTML = predictive.alerts.length
+    ? predictive.alerts.slice(0, 4).map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
+    : "<li>No predictive alert is available yet.</li>";
 }
 
 function renderIssueMeta(report, filteredIssues, options = {}) {
@@ -3413,11 +3498,12 @@ function renderComparison(report, options = {}) {
 
 function formatIssueTrend(trend) {
   if (trend === "improving") return "▲ improving";
-  if (trend === "regression") return "▼ regression";
+  if (trend === "regression" || trend === "degrading") return "▼ degrading";
+  if (trend === "oscillating") return "~ oscillating";
   return "= stable";
 }
 
-function buildIssueCard(issue, actionContext, intelligenceContext) {
+function buildIssueCard(issue, actionContext, intelligenceContext, predictiveContext) {
   const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
   const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
   const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
@@ -3443,11 +3529,18 @@ function buildIssueCard(issue, actionContext, intelligenceContext) {
   const healingAttempt = healing?.lastAttempt
     ? `${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${formatLocalDate(healing.lastAttempt.updatedAt)}` : ""}`
     : "";
-  const trendMeta = intelligenceContext?.issueTrends?.[issueSignature(issue)] || { trend: "stable", recurringCount: Number(issue.impact?.recurringCount || 0) };
+  const predictiveMeta = predictiveContext?.issueSignals?.[issueSignature(issue)] || null;
+  const trendMeta = predictiveMeta
+    ? { trend: predictiveMeta.trendDirection, recurringCount: predictiveMeta.recurringCount || Number(issue.impact?.recurringCount || 0) }
+    : intelligenceContext?.issueTrends?.[issueSignature(issue)] || { trend: "stable", recurringCount: Number(issue.impact?.recurringCount || 0) };
   const impactSummary = issue.impact?.impactScore
     ? `${issue.impact.priorityLevel || "P4"} | impact ${issue.impact.impactScore.toFixed(2)} | ${issue.impact.riskType || issue.impact.impactCategory || "operational risk"}`
     : "";
   const impactWhy = Array.isArray(issue.impact?.rationale) ? issue.impact.rationale.slice(0, 2).join(" | ") : "";
+  const predictiveSummary = predictiveMeta
+    ? `${predictiveMeta.riskLevel} | ${predictiveMeta.riskCategory} | confidence ${predictiveMeta.riskConfidence.toFixed(2)}`
+    : "";
+  const predictiveWhy = predictiveMeta?.evidence?.length ? predictiveMeta.evidence.slice(0, 2).join(" | ") : "";
   const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
   const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
@@ -3492,6 +3585,7 @@ function buildIssueCard(issue, actionContext, intelligenceContext) {
           ${issue.impact?.impactScore ? `<span class="pill">${escapeHtml(issue.impact.impactScore.toFixed(2))}</span>` : ""}
           ${issue.impact?.confidence ? `<span class="pill">${escapeHtml(issue.impact.confidence)}</span>` : ""}
           <span class="pill">${escapeHtml(formatIssueTrend(trendMeta.trend))}</span>
+          ${predictiveMeta?.riskLevel ? `<span class="pill">${escapeHtml(`risk ${predictiveMeta.riskLevel}`)}</span>` : ""}
           ${issue.viewportLabel ? `<span class="pill">${escapeHtml(issue.viewportLabel)}</span>` : ""}
           <span class="severity-pill severity-${escapeHtml(issue.severity)}">${escapeHtml(issue.severity)}</span>
           <span class="pill">${escapeHtml(issue.code)}</span>
@@ -3502,6 +3596,8 @@ function buildIssueCard(issue, actionContext, intelligenceContext) {
       <p class="issue-detail"><strong>Why it matters:</strong> ${escapeHtml(whyItMatters)}</p>
       ${impactSummary ? `<p class="issue-checks"><strong>Impact:</strong> ${escapeHtml(impactSummary)}</p>` : ""}
       ${impactWhy ? `<p class="issue-checks"><strong>Impact rationale:</strong> ${escapeHtml(impactWhy)}</p>` : ""}
+      ${predictiveSummary ? `<p class="issue-checks"><strong>Predictive risk:</strong> ${escapeHtml(predictiveSummary)}</p>` : ""}
+      ${predictiveWhy ? `<p class="issue-checks"><strong>Predictive evidence:</strong> ${escapeHtml(predictiveWhy)}</p>` : ""}
       ${trendMeta.recurringCount > 1 ? `<p class="issue-checks"><strong>Trend memory:</strong> ${escapeHtml(`Recurring in ${trendMeta.recurringCount} run(s) for this target.`)}</p>` : ""}
       <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
       ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
@@ -3542,6 +3638,7 @@ function renderIssues(report, options = {}) {
 
   const filteredIssues = getFilteredIssues(report);
   const intelligenceContext = buildContinuousIntelligence(report);
+  const predictiveContext = buildPredictiveIntelligence(report);
   renderIssueMeta(report, filteredIssues, options);
   renderIssueGroups(report, filteredIssues);
 
@@ -3552,7 +3649,7 @@ function renderIssues(report, options = {}) {
 
   stateEl.issuesList.innerHTML = filteredIssues
     .slice(0, 18)
-    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext))
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext, predictiveContext))
     .join("");
 }
 
@@ -4306,6 +4403,7 @@ function ensureAssistantService() {
       learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
       selfHealing: getVisibleSelfHealing(getVisibleReport()),
       intelligence: buildContinuousIntelligence(getVisibleReport()),
+      predictive: buildPredictiveIntelligence(getVisibleReport()),
       logs: [...uiState.logs],
       compareDigest: buildCompareDigest(getVisibleReport()),
       runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -4331,9 +4429,10 @@ function renderAssistantState() {
   const memory = getOperationalMemorySnapshot(report);
   const healing = getVisibleSelfHealing(report);
   const intelligence = buildContinuousIntelligence(report);
+  const predictive = buildPredictiveIntelligence(report);
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
-    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | view ${uiState.activeView}`;
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
+    : `No audit loaded yet | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
   if (!result) {

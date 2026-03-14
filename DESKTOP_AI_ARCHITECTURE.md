@@ -520,6 +520,7 @@ When changing this architecture, validate at minimum:
 - `node --check qa/src/healing-strategy-registry.mjs`
 - `node --check qa/src/healing-admin.mjs`
 - `node --check qa/src/impact-engine-service.mjs`
+- `node --check companion/src/predictive-intelligence-service.js`
 - `node --check companion/src/main.cjs`
 - `node --check companion/src/preload.cjs`
 - `node --check companion/src/renderer.js`
@@ -543,6 +544,7 @@ Recommended next steps that fit the current design:
 - guided repair plans per issue cluster
 - direct-action support only after explicit safety gating and deterministic validation
 - richer impact heuristics tied to page/business criticality once the product stores stronger project metadata
+- predictive intelligence filters and deeper historical forecasting once project metadata becomes richer
 
 ## Change Log
 
@@ -572,6 +574,16 @@ Impact and continuous intelligence added:
 - renderer-side continuous intelligence using baseline and run history
 - overview panel for impact, trends and action order
 - assistant responses upgraded to use impact, priority and trend context
+
+### 2026-03-14
+
+Predictive intelligence added:
+
+- renderer-side predictive intelligence service based only on comparable run history
+- issue-level trend analysis with `improving`, `stable`, `degrading` and `oscillating`
+- predictive regression alerts with evidence lines and confidence
+- systemic pattern detection across recurring issue codes and families
+- assistant responses upgraded to answer regression-risk, worsening and history-pattern questions
 
 ### 2026-03-13
 

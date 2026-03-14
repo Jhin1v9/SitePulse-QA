@@ -45,7 +45,7 @@
         "findings-search",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "logs", "memory"],
+      contextSources: ["report", "issues", "logs", "memory", "predictive"],
       priorityRules: [
         "Prioritize high severity and SEO-impacting failures first.",
         "Use validated memory before generic recommendations.",
@@ -113,7 +113,7 @@
         "prepare-healing",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "memory", "history", "compare"],
+      contextSources: ["report", "issues", "memory", "history", "compare", "predictive"],
       priorityRules: [
         "Sequence fixes by severity, validation gap and business impact.",
         "Use comparison context when available before recommending the next move.",
@@ -136,6 +136,10 @@
     { id: "healing_decision", mode: "strategy_advisor", terms: ["manualmente ou assistida", "manual or assisted", "assistida ou manual", "deve ser corrigida manualmente"], builder: (context, rawQuery) => buildHealingDecisionResponse(context, rawQuery) },
     { id: "healing_failures", mode: "audit_analyst", terms: ["falhou nas tentativas anteriores", "what failed before", "tentativas anteriores", "healing failed"], builder: (context, rawQuery) => buildHealingFailureResponse(context, rawQuery) },
     { id: "healing_revalidate", mode: "operator", terms: ["revalide a ultima tentativa", "revalidate the last attempt", "revalidar a correcao", "revalidate this fix"], builder: (context, rawQuery) => buildHealingRevalidateResponse(context, rawQuery) },
+    { id: "predictive_risk", mode: "strategy_advisor", terms: ["existe risco de regressao", "risk of regression", "predictive alert", "risco preditivo"], builder: (context) => buildPredictiveRiskResponse(context) },
+    { id: "worsening", mode: "audit_analyst", terms: ["quais problemas estao piorando", "what is getting worse", "worsening issues", "problemas piorando"], builder: (context) => buildWorseningResponse(context) },
+    { id: "trend", mode: "strategy_advisor", terms: ["qual tendencia estou vendo", "what trend am i seeing", "trend analysis", "tendencia"], builder: (context) => buildTrendResponse(context) },
+    { id: "systemic_patterns", mode: "strategy_advisor", terms: ["padroes sistemicos", "systemic patterns", "historico sistemico", "historical patterns"], builder: (context) => buildSystemicPatternsResponse(context) },
     { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
     { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
     { id: "impact", mode: "strategy_advisor", terms: ["maior impacto", "highest impact", "issues tem maior impacto", "which issues have the highest impact"], builder: (context) => buildImpactResponse(context) },
@@ -226,6 +230,25 @@
     };
   }
 
+  function summarizePredictive(predictive, issueCode) {
+    const code = normalizeText(issueCode).toUpperCase();
+    if (!code) return null;
+    const entries = Object.values(predictive?.issueSignals || {});
+    const issue = entries.find((item) => normalizeText(item.issueCode).toUpperCase() === code) || null;
+    if (!issue) return null;
+    return {
+      issueCode: issue.issueCode,
+      trendDirection: normalizeText(issue.trendDirection),
+      trendStrength: Number(issue.trendStrength || 0),
+      trendConfidence: Number(issue.trendConfidence || 0),
+      riskLevel: normalizeText(issue.riskLevel),
+      riskCategory: normalizeText(issue.riskCategory),
+      riskConfidence: Number(issue.riskConfidence || 0),
+      recurringCount: Number(issue.recurringCount || 0),
+      evidence: Array.isArray(issue.evidence) ? issue.evidence.map((entry) => normalizeText(entry)).filter(Boolean) : [],
+    };
+  }
+
   function getHealingCandidates(selfHealing) {
     const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
     return [...issues]
@@ -288,9 +311,11 @@
     const issue = findIssueByCode(appContext, issueCode);
     const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
     const issueHealing = summarizeHealing(appContext.selfHealing, issueCode);
+    const issuePredictive = summarizePredictive(appContext.predictive, issueCode);
     const history = Array.isArray(appContext.runHistory) ? appContext.runHistory : [];
     const availableCommands = Array.isArray(appContext.availableCommands) ? appContext.availableCommands : [];
     const intelligence = appContext.intelligence && typeof appContext.intelligence === "object" ? appContext.intelligence : null;
+    const predictive = appContext.predictive && typeof appContext.predictive === "object" ? appContext.predictive : null;
 
     const baseContext = {
       ...appContext,
@@ -301,11 +326,13 @@
       issue,
       issueMemory,
       issueHealing,
+      issuePredictive,
       prioritizedIssues,
       criticalIssues: prioritizedIssues.filter((entry) => entry.severity === "high"),
       runHistory: history,
       availableCommands,
       intelligence,
+      predictive,
     };
 
     if (modeKey === "operator") {
@@ -335,6 +362,7 @@
           memorySummary: appContext.learningMemory?.summary || null,
           healingSummary: appContext.selfHealing?.summary || null,
           impactSummary: intelligence?.executiveSummary || null,
+          predictiveSummary: predictive?.summary || null,
         },
       };
     }
@@ -372,6 +400,7 @@
         healingSummary: appContext.selfHealing?.summary || null,
         healingCandidates: getHealingCandidates(appContext.selfHealing),
         intelligence,
+        predictive,
       },
     };
   }
@@ -536,10 +565,11 @@
 
     return {
       title: "What worsened",
-      summary: context.intelligence?.trendSummary?.seo?.text || "Current regression view against the active baseline.",
+      summary: context.predictive?.alerts?.[0]?.label || context.intelligence?.trendSummary?.seo?.text || "Current regression view against the active baseline.",
       analysis: [
         context.intelligence?.trendSummary?.runtime?.text || "Runtime trend unavailable.",
         context.intelligence?.trendSummary?.ux?.text || "UX trend unavailable.",
+        ...(context.predictive?.alerts?.length ? context.predictive.alerts.slice(0, 2).map((alert) => `${alert.label} | confidence ${Number(alert.riskConfidence || 0).toFixed(2)}`) : []),
         ...context.compareDigest.split("\n").slice(0, 12),
       ],
       actions: [{ id: "switch-compare", label: "Open compare" }],
@@ -559,9 +589,12 @@
     const topIssues = prioritizeIssues(report).slice(0, 5);
     return {
       title: "Highest-impact issues",
-      summary: context.intelligence?.executiveSummary?.headline || "Impact Engine sorted the current issues by operational pressure.",
+      summary: context.intelligence?.executiveSummary?.headline || context.predictive?.alerts?.[0]?.label || "Impact Engine sorted the current issues by operational pressure.",
       analysis: topIssues.length
-        ? topIssues.map((issue, index) => `${index + 1}. ${issue.code} | ${describeImpact(issue)} | ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}`)
+        ? topIssues.map((issue, index) => {
+            const predictive = summarizePredictive(context.predictive, issue.code);
+            return `${index + 1}. ${issue.code} | ${describeImpact(issue)}${predictive ? ` | ${predictive.riskLevel} ${predictive.riskCategory}` : ""} | ${issue.route}${issue.action ? ` -> ${issue.action}` : ""}`;
+          })
         : ["No issue is currently loaded."],
       actions: [{ id: "switch-findings", label: "Open findings" }],
     };
@@ -597,6 +630,103 @@
       actions: [
         { id: "switch-seo", label: "Open SEO workspace" },
         { id: "generate-prompt", label: "Generate prompt", payload: { issueCode: seoLead.code } },
+      ],
+    };
+  }
+
+  function buildPredictiveRiskResponse(context) {
+    const predictive = context.predictive;
+    if (!predictive?.alerts?.length) {
+      return {
+        title: "No predictive alert",
+        summary: "There is not enough comparable run history to raise a predictive regression alert yet.",
+        analysis: ["Load at least one previous comparable run or keep building history for the same target."],
+        actions: [{ id: "switch-compare", label: "Open compare" }],
+      };
+    }
+
+    return {
+      title: "Predictive regression risk",
+      summary: predictive.alerts[0].label,
+      analysis: predictive.alerts.slice(0, 4).flatMap((alert, index) => [
+        `${index + 1}. ${alert.label} | ${alert.riskLevel} | confidence ${Number(alert.riskConfidence || 0).toFixed(2)}`,
+        ...(Array.isArray(alert.evidence) ? alert.evidence.slice(0, 2).map((item) => `   - ${item}`) : []),
+      ]),
+      actions: [
+        { id: "switch-compare", label: "Open compare" },
+        { id: "switch-findings", label: "Open findings" },
+      ],
+    };
+  }
+
+  function buildWorseningResponse(context) {
+    const degrading = Object.values(context.predictive?.issueSignals || {})
+      .filter((signal) => ["degrading", "oscillating"].includes(normalizeText(signal.trendDirection)))
+      .sort((left, right) => Number(right.riskConfidence || 0) - Number(left.riskConfidence || 0))
+      .slice(0, 5);
+    if (!degrading.length) {
+      return {
+        title: "No worsening pattern",
+        summary: "No current issue is showing a degrading or oscillating trend with enough evidence.",
+        analysis: ["The current history suggests stable or improving behavior for the loaded issues."],
+        actions: [{ id: "switch-compare", label: "Open compare" }],
+      };
+    }
+    return {
+      title: "Problems getting worse",
+      summary: `${degrading[0].issueCode} is the strongest worsening signal right now.`,
+      analysis: degrading.map((signal, index) => `${index + 1}. ${signal.issueCode} | ${signal.trendDirection} | ${signal.riskLevel} | ${signal.evidence[0] || "No evidence attached."}`),
+      actions: [
+        { id: "switch-findings", label: "Open findings" },
+        { id: "switch-compare", label: "Open compare" },
+      ],
+    };
+  }
+
+  function buildTrendResponse(context) {
+    const predictive = context.predictive;
+    if (!predictive) {
+      return {
+        title: "No predictive trend context",
+        summary: "The predictive intelligence layer is not available in the current state.",
+        analysis: ["Load a report and its recent history first."],
+        actions: [{ id: "switch-overview", label: "Open overview" }],
+      };
+    }
+    const overview = predictive.trendOverview || {};
+    return {
+      title: "Trend overview",
+      summary: "Directional trends are computed only from comparable run history for the active target.",
+      analysis: [
+        overview.seo?.text || "SEO trend unavailable.",
+        overview.runtime?.text || "Runtime trend unavailable.",
+        overview.ux?.text || "UX trend unavailable.",
+        `Predictive alerts: ${predictive.summary?.highRiskAlerts || 0} high-risk and ${predictive.summary?.mediumRiskAlerts || 0} medium-risk.`,
+      ],
+      actions: [
+        { id: "switch-overview", label: "Open overview" },
+        { id: "switch-compare", label: "Open compare" },
+      ],
+    };
+  }
+
+  function buildSystemicPatternsResponse(context) {
+    const patterns = Array.isArray(context.predictive?.systemicPatterns) ? context.predictive.systemicPatterns : [];
+    if (!patterns.length) {
+      return {
+        title: "No systemic pattern",
+        summary: "The current history does not show a recurring systemic pattern yet.",
+        analysis: ["Keep loading comparable runs for the same target if you want pattern detection to become stronger."],
+        actions: [{ id: "switch-reports", label: "Open reports" }],
+      };
+    }
+    return {
+      title: "Systemic patterns",
+      summary: patterns[0].label,
+      analysis: patterns.slice(0, 5).map((pattern, index) => `${index + 1}. ${pattern.label} | ${pattern.riskLevel} | confidence ${Number(pattern.riskConfidence || 0).toFixed(2)}`),
+      actions: [
+        { id: "switch-overview", label: "Open overview" },
+        { id: "switch-findings", label: "Open findings" },
       ],
     };
   }
