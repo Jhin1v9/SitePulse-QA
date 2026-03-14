@@ -468,6 +468,8 @@ const uiState = {
   selfHealingSnapshot: null,
   selfHealingRefreshInFlight: false,
   continuousIntelligenceCache: null,
+  dataIntelligenceService: null,
+  dataIntelligenceCache: null,
   predictiveService: null,
   predictiveCache: null,
   autonomousQaService: null,
@@ -2108,6 +2110,61 @@ function getVisibleSelfHealing(report = null) {
   return uiState.selfHealingSnapshot || report?.selfHealing || null;
 }
 
+function createEmptyDataIntelligenceSnapshot() {
+  if (typeof window.createSitePulseDataIntelligenceService === "function") {
+    const service = ensureDataIntelligenceService();
+    if (service?.createEmptyDataIntelligenceSnapshot) {
+      return service.createEmptyDataIntelligenceSnapshot();
+    }
+  }
+  return {
+    updatedAt: "",
+    contextKey: "",
+    SITE_STATE: {
+      baseUrl: "",
+      generatedAt: "",
+      mode: "",
+      scope: "",
+      viewportLabel: "",
+      totalIssues: 0,
+      routesChecked: 0,
+      actionsMapped: 0,
+      historyDepth: 0,
+    },
+    QUALITY_STATE: {
+      overallScore: 0,
+      trajectory: "stable",
+      trajectoryConfidence: 0,
+      seoScore: 0,
+      dimensions: {},
+      rationale: [],
+      topImprovements: [],
+      qualityHistory: [],
+    },
+    RISK_STATE: {
+      topRisks: [],
+      predictiveAlerts: [],
+      priorityCounts: { P0: 0, P1: 0, P2: 0, P3: 0, P4: 0 },
+      highRiskAlertCount: 0,
+      healingEligibleCount: 0,
+      recommendedActionOrder: [],
+      highestImpactIssue: null,
+    },
+    TREND_STATE: {
+      overallDirection: "stable",
+      overallConfidence: 0,
+      seo: { direction: "stable", text: "SEO = stable" },
+      runtime: { direction: "stable", text: "Runtime = stable" },
+      ux: { direction: "stable", text: "UX = stable" },
+      predictiveOverview: {},
+      systemicPatterns: [],
+      recurringIssues: [],
+    },
+    ISSUE_STATE: [],
+    ISSUE_MAP: {},
+  };
+}
+
 function buildHealingIssueKey(issueLike) {
   return [
     String(issueLike?.code || issueLike?.issueCode || "").trim().toUpperCase(),
@@ -2648,6 +2705,18 @@ function ensurePredictiveService() {
   return uiState.predictiveService;
 }
 
+function ensureDataIntelligenceService() {
+  if (uiState.dataIntelligenceService) return uiState.dataIntelligenceService;
+  if (typeof window.createSitePulseDataIntelligenceService !== "function") {
+    return null;
+  }
+  uiState.dataIntelligenceService = window.createSitePulseDataIntelligenceService({
+    issueSignature,
+    priorityRank,
+  });
+  return uiState.dataIntelligenceService;
+}
+
 function buildPredictiveIntelligence(report) {
   if (!report) {
     return createEmptyPredictiveSnapshot();
@@ -2784,6 +2853,7 @@ function buildDesktopIntelligenceSnapshot(report) {
       intelligence: createEmptyContinuousIntelligenceSnapshot(),
       predictive: createEmptyPredictiveSnapshot(),
       autonomous: createEmptyAutonomousQaSnapshot(),
+      dataIntelligence: createEmptyDataIntelligenceSnapshot(),
     };
   }
 
@@ -2809,12 +2879,27 @@ function buildDesktopIntelligenceSnapshot(report) {
     intelligence,
     predictive,
   });
+  const dataIntelligenceService = ensureDataIntelligenceService();
+  const dataIntelligence = dataIntelligenceService?.buildDataIntelligence
+    ? dataIntelligenceService.buildDataIntelligence(report, {
+        learningMemory,
+        selfHealing,
+        intelligence,
+        predictive,
+        autonomous,
+        runHistory: uiState.history.slice(0, 8).map((entry) => ({
+          stamp: entry.stamp,
+          report: entry.report,
+        })),
+      })
+    : createEmptyDataIntelligenceSnapshot();
   const snapshot = {
     learningMemory,
     selfHealing,
     intelligence,
     predictive,
     autonomous,
+    dataIntelligence,
   };
   uiState.desktopIntelligenceCache = {
     key: cacheKey,
@@ -3696,7 +3781,7 @@ function formatIssueTrend(trend) {
   return "= stable";
 }
 
-function buildIssueCard(issue, actionContext, intelligenceContext, predictiveContext, autonomousContext) {
+function buildIssueCard(issue, actionContext, dataIntelligenceContext, intelligenceContext, predictiveContext, autonomousContext) {
   const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
   const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
   const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
@@ -3722,18 +3807,27 @@ function buildIssueCard(issue, actionContext, intelligenceContext, predictiveCon
   const healingAttempt = healing?.lastAttempt
     ? `${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${formatLocalDate(healing.lastAttempt.updatedAt)}` : ""}`
     : "";
+  const issueContext = dataIntelligenceContext?.ISSUE_MAP?.[issueSignature(issue)] || null;
   const predictiveMeta = predictiveContext?.issueSignals?.[issueSignature(issue)] || null;
-  const trendMeta = predictiveMeta
+  const trendMeta = issueContext?.trend
+    ? { trend: issueContext.trend.direction, recurringCount: issueContext.history?.recurringCount || 1 }
+    : predictiveMeta
     ? { trend: predictiveMeta.trendDirection, recurringCount: predictiveMeta.recurringCount || Number(issue.impact?.recurringCount || 0) }
     : intelligenceContext?.issueTrends?.[issueSignature(issue)] || { trend: "stable", recurringCount: Number(issue.impact?.recurringCount || 0) };
   const impactSummary = issue.impact?.impactScore
     ? `${issue.impact.priorityLevel || "P4"} | impact ${issue.impact.impactScore.toFixed(2)} | ${issue.impact.riskType || issue.impact.impactCategory || "operational risk"}`
     : "";
   const impactWhy = Array.isArray(issue.impact?.rationale) ? issue.impact.rationale.slice(0, 2).join(" | ") : "";
-  const predictiveSummary = predictiveMeta
+  const predictiveSummary = issueContext?.predictiveRisk
+    ? `${issueContext.predictiveRisk.level} | ${issueContext.predictiveRisk.category} | confidence ${Number(issueContext.predictiveRisk.confidence || 0).toFixed(2)}`
+    : predictiveMeta
     ? `${predictiveMeta.riskLevel} | ${predictiveMeta.riskCategory} | confidence ${predictiveMeta.riskConfidence.toFixed(2)}`
     : "";
-  const predictiveWhy = predictiveMeta?.evidence?.length ? predictiveMeta.evidence.slice(0, 2).join(" | ") : "";
+  const predictiveWhy = issueContext?.predictiveRisk?.evidence?.length
+    ? issueContext.predictiveRisk.evidence.slice(0, 2).join(" | ")
+    : predictiveMeta?.evidence?.length
+    ? predictiveMeta.evidence.slice(0, 2).join(" | ")
+    : "";
   const autonomousMeta = autonomousContext?.playbooks?.[issueSignature(issue)] || null;
   const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
   const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
@@ -3795,6 +3889,7 @@ function buildIssueCard(issue, actionContext, intelligenceContext, predictiveCon
       ${autonomousMeta?.title ? `<p class="issue-checks"><strong>Playbook:</strong> ${escapeHtml(`${autonomousMeta.title}${autonomousMeta.nextActionLabel ? ` | ${autonomousMeta.nextActionLabel}` : ""}`)}</p>` : ""}
       ${autonomousMeta?.revalidationRule ? `<p class="issue-checks"><strong>Revalidation rule:</strong> ${escapeHtml(autonomousMeta.revalidationRule)}</p>` : ""}
       ${trendMeta.recurringCount > 1 ? `<p class="issue-checks"><strong>Trend memory:</strong> ${escapeHtml(`Recurring in ${trendMeta.recurringCount} run(s) for this target.`)}</p>` : ""}
+      ${issueContext?.history?.runsObserved ? `<p class="issue-checks"><strong>History:</strong> ${escapeHtml(`${issueContext.history.runsObserved} comparable run(s) observed${issueContext.history.reappeared ? " | reappeared after disappearing" : ""}`)}</p>` : ""}
       <p class="issue-fix"><strong>Recommended fix:</strong> ${escapeHtml(issue.recommendedResolution)}</p>
       ${issue.possibleResolution ? `<p class="issue-checks"><strong>Possible solution:</strong> ${escapeHtml(issue.possibleResolution)}</p>` : ""}
       ${issue.finalResolution ? `<p class="issue-checks"><strong>Final solution:</strong> ${escapeHtml(issue.finalResolution)}</p>` : ""}
@@ -3834,6 +3929,7 @@ function renderIssues(report, options = {}) {
 
   const filteredIssues = getFilteredIssues(report);
   const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const dataIntelligenceContext = intelligenceSnapshot.dataIntelligence;
   const intelligenceContext = intelligenceSnapshot.intelligence;
   const predictiveContext = intelligenceSnapshot.predictive;
   const autonomousContext = intelligenceSnapshot.autonomous;
@@ -3847,7 +3943,7 @@ function renderIssues(report, options = {}) {
 
   stateEl.issuesList.innerHTML = filteredIssues
     .slice(0, 18)
-    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), intelligenceContext, predictiveContext, autonomousContext))
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), dataIntelligenceContext, intelligenceContext, predictiveContext, autonomousContext))
     .join("");
 }
 
@@ -4637,6 +4733,7 @@ function ensureAssistantService() {
         intelligence: intelligenceSnapshot.intelligence,
         predictive: intelligenceSnapshot.predictive,
         autonomous: intelligenceSnapshot.autonomous,
+        dataIntelligence: intelligenceSnapshot.dataIntelligence,
         logs: [...uiState.logs],
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -4666,9 +4763,10 @@ function renderAssistantState() {
   const intelligence = intelligenceSnapshot.intelligence;
   const predictive = intelligenceSnapshot.predictive;
   const autonomous = intelligenceSnapshot.autonomous;
+  const dataIntelligence = intelligenceSnapshot.dataIntelligence;
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | quality ${autonomous.qualityScore.total || 0} | ${autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
-    : `No audit loaded yet | quality ${autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
+    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
+    : `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;
 
   const result = uiState.assistantResult;
   if (!result) {

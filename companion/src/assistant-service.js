@@ -45,7 +45,7 @@
         "findings-search",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "logs", "memory", "predictive"],
+      contextSources: ["report", "issues", "logs", "memory", "predictive", "data-intelligence"],
       priorityRules: [
         "Prioritize high severity and SEO-impacting failures first.",
         "Use validated memory before generic recommendations.",
@@ -113,7 +113,7 @@
         "prepare-healing",
         "generate-prompt",
       ],
-      contextSources: ["report", "issues", "memory", "history", "compare", "predictive"],
+      contextSources: ["report", "issues", "memory", "history", "compare", "predictive", "data-intelligence"],
       priorityRules: [
         "Sequence fixes by severity, validation gap and business impact.",
         "Use comparison context when available before recommending the next move.",
@@ -271,6 +271,13 @@
     };
   }
 
+  function summarizeDataIssue(dataIntelligence, issueCode) {
+    const code = normalizeText(issueCode).toUpperCase();
+    if (!code) return null;
+    const issues = Array.isArray(dataIntelligence?.ISSUE_STATE) ? dataIntelligence.ISSUE_STATE : [];
+    return issues.find((item) => normalizeText(item.issueCode).toUpperCase() === code) || null;
+  }
+
   function getHealingCandidates(selfHealing) {
     const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
     return [...issues]
@@ -340,6 +347,8 @@
     const intelligence = appContext.intelligence && typeof appContext.intelligence === "object" ? appContext.intelligence : null;
     const predictive = appContext.predictive && typeof appContext.predictive === "object" ? appContext.predictive : null;
     const autonomous = appContext.autonomous && typeof appContext.autonomous === "object" ? appContext.autonomous : null;
+    const dataIntelligence = appContext.dataIntelligence && typeof appContext.dataIntelligence === "object" ? appContext.dataIntelligence : null;
+    const dataIssue = summarizeDataIssue(dataIntelligence, issueCode);
 
     const baseContext = {
       ...appContext,
@@ -359,6 +368,8 @@
       intelligence,
       predictive,
       autonomous,
+      dataIntelligence,
+      dataIssue,
     };
 
     if (modeKey === "operator") {
@@ -390,6 +401,7 @@
           impactSummary: intelligence?.executiveSummary || null,
           predictiveSummary: predictive?.summary || null,
           autonomousSummary: autonomous?.qualityScore || null,
+          dataSummary: dataIntelligence?.RISK_STATE || null,
         },
       };
     }
@@ -429,6 +441,7 @@
         intelligence,
         predictive,
         autonomous,
+        dataIntelligence,
       },
     };
   }
@@ -521,7 +534,7 @@
       lines.push(`Recent history loaded: ${context.strategyContext.runHistory.length} snapshot(s).`);
     }
     if (context.autonomous?.qualityScore?.total) {
-      lines.push(`Current SitePulse Quality Score: ${context.autonomous.qualityScore.total}. Trajectory: ${context.autonomous.qualityTrajectory?.direction || "stable"}.`);
+      lines.push(`Current SitePulse Quality Score: ${context.dataIntelligence?.QUALITY_STATE?.overallScore || context.autonomous.qualityScore.total}. Trajectory: ${context.dataIntelligence?.QUALITY_STATE?.trajectory || context.autonomous.qualityTrajectory?.direction || "stable"}.`);
     }
     if (Array.isArray(executive?.recommendedActionOrder) && executive.recommendedActionOrder.length) {
       lines.push("Recommended action order:");
@@ -732,9 +745,9 @@
       title: "Trend overview",
       summary: "Directional trends are computed only from comparable run history for the active target.",
       analysis: [
-        overview.seo?.text || "SEO trend unavailable.",
-        overview.runtime?.text || "Runtime trend unavailable.",
-        overview.ux?.text || "UX trend unavailable.",
+        context.dataIntelligence?.TREND_STATE?.seo?.text || overview.seo?.text || "SEO trend unavailable.",
+        context.dataIntelligence?.TREND_STATE?.runtime?.text || overview.runtime?.text || "Runtime trend unavailable.",
+        context.dataIntelligence?.TREND_STATE?.ux?.text || overview.ux?.text || "UX trend unavailable.",
         `Predictive alerts: ${predictive.summary?.highRiskAlerts || 0} high-risk and ${predictive.summary?.mediumRiskAlerts || 0} medium-risk.`,
       ],
       actions: [
@@ -804,8 +817,11 @@
     }
     return {
       title: "Quality trajectory",
-      summary: `SitePulse Quality Score ${autonomous.qualityScore?.total || 0} | ${autonomous.qualityTrajectory?.direction || "stable"}.`,
+      summary: `SitePulse Quality Score ${context.dataIntelligence?.QUALITY_STATE?.overallScore || autonomous.qualityScore?.total || 0} | ${context.dataIntelligence?.QUALITY_STATE?.trajectory || autonomous.qualityTrajectory?.direction || "stable"}.`,
       analysis: [
+        ...(context.dataIntelligence?.QUALITY_STATE?.qualityHistory?.length
+          ? [`Quality history depth: ${context.dataIntelligence.QUALITY_STATE.qualityHistory.length} comparable snapshot(s).`]
+          : []),
         ...(Array.isArray(autonomous.qualityScore?.rationale) ? autonomous.qualityScore.rationale.slice(0, 4) : []),
         ...(Array.isArray(autonomous.qualityTrajectory?.evidence) ? autonomous.qualityTrajectory.evidence : []),
       ],
@@ -819,7 +835,7 @@
   function buildBiggestRiskResponse(context) {
     const autonomous = context.autonomous;
     const predictive = context.predictive;
-    const risk = autonomous?.insights?.topRisks?.[0] || predictive?.alerts?.[0]?.label || "";
+    const risk = context.dataIntelligence?.RISK_STATE?.topRisks?.[0] || autonomous?.insights?.topRisks?.[0] || predictive?.alerts?.[0]?.label || "";
     if (!risk) {
       return {
         title: "No dominant risk",
@@ -875,6 +891,9 @@
       if (autonomous.diagnosticStep) lines.push(`Diagnostic step: ${autonomous.diagnosticStep}`);
       if (autonomous.revalidationRule) lines.push(`Revalidation rule: ${autonomous.revalidationRule}`);
     }
+    if (context.dataIssue?.history?.runsObserved) {
+      lines.push(`History: ${context.dataIssue.history.runsObserved} comparable run(s) observed; recurring ${context.dataIssue.history.recurringCount || 0} time(s).`);
+    }
 
     return {
       title: issueCode || issue?.code || "Issue explanation",
@@ -907,6 +926,9 @@
     }
     if (autonomous?.nextActionLabel) {
       analysis.push(`Autonomous next action: ${autonomous.nextActionLabel}`);
+    }
+    if (context.dataIssue?.predictiveRisk?.level) {
+      analysis.push(`Data Intelligence risk: ${context.dataIssue.predictiveRisk.level} ${context.dataIssue.predictiveRisk.category} with confidence ${Number(context.dataIssue.predictiveRisk.confidence || 0).toFixed(2)}.`);
     }
     return {
       title: `Prompt intelligence${issueCode ? ` | ${issueCode}` : ""}`,

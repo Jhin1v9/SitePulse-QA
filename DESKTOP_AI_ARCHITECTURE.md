@@ -39,6 +39,7 @@ The desktop AI system is split into five layers:
 4. Assistant reasoning and action layer
 5. Self-Healing orchestration layer
 6. Impact and continuous intelligence layer
+7. Data Intelligence consolidation layer
 
 ### 1. QA Runtime Learning Layer
 
@@ -153,6 +154,39 @@ This exists for two reasons:
 
 - avoid recomputing the same derived signals across Overview, Findings, Prompt Workspace and Assistant
 - keep those surfaces aligned to the same cached intelligence state during a render cycle
+
+### Data Intelligence Layer
+
+Files:
+
+- [data-intelligence-service.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\data-intelligence-service.js)
+- [renderer.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\renderer.js)
+
+Responsibilities:
+
+- consolidate runs, issues, impact, predictive signals, healing state, memory state and quality history
+- expose one normalized context model for downstream consumers
+- enrich each issue with a single merged state instead of forcing each consumer to stitch signals independently
+
+Context model:
+
+- `SITE_STATE`
+- `QUALITY_STATE`
+- `RISK_STATE`
+- `TREND_STATE`
+- `ISSUE_STATE`
+- `ISSUE_MAP`
+
+Per-issue enrichment currently includes:
+
+- impact
+- priority
+- trend
+- predictive risk
+- healing confidence
+- history
+
+The assistant consumes this layer as `dataIntelligence`, and Findings now uses the same merged issue context when rendering cards.
 
 ### Memory Panel
 
