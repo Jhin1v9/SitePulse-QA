@@ -4,6 +4,8 @@
   runHistory: "sitepulse-studio:run-history-v1",
   onboarding: "sitepulse-studio:onboarding-v1",
   baseline: "sitepulse-studio:baseline-v1",
+  assistantConversation: "sitepulse-studio:assistant-conversation-v1",
+  assistantSavedPrompts: "sitepulse-studio:assistant-saved-prompts-v1",
 };
 
 const ISSUE_GROUP = {
@@ -517,6 +519,8 @@ const uiState = {
   commandPaletteQuery: "",
   assistantQuery: "",
   assistantResult: null,
+  assistantConversation: loadAssistantConversation(),
+  assistantSavedPrompts: loadAssistantSavedPrompts(),
   assistantService: null,
   adaptiveLanguageService: null,
   assistantLanguageState: null,
@@ -973,6 +977,60 @@ function persistOnboardingState(value) {
   writeStorage(STORAGE_KEYS.onboarding, uiState.onboardingDismissed);
 }
 
+function normalizeAssistantConversationEntry(entry) {
+  if (!entry || typeof entry !== "object") return null;
+  const role = String(entry.role || "");
+  if (!["user", "assistant"].includes(role)) return null;
+  return {
+    id: String(entry.id || `${role}-${Date.now()}`),
+    role,
+    text: String(entry.text || ""),
+    lead: String(entry.lead || ""),
+    body: Array.isArray(entry.body) ? entry.body.map((item) => String(item || "")).filter(Boolean) : [],
+    followUp: String(entry.followUp || ""),
+    modeKey: String(entry.modeKey || ""),
+    toneKey: String(entry.toneKey || ""),
+    intentId: String(entry.intentId || ""),
+    at: String(entry.at || ""),
+  };
+}
+
+function pruneAssistantConversation(entries) {
+  return (Array.isArray(entries) ? entries : [])
+    .map((entry) => normalizeAssistantConversationEntry(entry))
+    .filter(Boolean)
+    .slice(-20);
+}
+
+function loadAssistantConversation() {
+  const source = readStorage(STORAGE_KEYS.assistantConversation, []);
+  return pruneAssistantConversation(source);
+}
+
+function persistAssistantConversation() {
+  uiState.assistantConversation = pruneAssistantConversation(uiState.assistantConversation);
+  writeStorage(STORAGE_KEYS.assistantConversation, uiState.assistantConversation);
+}
+
+function loadAssistantSavedPrompts() {
+  const source = readStorage(STORAGE_KEYS.assistantSavedPrompts, []);
+  if (!Array.isArray(source)) return [];
+  return source
+    .filter((entry) => entry && typeof entry === "object")
+    .map((entry) => ({
+      id: String(entry.id || `prompt-${Date.now()}`),
+      title: String(entry.title || ""),
+      context: String(entry.context || ""),
+      promptText: String(entry.promptText || ""),
+      at: String(entry.at || ""),
+    }))
+    .slice(-12);
+}
+
+function persistAssistantSavedPrompts() {
+  writeStorage(STORAGE_KEYS.assistantSavedPrompts, uiState.assistantSavedPrompts.slice(-12));
+}
+
 function ensureAdaptiveLanguageService() {
   if (uiState.adaptiveLanguageService) return uiState.adaptiveLanguageService;
   if (typeof window.createSitePulseAdaptiveLanguageService !== "function") {
@@ -1122,6 +1180,193 @@ function buildAssistantPromptRequest(issueCode = "") {
     : (issueCode ? `generate a prompt to fix issue ${issueCode}` : "generate a prompt to fix the top issue");
 }
 
+function buildAssistantStarterEntry(languageKey = getAssistantLanguage()) {
+  const uiText = getAssistantUiText();
+  return {
+    id: "assistant-starter",
+    role: "assistant",
+    lead: localizePromptLine(languageKey, {
+      pt: "Olá. Posso te ajudar a analisar a auditoria atual, interpretar um log, gerar um prompt ou te orientar pelo app.",
+      es: "Hola. Puedo ayudarte a analizar la auditoría actual, interpretar un log, generar un prompt o guiarte por la app.",
+      en: "Hello. I can help you analyze the current audit, interpret a log, generate a prompt or guide you through the app.",
+      ca: "Hola. Puc ajudar-te a analitzar l'auditoria actual, interpretar un log, generar un prompt o guiar-te per l'app.",
+    }),
+    body: [String(uiText?.responseDefault || "")],
+    followUp: localizePromptLine(languageKey, {
+      pt: "Se quiser, eu começo pelo que corrigir primeiro.",
+      es: "Si quieres, empiezo por lo que deberías corregir primero.",
+      en: "If you want, I can start with what you should fix first.",
+      ca: "Si vols, començo pel que hauries de corregir primer.",
+    }),
+    modeKey: "product_guide",
+    toneKey: "friendly",
+    intentId: "greeting",
+    at: "",
+  };
+}
+
+function formatAssistantToneLabel(toneKey, languageKey = getAssistantLanguage()) {
+  switch (String(toneKey || "")) {
+    case "technical":
+      return localizePromptLine(languageKey, { pt: "tecnico", es: "tecnico", en: "technical", ca: "tecnic" });
+    case "advanced_engineer":
+      return localizePromptLine(languageKey, { pt: "engenharia avancada", es: "ingenieria avanzada", en: "advanced engineer", ca: "enginyeria avancada" });
+    case "executive_summary":
+      return localizePromptLine(languageKey, { pt: "resumo executivo", es: "resumen ejecutivo", en: "executive summary", ca: "resum executiu" });
+    case "prompt_engineer":
+      return localizePromptLine(languageKey, { pt: "prompt engineer", es: "prompt engineer", en: "prompt engineer", ca: "prompt engineer" });
+    case "simple":
+      return localizePromptLine(languageKey, { pt: "simples", es: "simple", en: "simple", ca: "simple" });
+    case "operational":
+      return localizePromptLine(languageKey, { pt: "operacional", es: "operacional", en: "operational", ca: "operacional" });
+    default:
+      return localizePromptLine(languageKey, { pt: "humano", es: "humano", en: "human", ca: "huma" });
+  }
+}
+
+function appendAssistantConversationEntry(entry) {
+  const normalized = normalizeAssistantConversationEntry(entry);
+  if (!normalized) return;
+  uiState.assistantConversation = pruneAssistantConversation([...uiState.assistantConversation, normalized]);
+  persistAssistantConversation();
+}
+
+function createAssistantUserEntry(text) {
+  return {
+    id: `assistant-user-${Date.now()}`,
+    role: "user",
+    text: String(text || ""),
+    at: new Date().toISOString(),
+  };
+}
+
+function createAssistantResultEntry(result) {
+  return {
+    id: `assistant-reply-${Date.now()}`,
+    role: "assistant",
+    lead: String(result?.assistantLead || result?.summary || ""),
+    body: Array.isArray(result?.assistantBody) ? result.assistantBody.map((item) => String(item || "")).filter(Boolean) : [],
+    followUp: String(result?.assistantFollowUp || ""),
+    modeKey: String(result?.modeKey || ""),
+    toneKey: String(result?.toneKey || ""),
+    intentId: String(result?.intentId || ""),
+    at: new Date().toISOString(),
+  };
+}
+
+function renderAssistantConversation() {
+  if (!stateEl.assistantResponse) return;
+  const languageKey = getAssistantLanguage();
+  const entries = uiState.assistantConversation.length
+    ? uiState.assistantConversation
+    : [buildAssistantStarterEntry(languageKey)];
+
+  stateEl.assistantResponse.innerHTML = entries.map((entry) => {
+    if (entry.role === "user") {
+      return `
+        <article class="assistant-message assistant-message-user">
+          <div class="assistant-message-meta">${escapeHtml(localizePromptLine(languageKey, { pt: "voce", es: "tu", en: "you", ca: "tu" }))}</div>
+          <div class="assistant-message-bubble">${escapeHtml(entry.text)}</div>
+        </article>
+      `;
+    }
+    const localizedMode = entry.modeKey ? getLocalizedAssistantModeMeta(entry.modeKey, languageKey).name : "";
+    const toneLabel = entry.toneKey ? formatAssistantToneLabel(entry.toneKey, languageKey) : "";
+    const body = Array.isArray(entry.body) && entry.body.length
+      ? `<div class="assistant-message-body">${entry.body.map((item) => `<p>${escapeHtml(localizeAssistantLine(item, languageKey))}</p>`).join("")}</div>`
+      : "";
+    const followUp = entry.followUp
+      ? `<div class="assistant-message-followup">${escapeHtml(localizeAssistantLine(entry.followUp, languageKey))}</div>`
+      : "";
+    const meta = [localizedMode, toneLabel].filter(Boolean).join(" · ");
+    return `
+      <article class="assistant-message assistant-message-assistant">
+        <div class="assistant-message-meta">${escapeHtml(meta || localizePromptLine(languageKey, { pt: "assistente", es: "asistente", en: "assistant", ca: "assistent" }))}</div>
+        <div class="assistant-message-bubble">
+          <strong>${escapeHtml(localizeAssistantLine(entry.lead, languageKey))}</strong>
+          ${body}
+          ${followUp}
+        </div>
+      </article>
+    `;
+  }).join("");
+  stateEl.assistantResponse.scrollTop = stateEl.assistantResponse.scrollHeight;
+}
+
+function saveAssistantPromptCard(card) {
+  if (!card || !String(card.promptText || "").trim()) return;
+  uiState.assistantSavedPrompts = [
+    ...uiState.assistantSavedPrompts,
+    {
+      id: `assistant-saved-prompt-${Date.now()}`,
+      title: String(card.title || "Prompt"),
+      context: String(card.context || ""),
+      promptText: String(card.promptText || ""),
+      at: new Date().toISOString(),
+    },
+  ].slice(-12);
+  persistAssistantSavedPrompts();
+  showToast("Prompt saved in the local assistant memory.", "ok");
+}
+
+function sendAssistantPromptCardToWorkspace(card) {
+  if (!card || !String(card.promptText || "").trim()) return;
+  stateEl.quickPromptBox.textContent = String(card.promptText || "");
+  stateEl.promptWorkspaceFix.textContent = String(card.promptText || "");
+  switchView("prompts");
+  showToast("Prompt sent to the Prompt Workspace.", "ok");
+}
+
+function renderAssistantCards(result) {
+  if (!stateEl.assistantActions) return;
+  if (!result) {
+    const uiText = getAssistantUiText();
+    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText?.actionsDefault || "Action suggestions will appear here when the assistant has enough context.")}</article>`;
+    return;
+  }
+  const promptCard = result.promptCard && typeof result.promptCard === "object" ? result.promptCard : null;
+  const actionCards = Array.isArray(result.actionCards) ? result.actionCards : [];
+  const sections = [];
+
+  if (promptCard) {
+    sections.push(`
+      <article class="assistant-prompt-card">
+        <div class="assistant-card-top">
+          <div>
+            <span class="info-label">${escapeHtml(promptCard.title || "Prompt")}</span>
+            <strong>${escapeHtml(promptCard.context || "")}</strong>
+          </div>
+        </div>
+        <pre class="assistant-prompt-card-body">${escapeHtml(promptCard.promptText || "")}</pre>
+        <div class="assistant-card-actions">
+          <button type="button" data-assistant-card-action="copy-prompt">${escapeHtml(promptCard.copyLabel || "Copy")}</button>
+          <button type="button" data-assistant-card-action="send-prompt">${escapeHtml(promptCard.sendLabel || "Send to Prompts")}</button>
+          <button type="button" data-assistant-card-action="save-prompt">${escapeHtml(promptCard.saveLabel || "Save")}</button>
+        </div>
+      </article>
+    `);
+  }
+
+  if (actionCards.length) {
+    sections.push(actionCards.map((action, index) => `
+      <button type="button" class="assistant-action-card" data-assistant-index="${index}">
+        <div class="assistant-card-top">
+          <span class="info-label">${escapeHtml(action.id || "action")}</span>
+          <strong>${escapeHtml(localizeAssistantActionLabel(action.label || action.id || `action-${index + 1}`, getAssistantLanguage()))}</strong>
+        </div>
+        <p>${escapeHtml(action.description || "")}</p>
+      </button>
+    `).join(""));
+  }
+
+  if (!sections.length) {
+    const uiText = getAssistantUiText();
+    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText?.noDirectAction || "No direct action was suggested for this answer.")}</article>`;
+    return;
+  }
+  stateEl.assistantActions.innerHTML = sections.join("");
+}
+
 function rerenderAssistantInActiveLanguage() {
   const service = ensureAssistantService();
   if (!service) {
@@ -1130,6 +1375,14 @@ function rerenderAssistantInActiveLanguage() {
   }
   if (uiState.assistantQuery) {
     uiState.assistantResult = service.respond(uiState.assistantQuery);
+    const latestAssistantIndex = [...uiState.assistantConversation]
+      .map((entry, index) => ({ entry, index }))
+      .reverse()
+      .find((item) => item.entry?.role === "assistant")?.index;
+    if (typeof latestAssistantIndex === "number") {
+      uiState.assistantConversation[latestAssistantIndex] = createAssistantResultEntry(uiState.assistantResult);
+      persistAssistantConversation();
+    }
   }
   renderAssistantState();
 }
@@ -5839,8 +6092,8 @@ function renderAssistantState() {
     stateEl.assistantModePill.textContent = uiText.modePillAuto;
     stateEl.assistantIntentPill.textContent = uiText.intentWaiting;
     stateEl.assistantModeSummary.textContent = uiText.modeSummaryDefault;
-    stateEl.assistantResponse.textContent = uiText.responseDefault;
-    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText.actionsDefault)}</article>`;
+    renderAssistantConversation();
+    renderAssistantCards(null);
     return;
   }
 
@@ -5860,32 +6113,8 @@ function renderAssistantState() {
   stateEl.assistantModeSummary.textContent = localizedMode.description
     || result.modeDescription
     || uiText.modeSummaryDefault;
-
-  const lines = [
-    localizeAssistantLine(result.title || "Operational response", languageKey),
-    "",
-    localizeAssistantLine(result.summary || "", languageKey),
-    ...(Array.isArray(result.analysis) && result.analysis.length ? ["", ...result.analysis.map((line) => localizeAssistantLine(line, languageKey))] : []),
-    ...(result.promptText ? ["", localizeAssistantLine("Prompt output:", languageKey), result.promptText] : []),
-  ].filter(Boolean);
-  stateEl.assistantResponse.textContent = lines.join("\n");
-
-  const actions = Array.isArray(result.actions) ? result.actions : [];
-  if (!actions.length) {
-    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText.noDirectAction)}</article>`;
-    return;
-  }
-
-  stateEl.assistantActions.innerHTML = actions
-    .map((action, index) => `
-      <button type="button" class="command-item" data-assistant-index="${index}">
-        <div class="command-item-top">
-          <strong>${escapeHtml(localizeAssistantActionLabel(action.label || action.id || `action-${index + 1}`, languageKey))}</strong>
-        </div>
-        <p class="command-item-description">${escapeHtml(action.id || "assistant-action")}</p>
-      </button>
-    `)
-    .join("");
+  renderAssistantConversation();
+  renderAssistantCards(result);
 }
 
 async function executeAssistantAction(action) {
@@ -5973,11 +6202,17 @@ async function runAssistantQuery(rawQuery) {
     return;
   }
   uiState.assistantQuery = String(rawQuery || "").trim();
+  if (!uiState.assistantQuery) {
+    renderAssistantState();
+    return;
+  }
   const adaptiveLanguage = ensureAdaptiveLanguageService();
   if (adaptiveLanguage && uiState.assistantQuery) {
     uiState.assistantLanguageState = adaptiveLanguage.recordTextSignal(uiState.assistantQuery);
   }
+  appendAssistantConversationEntry(createAssistantUserEntry(uiState.assistantQuery));
   uiState.assistantResult = service.respond(uiState.assistantQuery);
+  appendAssistantConversationEntry(createAssistantResultEntry(uiState.assistantResult));
   renderAssistantState();
 }
 
@@ -7078,6 +7313,19 @@ function bindButtons() {
   stateEl.assistantActions.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
+    const cardActionButton = target.closest("[data-assistant-card-action]");
+    if (cardActionButton instanceof HTMLElement) {
+      const actionId = String(cardActionButton.dataset.assistantCardAction || "");
+      const promptCard = uiState.assistantResult?.promptCard;
+      if (actionId === "copy-prompt" && promptCard) {
+        await copyText(String(promptCard.promptText || ""), "[studio] assistant prompt copied.");
+      } else if (actionId === "send-prompt" && promptCard) {
+        sendAssistantPromptCardToWorkspace(promptCard);
+      } else if (actionId === "save-prompt" && promptCard) {
+        saveAssistantPromptCard(promptCard);
+      }
+      return;
+    }
     const button = target.closest("[data-assistant-index]");
     if (!(button instanceof HTMLElement)) return;
     const index = Number(button.dataset.assistantIndex);

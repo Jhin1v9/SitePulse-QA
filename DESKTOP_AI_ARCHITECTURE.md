@@ -679,6 +679,49 @@ Current integration points:
   - transcript language signal supported in the model
   - microphone mode not enabled yet
 
+## Conversational Assistant Layer
+
+The assistant now keeps the operational engines intact while adding a real conversational layer on top of them.
+
+Files:
+
+- `companion/src/assistant-service.js`
+- `companion/src/renderer.js`
+
+Responsibilities:
+
+- detect conversational intent beyond operational commands:
+  - greeting
+  - thanks
+  - action request
+  - explanation request
+  - analysis request
+  - prompt request
+  - strategic request
+- apply a response tone model:
+  - `friendly`
+  - `operational`
+  - `technical`
+  - `advanced_engineer`
+  - `executive_summary`
+  - `prompt_engineer`
+  - `simple`
+- preserve continuity across turns by carrying:
+  - last intent
+  - last issue code
+  - last mode
+  - last tone
+- render persistent chat history in the desktop renderer
+- keep operational actions executable through action cards
+- keep prompt generation operational through prompt cards:
+  - copy
+  - send to Prompt Workspace
+  - save locally
+
+Important constraint:
+
+- this layer should humanize the assistant without disconnecting it from the real app state or turning it into a decorative chatbot
+
 ## Findings Intelligence Filters
 
 The Findings workspace now uses the same operational ordering and context layer as the rest of the desktop.

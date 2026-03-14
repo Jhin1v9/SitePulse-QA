@@ -123,6 +123,8 @@
   };
 
   const INTENT_DEFINITIONS = [
+    { id: "greeting", mode: "product_guide", terms: ["oi", "ola", "olá", "hello", "hi", "hey", "hola", "bon dia", "good morning", "good afternoon"], builder: (context) => buildGreetingResponse(context) },
+    { id: "thanks", mode: "product_guide", terms: ["obrigado", "obrigada", "thanks", "thank you", "gracias", "merci"], builder: (context) => buildThanksResponse(context) },
     { id: "memory_guide", mode: "product_guide", terms: ["painel de memoria", "memory panel", "painel de aprendizados", "painel de memoria"], builder: (context) => buildMemoryGuideResponse(context) },
     { id: "guide", mode: "product_guide", terms: ["como usar", "how do i use", "como usar o painel", "guide", "what does", "me ensine", "ensine", "painel atual"], builder: (context) => buildGuideResponse(context) },
     { id: "seo", mode: "audit_analyst", terms: ["analise o log", "analyze the log", "problemas prioritarios de seo", "seo priorities"], builder: (context) => buildSeoResponse(context) },
@@ -157,6 +159,184 @@
     { id: "logs", mode: "audit_analyst", terms: ["log", "logs"], builder: (context) => buildLogsResponse(context) },
   ];
 
+  const TONE_REGISTRY = {
+    friendly: { key: "friendly", label: "Friendly / human" },
+    operational: { key: "operational", label: "Normal operational" },
+    technical: { key: "technical", label: "Technical" },
+    advanced_engineer: { key: "advanced_engineer", label: "Advanced engineer" },
+    executive_summary: { key: "executive_summary", label: "Executive summary" },
+    prompt_engineer: { key: "prompt_engineer", label: "Prompt engineer" },
+    simple: { key: "simple", label: "Simplified" },
+  };
+
+  const HUMAN_COPY = {
+    pt: {
+      greetingLead: "Olá. Posso te ajudar a analisar uma auditoria, interpretar um log, gerar um prompt ou te guiar pelo app.",
+      thanksLead: "Perfeito. Se quiser, eu continuo daqui com você.",
+      guideLead: "Posso te orientar por isso sem te fazer sair do contexto atual.",
+      analysisLead: "Entendi. Revisei o estado atual do app e este é o ponto principal.",
+      strategyLead: "Pelo que está carregado agora, este é o melhor próximo passo.",
+      operatorLead: "Consigo te ajudar a executar isso com segurança dentro do app.",
+      promptLead: "Preparei isso de forma mais cirúrgica, usando a issue atual, a memória operacional e o histórico de falhas.",
+      executiveLead: "Resumo direto: isto é o que mais importa agora.",
+      technicalLead: "Fui mais fundo na leitura técnica para te devolver uma resposta mais precisa.",
+      simpleLead: "Vou manter isso simples e claro.",
+      followUp: "Se quiser, eu também posso abrir a área certa ou preparar a próxima ação.",
+      noReport: "Se você carregar uma auditoria, eu consigo ser bem mais específico.",
+      promptCardTitle: "Prompt pronto",
+      promptCardContext: "Gerado com base na auditoria atual, memória operacional e padrões failed.",
+      copyPrompt: "Copiar",
+      sendPrompt: "Enviar para Prompts",
+      savePrompt: "Salvar",
+      actionCardTitle: "Ação sugerida",
+      actionCardHint: "Posso executar isso daqui.",
+    },
+    es: {
+      greetingLead: "Hola. Puedo ayudarte a analizar una auditoría, interpretar un log, generar un prompt o guiarte por la herramienta.",
+      thanksLead: "Perfecto. Si quieres, sigo contigo desde aquí.",
+      guideLead: "Puedo orientarte por esto sin sacarte del contexto actual.",
+      analysisLead: "Entendido. Revisé el estado actual de la app y este es el punto principal.",
+      strategyLead: "Con lo que está cargado ahora, este es el mejor siguiente paso.",
+      operatorLead: "Puedo ayudarte a ejecutar esto con seguridad dentro de la app.",
+      promptLead: "Preparé esto de forma más precisa usando la issue actual, la memoria operacional y el historial de fallos.",
+      executiveLead: "Resumen directo: esto es lo que más importa ahora.",
+      technicalLead: "Fui más a fondo en la lectura técnica para devolverte una respuesta más precisa.",
+      simpleLead: "Voy a mantener esto simple y claro.",
+      followUp: "Si quieres, también puedo abrir el área correcta o preparar la siguiente acción.",
+      noReport: "Si cargas una auditoría, puedo ser mucho más específico.",
+      promptCardTitle: "Prompt listo",
+      promptCardContext: "Generado desde la auditoría actual, la memoria operacional y los patrones failed.",
+      copyPrompt: "Copiar",
+      sendPrompt: "Enviar a Prompts",
+      savePrompt: "Guardar",
+      actionCardTitle: "Acción sugerida",
+      actionCardHint: "Puedo ejecutar esto desde aquí.",
+    },
+    en: {
+      greetingLead: "Hello. I can help you analyze an audit, interpret a log, generate a prompt or guide you through the app.",
+      thanksLead: "Good. If you want, I can keep going from here with you.",
+      guideLead: "I can walk you through this without pulling you out of the current context.",
+      analysisLead: "Understood. I reviewed the current app state and this is the main point.",
+      strategyLead: "From what is loaded right now, this is the best next move.",
+      operatorLead: "I can help you execute this safely inside the app.",
+      promptLead: "I prepared this more surgically using the current issue, operational memory and failed history.",
+      executiveLead: "Short version: this is what matters most right now.",
+      technicalLead: "I went deeper technically so the answer is more precise.",
+      simpleLead: "I will keep this simple and clear.",
+      followUp: "If you want, I can also open the right area or prepare the next action.",
+      noReport: "If you load an audit, I can be much more specific.",
+      promptCardTitle: "Prompt ready",
+      promptCardContext: "Generated from the current audit, operational memory and failed patterns.",
+      copyPrompt: "Copy",
+      sendPrompt: "Send to Prompts",
+      savePrompt: "Save",
+      actionCardTitle: "Suggested action",
+      actionCardHint: "I can run this from here.",
+    },
+    ca: {
+      greetingLead: "Hola. Puc ajudar-te a analitzar una auditoria, interpretar un log, generar un prompt o guiar-te per l'eina.",
+      thanksLead: "Perfecte. Si vols, continuo des d'aquí amb tu.",
+      guideLead: "Puc orientar-te per això sense treure't del context actual.",
+      analysisLead: "Entes. He revisat l'estat actual de l'app i aquest és el punt principal.",
+      strategyLead: "Amb el que hi ha carregat ara, aquest és el millor pas següent.",
+      operatorLead: "Puc ajudar-te a executar això amb seguretat dins de l'app.",
+      promptLead: "He preparat això de manera més precisa usant la issue actual, la memòria operacional i l'historial de fallades.",
+      executiveLead: "Resum directe: això és el que més importa ara mateix.",
+      technicalLead: "He anat més a fons en la lectura tècnica per tornar-te una resposta més precisa.",
+      simpleLead: "Ho mantindré simple i clar.",
+      followUp: "Si vols, també puc obrir l'àrea correcta o preparar la següent acció.",
+      noReport: "Si carregues una auditoria, puc ser molt més específic.",
+      promptCardTitle: "Prompt preparat",
+      promptCardContext: "Generat des de l'auditoria actual, la memòria operacional i els patrons failed.",
+      copyPrompt: "Copiar",
+      sendPrompt: "Enviar a Prompts",
+      savePrompt: "Desar",
+      actionCardTitle: "Acció suggerida",
+      actionCardHint: "Puc executar això des d'aquí.",
+    },
+  };
+
+  const ACTION_CARD_COPY = {
+    "run-audit": {
+      pt: "Dispara a auditoria usando o perfil atual do desktop.",
+      es: "Lanza la auditoría usando el perfil actual del desktop.",
+      en: "Launch the audit using the current desktop profile.",
+      ca: "Llança l'auditoria usant el perfil actual del desktop.",
+    },
+    "switch-findings": {
+      pt: "Abra o painel de decisão para revisar e priorizar issues.",
+      es: "Abre el panel de decisión para revisar y priorizar issues.",
+      en: "Open the decision board to review and rank issues.",
+      ca: "Obre el panell de decisió per revisar i prioritzar issues.",
+    },
+    "switch-seo": {
+      pt: "Leve a conversa para o workspace de SEO e veja os riscos atuais.",
+      es: "Lleva la conversación al workspace de SEO y mira los riesgos actuales.",
+      en: "Move into the SEO workspace and inspect the current search risk.",
+      ca: "Porta la conversa al workspace de SEO i mira els riscos actuals.",
+    },
+    "switch-prompts": {
+      pt: "Abra o Prompt Workspace para editar, copiar e reutilizar material.",
+      es: "Abre el Prompt Workspace para editar, copiar y reutilizar material.",
+      en: "Open the Prompt Workspace to edit, copy and reuse material.",
+      ca: "Obre el Prompt Workspace per editar, copiar i reutilitzar material.",
+    },
+    "switch-compare": {
+      pt: "Compare a run atual com a baseline ou com a anterior.",
+      es: "Compara la run actual con la baseline o la anterior.",
+      en: "Compare the current run against baseline or the previous one.",
+      ca: "Compara la run actual amb la baseline o l'anterior.",
+    },
+    "switch-settings": {
+      pt: "Abra memória, overrides e aprendizados persistentes.",
+      es: "Abre memoria, overrides y aprendizajes persistentes.",
+      en: "Open memory, overrides and persistent learnings.",
+      ca: "Obre memòria, overrides i aprenentatges persistents.",
+    },
+    "open-memory": {
+      pt: "Abra o aprendizado operacional já associado a essa issue.",
+      es: "Abre el aprendizaje operacional ya asociado a esta issue.",
+      en: "Open the operational learning already attached to this issue.",
+      ca: "Obre l'aprenentatge operacional ja associat a aquesta issue.",
+    },
+    "open-healing": {
+      pt: "Veja a fila de healing e as estratégias elegíveis.",
+      es: "Mira la cola de healing y las estrategias elegibles.",
+      en: "Inspect the healing queue and eligible strategies.",
+      ca: "Mira la cua de healing i les estratègies elegibles.",
+    },
+    "prepare-healing": {
+      pt: "Prepare a tentativa assistida antes de revalidar.",
+      es: "Prepara el intento asistido antes de revalidar.",
+      en: "Prepare the assisted attempt before revalidation.",
+      ca: "Prepara l'intent assistit abans de revalidar.",
+    },
+    "revalidate-healing": {
+      pt: "Rode a nova verificação para saber se a correção realmente resolveu.",
+      es: "Ejecuta la nueva verificación para saber si la corrección realmente resolvió.",
+      en: "Run revalidation to confirm whether the fix actually resolved the issue.",
+      ca: "Executa la revalidació per confirmar si la correcció realment ha resolt la issue.",
+    },
+    "generate-prompt": {
+      pt: "Gere um prompt mais específico com base no contexto atual.",
+      es: "Genera un prompt más específico con base en el contexto actual.",
+      en: "Generate a more specific prompt from the current context.",
+      ca: "Genera un prompt més específic a partir del context actual.",
+    },
+    "manual-override": {
+      pt: "Promova manualmente uma solução final com rastreabilidade.",
+      es: "Promueve manualmente una solución final con trazabilidad.",
+      en: "Promote a final solution manually with traceability.",
+      ca: "Promou manualment una solució final amb traçabilitat.",
+    },
+    "copy-text": {
+      pt: "Copie o conteúdo preparado sem sair da conversa.",
+      es: "Copia el contenido preparado sin salir de la conversación.",
+      en: "Copy the prepared content without leaving the conversation.",
+      ca: "Copia el contingut preparat sense sortir de la conversa.",
+    },
+  };
+
   function normalizeText(value) {
     return String(value || "").replace(/\s+/g, " ").trim();
   }
@@ -166,7 +346,112 @@
   }
 
   function matchesAny(query, terms) {
-    return terms.some((term) => query.includes(term));
+    return terms.some((term) => {
+      const normalized = toLower(term);
+      if (!normalized) return false;
+      if (normalized.includes(" ")) {
+        return query.includes(normalized);
+      }
+      const escaped = normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return new RegExp(`\\b${escaped}\\b`, "i").test(query);
+    });
+  }
+
+  function getLanguageKey(context) {
+    const language = normalizeText(context?.assistantLanguage?.activeLanguage || "en").toLowerCase();
+    return ["pt", "es", "ca"].includes(language) ? language : "en";
+  }
+
+  function getHumanCopy(languageKey) {
+    return HUMAN_COPY[getLanguageKey({ assistantLanguage: { activeLanguage: languageKey } })] || HUMAN_COPY.en;
+  }
+
+  function getLocalizedActionDescription(actionId, languageKey) {
+    const copy = ACTION_CARD_COPY[String(actionId || "")];
+    if (!copy) return getHumanCopy(languageKey).actionCardHint;
+    return copy[languageKey] || copy.en || getHumanCopy(languageKey).actionCardHint;
+  }
+
+  function isShortFollowUp(query) {
+    const normalized = normalizeText(query);
+    if (!normalized) return false;
+    const lowered = normalized.toLowerCase();
+    return normalized.split(/\s+/).length <= 4
+      || ["e agora", "e depois", "what next", "and now", "continue", "continua", "continúe", "detalha", "detalle", "simplifica", "simplify", "resume", "resuma"].some((term) => lowered.includes(term));
+  }
+
+  function detectTone(query, intentId, previousToneKey = "friendly") {
+    const lowered = toLower(query);
+    if (intentId === "prompt") return "prompt_engineer";
+    if (["greeting", "thanks"].includes(intentId)) return "friendly";
+    if (["resumo executivo", "executive summary", "for leadership", "para diretoria", "para cliente", "only the headline"].some((term) => lowered.includes(term))) {
+      return "executive_summary";
+    }
+    if (["explica simples", "explain simply", "bem simples", "for non technical", "simplifica", "simple"].some((term) => lowered.includes(term))) {
+      return "simple";
+    }
+    if (["root cause", "deep dive", "advanced", "engineering detail", "arquitetura", "detalhado", "detallado", "tecnico", "technical"].some((term) => lowered.includes(term))) {
+      return lowered.includes("advanced") || lowered.includes("deep dive") || lowered.includes("engineering detail")
+        ? "advanced_engineer"
+        : "technical";
+    }
+    if (previousToneKey === "prompt_engineer" && isShortFollowUp(query)) {
+      return "prompt_engineer";
+    }
+    return "friendly";
+  }
+
+  function getIntentCategory(intentId) {
+    if (["greeting", "thanks"].includes(intentId)) return "social";
+    if (["audit", "manual_override", "healing_revalidate", "latest_run"].includes(intentId)) return "action";
+    if (["guide", "memory_guide"].includes(intentId)) return "guide";
+    if (["issue_explain", "memory", "logs", "failed", "validated", "unresolved_critical"].includes(intentId)) return "explanation";
+    if (["seo", "impact", "worsening", "predictive_risk", "trend", "systemic_patterns", "compare"].includes(intentId)) return "analysis";
+    if (["prompt"].includes(intentId)) return "prompt";
+    return "strategy";
+  }
+
+  function buildGreetingResponse(context) {
+    const report = context.report;
+    const languageKey = getLanguageKey(context);
+    const copy = getHumanCopy(languageKey);
+    return {
+      title: "Greeting",
+      summary: copy.greetingLead,
+      analysis: report
+        ? [
+            `${report.meta.baseUrl} is loaded in the desktop right now.`,
+            `Current report: ${report.summary.totalIssues} issue(s), SEO ${report.summary.seoScore}, quality ${context.dataIntelligence?.QUALITY_STATE?.overallScore || context.autonomous?.qualityScore?.total || 0}.`,
+            "I can analyze the audit, explain an issue, rank what to fix first or generate a fix prompt.",
+          ]
+        : [
+            copy.noReport,
+            "I can still guide you through the app, explain the current workspace or prepare the next audit.",
+          ],
+      actions: report
+        ? [
+            { id: "switch-findings", label: "Open findings" },
+            { id: "switch-prompts", label: "Open prompts" },
+            { id: "switch-seo", label: "Open SEO workspace" },
+          ]
+        : [{ id: "switch-overview", label: "Open overview" }],
+    };
+  }
+
+  function buildThanksResponse(context) {
+    const languageKey = getLanguageKey(context);
+    const copy = getHumanCopy(languageKey);
+    return {
+      title: "Acknowledged",
+      summary: copy.thanksLead,
+      analysis: [copy.followUp],
+      actions: context.report
+        ? [
+            { id: "switch-findings", label: "Open findings" },
+            { id: "switch-prompts", label: "Open prompts" },
+          ]
+        : [{ id: "switch-overview", label: "Open overview" }],
+    };
   }
 
   function findIssueByCode(context, issueCode) {
@@ -175,9 +460,15 @@
     return (context.report?.issues || []).find((issue) => normalizeText(issue.code).toUpperCase() === code) || null;
   }
 
-  function inferIssueCode(query, context) {
+  function inferIssueCode(query, context, conversationState = null) {
     const match = normalizeText(query).toUpperCase().match(/\b[A-Z]{2,}(?:_[A-Z0-9]+)+\b/);
     if (match) return match[0];
+    if (conversationState?.lastIssueCode && ["this issue", "essa issue", "esta issue", "este problema", "that issue", "aquesta issue"].some((term) => toLower(query).includes(term))) {
+      return conversationState.lastIssueCode;
+    }
+    if (conversationState?.lastIssueCode && isShortFollowUp(query)) {
+      return conversationState.lastIssueCode;
+    }
     return context.report?.issues?.[0]?.code || "";
   }
 
@@ -369,12 +660,18 @@
     });
   }
 
-  function getIntentDefinition(query) {
+  function getIntentDefinition(query, conversationState = null) {
     if (!query) {
       return INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
     }
-    return INTENT_DEFINITIONS.find((definition) => matchesAny(query, definition.terms))
-      || INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
+    const direct = INTENT_DEFINITIONS.find((definition) => matchesAny(query, definition.terms));
+    if (direct) return direct;
+    if (isShortFollowUp(query) && conversationState?.lastIntentId) {
+      return INTENT_DEFINITIONS.find((definition) => definition.id === conversationState.lastIntentId)
+        || INTENT_DEFINITIONS.find((definition) => definition.id === "next_step")
+        || INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
+    }
+    return INTENT_DEFINITIONS.find((definition) => definition.id === "priorities");
   }
 
   function filterActionsForMode(modeKey, actions) {
@@ -384,9 +681,9 @@
     return actions.filter((action) => allowed.has(String(action?.id || "")));
   }
 
-  function buildModeContext(modeKey, appContext, rawQuery) {
+  function buildModeContext(modeKey, appContext, rawQuery, conversationState = null) {
     const report = appContext.report || null;
-    const issueCode = inferIssueCode(rawQuery, appContext);
+    const issueCode = inferIssueCode(rawQuery, appContext, conversationState);
     const prioritizedIssues = prioritizeIssues(report, appContext);
     const issue = findIssueByCode(appContext, issueCode);
     const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
@@ -501,9 +798,143 @@
     };
   }
 
-  function wrapModeResult(modeKey, intentId, result) {
-    const mode = MODE_REGISTRY[modeKey] || MODE_REGISTRY.strategy_advisor;
+  function buildActionCards(actions, languageKey) {
+    return (Array.isArray(actions) ? actions : []).map((action) => ({
+      id: String(action.id || ""),
+      label: String(action.label || action.id || ""),
+      description: getLocalizedActionDescription(action.id, languageKey),
+      payload: action.payload && typeof action.payload === "object" ? { ...action.payload } : {},
+    }));
+  }
+
+  function buildPromptCard(result, languageKey) {
+    if (!normalizeText(result.promptText)) return null;
+    const copy = getHumanCopy(languageKey);
     return {
+      title: copy.promptCardTitle,
+      context: copy.promptCardContext,
+      promptText: String(result.promptText || ""),
+      copyLabel: copy.copyPrompt,
+      sendLabel: copy.sendPrompt,
+      saveLabel: copy.savePrompt,
+    };
+  }
+
+  function buildConversationalEnvelope(result, meta) {
+    const copy = getHumanCopy(meta.languageKey);
+    const analysis = Array.isArray(result.analysis) ? result.analysis.filter(Boolean) : [];
+    const localizedHint = (values) => values[meta.languageKey] || values.en;
+    const limitedAnalysis = (() => {
+      switch (meta.toneKey) {
+        case "executive_summary":
+          return analysis.slice(0, 2);
+        case "simple":
+        case "friendly":
+          return analysis.slice(0, 3);
+        case "technical":
+          return analysis.slice(0, 5);
+        case "advanced_engineer":
+          return analysis;
+        default:
+          return analysis.slice(0, 4);
+      }
+    })();
+
+    let lead = copy.analysisLead;
+    if (meta.intentId === "greeting") lead = copy.greetingLead;
+    if (meta.intentId === "thanks") lead = copy.thanksLead;
+    if (meta.intentCategory === "guide") lead = copy.guideLead;
+    if (meta.intentCategory === "strategy") lead = copy.strategyLead;
+    if (meta.intentCategory === "action") lead = copy.operatorLead;
+    if (meta.intentCategory === "prompt") lead = copy.promptLead;
+    if (meta.toneKey === "executive_summary") lead = copy.executiveLead;
+    if (meta.toneKey === "technical" || meta.toneKey === "advanced_engineer") lead = copy.technicalLead;
+    if (meta.toneKey === "simple") lead = copy.simpleLead;
+
+    const body = [];
+    if (meta.toneKey === "technical" || meta.toneKey === "advanced_engineer" || meta.languageKey === "en") {
+      if (normalizeText(result.summary)) {
+        body.push(String(result.summary || ""));
+      }
+      body.push(...limitedAnalysis);
+    } else {
+      if (meta.intentCategory === "social") {
+        body.push(localizedHint({
+          pt: "Eu posso analisar a auditoria atual, te dizer o que corrigir primeiro, explicar uma issue, interpretar logs ou montar um prompt pronto para voce.",
+          es: "Puedo analizar la auditoria actual, decirte que corregir primero, explicar una issue, interpretar logs o montar un prompt listo para ti.",
+          en: "I can analyze the current audit, tell you what to fix first, explain an issue, interpret logs or prepare a ready-to-use prompt for you.",
+          ca: "Puc analitzar l'auditoria actual, dir-te que corregir primer, explicar una issue, interpretar logs o preparar un prompt llest per a tu.",
+        }));
+      } else if (meta.intentCategory === "prompt") {
+        body.push(localizedHint({
+          pt: "Deixei um prompt card logo abaixo para voce copiar, salvar ou mandar direto para o Prompt Workspace.",
+          es: "Deje una prompt card abajo para que la copies, la guardes o la mandes directo al Prompt Workspace.",
+          en: "I left a prompt card below so you can copy it, save it or send it straight to the Prompt Workspace.",
+          ca: "He deixat una prompt card a sota perque la copiïs, la desis o l'enviïs directament al Prompt Workspace.",
+        }));
+      } else if (meta.intentCategory === "action") {
+        body.push(localizedHint({
+          pt: "A acao sugerida continua conectada ao estado real do app e pode ser executada daqui.",
+          es: "La accion sugerida sigue conectada al estado real de la app y puede ejecutarse desde aqui.",
+          en: "The suggested action remains connected to the real app state and can be executed from here.",
+          ca: "L'accio suggerida continua connectada a l'estat real de l'app i es pot executar des d'aqui.",
+        }));
+      } else if (meta.intentCategory === "strategy") {
+        body.push(localizedHint({
+          pt: "Eu levei em conta impacto, risco preditivo, historico, tendencia e confianca de healing para priorizar isso.",
+          es: "Tome en cuenta impacto, riesgo predictivo, historial, tendencia y confianza de healing para priorizar esto.",
+          en: "I used impact, predictive risk, history, trend and healing confidence to prioritize this.",
+          ca: "He tingut en compte impacte, risc predictiu, historial, tendencia i confianca de healing per prioritzar aixo.",
+        }));
+      } else if (meta.intentCategory === "analysis") {
+        body.push(localizedHint({
+          pt: "Li o contexto atual e estou te devolvendo o que mais importa sem te jogar num bloco tecnico seco.",
+          es: "Lei el contexto actual y te devuelvo lo que mas importa sin tirarte un bloque tecnico seco.",
+          en: "I reviewed the current context and I am giving you the part that matters most without turning it into a dry technical block.",
+          ca: "He llegit el context actual i et torno la part que mes importa sense convertir-ho en un bloc tecnic sec.",
+        }));
+      } else if (meta.intentCategory === "guide") {
+        body.push(localizedHint({
+          pt: "Estou usando o estado atual da ferramenta para te mostrar o caminho mais curto e util.",
+          es: "Estoy usando el estado actual de la herramienta para mostrarte el camino mas corto y util.",
+          en: "I am using the current tool state to show you the shortest useful path.",
+          ca: "Estic usant l'estat actual de l'eina per mostrar-te el cami mes curt i util.",
+        }));
+      }
+      if (meta.intentCategory !== "social" && normalizeText(result.title)) {
+        body.push(String(result.title || ""));
+      }
+      if (meta.intentCategory !== "social" && Array.isArray(result.actions) && result.actions.length) {
+        body.push(localizedHint({
+          pt: "A primeira acao pratica ja esta logo abaixo em formato de card.",
+          es: "La primera accion practica ya esta abajo en formato de card.",
+          en: "The first practical action is already shown below as a card.",
+          ca: "La primera accio practica ja apareix a sota en format de card.",
+        }));
+      }
+      if (meta.intentCategory !== "social") {
+        body.push(...limitedAnalysis.slice(0, 1));
+      }
+    }
+    if (!body.length && meta.intentId !== "greeting") {
+      body.push(copy.noReport);
+    }
+
+    return {
+      ...result,
+      toneKey: meta.toneKey,
+      intentCategory: meta.intentCategory,
+      assistantLead: lead,
+      assistantBody: body,
+      assistantFollowUp: copy.followUp,
+      promptCard: buildPromptCard(result, meta.languageKey),
+      actionCards: buildActionCards(result.actions, meta.languageKey),
+    };
+  }
+
+  function wrapModeResult(modeKey, intentId, result, meta = {}) {
+    const mode = MODE_REGISTRY[modeKey] || MODE_REGISTRY.strategy_advisor;
+    const wrapped = {
       ...result,
       modeKey: mode.key,
       modeName: mode.name,
@@ -515,6 +946,12 @@
       intentId,
       actions: filterActionsForMode(mode.key, Array.isArray(result.actions) ? result.actions : []),
     };
+    return buildConversationalEnvelope(wrapped, {
+      languageKey: meta.languageKey || "en",
+      toneKey: meta.toneKey || "friendly",
+      intentCategory: meta.intentCategory || getIntentCategory(intentId),
+      intentId,
+    });
   }
 
   function buildGuideResponse(context) {
@@ -1380,25 +1817,44 @@
     };
   }
 
-  function routeQuery(rawQuery, appContext) {
+  function routeQuery(rawQuery, appContext, conversationState) {
     const normalizedQuery = toLower(rawQuery);
-    const intentDefinition = getIntentDefinition(normalizedQuery);
+    const intentDefinition = getIntentDefinition(normalizedQuery, conversationState);
     const modeKey = intentDefinition?.mode || "strategy_advisor";
-    const modeContext = buildModeContext(modeKey, appContext, rawQuery);
+    const modeContext = buildModeContext(modeKey, appContext, rawQuery, conversationState);
     const result = intentDefinition?.builder
       ? intentDefinition.builder(modeContext, rawQuery)
       : buildPrioritiesResponse(modeContext);
-    return wrapModeResult(modeKey, intentDefinition?.id || "priorities", result);
+    return wrapModeResult(modeKey, intentDefinition?.id || "priorities", result, {
+      languageKey: getLanguageKey(appContext),
+      toneKey: detectTone(rawQuery, intentDefinition?.id || "priorities", conversationState?.lastToneKey || "friendly"),
+      intentCategory: getIntentCategory(intentDefinition?.id || "priorities"),
+    });
   }
 
   globalScope.createSitePulseAssistantService = function createSitePulseAssistantService(options) {
+    const conversationState = {
+      lastIntentId: "",
+      lastIssueCode: "",
+      lastModeKey: "",
+      lastToneKey: "friendly",
+    };
+
     return {
       getModeRegistry() {
         return MODE_REGISTRY;
       },
       respond(rawQuery) {
         const context = options.getContext();
-        return routeQuery(rawQuery, context);
+        const response = routeQuery(rawQuery, context, conversationState);
+        conversationState.lastIntentId = String(response.intentId || conversationState.lastIntentId || "");
+        conversationState.lastModeKey = String(response.modeKey || conversationState.lastModeKey || "");
+        conversationState.lastToneKey = String(response.toneKey || conversationState.lastToneKey || "friendly");
+        const issueCode = inferIssueCode(rawQuery, context, conversationState);
+        if (issueCode) {
+          conversationState.lastIssueCode = String(issueCode);
+        }
+        return response;
       },
     };
   };

@@ -316,6 +316,10 @@ select {
 
 .menu-strip {
   grid-area: menu;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 2px;
 }
 
 .workbench-utility {
@@ -326,11 +330,13 @@ select {
 .workspace-tab {
   min-height: 34px;
   padding: 0 12px;
+  flex: 0 0 auto;
   border: 1px solid transparent;
   border-radius: 10px;
   background: transparent;
   color: var(--muted);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -432,7 +438,7 @@ select {
 }
 
 .workspace-copy h2 {
-  font-size: 42px;
+  font-size: clamp(28px, 3vw, 42px);
   line-height: 0.98;
 }
 
@@ -698,7 +704,7 @@ button:hover:not(:disabled),
 }
 
 .hero-panel h2 {
-  font-size: 34px;
+  font-size: clamp(24px, 2.4vw, 34px);
   line-height: 1.06;
   max-width: 760px;
   text-wrap: balance;
@@ -753,7 +759,7 @@ button:hover:not(:disabled),
 .preview-browser-shell {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
-  min-height: 720px;
+  min-height: clamp(420px, 62vh, 720px);
   overflow: hidden;
   border-radius: 22px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -2154,9 +2160,134 @@ button.xl {
   margin: 0 0 10px;
 }
 
+#assistantResponse {
+  display: grid;
+  gap: 14px;
+  max-height: min(44vh, 420px);
+  overflow-y: auto;
+  font-family: "Segoe UI Variable Text", "Segoe UI", sans-serif;
+  background: linear-gradient(180deg, rgba(10, 15, 24, 0.98), rgba(8, 12, 19, 0.98));
+}
+
+.assistant-message {
+  display: grid;
+  gap: 8px;
+}
+
+.assistant-message-user {
+  justify-items: end;
+}
+
+.assistant-message-assistant {
+  justify-items: start;
+}
+
+.assistant-message-meta {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.assistant-message-bubble {
+  width: min(100%, 680px);
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.assistant-message-user .assistant-message-bubble {
+  background: linear-gradient(180deg, rgba(28, 68, 110, 0.94), rgba(18, 42, 72, 0.98));
+  border-color: rgba(90, 192, 255, 0.2);
+}
+
+.assistant-message-assistant .assistant-message-bubble {
+  background: rgba(18, 24, 34, 0.96);
+}
+
+.assistant-message-body {
+  display: grid;
+  gap: 8px;
+}
+
+.assistant-message-body p,
+.assistant-message-followup {
+  margin: 0;
+  color: #d4e2f0;
+}
+
+.assistant-message-bubble strong {
+  font-size: 15px;
+}
+
+#assistantActions {
+  display: grid;
+  gap: 14px;
+}
+
+.assistant-prompt-card,
+.assistant-action-card {
+  width: 100%;
+  display: grid;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(14, 19, 28, 0.98);
+  text-align: left;
+}
+
+.assistant-prompt-card {
+  border-color: rgba(90, 192, 255, 0.18);
+  background: linear-gradient(180deg, rgba(15, 24, 38, 0.98), rgba(9, 14, 23, 0.98));
+}
+
+.assistant-action-card {
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
+}
+
+.assistant-action-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(90, 192, 255, 0.24);
+  background: rgba(18, 28, 41, 0.98);
+}
+
+.assistant-card-top {
+  display: grid;
+  gap: 6px;
+}
+
+.assistant-action-card p,
+.assistant-prompt-card strong {
+  margin: 0;
+}
+
+.assistant-prompt-card-body {
+  margin: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(7, 10, 16, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #d8e7f8;
+  white-space: pre-wrap;
+  font-family: Consolas, "Cascadia Code", monospace;
+  line-height: 1.55;
+}
+
+.assistant-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 @media (max-width: 1640px) {
   .shell-grid {
-    grid-template-columns: 284px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .metrics-grid {
