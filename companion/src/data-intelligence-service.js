@@ -186,8 +186,12 @@
         .filter((entry) => entry?.report && normalizeText(entry.report.meta?.baseUrl) === normalizeText(report?.meta?.baseUrl))
         .slice(-7)
         .map((entry) => {
+          const storedQualityState = entry.report?.dataIntelligence?.QUALITY_STATE || null;
+          const storedDimensions = storedQualityState?.dimensions || entry.report?.autonomous?.qualityScore?.dimensions || {};
+          const storedTrajectory = storedQualityState?.trajectory || entry.report?.autonomous?.qualityTrajectory?.direction || "stable";
+          const storedTrendConfidence = toNumber(storedQualityState?.trajectoryConfidence, entry.report?.autonomous?.qualityTrajectory?.confidence ?? 0);
           const scoreCandidate = Number(
-            entry.report?.dataIntelligence?.QUALITY_STATE?.overallScore
+            storedQualityState?.overallScore
             ?? entry.report?.autonomous?.qualityScore?.total
           );
           return {
@@ -196,6 +200,12 @@
             totalIssues: toNumber(entry.report?.summary?.totalIssues, 0),
             topImpactScore: toNumber(entry.report?.summary?.topImpactScore, 0),
             qualityScore: Number.isFinite(scoreCandidate) ? scoreCandidate : null,
+            uxScore: toNumber(storedDimensions.uxQuality, 0),
+            performanceScore: toNumber(storedDimensions.performanceQuality, 0),
+            technicalScore: toNumber(storedDimensions.technicalIntegrity, 0),
+            visualScore: toNumber(storedDimensions.visualIntegrity, 0),
+            trajectoryState: normalizeText(storedTrajectory),
+            trendConfidence: Number(storedTrendConfidence.toFixed(2)),
           };
         });
       const currentPoint = {
@@ -204,6 +214,12 @@
         totalIssues: toNumber(report?.summary?.totalIssues, 0),
         topImpactScore: toNumber(report?.summary?.topImpactScore, 0),
         qualityScore: toNumber(autonomous?.qualityScore?.total, 0),
+        uxScore: toNumber(autonomous?.qualityScore?.dimensions?.uxQuality, 0),
+        performanceScore: toNumber(autonomous?.qualityScore?.dimensions?.performanceQuality, 0),
+        technicalScore: toNumber(autonomous?.qualityScore?.dimensions?.technicalIntegrity, 0),
+        visualScore: toNumber(autonomous?.qualityScore?.dimensions?.visualIntegrity, 0),
+        trajectoryState: normalizeText(autonomous?.qualityTrajectory?.direction || "stable"),
+        trendConfidence: Number(toNumber(autonomous?.qualityTrajectory?.confidence, 0).toFixed(2)),
       };
       const merged = [...history.filter((item) => item.stamp !== currentPoint.stamp), currentPoint];
       return merged.slice(-8);

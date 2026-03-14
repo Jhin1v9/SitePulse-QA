@@ -641,6 +641,67 @@ This summary should help the user understand what matters before reading the ent
 - Do not bypass confirmation for manual overrides.
 - Do not claim a healing attempt succeeded until a rerun proves it.
 
+## Adaptive Language Intelligence
+
+The desktop assistant now includes a browser-side adaptive language layer in:
+
+- `companion/src/adaptive-language-service.js`
+
+Current scope:
+
+- typed-text language detection only
+- supported languages: `pt`, `es`, `en`, `ca`
+- safe auto-switch rules using:
+  - minimum token count
+  - minimum character count
+  - minimum detection confidence
+  - rolling signal window
+- manual override from the assistant drawer:
+  - `auto`
+  - `pt`
+  - `es`
+  - `en`
+  - `ca`
+- persisted local state:
+  - `assistantLanguageMode`
+  - `assistantPreferredLanguage`
+  - `assistantDetectedLanguageHistory`
+  - `lastLanguageConfidence`
+  - `lastLanguageUpdatedAt`
+
+Current integration points:
+
+- assistant drawer UI labels and quick actions
+- assistant response rendering
+- prompt request generation
+- mode name / mode description localization
+- future-ready voice metadata:
+  - transcript language signal supported in the model
+  - microphone mode not enabled yet
+
+## Findings Intelligence Filters
+
+The Findings workspace now uses the same operational ordering and context layer as the rest of the desktop.
+
+Added filters:
+
+- quality control
+- priority
+- predictive risk
+- trajectory
+- healing confidence
+- memory status
+- resolution source
+- impact band
+
+Ordering rules:
+
+- `Autonomous QA nextActions` first
+- `Data Intelligence priorityQueue` second
+- impact / healing / severity as fallback
+
+The Self-Healing queue uses the same operational ordering so that Findings, Prompt Workspace and Assistant stay consistent.
+
 ## Validation Checklist
 
 When changing this architecture, validate at minimum:
@@ -698,6 +759,7 @@ Initial version created after these desktop AI commits:
 - `ffee84f` `feat(desktop): add predictive intelligence engine`
 - `83996cd` `feat(desktop): add autonomous qa engine`
 - runtime finalize ordering and renderer derived-intelligence cache consolidation
+- findings intelligence filters, next-action-first ordering and adaptive assistant language persistence
 
 ### 2026-03-13
 

@@ -280,11 +280,18 @@
     return issues.find((item) => normalizeText(item.issueCode).toUpperCase() === code) || null;
   }
 
-  function getHealingCandidates(selfHealing) {
+  function getHealingCandidates(selfHealing, appContext = {}) {
     const issues = Array.isArray(selfHealing?.issues) ? selfHealing.issues : [];
+    const maps = buildOperationalPriorityMaps(appContext);
     return [...issues]
       .filter((item) => ["eligible_for_healing", "assist_only"].includes(normalizeText(item.eligibility)))
-      .sort((left, right) => Number(right.confidenceScore || 0) - Number(left.confidenceScore || 0))
+      .sort((left, right) => {
+        const leftEntry = getOperationalEntry({ code: left.issueCode, route: left.route, action: left.action }, maps);
+        const rightEntry = getOperationalEntry({ code: right.issueCode, route: right.route, action: right.action }, maps);
+        if (rightEntry.nextAction.score !== leftEntry.nextAction.score) return rightEntry.nextAction.score - leftEntry.nextAction.score;
+        if (rightEntry.priority.score !== leftEntry.priority.score) return rightEntry.priority.score - leftEntry.priority.score;
+        return Number(right.confidenceScore || 0) - Number(left.confidenceScore || 0);
+      })
       .slice(0, 8);
   }
 
@@ -303,9 +310,51 @@
     }
   }
 
-  function prioritizeIssues(report) {
+  function buildOperationalPriorityMaps(appContext) {
+    const nextActionMap = new Map();
+    const nextActionByCode = new Map();
+    const priorityMap = new Map();
+    const priorityByCode = new Map();
+    const nextActions = Array.isArray(appContext?.autonomous?.nextActions) ? appContext.autonomous.nextActions : [];
+    nextActions.forEach((item, index) => {
+      const code = normalizeText(item.issueCode).toUpperCase();
+      const key = [code, normalizeText(item.route || "/"), normalizeText(item.action)].join("|");
+      const payload = { score: Number(item.score || 0), rank: index };
+      nextActionMap.set(key, payload);
+      if (!nextActionByCode.has(code)) nextActionByCode.set(code, payload);
+    });
+    const queue = Array.isArray(appContext?.dataIntelligence?.RISK_STATE?.priorityQueue) ? appContext.dataIntelligence.RISK_STATE.priorityQueue : [];
+    queue.forEach((item, index) => {
+      const code = normalizeText(item.issueCode).toUpperCase();
+      const key = [code, normalizeText(item.route || "/"), normalizeText(item.action)].join("|");
+      const payload = { score: Number(item.compositeScore || 0), rank: index };
+      priorityMap.set(key, payload);
+      if (!priorityByCode.has(code)) priorityByCode.set(code, payload);
+    });
+    return { nextActionMap, nextActionByCode, priorityMap, priorityByCode };
+  }
+
+  function getOperationalEntry(issue, maps) {
+    const code = normalizeText(issue?.code).toUpperCase();
+    const route = normalizeText(issue?.route || "/");
+    const action = normalizeText(issue?.action);
+    const key = [code, route, action].join("|");
+    return {
+      nextAction: maps.nextActionMap.get(key) || maps.nextActionByCode.get(code) || { score: 0, rank: Number.MAX_SAFE_INTEGER },
+      priority: maps.priorityMap.get(key) || maps.priorityByCode.get(code) || { score: 0, rank: Number.MAX_SAFE_INTEGER },
+    };
+  }
+
+  function prioritizeIssues(report, appContext = {}) {
     const issues = Array.isArray(report?.issues) ? report.issues : [];
+    const maps = buildOperationalPriorityMaps(appContext);
     return [...issues].sort((left, right) => {
+      const leftEntry = getOperationalEntry(left, maps);
+      const rightEntry = getOperationalEntry(right, maps);
+      if (rightEntry.nextAction.score !== leftEntry.nextAction.score) return rightEntry.nextAction.score - leftEntry.nextAction.score;
+      if (leftEntry.nextAction.rank !== rightEntry.nextAction.rank) return leftEntry.nextAction.rank - rightEntry.nextAction.rank;
+      if (rightEntry.priority.score !== leftEntry.priority.score) return rightEntry.priority.score - leftEntry.priority.score;
+      if (leftEntry.priority.rank !== rightEntry.priority.rank) return leftEntry.priority.rank - rightEntry.priority.rank;
       const byPriority = priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel);
       if (byPriority !== 0) return byPriority;
       const byImpact = Number(right.impact?.impactScore || 0) - Number(left.impact?.impactScore || 0);
@@ -338,7 +387,7 @@
   function buildModeContext(modeKey, appContext, rawQuery) {
     const report = appContext.report || null;
     const issueCode = inferIssueCode(rawQuery, appContext);
-    const prioritizedIssues = prioritizeIssues(report);
+    const prioritizedIssues = prioritizeIssues(report, appContext);
     const issue = findIssueByCode(appContext, issueCode);
     const issueMemory = summarizeMemory(appContext.learningMemory, issueCode);
     const issueHealing = summarizeHealing(appContext.selfHealing, issueCode);
@@ -442,7 +491,7 @@
         compareDigest: appContext.compareDigest || "",
         runHistory: history.slice(0, 5),
         healingSummary: appContext.selfHealing?.summary || null,
-        healingCandidates: getHealingCandidates(appContext.selfHealing),
+        healingCandidates: getHealingCandidates(appContext.selfHealing, appContext),
         intelligence,
         predictive,
         autonomous,
@@ -520,7 +569,7 @@
     }
 
     const autonomousActions = Array.isArray(context.autonomous?.nextActions) ? context.autonomous.nextActions : [];
-    const topIssues = context.strategyContext?.topIssues || prioritizeIssues(report).slice(0, 3);
+    const topIssues = context.strategyContext?.topIssues || prioritizeIssues(report, context).slice(0, 3);
     const executive = context.intelligence?.executiveSummary;
     const lines = autonomousActions.length
       ? autonomousActions.slice(0, 4).map((item, index) => `${index + 1}. ${item.actionLabel} | score ${Number(item.score || 0).toFixed(2)} | ${item.playbookTitle}`)
@@ -639,7 +688,7 @@
         actions: [{ id: "switch-overview", label: "Prepare audit" }],
       };
     }
-    const topIssues = prioritizeIssues(report).slice(0, 5);
+    const topIssues = prioritizeIssues(report, context).slice(0, 5);
     return {
       title: "Highest-impact issues",
       summary: context.intelligence?.executiveSummary?.headline || context.predictive?.alerts?.[0]?.label || "Impact Engine sorted the current issues by operational pressure.",
@@ -663,7 +712,7 @@
         actions: [{ id: "switch-overview", label: "Prepare audit" }],
       };
     }
-    const seoLead = prioritizeIssues(report).find((issue) => normalizeText(issue.code).startsWith("SEO_"));
+    const seoLead = prioritizeIssues(report, context).find((issue) => normalizeText(issue.code).startsWith("SEO_"));
     if (!seoLead) {
       return {
         title: "No SEO issue loaded",

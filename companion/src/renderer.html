@@ -368,6 +368,10 @@
                       <span class="info-label">Technical score</span>
                       <code id="qualityDashboardTechnical">0</code>
                     </article>
+                    <article class="info-card">
+                      <span class="info-label">Visual score</span>
+                      <code id="qualityDashboardVisual">0</code>
+                    </article>
                   </div>
                 </article>
 
@@ -623,6 +627,92 @@
                   </select>
                 </label>
                 <button id="copyIssueDigest" class="ghost" type="button">Copy issue digest</button>
+              </div>
+              <div class="filters-row findings-tools-row">
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Quality control</span>
+                  <select id="findingsQualityFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="ok">Clear</option>
+                    <option value="watch">Watch</option>
+                    <option value="suspect">Suspect</option>
+                    <option value="inconsistent">Inconsistent</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Priority</span>
+                  <select id="findingsPriorityFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="P0">P0</option>
+                    <option value="P1">P1</option>
+                    <option value="P2">P2</option>
+                    <option value="P3">P3</option>
+                    <option value="P4">P4</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Predictive risk</span>
+                  <select id="findingsPredictiveRiskFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="none">No signal</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Trajectory</span>
+                  <select id="findingsTrajectoryFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="degrading">Degrading</option>
+                    <option value="oscillating">Oscillating</option>
+                    <option value="stable">Stable</option>
+                    <option value="improving">Improving</option>
+                  </select>
+                </label>
+              </div>
+              <div class="filters-row findings-tools-row">
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Healing confidence</span>
+                  <select id="findingsHealingFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="none">No healing signal</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Memory status</span>
+                  <select id="findingsMemoryFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="validated">Validated</option>
+                    <option value="failed">Failed</option>
+                    <option value="partial">Partial</option>
+                    <option value="none">No memory</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Resolution source</span>
+                  <select id="findingsResolutionFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="manual_override">Manual override</option>
+                    <option value="auto_promoted">Auto-promoted</option>
+                    <option value="curated">Curated</option>
+                    <option value="runtime">Runtime</option>
+                    <option value="none">No final source</option>
+                  </select>
+                </label>
+                <label class="toolbar-field toolbar-field-compact">
+                  <span class="field-label">Impact</span>
+                  <select id="findingsImpactFilter" class="toolbar-select">
+                    <option value="all">All</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </label>
               </div>
             </section>
 
@@ -1428,8 +1518,8 @@
       <div class="shortcuts-card command-palette-card">
         <div class="panel-head split-head">
           <div>
-            <p class="eyebrow">operational assistant</p>
-            <h3>Reason over the real app state</h3>
+            <p id="assistantEyebrow" class="eyebrow">operational assistant</p>
+            <h3 id="assistantTitle">Reason over the real app state</h3>
           </div>
           <button id="dismissAssistant" class="ghost" type="button">Close</button>
         </div>
@@ -1437,10 +1527,21 @@
         <div class="action-row wrap">
           <span id="assistantModePill" class="pill">Mode: auto</span>
           <span id="assistantIntentPill" class="pill">Intent: waiting</span>
+          <span id="assistantLanguagePill" class="pill">Language: auto</span>
+          <label class="toolbar-field toolbar-field-compact">
+            <span id="assistantLanguageLabel" class="field-label">Assistant language</span>
+            <select id="assistantLanguageSelect" class="toolbar-select">
+              <option value="auto">Auto</option>
+              <option value="pt">Português</option>
+              <option value="es">Español</option>
+              <option value="en">English</option>
+              <option value="ca">Català</option>
+            </select>
+          </label>
         </div>
         <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
         <label class="toolbar-field">
-          <span class="field-label">Ask the assistant</span>
+          <span id="assistantInputLabel" class="field-label">Ask the assistant</span>
           <input id="assistantInput" class="toolbar-input" type="search" placeholder="analyse the latest SEO issues, compare runs, explain SEO_LANG_MISSING..." />
         </label>
         <div class="action-row wrap">
@@ -1545,6 +1646,7 @@
     <script src="./autonomous-qa-service.js"></script>
     <script src="./optimization-engine-service.js"></script>
     <script src="./quality-control-engine.js"></script>
+    <script src="./adaptive-language-service.js"></script>
     <script src="./assistant-service.js"></script>
     <script src="./renderer.js"></script>
   </body>

@@ -246,6 +246,14 @@ const stateEl = {
   reportsHeadline: document.getElementById("reportsHeadline"),
   findingsSearch: document.getElementById("findingsSearch"),
   findingsRouteFilter: document.getElementById("findingsRouteFilter"),
+  findingsQualityFilter: document.getElementById("findingsQualityFilter"),
+  findingsPriorityFilter: document.getElementById("findingsPriorityFilter"),
+  findingsPredictiveRiskFilter: document.getElementById("findingsPredictiveRiskFilter"),
+  findingsTrajectoryFilter: document.getElementById("findingsTrajectoryFilter"),
+  findingsHealingFilter: document.getElementById("findingsHealingFilter"),
+  findingsMemoryFilter: document.getElementById("findingsMemoryFilter"),
+  findingsResolutionFilter: document.getElementById("findingsResolutionFilter"),
+  findingsImpactFilter: document.getElementById("findingsImpactFilter"),
   copyIssueDigest: document.getElementById("copyIssueDigest"),
   bridgeChip: document.getElementById("bridgeChip"),
   auditChip: document.getElementById("auditChip"),
@@ -298,6 +306,7 @@ const stateEl = {
   qualityDashboardUx: document.getElementById("qualityDashboardUx"),
   qualityDashboardPerformance: document.getElementById("qualityDashboardPerformance"),
   qualityDashboardTechnical: document.getElementById("qualityDashboardTechnical"),
+  qualityDashboardVisual: document.getElementById("qualityDashboardVisual"),
   qualityTimelineHeadline: document.getElementById("qualityTimelineHeadline"),
   qualityTimelineList: document.getElementById("qualityTimelineList"),
   riskMapHeadline: document.getElementById("riskMapHeadline"),
@@ -431,7 +440,10 @@ const stateEl = {
   commandPaletteList: document.getElementById("commandPaletteList"),
   assistantOverlay: document.getElementById("assistantOverlay"),
   dismissAssistant: document.getElementById("dismissAssistant"),
+  assistantEyebrow: document.getElementById("assistantEyebrow"),
+  assistantTitle: document.getElementById("assistantTitle"),
   assistantInput: document.getElementById("assistantInput"),
+  assistantInputLabel: document.getElementById("assistantInputLabel"),
   assistantAsk: document.getElementById("assistantAsk"),
   assistantQuickPriorities: document.getElementById("assistantQuickPriorities"),
   assistantQuickSeo: document.getElementById("assistantQuickSeo"),
@@ -440,6 +452,9 @@ const stateEl = {
   assistantContextSummary: document.getElementById("assistantContextSummary"),
   assistantModePill: document.getElementById("assistantModePill"),
   assistantIntentPill: document.getElementById("assistantIntentPill"),
+  assistantLanguagePill: document.getElementById("assistantLanguagePill"),
+  assistantLanguageLabel: document.getElementById("assistantLanguageLabel"),
+  assistantLanguageSelect: document.getElementById("assistantLanguageSelect"),
   assistantModeSummary: document.getElementById("assistantModeSummary"),
   assistantResponse: document.getElementById("assistantResponse"),
   assistantActions: document.getElementById("assistantActions"),
@@ -480,6 +495,16 @@ const uiState = {
   issueFilter: "all",
   findingsSearch: "",
   findingsRoute: "all",
+  findingsIntelligenceFilters: {
+    quality: "all",
+    priority: "all",
+    predictiveRisk: "all",
+    trajectory: "all",
+    healing: "all",
+    memory: "all",
+    resolution: "all",
+    impact: "all",
+  },
   history: loadHistory(),
   historyIndexCache: null,
   historyContextCache: null,
@@ -492,6 +517,9 @@ const uiState = {
   commandPaletteQuery: "",
   assistantQuery: "",
   assistantResult: null,
+  assistantService: null,
+  adaptiveLanguageService: null,
+  assistantLanguageState: null,
   learningMemorySnapshot: null,
   learningMemoryRefreshInFlight: false,
   selfHealingSnapshot: null,
@@ -943,6 +971,167 @@ function loadOnboardingState() {
 function persistOnboardingState(value) {
   uiState.onboardingDismissed = value === true;
   writeStorage(STORAGE_KEYS.onboarding, uiState.onboardingDismissed);
+}
+
+function ensureAdaptiveLanguageService() {
+  if (uiState.adaptiveLanguageService) return uiState.adaptiveLanguageService;
+  if (typeof window.createSitePulseAdaptiveLanguageService !== "function") {
+    return null;
+  }
+  uiState.adaptiveLanguageService = window.createSitePulseAdaptiveLanguageService();
+  uiState.assistantLanguageState = uiState.adaptiveLanguageService.getState();
+  return uiState.adaptiveLanguageService;
+}
+
+function getAssistantLanguageState() {
+  const service = ensureAdaptiveLanguageService();
+  if (!service) {
+    return {
+      assistantLanguageMode: "auto",
+      assistantPreferredLanguage: "en",
+      activeLanguage: "en",
+      assistantDetectedLanguageHistory: [],
+      lastLanguageConfidence: 0,
+      lastLanguageUpdatedAt: "",
+      voiceReadiness: {
+        supportsTranscriptSignals: true,
+        supportsVoiceInput: false,
+        transcriptLanguageSignal: true,
+      },
+    };
+  }
+  uiState.assistantLanguageState = service.getState();
+  return uiState.assistantLanguageState;
+}
+
+function getAssistantLanguage() {
+  return getAssistantLanguageState().activeLanguage || "en";
+}
+
+function getAssistantUiText() {
+  const service = ensureAdaptiveLanguageService();
+  return service ? service.getUiText(getAssistantLanguage()) : null;
+}
+
+function localizePromptLine(languageKey, values) {
+  switch (languageKey) {
+    case "pt":
+      return values.pt;
+    case "es":
+      return values.es;
+    case "ca":
+      return values.ca;
+    default:
+      return values.en;
+  }
+}
+
+function formatAssistantLanguagePill(state) {
+  const service = ensureAdaptiveLanguageService();
+  if (!service) return "Language: auto";
+  const uiText = service.getUiText(state.activeLanguage);
+  if (state.assistantLanguageMode === "manual") {
+    return service.translateUiText("languagePillManual", { label: service.getLanguageLabel(state.activeLanguage) }, state.activeLanguage);
+  }
+  return uiText.languagePillAuto;
+}
+
+function renderAssistantLanguageUi() {
+  const service = ensureAdaptiveLanguageService();
+  const state = getAssistantLanguageState();
+  if (!service) {
+    return;
+  }
+  const uiText = service.getUiText(state.activeLanguage);
+  if (stateEl.assistantEyebrow) {
+    stateEl.assistantEyebrow.textContent = uiText.title;
+  }
+  if (stateEl.assistantTitle) {
+    stateEl.assistantTitle.textContent = localizePromptLine(state.activeLanguage, {
+      pt: "Raciocínio operacional sobre o estado real do app",
+      es: "Razona sobre el estado real de la app",
+      en: "Reason over the real app state",
+      ca: "Raona sobre l'estat real de l'app",
+    });
+  }
+  if (stateEl.assistantLanguageLabel) {
+    stateEl.assistantLanguageLabel.textContent = uiText.languageLabel;
+  }
+  if (stateEl.assistantInputLabel) {
+    stateEl.assistantInputLabel.textContent = uiText.askLabel;
+  }
+  if (stateEl.assistantInput) {
+    stateEl.assistantInput.placeholder = uiText.askPlaceholder;
+  }
+  if (stateEl.assistantAsk) {
+    stateEl.assistantAsk.textContent = uiText.askButton;
+  }
+  if (stateEl.assistantQuickPriorities) {
+    stateEl.assistantQuickPriorities.textContent = uiText.quickPriorities;
+  }
+  if (stateEl.assistantQuickSeo) {
+    stateEl.assistantQuickSeo.textContent = uiText.quickSeo;
+  }
+  if (stateEl.assistantQuickPrompt) {
+    stateEl.assistantQuickPrompt.textContent = uiText.quickPrompt;
+  }
+  if (stateEl.assistantQuickGuide) {
+    stateEl.assistantQuickGuide.textContent = uiText.quickGuide;
+  }
+  if (stateEl.assistantLanguageSelect) {
+    const options = service.getLanguageOptions();
+    stateEl.assistantLanguageSelect.innerHTML = options
+      .map((option) => `<option value="${escapeHtml(option.value)}">${escapeHtml(option.label)}</option>`)
+      .join("");
+    stateEl.assistantLanguageSelect.value = state.assistantLanguageMode === "manual"
+      ? state.activeLanguage
+      : "auto";
+  }
+  if (stateEl.assistantLanguagePill) {
+    stateEl.assistantLanguagePill.textContent = formatAssistantLanguagePill(state);
+  }
+}
+
+function getLocalizedAssistantModeMeta(modeKey, languageKey = getAssistantLanguage()) {
+  const service = ensureAdaptiveLanguageService();
+  return service
+    ? service.getAssistantModeMeta(modeKey, languageKey)
+    : { name: "Operational", description: "" };
+}
+
+function localizeAssistantLine(value, languageKey = getAssistantLanguage()) {
+  const service = ensureAdaptiveLanguageService();
+  return service ? service.localizeAssistantTextLine(value, languageKey) : String(value || "");
+}
+
+function localizeAssistantActionLabel(label, languageKey = getAssistantLanguage()) {
+  const service = ensureAdaptiveLanguageService();
+  return service ? service.localizeAssistantActionLabel(label, languageKey) : String(label || "");
+}
+
+function getAssistantQuickQuery(queryKey) {
+  const service = ensureAdaptiveLanguageService();
+  const quickQueries = service ? service.getQuickQueries(getAssistantLanguage()) : null;
+  return String(quickQueries?.[queryKey] || "").trim();
+}
+
+function buildAssistantPromptRequest(issueCode = "") {
+  const service = ensureAdaptiveLanguageService();
+  return service
+    ? service.buildPromptRequest(issueCode, getAssistantLanguage())
+    : (issueCode ? `generate a prompt to fix issue ${issueCode}` : "generate a prompt to fix the top issue");
+}
+
+function rerenderAssistantInActiveLanguage() {
+  const service = ensureAssistantService();
+  if (!service) {
+    renderAssistantState();
+    return;
+  }
+  if (uiState.assistantQuery) {
+    uiState.assistantResult = service.respond(uiState.assistantQuery);
+  }
+  renderAssistantState();
 }
 
 function toggleShortcutsOverlay(forceOpen = null) {
@@ -2318,10 +2507,15 @@ function getLearningEntryForIssue(issueLike, memoryInput = null) {
   return memory.entries.find((entry) => String(entry.issueCode || "").trim().toUpperCase() === code) || null;
 }
 
-function buildLearningAwareIssuePrompt(issueCode = "") {
+function buildLearningAwareIssuePrompt(issueCode = "", languageKey = getAssistantLanguage()) {
   const report = getVisibleReport();
   if (!report) {
-    return "Run an audit to generate a learning-aware prompt.";
+    return localizePromptLine(languageKey, {
+      pt: "Execute uma auditoria para gerar um prompt guiado por memória.",
+      es: "Ejecuta una auditoría para generar un prompt guiado por memoria.",
+      en: "Run an audit to generate a learning-aware prompt.",
+      ca: "Executa una auditoria per generar un prompt guiat per memòria.",
+    });
   }
 
   const targetIssue = issueCode
@@ -2329,7 +2523,12 @@ function buildLearningAwareIssuePrompt(issueCode = "") {
     : report.issues[0];
 
   if (!targetIssue) {
-    return "No matching issue is loaded in SitePulse Studio.";
+    return localizePromptLine(languageKey, {
+      pt: "Nenhuma issue correspondente está carregada no SitePulse Studio.",
+      es: "No hay ninguna issue correspondiente cargada en SitePulse Studio.",
+      en: "No matching issue is loaded in SitePulse Studio.",
+      ca: "No hi ha cap issue corresponent carregada a SitePulse Studio.",
+    });
   }
 
   const learningEntry = getLearningEntryForIssue(targetIssue);
@@ -2338,60 +2537,185 @@ function buildLearningAwareIssuePrompt(issueCode = "") {
     return healing.promptText;
   }
   const lines = [
-    "Act as a senior software engineer focused on root cause, evidence and revalidation.",
-    `Target issue: ${targetIssue.code}`,
-    `Severity: ${targetIssue.severity}`,
-    `Route: ${targetIssue.route}${targetIssue.action ? ` | action: ${targetIssue.action}` : ""}`,
-    `Observed problem: ${targetIssue.detail}`,
-    `Recommended fix direction: ${targetIssue.recommendedResolution}`,
+    localizePromptLine(languageKey, {
+      pt: "Atue como um engenheiro de software sênior focado em causa raiz, evidência e revalidação.",
+      es: "Actúa como un ingeniero de software senior centrado en causa raíz, evidencia y revalidación.",
+      en: "Act as a senior software engineer focused on root cause, evidence and revalidation.",
+      ca: "Actua com un enginyer de programari sènior centrat en causa arrel, evidència i revalidació.",
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Issue alvo: ${targetIssue.code}`,
+      es: `Issue objetivo: ${targetIssue.code}`,
+      en: `Target issue: ${targetIssue.code}`,
+      ca: `Issue objectiu: ${targetIssue.code}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Severidade: ${targetIssue.severity}`,
+      es: `Severidad: ${targetIssue.severity}`,
+      en: `Severity: ${targetIssue.severity}`,
+      ca: `Severitat: ${targetIssue.severity}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Rota: ${targetIssue.route}${targetIssue.action ? ` | ação: ${targetIssue.action}` : ""}`,
+      es: `Ruta: ${targetIssue.route}${targetIssue.action ? ` | acción: ${targetIssue.action}` : ""}`,
+      en: `Route: ${targetIssue.route}${targetIssue.action ? ` | action: ${targetIssue.action}` : ""}`,
+      ca: `Ruta: ${targetIssue.route}${targetIssue.action ? ` | acció: ${targetIssue.action}` : ""}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Problema observado: ${targetIssue.detail}`,
+      es: `Problema observado: ${targetIssue.detail}`,
+      en: `Observed problem: ${targetIssue.detail}`,
+      ca: `Problema observat: ${targetIssue.detail}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Direção de correção recomendada: ${targetIssue.recommendedResolution}`,
+      es: `Dirección de corrección recomendada: ${targetIssue.recommendedResolution}`,
+      en: `Recommended fix direction: ${targetIssue.recommendedResolution}`,
+      ca: `Direcció de correcció recomanada: ${targetIssue.recommendedResolution}`,
+    }),
   ];
 
   if (learningEntry?.finalResolution) {
-    lines.push(`Validated final resolution available: ${learningEntry.finalResolution}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Resolução final validada disponível: ${learningEntry.finalResolution}`,
+      es: `Resolución final validada disponible: ${learningEntry.finalResolution}`,
+      en: `Validated final resolution available: ${learningEntry.finalResolution}`,
+      ca: `Resolució final validada disponible: ${learningEntry.finalResolution}`,
+    }));
     if (learningEntry.finalResolutionOrigin) {
-      lines.push(`Final resolution origin: ${learningEntry.finalResolutionOrigin}`);
+      lines.push(localizePromptLine(languageKey, {
+        pt: `Origem da resolução final: ${learningEntry.finalResolutionOrigin}`,
+        es: `Origen de la resolución final: ${learningEntry.finalResolutionOrigin}`,
+        en: `Final resolution origin: ${learningEntry.finalResolutionOrigin}`,
+        ca: `Origen de la resolució final: ${learningEntry.finalResolutionOrigin}`,
+      }));
     }
   } else if (targetIssue.finalResolution) {
-    lines.push(`Current final resolution attached to the report: ${targetIssue.finalResolution}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Resolução final atual anexada ao relatório: ${targetIssue.finalResolution}`,
+      es: `Resolución final actual adjunta al reporte: ${targetIssue.finalResolution}`,
+      en: `Current final resolution attached to the report: ${targetIssue.finalResolution}`,
+      ca: `Resolució final actual adjunta a l'informe: ${targetIssue.finalResolution}`,
+    }));
   }
 
   if (learningEntry?.possibleResolution || targetIssue.possibleResolution) {
-    lines.push(`Best current hypothesis: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Melhor hipótese atual: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`,
+      es: `Mejor hipótesis actual: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`,
+      en: `Best current hypothesis: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`,
+      ca: `Millor hipòtesi actual: ${learningEntry?.possibleResolution || targetIssue.possibleResolution}`,
+    }));
   }
 
   if (learningEntry?.latestValidatedFix) {
-    lines.push(`Validated pattern: ${learningEntry.latestValidatedFix}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Padrão validado: ${learningEntry.latestValidatedFix}`,
+      es: `Patrón validado: ${learningEntry.latestValidatedFix}`,
+      en: `Validated pattern: ${learningEntry.latestValidatedFix}`,
+      ca: `Patró validat: ${learningEntry.latestValidatedFix}`,
+    }));
   }
 
   if (learningEntry?.avoidText) {
-    lines.push(`Avoid repeating this: ${learningEntry.avoidText}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Evite repetir isto: ${learningEntry.avoidText}`,
+      es: `Evita repetir esto: ${learningEntry.avoidText}`,
+      en: `Avoid repeating this: ${learningEntry.avoidText}`,
+      ca: `Evita repetir això: ${learningEntry.avoidText}`,
+    }));
   } else if (targetIssue.learningCases?.some((item) => item.outcome === "failed")) {
     const failedCase = targetIssue.learningCases.find((item) => item.outcome === "failed");
-    lines.push(`Avoid repeating this: ${failedCase?.result || failedCase?.attempt || "A previous attempt already failed."}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Evite repetir isto: ${failedCase?.result || failedCase?.attempt || "Uma tentativa anterior já falhou."}`,
+      es: `Evita repetir esto: ${failedCase?.result || failedCase?.attempt || "Un intento anterior ya falló."}`,
+      en: `Avoid repeating this: ${failedCase?.result || failedCase?.attempt || "A previous attempt already failed."}`,
+      ca: `Evita repetir això: ${failedCase?.result || failedCase?.attempt || "Un intent anterior ja va fallar."}`,
+    }));
   }
 
   if (healing) {
-    lines.push(`Self-healing eligibility: ${formatHealingEligibility(healing.eligibility)}`);
-    lines.push(`Self-healing mode: ${formatHealingMode(healing.healingMode)}`);
-    lines.push(`Self-healing confidence: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`);
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Elegibilidade de self-healing: ${formatHealingEligibility(healing.eligibility)}`,
+      es: `Elegibilidad de self-healing: ${formatHealingEligibility(healing.eligibility)}`,
+      en: `Self-healing eligibility: ${formatHealingEligibility(healing.eligibility)}`,
+      ca: `Elegibilitat de self-healing: ${formatHealingEligibility(healing.eligibility)}`,
+    }));
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Modo de self-healing: ${formatHealingMode(healing.healingMode)}`,
+      es: `Modo de self-healing: ${formatHealingMode(healing.healingMode)}`,
+      en: `Self-healing mode: ${formatHealingMode(healing.healingMode)}`,
+      ca: `Mode de self-healing: ${formatHealingMode(healing.healingMode)}`,
+    }));
+    lines.push(localizePromptLine(languageKey, {
+      pt: `Confiança de self-healing: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`,
+      es: `Confianza de self-healing: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`,
+      en: `Self-healing confidence: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`,
+      ca: `Confiança de self-healing: ${healing.confidenceLabel || "n/a"}${Number.isFinite(Number(healing.confidenceScore)) ? ` (${healing.confidenceScore}/100)` : ""}`,
+    }));
     if (healing.resolutionLead) {
-      lines.push(`Best healing lead: ${healing.resolutionLead}`);
+      lines.push(localizePromptLine(languageKey, {
+        pt: `Melhor lead de healing: ${healing.resolutionLead}`,
+        es: `Mejor lead de healing: ${healing.resolutionLead}`,
+        en: `Best healing lead: ${healing.resolutionLead}`,
+        ca: `Millor lead de healing: ${healing.resolutionLead}`,
+      }));
     }
     if (healing.avoidText) {
-      lines.push(`Healing avoid list: ${healing.avoidText}`);
+      lines.push(localizePromptLine(languageKey, {
+        pt: `Lista do que evitar no healing: ${healing.avoidText}`,
+        es: `Lista de lo que hay que evitar en healing: ${healing.avoidText}`,
+        en: `Healing avoid list: ${healing.avoidText}`,
+        ca: `Llista del que cal evitar a healing: ${healing.avoidText}`,
+      }));
     }
     if (Array.isArray(healing.rationale) && healing.rationale.length) {
-      lines.push(`Healing rationale: ${healing.rationale.slice(0, 3).join(" | ")}`);
+      lines.push(localizePromptLine(languageKey, {
+        pt: `Racional do healing: ${healing.rationale.slice(0, 3).join(" | ")}`,
+        es: `Racional del healing: ${healing.rationale.slice(0, 3).join(" | ")}`,
+        en: `Healing rationale: ${healing.rationale.slice(0, 3).join(" | ")}`,
+        ca: `Racional del healing: ${healing.rationale.slice(0, 3).join(" | ")}`,
+      }));
     }
   }
 
   lines.push(
-    "Constraints:",
-    "- do not propose cosmetic fixes",
-    "- prioritize the solution with the strongest evidence first",
-    "- if the final resolution is only a manual override, mention that it still needs technical confirmation",
-    `Replay command: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
-    "End with a short validation plan.",
+    localizePromptLine(languageKey, {
+      pt: "Restrições:",
+      es: "Restricciones:",
+      en: "Constraints:",
+      ca: "Restriccions:",
+    }),
+    localizePromptLine(languageKey, {
+      pt: "- não proponha correções cosméticas",
+      es: "- no propongas correcciones cosméticas",
+      en: "- do not propose cosmetic fixes",
+      ca: "- no proposis correccions cosmètiques",
+    }),
+    localizePromptLine(languageKey, {
+      pt: "- priorize primeiro a solução com a evidência mais forte",
+      es: "- prioriza primero la solución con la evidencia más fuerte",
+      en: "- prioritize the solution with the strongest evidence first",
+      ca: "- prioritza primer la solució amb l'evidència més forta",
+    }),
+    localizePromptLine(languageKey, {
+      pt: "- se a resolução final for apenas manual override, diga que ainda precisa de confirmação técnica",
+      es: "- si la resolución final es solo manual override, indica que todavía necesita confirmación técnica",
+      en: "- if the final resolution is only a manual override, mention that it still needs technical confirmation",
+      ca: "- si la resolució final és només manual override, indica que encara necessita confirmació tècnica",
+    }),
+    localizePromptLine(languageKey, {
+      pt: `Comando de replay: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
+      es: `Comando de replay: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
+      en: `Replay command: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
+      ca: `Comanda de replay: ${report.meta.replayCommand || report.assistantGuide?.replayCommand || "n/a"}`,
+    }),
+    localizePromptLine(languageKey, {
+      pt: "Termine com um plano curto de validação.",
+      es: "Termina con un plan corto de validación.",
+      en: "End with a short validation plan.",
+      ca: "Acaba amb un pla curt de validació.",
+    }),
   );
 
   return lines.join("\n");
@@ -3423,12 +3747,137 @@ function getSeverityCounts(issues) {
   };
 }
 
+function getIssueMemoryStatus(issue) {
+  const validated = toNumber(issue?.learningCounts?.validated, 0);
+  const failed = toNumber(issue?.learningCounts?.failed, 0);
+  const partial = toNumber(issue?.learningCounts?.partial, 0);
+  if (validated > 0) return "validated";
+  if (partial > 0) return "partial";
+  if (failed > 0) return "failed";
+  return "none";
+}
+
+function getIssueResolutionSource(issue) {
+  return normalizeText(issue?.finalResolutionOrigin || "").toLowerCase() || "none";
+}
+
+function getIssueImpactBand(issue) {
+  const score = toNumber(issue?.impact?.impactScore, 0);
+  if (score >= 0.7) return "high";
+  if (score >= 0.4) return "medium";
+  return "low";
+}
+
+function getIssueHealingBand(issueContext) {
+  const score = toNumber(issueContext?.healing?.confidenceScore, 0);
+  if (!score) return "none";
+  if (score >= 75) return "high";
+  if (score >= 45) return "medium";
+  return "low";
+}
+
+function getIssueQualityStatus(issue, qualityControlContext) {
+  return normalizeText(qualityControlContext?.issueMap?.[issueSignature(issue)]?.status || "ok").toLowerCase();
+}
+
+function buildOperationalIssueMaps(report, intelligenceSnapshot) {
+  const nextActionMap = new Map();
+  const nextActionByCode = new Map();
+  const priorityMap = new Map();
+  const priorityByCode = new Map();
+  const nextActions = Array.isArray(intelligenceSnapshot?.autonomous?.nextActions) ? intelligenceSnapshot.autonomous.nextActions : [];
+  nextActions.forEach((item, index) => {
+    const key = [String(item.issueCode || "").trim().toUpperCase(), String(item.route || "/").trim(), String(item.action || "").trim()].join("|");
+    const payload = {
+      score: toNumber(item.score, 0),
+      rank: index,
+    };
+    nextActionMap.set(key, payload);
+    if (!nextActionByCode.has(String(item.issueCode || "").trim().toUpperCase())) {
+      nextActionByCode.set(String(item.issueCode || "").trim().toUpperCase(), payload);
+    }
+  });
+  const priorityQueue = Array.isArray(intelligenceSnapshot?.dataIntelligence?.RISK_STATE?.priorityQueue)
+    ? intelligenceSnapshot.dataIntelligence.RISK_STATE.priorityQueue
+    : [];
+  priorityQueue.forEach((item, index) => {
+    const key = [String(item.issueCode || "").trim().toUpperCase(), String(item.route || "/").trim(), String(item.action || "").trim()].join("|");
+    const payload = {
+      score: toNumber(item.compositeScore, 0),
+      rank: index,
+    };
+    priorityMap.set(key, payload);
+    if (!priorityByCode.has(String(item.issueCode || "").trim().toUpperCase())) {
+      priorityByCode.set(String(item.issueCode || "").trim().toUpperCase(), payload);
+    }
+  });
+  return {
+    nextActionMap,
+    nextActionByCode,
+    priorityMap,
+    priorityByCode,
+    currentTrajectory: normalizeText(intelligenceSnapshot?.dataIntelligence?.QUALITY_STATE?.trajectory || "").toLowerCase() || "stable",
+  };
+}
+
+function getOperationalPriorityEntry(issueLike, operationalMaps) {
+  const code = String(issueLike?.issueCode || issueLike?.code || "").trim().toUpperCase();
+  const route = String(issueLike?.route || "/").trim();
+  const action = String(issueLike?.action || "").trim();
+  const key = [code, route, action].join("|");
+  return {
+    nextAction: operationalMaps.nextActionMap.get(key) || operationalMaps.nextActionByCode.get(code) || { score: 0, rank: Number.MAX_SAFE_INTEGER },
+    priority: operationalMaps.priorityMap.get(key) || operationalMaps.priorityByCode.get(code) || { score: 0, rank: Number.MAX_SAFE_INTEGER },
+  };
+}
+
+function compareOperationalPriority(left, right, operationalMaps, fallback) {
+  const leftEntry = getOperationalPriorityEntry(left, operationalMaps);
+  const rightEntry = getOperationalPriorityEntry(right, operationalMaps);
+  if (rightEntry.nextAction.score !== leftEntry.nextAction.score) {
+    return rightEntry.nextAction.score - leftEntry.nextAction.score;
+  }
+  if (leftEntry.nextAction.rank !== rightEntry.nextAction.rank) {
+    return leftEntry.nextAction.rank - rightEntry.nextAction.rank;
+  }
+  if (rightEntry.priority.score !== leftEntry.priority.score) {
+    return rightEntry.priority.score - leftEntry.priority.score;
+  }
+  if (leftEntry.priority.rank !== rightEntry.priority.rank) {
+    return leftEntry.priority.rank - rightEntry.priority.rank;
+  }
+  return typeof fallback === "function" ? fallback(left, right) : 0;
+}
+
 function getFilteredIssues(report) {
   if (!report) return [];
   const query = uiState.findingsSearch.trim().toLowerCase();
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const dataIntelligenceContext = intelligenceSnapshot.dataIntelligence;
+  const qualityControlContext = intelligenceSnapshot.qualityControl;
+  const operationalMaps = buildOperationalIssueMaps(report, intelligenceSnapshot);
   return report.issues.filter((issue) => {
     const severityMatch = uiState.issueFilter === "all" || issue.severity === uiState.issueFilter;
     const routeMatch = uiState.findingsRoute === "all" || issue.route === uiState.findingsRoute;
+    const issueContext = dataIntelligenceContext?.ISSUE_MAP?.[issueSignature(issue)] || null;
+    const qualityMatch = uiState.findingsIntelligenceFilters.quality === "all"
+      || getIssueQualityStatus(issue, qualityControlContext) === uiState.findingsIntelligenceFilters.quality;
+    const priorityMatch = uiState.findingsIntelligenceFilters.priority === "all"
+      || normalizeText(issueContext?.impact?.priority || issue.impact?.priorityLevel || "P4").toUpperCase() === uiState.findingsIntelligenceFilters.priority;
+    const predictiveLevel = normalizeText(issueContext?.predictiveRisk?.level || "").toLowerCase() || "none";
+    const predictiveMatch = uiState.findingsIntelligenceFilters.predictiveRisk === "all"
+      || predictiveLevel === uiState.findingsIntelligenceFilters.predictiveRisk;
+    const trajectoryDirection = normalizeText(issueContext?.trend?.direction || operationalMaps.currentTrajectory || "stable").toLowerCase();
+    const trajectoryMatch = uiState.findingsIntelligenceFilters.trajectory === "all"
+      || trajectoryDirection === uiState.findingsIntelligenceFilters.trajectory;
+    const healingMatch = uiState.findingsIntelligenceFilters.healing === "all"
+      || getIssueHealingBand(issueContext) === uiState.findingsIntelligenceFilters.healing;
+    const memoryMatch = uiState.findingsIntelligenceFilters.memory === "all"
+      || getIssueMemoryStatus(issue) === uiState.findingsIntelligenceFilters.memory;
+    const resolutionMatch = uiState.findingsIntelligenceFilters.resolution === "all"
+      || getIssueResolutionSource(issue) === uiState.findingsIntelligenceFilters.resolution;
+    const impactMatch = uiState.findingsIntelligenceFilters.impact === "all"
+      || getIssueImpactBand(issue) === uiState.findingsIntelligenceFilters.impact;
     const searchMatch =
       !query ||
       [
@@ -3441,11 +3890,35 @@ function getFilteredIssues(report) {
       ]
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(query));
-    return severityMatch && routeMatch && searchMatch;
+    return severityMatch
+      && routeMatch
+      && qualityMatch
+      && priorityMatch
+      && predictiveMatch
+      && trajectoryMatch
+      && healingMatch
+      && memoryMatch
+      && resolutionMatch
+      && impactMatch
+      && searchMatch;
   }).sort((left, right) =>
-    priorityRank(left.impact?.priorityLevel) - priorityRank(right.impact?.priorityLevel)
-    || toNumber(right.impact?.impactScore, 0) - toNumber(left.impact?.impactScore, 0)
-    || severityRank(right.severity) - severityRank(left.severity));
+    compareOperationalPriority(left, right, operationalMaps, (fallbackLeft, fallbackRight) => {
+      const byPriority = priorityRank(fallbackLeft.impact?.priorityLevel) - priorityRank(fallbackRight.impact?.priorityLevel);
+      if (byPriority !== 0) {
+        return byPriority;
+      }
+      const byImpact = toNumber(fallbackRight.impact?.impactScore, 0) - toNumber(fallbackLeft.impact?.impactScore, 0);
+      if (byImpact !== 0) {
+        return byImpact;
+      }
+      const leftHealingScore = toNumber((dataIntelligenceContext?.ISSUE_MAP?.[issueSignature(fallbackLeft)] || {}).healing?.confidenceScore, 0);
+      const rightHealingScore = toNumber((dataIntelligenceContext?.ISSUE_MAP?.[issueSignature(fallbackRight)] || {}).healing?.confidenceScore, 0);
+      const byHealing = rightHealingScore - leftHealingScore;
+      if (byHealing !== 0) {
+        return byHealing;
+      }
+      return severityRank(right.severity) - severityRank(left.severity);
+    }));
 }
 
 function renderStaticSelections() {
@@ -3454,6 +3927,14 @@ function renderStaticSelections() {
   updateSegmentButtons(stateEl.scopeButtons, "scope", uiState.scope);
   updateSegmentButtons(stateEl.depthButtons, "depth", uiState.depth);
   updateSegmentButtons(stateEl.severityFilterButtons, "issueFilter", uiState.issueFilter);
+  if (stateEl.findingsQualityFilter) stateEl.findingsQualityFilter.value = uiState.findingsIntelligenceFilters.quality;
+  if (stateEl.findingsPriorityFilter) stateEl.findingsPriorityFilter.value = uiState.findingsIntelligenceFilters.priority;
+  if (stateEl.findingsPredictiveRiskFilter) stateEl.findingsPredictiveRiskFilter.value = uiState.findingsIntelligenceFilters.predictiveRisk;
+  if (stateEl.findingsTrajectoryFilter) stateEl.findingsTrajectoryFilter.value = uiState.findingsIntelligenceFilters.trajectory;
+  if (stateEl.findingsHealingFilter) stateEl.findingsHealingFilter.value = uiState.findingsIntelligenceFilters.healing;
+  if (stateEl.findingsMemoryFilter) stateEl.findingsMemoryFilter.value = uiState.findingsIntelligenceFilters.memory;
+  if (stateEl.findingsResolutionFilter) stateEl.findingsResolutionFilter.value = uiState.findingsIntelligenceFilters.resolution;
+  if (stateEl.findingsImpactFilter) stateEl.findingsImpactFilter.value = uiState.findingsIntelligenceFilters.impact;
   stateEl.currentMode.textContent = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
   stateEl.currentScope.textContent = currentScopeLabel(uiState.scope);
   stateEl.currentDepth.textContent = currentDepthLabel();
@@ -3786,6 +4267,7 @@ function renderQualityVisuals(report) {
     stateEl.qualityDashboardUx.textContent = "0";
     stateEl.qualityDashboardPerformance.textContent = "0";
     stateEl.qualityDashboardTechnical.textContent = "0";
+    stateEl.qualityDashboardVisual.textContent = "0";
     stateEl.qualityTimelineHeadline.textContent = "Need comparable history to draw the quality timeline.";
     stateEl.qualityTimelineList.innerHTML = '<article class="empty-state">Run an audit and keep history for the same target to unlock the quality timeline.</article>';
     stateEl.riskMapHeadline.textContent = "Run an audit to classify SEO, UX, performance and technical risk.";
@@ -3809,6 +4291,7 @@ function renderQualityVisuals(report) {
   stateEl.qualityDashboardUx.textContent = String(toNumber(qualityDimensions.uxQuality, 0));
   stateEl.qualityDashboardPerformance.textContent = String(toNumber(qualityDimensions.performanceQuality, 0));
   stateEl.qualityDashboardTechnical.textContent = String(toNumber(qualityDimensions.technicalIntegrity, 0));
+  stateEl.qualityDashboardVisual.textContent = String(toNumber(qualityDimensions.visualIntegrity, 0));
 
   const history = Array.isArray(qualityState.qualityHistory) ? qualityState.qualityHistory : [];
   stateEl.qualityTimelineHeadline.textContent = history.length > 1
@@ -3831,7 +4314,10 @@ function renderQualityVisuals(report) {
                 <div style="width:${width}%; height:100%; border-radius:999px; background:${score >= 80 ? "#22c55e" : score >= 60 ? "#38bdf8" : score >= 40 ? "#f59e0b" : "#ef4444"};"></div>
               </div>
               <span class="pill">${escapeHtml(`SEO ${toNumber(item.seoScore, 0)}`)}</span>
+              <span class="pill">${escapeHtml(`UX ${toNumber(item.uxScore, 0)}`)}</span>
+              <span class="pill">${escapeHtml(`Visual ${toNumber(item.visualScore, 0)}`)}</span>
               <span class="pill">${escapeHtml(`${toNumber(item.totalIssues, 0)} issues`)}</span>
+              <span class="pill">${escapeHtml(`${item.trajectoryState || "stable"} | conf ${Number(toNumber(item.trendConfidence, 0)).toFixed(2)}`)}</span>
             </div>
           </article>
         `;
@@ -3924,12 +4410,18 @@ function renderIssueMeta(report, filteredIssues, options = {}) {
     return;
   }
 
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const qualityState = intelligenceSnapshot.dataIntelligence.QUALITY_STATE || {};
+  const riskState = intelligenceSnapshot.dataIntelligence.RISK_STATE || {};
   const counts = getSeverityCounts(report.issues);
   const filteredCount = filteredIssues.length;
   const seoCritical = report.summary.seoCriticalIssues || 0;
   stateEl.issueMetaPills.innerHTML = [
     `<span class="pill bad">P0 ${report.summary.priorityP0 || 0}</span>`,
     `<span class="pill warn">P1 ${report.summary.priorityP1 || 0}</span>`,
+    `<span class="pill ok">quality ${qualityState.overallScore || 0}</span>`,
+    `<span class="pill">${escapeHtml(`trajectory ${qualityState.trajectory || "stable"}`)}</span>`,
+    `<span class="pill">${escapeHtml(`high risk ${riskState.highRiskAlertCount || 0}`)}</span>`,
     `<span class="pill bad">high ${counts.high}</span>`,
     `<span class="pill warn">medium ${counts.medium}</span>`,
     `<span class="pill">low ${counts.low}</span>`,
@@ -3952,7 +4444,10 @@ function renderIssueMeta(report, filteredIssues, options = {}) {
     return;
   }
 
-  stateEl.findingsHeadline.textContent = `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Clear this band before moving to the next one.`;
+  const nextActionLead = intelligenceSnapshot.autonomous?.nextActions?.[0] || null;
+  stateEl.findingsHeadline.textContent = nextActionLead
+    ? `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Operational lead: ${nextActionLead.actionLabel}. Showing ${filteredCount} issue(s) after severity, route and intelligence filters.`
+    : `Top visible finding: ${lead.group}${lead.action ? ` via "${lead.action}"` : ""}. Clear this band before moving to the next one.`;
 }
 
 function renderIssueGroups(report, filteredIssues) {
@@ -4859,10 +5354,13 @@ function buildSelfHealingSummary(report) {
     "Top healing candidates:",
   ];
 
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const operationalMaps = buildOperationalIssueMaps(report, intelligenceSnapshot);
   const topIssues = [...healing.issues]
     .sort((left, right) =>
-      severityRank(right.severity) - severityRank(left.severity)
-      || toNumber(right.confidenceScore, 0) - toNumber(left.confidenceScore, 0))
+      compareOperationalPriority(left, right, operationalMaps, (fallbackLeft, fallbackRight) =>
+        severityRank(fallbackRight.severity) - severityRank(fallbackLeft.severity)
+        || toNumber(fallbackRight.confidenceScore, 0) - toNumber(fallbackLeft.confidenceScore, 0)))
     .slice(0, 8);
 
   topIssues.forEach((item, index) => {
@@ -4883,10 +5381,13 @@ function renderSelfHealingPanel(report) {
   }
 
   stateEl.selfHealingSummary.textContent = buildSelfHealingSummary(report);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const operationalMaps = buildOperationalIssueMaps(report, intelligenceSnapshot);
   const items = [...healing.issues]
     .sort((left, right) =>
-      severityRank(right.severity) - severityRank(left.severity)
-      || toNumber(right.confidenceScore, 0) - toNumber(left.confidenceScore, 0))
+      compareOperationalPriority(left, right, operationalMaps, (fallbackLeft, fallbackRight) =>
+        severityRank(fallbackRight.severity) - severityRank(fallbackLeft.severity)
+        || toNumber(fallbackRight.confidenceScore, 0) - toNumber(fallbackLeft.confidenceScore, 0)))
     .slice(0, 10);
 
   stateEl.selfHealingList.innerHTML = items
@@ -5016,25 +5517,42 @@ async function requestHealingPreparation(issueLike) {
   showToast("Self-healing flow prepared. Apply the fix and rerun the audit to validate the outcome.", "ok");
   await refreshSelfHealingSnapshot();
   switchView("prompts");
+  const languageKey = getAssistantLanguage();
+  const localizedMode = getLocalizedAssistantModeMeta("operator", languageKey);
   uiState.assistantResult = {
-    title: `Self-healing prepared | ${issue.code}`,
-    summary: `Prepared ${formatHealingMode(result.attempt.healingMode)} with ${result.attempt.confidenceLevel || "n/a"} confidence.`,
+    title: localizePromptLine(languageKey, {
+      pt: `Self-healing preparado | ${issue.code}`,
+      es: `Self-healing preparado | ${issue.code}`,
+      en: `Self-healing prepared | ${issue.code}`,
+      ca: `Self-healing preparat | ${issue.code}`,
+    }),
+    summary: localizePromptLine(languageKey, {
+      pt: `Preparado ${formatHealingMode(result.attempt.healingMode)} com confianca ${result.attempt.confidenceLevel || "n/a"}.`,
+      es: `Preparado ${formatHealingMode(result.attempt.healingMode)} con confianza ${result.attempt.confidenceLevel || "n/a"}.`,
+      en: `Prepared ${formatHealingMode(result.attempt.healingMode)} with ${result.attempt.confidenceLevel || "n/a"} confidence.`,
+      ca: `Preparat ${formatHealingMode(result.attempt.healingMode)} amb confianca ${result.attempt.confidenceLevel || "n/a"}.`,
+    }),
     analysis: [
-      `Eligibility: ${formatHealingEligibility(result.attempt.eligibility)}`,
-      `Strategy: ${result.attempt.strategySummary || result.attempt.strategyId || "n/a"}`,
-      `Next step: ${result.attempt.suggestedNextStep || "Apply the fix and rerun the audit."}`,
+      localizeAssistantLine(`Eligibility: ${formatHealingEligibility(result.attempt.eligibility)}`, languageKey),
+      localizeAssistantLine(`Strategy: ${result.attempt.strategySummary || result.attempt.strategyId || "n/a"}`, languageKey),
+      localizePromptLine(languageKey, {
+        pt: `Proximo passo: ${result.attempt.suggestedNextStep || "Aplicar a correcao e rerodar a auditoria."}`,
+        es: `Siguiente paso: ${result.attempt.suggestedNextStep || "Aplicar la correccion y volver a ejecutar la auditoria."}`,
+        en: `Next step: ${result.attempt.suggestedNextStep || "Apply the fix and rerun the audit."}`,
+        ca: `Seguent pas: ${result.attempt.suggestedNextStep || "Aplicar la correccio i tornar a executar l'auditoria."}`,
+      }),
     ],
     modeKey: "operator",
-    modeName: "Operator",
-    modeDescription: "Executes supported workstation actions and keeps self-healing traceable.",
+    modeName: localizedMode.name,
+    modeDescription: localizedMode.description,
     intentId: "healing_prepare",
     promptText: String(result.attempt.promptText || "").trim(),
     actions: [
       result.attempt.promptText
-        ? { id: "copy-text", label: "Copy healing prompt", payload: { text: result.attempt.promptText, successMessage: "[studio] healing prompt copied." } }
+        ? { id: "copy-text", label: localizePromptLine(languageKey, { pt: "Copiar healing prompt", es: "Copiar healing prompt", en: "Copy healing prompt", ca: "Copiar healing prompt" }), payload: { text: result.attempt.promptText, successMessage: "[studio] healing prompt copied." } }
         : null,
-      { id: "revalidate-healing", label: "Revalidate after fix", payload: { issueCode: issue.code } },
-      { id: "open-memory", label: "Open learning memory", payload: { issueCode: issue.code } },
+      { id: "revalidate-healing", label: localizePromptLine(languageKey, { pt: "Revalidar apos a correcao", es: "Revalidar despues de la correccion", en: "Revalidate after fix", ca: "Revalidar despres de la correccio" }), payload: { issueCode: issue.code } },
+      { id: "open-memory", label: localizeAssistantActionLabel("Open learning memory", languageKey), payload: { issueCode: issue.code } },
     ].filter(Boolean),
   };
   renderAssistantState();
@@ -5259,6 +5777,7 @@ function ensureAssistantService() {
         dataIntelligence: intelligenceSnapshot.dataIntelligence,
         optimization: intelligenceSnapshot.optimization,
         qualityControl: intelligenceSnapshot.qualityControl,
+        assistantLanguage: getAssistantLanguageState(),
         logs: [...uiState.logs],
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -5273,7 +5792,7 @@ function ensureAssistantService() {
           description: String(item.description || ""),
         })),
         workspaceHelp: WORKSPACE_HELP,
-        buildIssuePrompt: buildLearningAwareIssuePrompt,
+        buildIssuePrompt: (issueCode) => buildLearningAwareIssuePrompt(issueCode, getAssistantLanguage()),
       };
     },
   });
@@ -5281,6 +5800,7 @@ function ensureAssistantService() {
 }
 
 function renderAssistantState() {
+  renderAssistantLanguageUi();
   const report = getVisibleReport();
   const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
   const memory = intelligenceSnapshot.learningMemory;
@@ -5290,37 +5810,69 @@ function renderAssistantState() {
   const autonomous = intelligenceSnapshot.autonomous;
   const dataIntelligence = intelligenceSnapshot.dataIntelligence;
   const optimization = intelligenceSnapshot.optimization;
+  const languageKey = getAssistantLanguage();
+  const uiText = getAssistantUiText() || {
+    contextDefault: "The assistant uses the current report, memory, logs and UI state.",
+    modePillAuto: "Mode: auto",
+    intentWaiting: "Intent: waiting",
+    modeSummaryDefault: "The assistant auto-routes each request into the correct operational mode.",
+    responseDefault: "Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.",
+    actionsDefault: "Action suggestions will appear here when the assistant has enough context.",
+    noDirectAction: "No direct action was suggested for this answer.",
+  };
   stateEl.assistantContextSummary.textContent = report
-    ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
-    : `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | view ${uiState.activeView}`;
+    ? localizePromptLine(languageKey, {
+        pt: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegiveis | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
+        es: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
+        en: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
+        ca: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunitats | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
+      })
+    : localizePromptLine(languageKey, {
+        pt: `Nenhuma auditoria carregada | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegiveis | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | view ${uiState.activeView}`,
+        es: `Ninguna auditoria cargada | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | view ${uiState.activeView}`,
+        en: `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | view ${uiState.activeView}`,
+        ca: `Cap auditoria carregada | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunitats | view ${uiState.activeView}`,
+      });
 
   const result = uiState.assistantResult;
   if (!result) {
-    stateEl.assistantModePill.textContent = "Mode: auto";
-    stateEl.assistantIntentPill.textContent = "Intent: waiting";
-    stateEl.assistantModeSummary.textContent = "The assistant will auto-route each request into the correct operational mode.";
-    stateEl.assistantResponse.textContent = "Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.";
-    stateEl.assistantActions.innerHTML = '<article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>';
+    stateEl.assistantModePill.textContent = uiText.modePillAuto;
+    stateEl.assistantIntentPill.textContent = uiText.intentWaiting;
+    stateEl.assistantModeSummary.textContent = uiText.modeSummaryDefault;
+    stateEl.assistantResponse.textContent = uiText.responseDefault;
+    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText.actionsDefault)}</article>`;
     return;
   }
 
-  stateEl.assistantModePill.textContent = `Mode: ${result.modeName || "Operational"}`;
-  stateEl.assistantIntentPill.textContent = `Intent: ${result.intentId || "unknown"}`;
-  stateEl.assistantModeSummary.textContent = result.modeDescription
-    || "The assistant is answering from the current report, memory and desktop state.";
+  const localizedMode = getLocalizedAssistantModeMeta(result.modeKey, languageKey);
+  stateEl.assistantModePill.textContent = localizePromptLine(languageKey, {
+    pt: `Modo: ${localizedMode.name || result.modeName || "Operacional"}`,
+    es: `Modo: ${localizedMode.name || result.modeName || "Operacional"}`,
+    en: `Mode: ${localizedMode.name || result.modeName || "Operational"}`,
+    ca: `Mode: ${localizedMode.name || result.modeName || "Operacional"}`,
+  });
+  stateEl.assistantIntentPill.textContent = localizePromptLine(languageKey, {
+    pt: `Intencao: ${result.intentId || "desconhecida"}`,
+    es: `Intencion: ${result.intentId || "desconocida"}`,
+    en: `Intent: ${result.intentId || "unknown"}`,
+    ca: `Intencio: ${result.intentId || "desconeguda"}`,
+  });
+  stateEl.assistantModeSummary.textContent = localizedMode.description
+    || result.modeDescription
+    || uiText.modeSummaryDefault;
 
   const lines = [
-    result.title || "Operational response",
+    localizeAssistantLine(result.title || "Operational response", languageKey),
     "",
-    result.summary || "",
-    ...(Array.isArray(result.analysis) && result.analysis.length ? ["", ...result.analysis] : []),
-    ...(result.promptText ? ["", "Prompt output:", result.promptText] : []),
+    localizeAssistantLine(result.summary || "", languageKey),
+    ...(Array.isArray(result.analysis) && result.analysis.length ? ["", ...result.analysis.map((line) => localizeAssistantLine(line, languageKey))] : []),
+    ...(result.promptText ? ["", localizeAssistantLine("Prompt output:", languageKey), result.promptText] : []),
   ].filter(Boolean);
   stateEl.assistantResponse.textContent = lines.join("\n");
 
   const actions = Array.isArray(result.actions) ? result.actions : [];
   if (!actions.length) {
-    stateEl.assistantActions.innerHTML = '<article class="empty-state">No direct action was suggested for this answer.</article>';
+    stateEl.assistantActions.innerHTML = `<article class="empty-state">${escapeHtml(uiText.noDirectAction)}</article>`;
     return;
   }
 
@@ -5328,7 +5880,7 @@ function renderAssistantState() {
     .map((action, index) => `
       <button type="button" class="command-item" data-assistant-index="${index}">
         <div class="command-item-top">
-          <strong>${escapeHtml(action.label || action.id || `action-${index + 1}`)}</strong>
+          <strong>${escapeHtml(localizeAssistantActionLabel(action.label || action.id || `action-${index + 1}`, languageKey))}</strong>
         </div>
         <p class="command-item-description">${escapeHtml(action.id || "assistant-action")}</p>
       </button>
@@ -5375,19 +5927,9 @@ async function executeAssistantAction(action) {
     return;
   }
   if (action.id === "generate-prompt") {
-    const promptText = buildLearningAwareIssuePrompt(payload.issueCode || "");
-    uiState.assistantResult = {
-      title: `Prompt intelligence${payload.issueCode ? ` | ${payload.issueCode}` : ""}`,
-      summary: "Generated from the current report and operational memory.",
-      analysis: [],
-      modeKey: "prompt_engineer",
-      modeName: "Prompt Engineer",
-      modeDescription: "Builds structured prompts from the current issue and operational memory.",
-      intentId: "prompt",
-      promptText,
-      actions: [{ id: "copy-text", label: "Copy prompt", payload: { text: promptText, successMessage: "[studio] learning-aware prompt copied." } }],
-    };
-    renderAssistantState();
+    const request = buildAssistantPromptRequest(payload.issueCode || "");
+    stateEl.assistantInput.value = request;
+    await runAssistantQuery(request);
     return;
   }
   if (action.id === "prepare-healing") {
@@ -5431,6 +5973,10 @@ async function runAssistantQuery(rawQuery) {
     return;
   }
   uiState.assistantQuery = String(rawQuery || "").trim();
+  const adaptiveLanguage = ensureAdaptiveLanguageService();
+  if (adaptiveLanguage && uiState.assistantQuery) {
+    uiState.assistantLanguageState = adaptiveLanguage.recordTextSignal(uiState.assistantQuery);
+  }
   uiState.assistantResult = service.respond(uiState.assistantQuery);
   renderAssistantState();
 }
@@ -6311,6 +6857,23 @@ function bindSelectionEvents() {
     renderIssues(getVisibleReport());
   });
 
+  [
+    [stateEl.findingsQualityFilter, "quality"],
+    [stateEl.findingsPriorityFilter, "priority"],
+    [stateEl.findingsPredictiveRiskFilter, "predictiveRisk"],
+    [stateEl.findingsTrajectoryFilter, "trajectory"],
+    [stateEl.findingsHealingFilter, "healing"],
+    [stateEl.findingsMemoryFilter, "memory"],
+    [stateEl.findingsResolutionFilter, "resolution"],
+    [stateEl.findingsImpactFilter, "impact"],
+  ].forEach(([node, key]) => {
+    if (!(node instanceof HTMLSelectElement)) return;
+    node.addEventListener("change", () => {
+      uiState.findingsIntelligenceFilters[key] = node.value || "all";
+      renderIssues(getVisibleReport());
+    });
+  });
+
   stateEl.commandPaletteSearch.addEventListener("input", () => {
     uiState.commandPaletteQuery = stateEl.commandPaletteSearch.value.trim();
     renderCommandPalette();
@@ -6482,21 +7045,29 @@ function bindButtons() {
   });
   stateEl.assistantAsk.addEventListener("click", async () => runAssistantQuery(stateEl.assistantInput.value));
   stateEl.assistantQuickPriorities.addEventListener("click", async () => {
-    stateEl.assistantInput.value = "me diga o que devo fazer primeiro";
+    stateEl.assistantInput.value = getAssistantQuickQuery("priorities");
     await runAssistantQuery(stateEl.assistantInput.value);
   });
   stateEl.assistantQuickSeo.addEventListener("click", async () => {
-    stateEl.assistantInput.value = "analise o log da ultima execucao e me diga os problemas prioritarios de SEO";
+    stateEl.assistantInput.value = getAssistantQuickQuery("seo");
     await runAssistantQuery(stateEl.assistantInput.value);
   });
   stateEl.assistantQuickPrompt.addEventListener("click", async () => {
     const code = getVisibleReport()?.issues?.[0]?.code || "";
-    stateEl.assistantInput.value = code ? `gere um prompt para corrigir a issue ${code}` : "gere um prompt para corrigir a top issue";
+    stateEl.assistantInput.value = buildAssistantPromptRequest(code);
     await runAssistantQuery(stateEl.assistantInput.value);
   });
   stateEl.assistantQuickGuide.addEventListener("click", async () => {
-    stateEl.assistantInput.value = "me ensine a usar o painel atual";
+    stateEl.assistantInput.value = getAssistantQuickQuery("guide");
     await runAssistantQuery(stateEl.assistantInput.value);
+  });
+  stateEl.assistantLanguageSelect.addEventListener("change", () => {
+    const adaptiveLanguage = ensureAdaptiveLanguageService();
+    if (!adaptiveLanguage) return;
+    uiState.assistantLanguageState = stateEl.assistantLanguageSelect.value === "auto"
+      ? adaptiveLanguage.setAutoMode()
+      : adaptiveLanguage.setManualLanguage(stateEl.assistantLanguageSelect.value);
+    rerenderAssistantInActiveLanguage();
   });
   stateEl.dismissCommandPalette.addEventListener("click", () => toggleCommandPalette(false));
   stateEl.commandPaletteOverlay.addEventListener("click", (event) => {
@@ -6625,7 +7196,7 @@ function bindButtons() {
         }
         if (issueAction === "generate-prompt") {
           toggleAssistant(true);
-          stateEl.assistantInput.value = `gere um prompt para corrigir a issue ${issueCode}`;
+          stateEl.assistantInput.value = buildAssistantPromptRequest(issueCode);
           await runAssistantQuery(stateEl.assistantInput.value);
           return;
         }
