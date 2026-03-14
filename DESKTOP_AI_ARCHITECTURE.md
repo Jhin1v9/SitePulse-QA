@@ -159,6 +159,30 @@ This exists for two reasons:
 - avoid recomputing the same derived signals across Overview, Findings, Prompt Workspace and Assistant
 - keep those surfaces aligned to the same cached intelligence state during a render cycle
 
+### Comparable History Context And Pruning
+
+The renderer now builds one comparable history context per visible report before handing data to:
+
+- continuous intelligence
+- predictive intelligence
+- autonomous QA
+- data intelligence
+
+This context is responsible for:
+
+- grouping runs by comparable target key (`baseUrl + mode + scope + mobile sweep`)
+- reusing the same comparable run series across engines
+- exposing one `reference` snapshot and one `previousComparable` snapshot
+- reducing repeated history filtering and mapping work in the renderer
+
+History persistence is also pruned deterministically:
+
+- keep a bounded global history
+- keep a bounded number of snapshots per target
+- deduplicate by comparable target + stamp
+
+This preserves run history features while limiting storage growth and avoiding stale comparisons against unrelated targets.
+
 ### Data Intelligence Layer
 
 Files:

@@ -226,13 +226,25 @@
       return { total, dimensions, rationale };
     }
 
-    function computeTrajectory(report, history, predictive) {
+    function readStoredQualityScore(report, fallback = Number.NaN) {
+      const scoreCandidate = Number(
+        report?.dataIntelligence?.QUALITY_STATE?.overallScore
+        ?? report?.autonomous?.qualityScore?.total
+      );
+      return Number.isFinite(scoreCandidate) ? scoreCandidate : fallback;
+    }
+
+    function computeTrajectory(report, history, predictive, currentQualityScore) {
       const comparable = getComparableHistory(report, history)
         .map((entry) => entry.report)
         .filter(Boolean);
-      const currentScore = computeQualityDimensions(report, predictive).total;
+      const currentScore = Number.isFinite(currentQualityScore)
+        ? currentQualityScore
+        : computeQualityDimensions(report, predictive).total;
       const previousReport = comparable.length ? comparable[comparable.length - 1] : null;
-      const previousScore = previousReport ? computeQualityDimensions(previousReport, { summary: {} }).total : currentScore;
+      const previousScore = previousReport
+        ? readStoredQualityScore(previousReport, computeQualityDimensions(previousReport, { summary: {} }).total)
+        : currentScore;
       const delta = currentScore - previousScore;
       let direction = "stable";
       if (delta >= 3) direction = "improving";
@@ -399,7 +411,7 @@
       const snapshot = emptyAutonomousSnapshot();
       snapshot.updatedAt = String(report.meta?.generatedAt || "");
       snapshot.qualityScore = computeQualityDimensions(report, predictive);
-      snapshot.qualityTrajectory = computeTrajectory(report, history, predictive);
+      snapshot.qualityTrajectory = computeTrajectory(report, history, predictive, snapshot.qualityScore.total);
       snapshot.nextActions = buildNextActions(report, learningMemory, selfHealing, predictive);
 
       snapshot.playbooks = Object.fromEntries((report.issues || []).map((issue) => {

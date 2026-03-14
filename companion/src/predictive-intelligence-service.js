@@ -111,6 +111,7 @@
 
   function createSitePulsePredictiveIntelligenceService(options) {
     const getHistory = typeof options?.getHistory === "function" ? options.getHistory : () => [];
+    const getComparableSeriesOverride = typeof options?.getComparableSeries === "function" ? options.getComparableSeries : null;
     const getReferenceSnapshot = typeof options?.getReferenceSnapshot === "function" ? options.getReferenceSnapshot : () => null;
     const issueSignature = typeof options?.issueSignature === "function"
       ? options.issueSignature
@@ -134,6 +135,12 @@
 
     function getComparableSeries(report) {
       if (!report) return [];
+      if (typeof getComparableSeriesOverride === "function") {
+        const providedSeries = getComparableSeriesOverride(report);
+        if (Array.isArray(providedSeries) && providedSeries.length) {
+          return providedSeries;
+        }
+      }
       const reference = getReferenceSnapshot(report);
       const snapshots = getHistory()
         .filter((entry) => entry?.report && isComparableReport(report, entry.report))

@@ -32,6 +32,10 @@ const ISSUE_GROUP = {
 };
 
 const DEFAULT_TARGET = "https://example.com";
+const HISTORY_TOTAL_LIMIT = 12;
+const HISTORY_PER_TARGET_LIMIT = 6;
+const HISTORY_COMPARABLE_LIMIT = 8;
+const HISTORY_RECURRENCE_LIMIT = 6;
 
 const VIEW_META = {
   overview: {
@@ -477,6 +481,8 @@ const uiState = {
   findingsSearch: "",
   findingsRoute: "all",
   history: loadHistory(),
+  historyIndexCache: null,
+  historyContextCache: null,
   baseline: loadBaseline(),
   onboardingDismissed: loadOnboardingState(),
   shortcutsOpen: false,
@@ -573,6 +579,15 @@ function toNumber(value, fallback = 0) {
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function normalizeText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function safeDateValue(value) {
+  const stamp = Date.parse(String(value || ""));
+  return Number.isFinite(stamp) ? stamp : 0;
 }
 
 function normalizeSeoSource(input) {
@@ -902,11 +917,12 @@ function writeStorage(key, value) {
 function loadHistory() {
   const history = readStorage(STORAGE_KEYS.runHistory, []);
   if (!Array.isArray(history)) return [];
-  return history.filter((item) => item && typeof item === "object" && item.report);
+  return pruneHistoryEntries(history);
 }
 
 function persistHistory() {
-  writeStorage(STORAGE_KEYS.runHistory, uiState.history.slice(0, 12));
+  uiState.history = pruneHistoryEntries(uiState.history);
+  writeStorage(STORAGE_KEYS.runHistory, uiState.history);
 }
 
 function loadBaseline() {
@@ -2572,22 +2588,129 @@ function issueSignature(issue) {
   return [issue.code, issue.route, issue.action || "", issue.group, issue.viewportLabel || "", issue.viewport || ""].join("|");
 }
 
-function signedDelta(value) {
-  const amount = toNumber(value, 0);
-  if (amount === 0) return "0";
-  return amount > 0 ? `+${amount}` : `${amount}`;
+function buildHistoryGroupKey(report) {
+  if (!report) return "";
+  return [
+    normalizeText(report.meta?.baseUrl),
+    normalizeText(report.meta?.auditMode || "desktop"),
+    normalizeText(report.summary?.auditScope),
+    normalizeText(report.meta?.mobileSweep?.id),
+  ].join("::");
 }
 
-function getReferenceSnapshot(report) {
+function isComparableHistoryReport(currentReport, candidateReport) {
+  if (!currentReport || !candidateReport) return false;
+  return buildHistoryGroupKey(currentReport) === buildHistoryGroupKey(candidateReport);
+}
+
+function normalizeHistoryEntry(entry) {
+  if (!entry || typeof entry !== "object" || !entry.report) return null;
+  const stamp = String(entry.stamp || entry.report.meta?.generatedAt || "");
+  if (!stamp) return null;
+  const targetKey = buildHistoryGroupKey(entry.report);
+  if (!targetKey) return null;
+  return {
+    ...entry,
+    stamp,
+    targetKey,
+  };
+}
+
+function compareHistoryEntries(left, right) {
+  return safeDateValue(right?.stamp) - safeDateValue(left?.stamp);
+}
+
+function pruneHistoryEntries(entries) {
+  const normalized = (Array.isArray(entries) ? entries : [])
+    .map((entry) => normalizeHistoryEntry(entry))
+    .filter(Boolean)
+    .sort(compareHistoryEntries);
+  const seen = new Set();
+  const perTargetCounts = new Map();
+  const pruned = [];
+  for (const entry of normalized) {
+    const dedupeKey = `${entry.targetKey}::${entry.stamp}`;
+    if (seen.has(dedupeKey)) {
+      continue;
+    }
+    const targetCount = perTargetCounts.get(entry.targetKey) || 0;
+    if (targetCount >= HISTORY_PER_TARGET_LIMIT) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    perTargetCounts.set(entry.targetKey, targetCount + 1);
+    pruned.push({
+      ...entry,
+      targetKey: undefined,
+    });
+    if (pruned.length >= HISTORY_TOTAL_LIMIT) {
+      break;
+    }
+  }
+  return pruned;
+}
+
+function mapHistoryRunEntry(entry) {
+  if (!entry?.report) return null;
+  return {
+    stamp: String(entry.stamp || entry.report.meta?.generatedAt || ""),
+    report: entry.report,
+  };
+}
+
+function buildHistoryIndex() {
+  const cacheKey = buildRecentHistoryStamp(HISTORY_TOTAL_LIMIT);
+  if (uiState.historyIndexCache?.key === cacheKey) {
+    return uiState.historyIndexCache.value;
+  }
+  const byTarget = new Map();
+  for (const entry of uiState.history) {
+    const targetKey = buildHistoryGroupKey(entry?.report);
+    if (!targetKey) {
+      continue;
+    }
+    const list = byTarget.get(targetKey) || [];
+    list.push(entry);
+    byTarget.set(targetKey, list);
+  }
+  for (const list of byTarget.values()) {
+    list.sort(compareHistoryEntries);
+  }
+  const index = {
+    byTarget,
+  };
+  uiState.historyIndexCache = {
+    key: cacheKey,
+    value: index,
+  };
+  return index;
+}
+
+function resolveComparableHistoryEntries(report, limit = HISTORY_COMPARABLE_LIMIT) {
+  if (!report) return [];
+  const targetKey = buildHistoryGroupKey(report);
+  if (!targetKey) return [];
+  const historyIndex = buildHistoryIndex();
+  return (historyIndex.byTarget.get(targetKey) || [])
+    .filter((entry) => entry?.report && entry.stamp !== report.meta?.generatedAt)
+    .slice(0, limit);
+}
+
+function resolveReferenceSnapshot(report, comparableEntries = null) {
   if (!report) return null;
-  if (uiState.baseline?.report && uiState.baseline.stamp !== report.meta.generatedAt) {
+  if (
+    uiState.baseline?.report
+    && uiState.baseline.stamp !== report.meta.generatedAt
+    && isComparableHistoryReport(report, uiState.baseline.report)
+  ) {
     return {
       label: `baseline ${formatLocalDate(uiState.baseline.stamp)}`,
       snapshot: uiState.baseline,
     };
   }
 
-  const previous = uiState.history.find((item) => item?.stamp && item.stamp !== report.meta.generatedAt);
+  const entries = Array.isArray(comparableEntries) ? comparableEntries : resolveComparableHistoryEntries(report, 1);
+  const previous = entries.find((entry) => entry?.report && entry.stamp !== report.meta.generatedAt);
   if (previous?.report) {
     return {
       label: `previous run ${formatLocalDate(previous.stamp)}`,
@@ -2596,6 +2719,90 @@ function getReferenceSnapshot(report) {
   }
 
   return null;
+}
+
+function buildComparableHistoryContext(report, limit = HISTORY_COMPARABLE_LIMIT) {
+  if (!report) {
+    return {
+      targetKey: "",
+      reference: null,
+      comparableEntries: [],
+      comparableReports: [],
+      recurrenceReports: [],
+      runHistory: [],
+      series: [],
+      previousComparable: null,
+    };
+  }
+
+  const cacheKey = [
+    buildLiveReportKey(report),
+    String(uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_TOTAL_LIMIT),
+    buildHistoryGroupKey(report),
+    String(limit),
+  ].join("::");
+  if (uiState.historyContextCache?.key === cacheKey) {
+    return uiState.historyContextCache.value;
+  }
+
+  const comparableEntries = resolveComparableHistoryEntries(report, limit);
+  const reference = resolveReferenceSnapshot(report, comparableEntries);
+  const seriesEntries = [];
+  if (reference?.snapshot?.report) {
+    seriesEntries.push({
+      stamp: String(reference.snapshot.stamp || reference.snapshot.report.meta?.generatedAt || ""),
+      report: reference.snapshot.report,
+    });
+  }
+  for (const entry of [...comparableEntries].reverse()) {
+    seriesEntries.push({
+      stamp: String(entry.stamp || entry.report?.meta?.generatedAt || ""),
+      report: entry.report,
+    });
+  }
+  seriesEntries.push({
+    stamp: String(report.meta?.generatedAt || ""),
+    report,
+  });
+
+  const dedupedSeries = [];
+  const seen = new Set();
+  for (const entry of seriesEntries.sort((left, right) => safeDateValue(left.stamp) - safeDateValue(right.stamp))) {
+    const dedupeKey = `${buildHistoryGroupKey(entry.report)}::${entry.stamp}`;
+    if (!entry.report || seen.has(dedupeKey)) {
+      continue;
+    }
+    seen.add(dedupeKey);
+    dedupedSeries.push(entry);
+  }
+
+  const previousComparable = dedupedSeries.length > 1 ? dedupedSeries[dedupedSeries.length - 2] : null;
+  const context = {
+    targetKey: buildHistoryGroupKey(report),
+    reference,
+    comparableEntries,
+    comparableReports: comparableEntries.map((entry) => entry.report),
+    recurrenceReports: [report, ...comparableEntries.slice(0, HISTORY_RECURRENCE_LIMIT).map((entry) => entry.report)],
+    runHistory: comparableEntries.slice(0, limit).map((entry) => mapHistoryRunEntry(entry)).filter(Boolean),
+    series: dedupedSeries.slice(-limit),
+    previousComparable,
+  };
+  uiState.historyContextCache = {
+    key: cacheKey,
+    value: context,
+  };
+  return context;
+}
+
+function signedDelta(value) {
+  const amount = toNumber(value, 0);
+  if (amount === 0) return "0";
+  return amount > 0 ? `+${amount}` : `${amount}`;
+}
+
+function getReferenceSnapshot(report) {
+  return resolveReferenceSnapshot(report);
 }
 
 function compareReports(currentReport, referenceReport) {
@@ -2668,7 +2875,7 @@ function buildTrendDescriptor(label, currentValue, previousValue, threshold = 1)
 function buildRecentHistoryStamp(limit = 8) {
   return uiState.history
     .slice(0, limit)
-    .map((entry) => String(entry?.stamp || ""))
+    .map((entry) => `${buildHistoryGroupKey(entry?.report)}@${String(entry?.stamp || "")}`)
     .join("|");
 }
 
@@ -2677,22 +2884,20 @@ function buildContinuousIntelligence(report) {
     return createEmptyContinuousIntelligenceSnapshot();
   }
 
+  const historyContext = buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(6),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_RECURRENCE_LIMIT),
   ].join("::");
   if (uiState.continuousIntelligenceCache?.key === cacheKey) {
     return uiState.continuousIntelligenceCache.value;
   }
 
-  const reference = getReferenceSnapshot(report);
+  const reference = historyContext.reference;
   const comparison = reference?.snapshot?.report ? compareReports(report, reference.snapshot.report) : null;
-  const sameTargetHistory = uiState.history
-    .filter((entry) => entry?.report && entry.report.meta?.baseUrl === report.meta.baseUrl && entry.stamp !== report.meta.generatedAt)
-    .slice(0, 6);
   const recurrenceMap = new Map();
-  for (const snapshot of [report, ...sameTargetHistory.map((entry) => entry.report)]) {
+  for (const snapshot of historyContext.recurrenceReports) {
     const seen = new Set();
     for (const issue of snapshot?.issues || []) {
       const signature = issueSignature(issue);
@@ -2721,10 +2926,11 @@ function buildContinuousIntelligence(report) {
     .sort((left, right) => right.recurringCount - left.recurringCount || toNumber(right.issue.impact?.impactScore, 0) - toNumber(left.issue.impact?.impactScore, 0))
     .slice(0, 6);
 
+  const previousComparableReport = historyContext.previousComparable?.report || reference?.snapshot?.report || null;
   const runtimeCurrent = (report.issues || []).filter((issue) => ["ROUTE_LOAD_FAIL", "HTTP_5XX", "NET_REQUEST_FAILED", "JS_RUNTIME_ERROR", "CONSOLE_ERROR"].includes(String(issue.code || ""))).length;
-  const runtimePrevious = comparison?.persistentIssues ? (reference?.snapshot?.report?.issues || []).filter((issue) => ["ROUTE_LOAD_FAIL", "HTTP_5XX", "NET_REQUEST_FAILED", "JS_RUNTIME_ERROR", "CONSOLE_ERROR"].includes(String(issue.code || ""))).length : Number.NaN;
+  const runtimePrevious = comparison ? (previousComparableReport?.issues || []).filter((issue) => ["ROUTE_LOAD_FAIL", "HTTP_5XX", "NET_REQUEST_FAILED", "JS_RUNTIME_ERROR", "CONSOLE_ERROR"].includes(String(issue.code || ""))).length : Number.NaN;
   const uxCurrent = (report.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length;
-  const uxPrevious = comparison?.persistentIssues ? (reference?.snapshot?.report?.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length : Number.NaN;
+  const uxPrevious = comparison ? (previousComparableReport?.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length : Number.NaN;
 
   const intelligence = {
     executiveSummary: report.intelligence?.executiveSummary || normalizeIntelligence(null).executiveSummary,
@@ -2785,6 +2991,7 @@ function ensurePredictiveService() {
   }
   uiState.predictiveService = window.createSitePulsePredictiveIntelligenceService({
     getHistory: () => [...uiState.history],
+    getComparableSeries: (report) => buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT).series,
     getReferenceSnapshot,
     issueSignature,
     severityRank,
@@ -2826,10 +3033,11 @@ function buildPredictiveIntelligence(report) {
   if (!report) {
     return createEmptyPredictiveSnapshot();
   }
+  const historyContext = buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(8),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_COMPARABLE_LIMIT),
   ].join("::");
   if (uiState.predictiveCache?.key === cacheKey) {
     return uiState.predictiveCache.value;
@@ -2919,10 +3127,11 @@ function buildAutonomousQa(report, contextInput = null) {
   }
   const learningMemory = contextInput?.learningMemory || getOperationalMemorySnapshot(report);
   const selfHealing = contextInput?.selfHealing || getVisibleSelfHealing(report);
+  const historyContext = contextInput?.historyContext || buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(8),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_COMPARABLE_LIMIT),
     String(selfHealing?.updatedAt || ""),
     String(learningMemory?.updatedAt || ""),
     String(learningMemory?.summary?.entries || 0),
@@ -2937,10 +3146,7 @@ function buildAutonomousQa(report, contextInput = null) {
         selfHealing,
         intelligence: contextInput?.intelligence || buildContinuousIntelligence(report),
         predictive: contextInput?.predictive || buildPredictiveIntelligence(report),
-        runHistory: uiState.history.slice(0, 8).map((entry) => ({
-          stamp: entry.stamp,
-          report: entry.report,
-        })),
+        runHistory: historyContext.runHistory,
       })
     : createEmptyAutonomousQaSnapshot();
   uiState.autonomousQaCache = {
@@ -2954,10 +3160,11 @@ function buildOptimizationSnapshot(report, contextInput = null) {
   if (!report) {
     return createEmptyOptimizationSnapshot();
   }
+  const historyContext = contextInput?.historyContext || buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(8),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_COMPARABLE_LIMIT),
   ].join("::");
   if (uiState.optimizationCache?.key === cacheKey) {
     return uiState.optimizationCache.value;
@@ -2981,10 +3188,11 @@ function buildQualityControlSnapshot(report, contextInput = null) {
   if (!report) {
     return createEmptyQualityControlSnapshot();
   }
+  const historyContext = contextInput?.historyContext || buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(8),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_COMPARABLE_LIMIT),
   ].join("::");
   if (uiState.qualityControlCache?.key === cacheKey) {
     return uiState.qualityControlCache.value;
@@ -3018,10 +3226,11 @@ function buildDesktopIntelligenceSnapshot(report) {
 
   const learningMemory = getOperationalMemorySnapshot(report);
   const selfHealing = getVisibleSelfHealing(report);
+  const historyContext = buildComparableHistoryContext(report, HISTORY_COMPARABLE_LIMIT);
   const cacheKey = [
     buildLiveReportKey(report),
-    String(uiState.baseline?.stamp || ""),
-    buildRecentHistoryStamp(8),
+    String(historyContext.reference?.snapshot?.stamp || uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(HISTORY_COMPARABLE_LIMIT),
     String(selfHealing?.updatedAt || ""),
     String(learningMemory?.updatedAt || ""),
     String(learningMemory?.summary?.entries || 0),
@@ -3037,6 +3246,7 @@ function buildDesktopIntelligenceSnapshot(report) {
     selfHealing,
     intelligence,
     predictive,
+    historyContext,
   });
   const dataIntelligenceService = ensureDataIntelligenceService();
   const dataIntelligence = dataIntelligenceService?.buildDataIntelligence
@@ -3046,18 +3256,17 @@ function buildDesktopIntelligenceSnapshot(report) {
         intelligence,
         predictive,
         autonomous,
-        runHistory: uiState.history.slice(0, 8).map((entry) => ({
-          stamp: entry.stamp,
-          report: entry.report,
-        })),
+        runHistory: historyContext.runHistory,
       })
     : createEmptyDataIntelligenceSnapshot();
   const optimization = buildOptimizationSnapshot(report, {
+    historyContext,
     dataIntelligence,
     predictive,
     autonomous,
   });
   const qualityControl = buildQualityControlSnapshot(report, {
+    historyContext,
     dataIntelligence,
   });
   const snapshot = {
@@ -5235,7 +5444,7 @@ async function executeCommandPaletteAction(commandId) {
 
 function pushHistory(report) {
   const snapshot = createReportSnapshot(createCompactStoredReport(report, { issueLimit: 40, actionLimit: 30, routeLimit: 20 }));
-  uiState.history = [snapshot, ...uiState.history.filter((item) => item.stamp !== snapshot.stamp)].slice(0, 12);
+  uiState.history = pruneHistoryEntries([snapshot, ...uiState.history]);
   persistHistory();
   renderHistory();
 }
