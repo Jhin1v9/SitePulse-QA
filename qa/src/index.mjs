@@ -6707,12 +6707,12 @@ async function resolveChromiumLaunchPlan(args) {
 }
 
 async function finalizeReport(report, reportDir, paused) {
+  const seoEnabled = shouldRunSeoForScope(report?.meta?.auditScope);
   report.meta.finishedAt = nowIso();
   report.meta.paused = paused;
   report.issues = dedupeIssues(report.issues);
   report.issues = report.issues.map((issue) => hydrateIssue(issue));
-  report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
-  finalizeSeoReport(report, shouldRunSeoForScope(report?.meta?.auditScope));
+  finalizeSeoReport(report, seoEnabled);
   if (!paused) {
     const runtimeResult = ingestCompletedRun(activeLearningRuntime.store, report);
     activeLearningRuntime.store = runtimeResult.store;
@@ -6723,17 +6723,16 @@ async function finalizeReport(report, reportDir, paused) {
     await saveHealingStore(reportDir, activeHealingRuntime.store);
     report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
     report.issues = report.issues.map((issue) => hydrateIssue(issue));
-    report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
-    finalizeSeoReport(report, shouldRunSeoForScope(report?.meta?.auditScope));
+    finalizeSeoReport(report, seoEnabled);
   } else {
     report.learningMemory = attachLearningSnapshot(activeLearningRuntime.store, report, activeLearningRuntime.storePath);
   }
   report.selfHealing = attachHealingSnapshot(activeHealingRuntime.store, report, activeHealingRuntime.storePath);
   report.intelligence = attachImpactAnalysis(report);
+  report.summary = summarize(report);
   report.issueLog = report.issues.map((issue) => createIssueLogEntry(issue));
   report.promptPack = buildPromptPack(report.issues);
   report.assistantGuide = buildAssistantGuide(report);
-  report.summary = summarize(report);
 }
 
 async function writeReportArtifacts(report, reportDir, paused) {

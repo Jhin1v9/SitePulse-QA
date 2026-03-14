@@ -467,10 +467,12 @@ const uiState = {
   learningMemoryRefreshInFlight: false,
   selfHealingSnapshot: null,
   selfHealingRefreshInFlight: false,
+  continuousIntelligenceCache: null,
   predictiveService: null,
   predictiveCache: null,
   autonomousQaService: null,
   autonomousQaCache: null,
+  desktopIntelligenceCache: null,
   learningMemoryFilters: {
     status: "all",
     issueCode: "",
@@ -2519,21 +2521,25 @@ function buildTrendDescriptor(label, currentValue, previousValue, threshold = 1)
   return { label, direction: "stable", symbol: "=", delta, text: `${label} = stable` };
 }
 
+function buildRecentHistoryStamp(limit = 8) {
+  return uiState.history
+    .slice(0, limit)
+    .map((entry) => String(entry?.stamp || ""))
+    .join("|");
+}
+
 function buildContinuousIntelligence(report) {
   if (!report) {
-    return {
-      executiveSummary: normalizeIntelligence(null).executiveSummary,
-      patterns: [],
-      comparison: null,
-      topIssues: [],
-      recurringIssues: [],
-      trendSummary: {
-        seo: buildTrendDescriptor("SEO", Number.NaN, Number.NaN, 1),
-        runtime: buildTrendDescriptor("Runtime", Number.NaN, Number.NaN, 1),
-        ux: buildTrendDescriptor("UX", Number.NaN, Number.NaN, 1),
-      },
-      issueTrends: {},
-    };
+    return createEmptyContinuousIntelligenceSnapshot();
+  }
+
+  const cacheKey = [
+    buildLiveReportKey(report),
+    String(uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(6),
+  ].join("::");
+  if (uiState.continuousIntelligenceCache?.key === cacheKey) {
+    return uiState.continuousIntelligenceCache.value;
   }
 
   const reference = getReferenceSnapshot(report);
@@ -2576,7 +2582,7 @@ function buildContinuousIntelligence(report) {
   const uxCurrent = (report.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length;
   const uxPrevious = comparison?.persistentIssues ? (reference?.snapshot?.report?.issues || []).filter((issue) => String(issue.code || "").startsWith("VISUAL_") || String(issue.code || "").startsWith("BTN_")).length : Number.NaN;
 
-  return {
+  const intelligence = {
     executiveSummary: report.intelligence?.executiveSummary || normalizeIntelligence(null).executiveSummary,
     patterns: Array.isArray(report.intelligence?.patterns) ? report.intelligence.patterns : [],
     comparison,
@@ -2589,6 +2595,11 @@ function buildContinuousIntelligence(report) {
     },
     issueTrends,
   };
+  uiState.continuousIntelligenceCache = {
+    key: cacheKey,
+    value: intelligence,
+  };
+  return intelligence;
 }
 
 function createEmptyPredictiveSnapshot() {
@@ -2642,9 +2653,9 @@ function buildPredictiveIntelligence(report) {
     return createEmptyPredictiveSnapshot();
   }
   const cacheKey = [
-    String(report.meta?.generatedAt || ""),
+    buildLiveReportKey(report),
     String(uiState.baseline?.stamp || ""),
-    uiState.history.slice(0, 8).map((entry) => String(entry?.stamp || "")).join("|"),
+    buildRecentHistoryStamp(8),
   ].join("::");
   if (uiState.predictiveCache?.key === cacheKey) {
     return uiState.predictiveCache.value;
@@ -2728,16 +2739,16 @@ function ensureAutonomousQaService() {
   return uiState.autonomousQaService;
 }
 
-function buildAutonomousQa(report) {
+function buildAutonomousQa(report, contextInput = null) {
   if (!report) {
     return createEmptyAutonomousQaSnapshot();
   }
-  const learningMemory = getOperationalMemorySnapshot(report);
-  const selfHealing = getVisibleSelfHealing(report);
+  const learningMemory = contextInput?.learningMemory || getOperationalMemorySnapshot(report);
+  const selfHealing = contextInput?.selfHealing || getVisibleSelfHealing(report);
   const cacheKey = [
-    String(report.meta?.generatedAt || ""),
+    buildLiveReportKey(report),
     String(uiState.baseline?.stamp || ""),
-    uiState.history.slice(0, 8).map((entry) => String(entry?.stamp || "")).join("|"),
+    buildRecentHistoryStamp(8),
     String(selfHealing?.updatedAt || ""),
     String(learningMemory?.updatedAt || ""),
     String(learningMemory?.summary?.entries || 0),
@@ -2750,8 +2761,8 @@ function buildAutonomousQa(report) {
     ? service.buildAutonomousQa(report, {
         learningMemory,
         selfHealing,
-        intelligence: buildContinuousIntelligence(report),
-        predictive: buildPredictiveIntelligence(report),
+        intelligence: contextInput?.intelligence || buildContinuousIntelligence(report),
+        predictive: contextInput?.predictive || buildPredictiveIntelligence(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
           stamp: entry.stamp,
           report: entry.report,
@@ -2763,6 +2774,69 @@ function buildAutonomousQa(report) {
     value: autonomous,
   };
   return autonomous;
+}
+
+function buildDesktopIntelligenceSnapshot(report) {
+  if (!report) {
+    return {
+      learningMemory: getOperationalMemorySnapshot(null),
+      selfHealing: getVisibleSelfHealing(null),
+      intelligence: createEmptyContinuousIntelligenceSnapshot(),
+      predictive: createEmptyPredictiveSnapshot(),
+      autonomous: createEmptyAutonomousQaSnapshot(),
+    };
+  }
+
+  const learningMemory = getOperationalMemorySnapshot(report);
+  const selfHealing = getVisibleSelfHealing(report);
+  const cacheKey = [
+    buildLiveReportKey(report),
+    String(uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(8),
+    String(selfHealing?.updatedAt || ""),
+    String(learningMemory?.updatedAt || ""),
+    String(learningMemory?.summary?.entries || 0),
+  ].join("::");
+  if (uiState.desktopIntelligenceCache?.key === cacheKey) {
+    return uiState.desktopIntelligenceCache.value;
+  }
+
+  const intelligence = buildContinuousIntelligence(report);
+  const predictive = buildPredictiveIntelligence(report);
+  const autonomous = buildAutonomousQa(report, {
+    learningMemory,
+    selfHealing,
+    intelligence,
+    predictive,
+  });
+  const snapshot = {
+    learningMemory,
+    selfHealing,
+    intelligence,
+    predictive,
+    autonomous,
+  };
+  uiState.desktopIntelligenceCache = {
+    key: cacheKey,
+    value: snapshot,
+  };
+  return snapshot;
+}
+
+function createEmptyContinuousIntelligenceSnapshot() {
+  return {
+    executiveSummary: normalizeIntelligence(null).executiveSummary,
+    patterns: [],
+    comparison: null,
+    topIssues: [],
+    recurringIssues: [],
+    trendSummary: {
+      seo: buildTrendDescriptor("SEO", Number.NaN, Number.NaN, 1),
+      runtime: buildTrendDescriptor("Runtime", Number.NaN, Number.NaN, 1),
+      ux: buildTrendDescriptor("UX", Number.NaN, Number.NaN, 1),
+    },
+    issueTrends: {},
+  };
 }
 
 function findReferenceEvidenceItem(item, report) {
@@ -3203,9 +3277,10 @@ function renderExecutiveSummary(report) {
     return;
   }
 
-  const intelligence = buildContinuousIntelligence(report);
-  const predictive = buildPredictiveIntelligence(report);
-  const autonomous = buildAutonomousQa(report);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const intelligence = intelligenceSnapshot.intelligence;
+  const predictive = intelligenceSnapshot.predictive;
+  const autonomous = intelligenceSnapshot.autonomous;
   const executive = report.intelligence?.executiveSummary || {};
   stateEl.executiveSummaryHeadline.textContent = executive.headline || "Impact scoring is available for the current run.";
   stateEl.executivePriorityP0.textContent = `P0 ${report.summary.priorityP0 || 0}`;
@@ -3758,9 +3833,10 @@ function renderIssues(report, options = {}) {
   }
 
   const filteredIssues = getFilteredIssues(report);
-  const intelligenceContext = buildContinuousIntelligence(report);
-  const predictiveContext = buildPredictiveIntelligence(report);
-  const autonomousContext = buildAutonomousQa(report);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const intelligenceContext = intelligenceSnapshot.intelligence;
+  const predictiveContext = intelligenceSnapshot.predictive;
+  const autonomousContext = intelligenceSnapshot.autonomous;
   renderIssueMeta(report, filteredIssues, options);
   renderIssueGroups(report, filteredIssues);
 
@@ -3877,7 +3953,8 @@ function renderSeoWorkspace(report, options = {}) {
 }
 
 function renderPromptWorkspace(report) {
-  const autonomous = buildAutonomousQa(report);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const autonomous = intelligenceSnapshot.autonomous;
   stateEl.promptWorkspaceFix.textContent = buildLearningAwareFixPrompt(report);
   stateEl.promptWorkspaceReplay.textContent = report?.meta?.replayCommand || report?.assistantGuide?.replayCommand || "Run an audit to generate a replay command.";
   stateEl.promptWorkspaceIssues.textContent = buildIssueDigest(report);
@@ -4549,41 +4626,46 @@ function ensureAssistantService() {
     return null;
   }
   uiState.assistantService = window.createSitePulseAssistantService({
-    getContext: () => ({
-      activeView: uiState.activeView,
-      report: getVisibleReport(),
-      learningMemory: getOperationalMemorySnapshot(getVisibleReport()),
-      selfHealing: getVisibleSelfHealing(getVisibleReport()),
-      intelligence: buildContinuousIntelligence(getVisibleReport()),
-      predictive: buildPredictiveIntelligence(getVisibleReport()),
-      autonomous: buildAutonomousQa(getVisibleReport()),
-      logs: [...uiState.logs],
-      compareDigest: buildCompareDigest(getVisibleReport()),
-      runHistory: uiState.history.slice(0, 8).map((entry) => ({
-        stamp: String(entry?.stamp || ""),
-        baseUrl: String(entry?.baseUrl || entry?.meta?.baseUrl || ""),
-        totalIssues: toNumber(entry?.summary?.totalIssues, 0),
-        seoScore: toNumber(entry?.summary?.seoScore, 0),
-      })),
-      availableCommands: getCommandPaletteItems().map((item) => ({
-        id: String(item.id || ""),
-        label: String(item.label || ""),
-        description: String(item.description || ""),
-      })),
-      workspaceHelp: WORKSPACE_HELP,
-      buildIssuePrompt: buildLearningAwareIssuePrompt,
-    }),
+    getContext: () => {
+      const report = getVisibleReport();
+      const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+      return {
+        activeView: uiState.activeView,
+        report,
+        learningMemory: intelligenceSnapshot.learningMemory,
+        selfHealing: intelligenceSnapshot.selfHealing,
+        intelligence: intelligenceSnapshot.intelligence,
+        predictive: intelligenceSnapshot.predictive,
+        autonomous: intelligenceSnapshot.autonomous,
+        logs: [...uiState.logs],
+        compareDigest: buildCompareDigest(report),
+        runHistory: uiState.history.slice(0, 8).map((entry) => ({
+          stamp: String(entry?.stamp || ""),
+          baseUrl: String(entry?.baseUrl || entry?.meta?.baseUrl || ""),
+          totalIssues: toNumber(entry?.summary?.totalIssues, 0),
+          seoScore: toNumber(entry?.summary?.seoScore, 0),
+        })),
+        availableCommands: getCommandPaletteItems().map((item) => ({
+          id: String(item.id || ""),
+          label: String(item.label || ""),
+          description: String(item.description || ""),
+        })),
+        workspaceHelp: WORKSPACE_HELP,
+        buildIssuePrompt: buildLearningAwareIssuePrompt,
+      };
+    },
   });
   return uiState.assistantService;
 }
 
 function renderAssistantState() {
   const report = getVisibleReport();
-  const memory = getOperationalMemorySnapshot(report);
-  const healing = getVisibleSelfHealing(report);
-  const intelligence = buildContinuousIntelligence(report);
-  const predictive = buildPredictiveIntelligence(report);
-  const autonomous = buildAutonomousQa(report);
+  const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+  const memory = intelligenceSnapshot.learningMemory;
+  const healing = intelligenceSnapshot.selfHealing;
+  const intelligence = intelligenceSnapshot.intelligence;
+  const predictive = intelligenceSnapshot.predictive;
+  const autonomous = intelligenceSnapshot.autonomous;
   stateEl.assistantContextSummary.textContent = report
     ? `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${report.summary.seoScore} | quality ${autonomous.qualityScore.total || 0} | ${autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`
     : `No audit loaded yet | quality ${autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${predictive.summary.highRiskAlerts || 0} high risk | view ${uiState.activeView}`;

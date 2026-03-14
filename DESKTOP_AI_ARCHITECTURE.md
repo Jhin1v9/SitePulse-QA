@@ -134,6 +134,25 @@ Responsibilities:
 - enrich Prompt Workspace with real learning history
 - host the assistant drawer and action UI
 - expose the Self-Healing queue inside the Prompt Workspace
+- reuse a shared derived intelligence snapshot per visible report to avoid drift between UI surfaces
+
+### Derived Intelligence Snapshot
+
+The renderer now consolidates derived intelligence through a shared snapshot builder in
+[renderer.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\renderer.js).
+
+That snapshot groups:
+
+- operational memory
+- self-healing snapshot
+- continuous intelligence
+- predictive intelligence
+- autonomous QA
+
+This exists for two reasons:
+
+- avoid recomputing the same derived signals across Overview, Findings, Prompt Workspace and Assistant
+- keep those surfaces aligned to the same cached intelligence state during a render cycle
 
 ### Memory Panel
 
@@ -445,6 +464,9 @@ Each issue can now carry:
 
 These fields are attached inside the QA runtime before prompt pack, assistant guide and summary are finalized.
 
+The runtime finalize flow also guarantees that `summary` is refreshed before `assistantGuide` is generated.
+That prevents stale counts or stale priority metadata from leaking into the assistant brief.
+
 ### Priority Engine
 
 Priority levels are operational:
@@ -557,6 +579,13 @@ Initial version created after these desktop AI commits:
 - `18d1406` `feat(desktop): add persistent operational learning memory`
 - `aab1c48` `feat(desktop): add operational assistant and manual memory override`
 - `a781339` `fix(desktop): cover memory guide and latest run assistant intents`
+
+### 2026-03-14
+
+- `925f268` `feat(desktop): add impact engine and continuous intelligence`
+- `ffee84f` `feat(desktop): add predictive intelligence engine`
+- `83996cd` `feat(desktop): add autonomous qa engine`
+- runtime finalize ordering and renderer derived-intelligence cache consolidation
 
 ### 2026-03-13
 
