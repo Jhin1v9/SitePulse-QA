@@ -448,6 +448,38 @@
                     </article>
                   </div>
                 </article>
+
+                <article class="panel overview-summary-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">quality control engine</p>
+                      <h3>Consistency and false-positive control</h3>
+                    </div>
+                    <div id="qualityControlHeadline" class="headline-status">Run an audit to validate scoring consistency and false-positive signals.</div>
+                  </div>
+                  <div class="report-grid comparison-metrics-grid">
+                    <article class="info-card">
+                      <span class="info-label">Suspected false positives</span>
+                      <code id="qualityControlFalsePositives">0</code>
+                    </article>
+                    <article class="info-card">
+                      <span class="info-label">Inconsistent issues</span>
+                      <code id="qualityControlInconsistencies">0</code>
+                    </article>
+                    <article class="info-card">
+                      <span class="info-label">Validation warnings</span>
+                      <code id="qualityControlWarnings">0</code>
+                    </article>
+                  </div>
+                  <div class="explorer-list">
+                    <article class="explorer-item">
+                      <div class="nav-title">Top quality-control warnings</div>
+                      <ul id="qualityControlWarningsList" class="steps-list">
+                        <li>No quality-control warning is available yet.</li>
+                      </ul>
+                    </article>
+                  </div>
+                </article>
               </section>
             </section>
 
@@ -1512,6 +1544,7 @@
     <script src="./predictive-intelligence-service.js"></script>
     <script src="./autonomous-qa-service.js"></script>
     <script src="./optimization-engine-service.js"></script>
+    <script src="./quality-control-engine.js"></script>
     <script src="./assistant-service.js"></script>
     <script src="./renderer.js"></script>
   </body>

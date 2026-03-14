@@ -41,6 +41,7 @@ The desktop AI system is split into these layers:
 6. Impact and continuous intelligence layer
 7. Data Intelligence consolidation layer
 8. Optimization Engine layer
+9. Quality Control Engine layer
 
 ### 1. QA Runtime Learning Layer
 
@@ -151,6 +152,7 @@ That snapshot groups:
 - predictive intelligence
 - autonomous QA
 - optimization engine
+- quality control engine
 
 This exists for two reasons:
 
@@ -215,6 +217,30 @@ Current outputs:
 The Optimization Engine is downstream from Data Intelligence.
 It does not recompute impact, predictive or healing logic from scratch.
 It consumes the normalized issue state and turns it into structural improvement guidance.
+
+### Quality Control Engine
+
+Files:
+
+- [quality-control-engine.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\quality-control-engine.js)
+- [renderer.js](C:\Users\Administrador\Documents\SitePulse-QA\companion\src\renderer.js)
+
+Responsibilities:
+
+- detect suspected false positives from operational memory outcomes
+- flag inconsistencies between impact, priority and predictive risk
+- apply validation rules to issue scoring, trend signals and risk classification
+- surface top warnings in Overview and on individual finding cards
+
+Current outputs:
+
+- `summary`
+- `issues`
+- `issueMap`
+- `topWarnings`
+
+The Quality Control Engine is downstream from Data Intelligence and does not replace it.
+Its purpose is to verify the coherence of the signals already produced by the other engines.
 
 ### Memory Panel
 

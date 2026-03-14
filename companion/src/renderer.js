@@ -306,6 +306,11 @@ const stateEl = {
   optimizationHeadline: document.getElementById("optimizationHeadline"),
   optimizationTopImprovements: document.getElementById("optimizationTopImprovements"),
   optimizationClusters: document.getElementById("optimizationClusters"),
+  qualityControlHeadline: document.getElementById("qualityControlHeadline"),
+  qualityControlFalsePositives: document.getElementById("qualityControlFalsePositives"),
+  qualityControlInconsistencies: document.getElementById("qualityControlInconsistencies"),
+  qualityControlWarnings: document.getElementById("qualityControlWarnings"),
+  qualityControlWarningsList: document.getElementById("qualityControlWarningsList"),
   issuesList: document.getElementById("issuesList"),
   issueGroupGrid: document.getElementById("issueGroupGrid"),
   issueMetaPills: document.getElementById("issueMetaPills"),
@@ -490,6 +495,8 @@ const uiState = {
   dataIntelligenceCache: null,
   optimizationService: null,
   optimizationCache: null,
+  qualityControlService: null,
+  qualityControlCache: null,
   predictiveService: null,
   predictiveCache: null,
   autonomousQaService: null,
@@ -2078,6 +2085,7 @@ function createCompactStoredReport(report, limits = {}) {
     autonomous: intelligenceSnapshot.autonomous,
     dataIntelligence: intelligenceSnapshot.dataIntelligence,
     optimization: intelligenceSnapshot.optimization,
+    qualityControl: intelligenceSnapshot.qualityControl,
     issues: report.issues.slice(0, issueLimit),
     actions: report.actions.slice(0, actionLimit),
     routes: report.routes.slice(0, routeLimit),
@@ -2220,6 +2228,27 @@ function createEmptyOptimizationSnapshot() {
       ux: [],
       performance: [],
     },
+  };
+}
+
+function createEmptyQualityControlSnapshot() {
+  if (typeof window.createSitePulseQualityControlEngine === "function") {
+    const service = ensureQualityControlService();
+    if (service?.createEmptyQualityControlSnapshot) {
+      return service.createEmptyQualityControlSnapshot();
+    }
+  }
+  return {
+    updatedAt: "",
+    contextKey: "",
+    summary: {
+      suspectedFalsePositives: 0,
+      inconsistentIssues: 0,
+      validationWarnings: 0,
+    },
+    issues: [],
+    issueMap: {},
+    topWarnings: [],
   };
 }
 
@@ -2784,6 +2813,15 @@ function ensureOptimizationService() {
   return uiState.optimizationService;
 }
 
+function ensureQualityControlService() {
+  if (uiState.qualityControlService) return uiState.qualityControlService;
+  if (typeof window.createSitePulseQualityControlEngine !== "function") {
+    return null;
+  }
+  uiState.qualityControlService = window.createSitePulseQualityControlEngine();
+  return uiState.qualityControlService;
+}
+
 function buildPredictiveIntelligence(report) {
   if (!report) {
     return createEmptyPredictiveSnapshot();
@@ -2939,6 +2977,31 @@ function buildOptimizationSnapshot(report, contextInput = null) {
   return optimization;
 }
 
+function buildQualityControlSnapshot(report, contextInput = null) {
+  if (!report) {
+    return createEmptyQualityControlSnapshot();
+  }
+  const cacheKey = [
+    buildLiveReportKey(report),
+    String(uiState.baseline?.stamp || ""),
+    buildRecentHistoryStamp(8),
+  ].join("::");
+  if (uiState.qualityControlCache?.key === cacheKey) {
+    return uiState.qualityControlCache.value;
+  }
+  const service = ensureQualityControlService();
+  const qualityControl = service?.buildQualityControlSnapshot
+    ? service.buildQualityControlSnapshot(report, {
+        dataIntelligence: contextInput?.dataIntelligence || createEmptyDataIntelligenceSnapshot(),
+      })
+    : createEmptyQualityControlSnapshot();
+  uiState.qualityControlCache = {
+    key: cacheKey,
+    value: qualityControl,
+  };
+  return qualityControl;
+}
+
 function buildDesktopIntelligenceSnapshot(report) {
   if (!report) {
     return {
@@ -2949,6 +3012,7 @@ function buildDesktopIntelligenceSnapshot(report) {
       autonomous: createEmptyAutonomousQaSnapshot(),
       dataIntelligence: createEmptyDataIntelligenceSnapshot(),
       optimization: createEmptyOptimizationSnapshot(),
+      qualityControl: createEmptyQualityControlSnapshot(),
     };
   }
 
@@ -2993,6 +3057,9 @@ function buildDesktopIntelligenceSnapshot(report) {
     predictive,
     autonomous,
   });
+  const qualityControl = buildQualityControlSnapshot(report, {
+    dataIntelligence,
+  });
   const snapshot = {
     learningMemory,
     selfHealing,
@@ -3001,6 +3068,7 @@ function buildDesktopIntelligenceSnapshot(report) {
     autonomous,
     dataIntelligence,
     optimization,
+    qualityControl,
   };
   uiState.desktopIntelligenceCache = {
     key: cacheKey,
@@ -3619,6 +3687,27 @@ function renderOptimizationSummary(report) {
     : "<li>No issue cluster is available yet.</li>";
 }
 
+function renderQualityControlSummary(report) {
+  if (!report) {
+    stateEl.qualityControlHeadline.textContent = "Run an audit to validate scoring consistency and false-positive signals.";
+    stateEl.qualityControlFalsePositives.textContent = "0";
+    stateEl.qualityControlInconsistencies.textContent = "0";
+    stateEl.qualityControlWarnings.textContent = "0";
+    stateEl.qualityControlWarningsList.innerHTML = "<li>No quality-control warning is available yet.</li>";
+    return;
+  }
+
+  const qualityControl = buildDesktopIntelligenceSnapshot(report).qualityControl;
+  const summary = qualityControl.summary || {};
+  stateEl.qualityControlHeadline.textContent = `${summary.suspectedFalsePositives || 0} suspected false positive(s) | ${summary.inconsistentIssues || 0} inconsistent issue(s) | ${summary.validationWarnings || 0} validation warning(s)`;
+  stateEl.qualityControlFalsePositives.textContent = String(summary.suspectedFalsePositives || 0);
+  stateEl.qualityControlInconsistencies.textContent = String(summary.inconsistentIssues || 0);
+  stateEl.qualityControlWarnings.textContent = String(summary.validationWarnings || 0);
+  stateEl.qualityControlWarningsList.innerHTML = Array.isArray(qualityControl.topWarnings) && qualityControl.topWarnings.length
+    ? qualityControl.topWarnings.slice(0, 6).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    : "<li>No quality-control warning is available yet.</li>";
+}
+
 function renderIssueMeta(report, filteredIssues, options = {}) {
   if (!report) {
     stateEl.issueMetaPills.innerHTML = "";
@@ -4000,7 +4089,7 @@ function formatIssueTrend(trend) {
   return "= stable";
 }
 
-function buildIssueCard(issue, actionContext, dataIntelligenceContext, intelligenceContext, predictiveContext, autonomousContext) {
+function buildIssueCard(issue, actionContext, dataIntelligenceContext, qualityControlContext, intelligenceContext, predictiveContext, autonomousContext) {
   const priority = issue.assistantHint?.priority ? `<span class="pill">${escapeHtml(issue.assistantHint.priority)}</span>` : "";
   const firstChecks = Array.isArray(issue.assistantHint?.firstChecks) ? issue.assistantHint.firstChecks.slice(0, 3) : [];
   const shouldDo = actionContext?.expectedForUser || actionContext?.expectedFunction || issue.diagnosis.laymanExplanation || "The flow should complete the expected action without breaking.";
@@ -4027,6 +4116,7 @@ function buildIssueCard(issue, actionContext, dataIntelligenceContext, intellige
     ? `${healing.lastAttempt.outcome || healing.lastAttempt.status}${healing.lastAttempt.updatedAt ? ` | ${formatLocalDate(healing.lastAttempt.updatedAt)}` : ""}`
     : "";
   const issueContext = dataIntelligenceContext?.ISSUE_MAP?.[issueSignature(issue)] || null;
+  const issueQualityControl = qualityControlContext?.issueMap?.[issueSignature(issue)] || null;
   const predictiveMeta = predictiveContext?.issueSignals?.[issueSignature(issue)] || null;
   const trendMeta = issueContext?.trend
     ? { trend: issueContext.trend.direction, recurringCount: issueContext.history?.recurringCount || 1 }
@@ -4048,6 +4138,9 @@ function buildIssueCard(issue, actionContext, dataIntelligenceContext, intellige
     ? predictiveMeta.evidence.slice(0, 2).join(" | ")
     : "";
   const autonomousMeta = autonomousContext?.playbooks?.[issueSignature(issue)] || null;
+  const qualityControlSummary = issueQualityControl
+    ? `${issueQualityControl.status} | score ${Number(toNumber(issueQualityControl.controlScore, 0)).toFixed(2)} | ${issueQualityControl.summary || "n/a"}`
+    : "";
   const canPrepareHealing = healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility) && healing.promptReady === true;
   const canRevalidateHealing = healing?.lastAttempt?.outcome === "pending";
   const evidence = Array.isArray(issue.evidence) ? issue.evidence.slice(0, 2) : [];
@@ -4105,6 +4198,7 @@ function buildIssueCard(issue, actionContext, dataIntelligenceContext, intellige
       ${impactWhy ? `<p class="issue-checks"><strong>Impact rationale:</strong> ${escapeHtml(impactWhy)}</p>` : ""}
       ${predictiveSummary ? `<p class="issue-checks"><strong>Predictive risk:</strong> ${escapeHtml(predictiveSummary)}</p>` : ""}
       ${predictiveWhy ? `<p class="issue-checks"><strong>Predictive evidence:</strong> ${escapeHtml(predictiveWhy)}</p>` : ""}
+      ${qualityControlSummary ? `<p class="issue-checks"><strong>Quality control:</strong> ${escapeHtml(qualityControlSummary)}</p>` : ""}
       ${autonomousMeta?.title ? `<p class="issue-checks"><strong>Playbook:</strong> ${escapeHtml(`${autonomousMeta.title}${autonomousMeta.nextActionLabel ? ` | ${autonomousMeta.nextActionLabel}` : ""}`)}</p>` : ""}
       ${autonomousMeta?.revalidationRule ? `<p class="issue-checks"><strong>Revalidation rule:</strong> ${escapeHtml(autonomousMeta.revalidationRule)}</p>` : ""}
       ${trendMeta.recurringCount > 1 ? `<p class="issue-checks"><strong>Trend memory:</strong> ${escapeHtml(`Recurring in ${trendMeta.recurringCount} run(s) for this target.`)}</p>` : ""}
@@ -4149,6 +4243,7 @@ function renderIssues(report, options = {}) {
   const filteredIssues = getFilteredIssues(report);
   const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
   const dataIntelligenceContext = intelligenceSnapshot.dataIntelligence;
+  const qualityControlContext = intelligenceSnapshot.qualityControl;
   const intelligenceContext = intelligenceSnapshot.intelligence;
   const predictiveContext = intelligenceSnapshot.predictive;
   const autonomousContext = intelligenceSnapshot.autonomous;
@@ -4162,7 +4257,7 @@ function renderIssues(report, options = {}) {
 
   stateEl.issuesList.innerHTML = filteredIssues
     .slice(0, 18)
-    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), dataIntelligenceContext, intelligenceContext, predictiveContext, autonomousContext))
+    .map((issue) => buildIssueCard(issue, findActionContext(report, issue), dataIntelligenceContext, qualityControlContext, intelligenceContext, predictiveContext, autonomousContext))
     .join("");
 }
 
@@ -4954,6 +5049,7 @@ function ensureAssistantService() {
         autonomous: intelligenceSnapshot.autonomous,
         dataIntelligence: intelligenceSnapshot.dataIntelligence,
         optimization: intelligenceSnapshot.optimization,
+        qualityControl: intelligenceSnapshot.qualityControl,
         logs: [...uiState.logs],
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -5443,6 +5539,7 @@ function renderWorkspaceReport(report, options = {}) {
   renderExecutiveSummary(report);
   renderQualityVisuals(report);
   renderOptimizationSummary(report);
+  renderQualityControlSummary(report);
   renderRouteFilterOptions(report);
   renderIssues(report, { transient });
   renderCoverageExplorers(report);
