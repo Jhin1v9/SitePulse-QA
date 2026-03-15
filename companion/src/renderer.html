@@ -9,58 +9,64 @@
   </head>
   <body>
     <div class="studio-shell">
-      <header class="titlebar">
-        <div class="titlebar-brand drag-region">
-          <div class="brand-mark">SP</div>
-          <div class="brand-copy">
-            <p class="eyebrow">sitepulse systems</p>
-            <h1>SitePulse Studio</h1>
-            <p>Precision audit software for teams that care about failures before customers do.</p>
-          </div>
+      <header class="topbar" role="banner">
+        <div class="topbar-segment topbar-status drag-region">
+          <span class="topbar-status-item">
+            <span class="topbar-status-label">Engine</span>
+            <span id="bridgeChip" class="topbar-status-value" data-status="offline">offline</span>
+          </span>
+          <span class="topbar-divider" aria-hidden="true"></span>
+          <span class="topbar-status-item">
+            <span class="topbar-status-label">Run</span>
+            <span id="auditChip" class="topbar-status-value" data-status="idle">idle</span>
+          </span>
         </div>
-
-        <div class="titlebar-status">
-          <span class="status-chip" id="bridgeChip">engine offline</span>
-          <span class="status-chip" id="auditChip">audit idle</span>
-          <span class="status-chip ok" id="buildChip">studio build</span>
-          <button id="openAssistant" class="status-chip status-btn" type="button">AI workspace</button>
-          <button id="openCommandPalette" class="status-chip status-btn" type="button">command palette</button>
+        <div class="topbar-segment topbar-context drag-region">
+          <span class="topbar-status-label">Workspace</span>
+          <span id="topbarContext" class="topbar-context-value">Overview</span>
         </div>
-
-        <div class="window-controls no-drag">
-          <button id="openShortcuts" class="window-btn" type="button" aria-label="Shortcuts">?</button>
-          <button id="winMinimize" class="window-btn" type="button" aria-label="Minimize">&minus;</button>
-          <button id="winMaximize" class="window-btn" type="button" aria-label="Maximize">&#9633;</button>
-          <button id="winClose" class="window-btn danger" type="button" aria-label="Close">&#10005;</button>
+        <div class="topbar-segment topbar-actions no-drag">
+          <button id="runAuditTopbar" class="topbar-action-btn" type="button" title="Run native audit (Ctrl+Enter)">Run</button>
+          <button id="loadReportTopbar" class="topbar-action-btn" type="button" title="Load report file (Ctrl+O)">Load</button>
+          <button id="openCommandPalette" class="topbar-action-btn topbar-action-icon" type="button" title="Command palette (Ctrl+K)" aria-label="Command palette">⌘K</button>
+          <button id="openAssistant" class="topbar-action-btn topbar-action-icon" type="button" title="AI Inspector (Ctrl+J)" aria-label="AI Inspector">AI</button>
+        </div>
+        <div class="topbar-segment topbar-window no-drag">
+          <button id="openShortcuts" class="topbar-window-btn" type="button" aria-label="Shortcuts">?</button>
+          <button id="winMinimize" class="topbar-window-btn" type="button" aria-label="Minimize">&minus;</button>
+          <button id="winMaximize" class="topbar-window-btn" type="button" aria-label="Maximize">&#9633;</button>
+          <button id="winClose" class="topbar-window-btn topbar-window-btn-close" type="button" aria-label="Close">&#10005;</button>
         </div>
       </header>
 
-      <main id="shellGrid" class="shell-grid">
+      <main id="appBody" class="app-body">
+        <div id="mainGrid" class="main-grid">
         <aside class="app-sidebar">
           <div class="sidebar-section">
             <p class="sidebar-label">Core</p>
-            <button class="sidebar-item active" data-view="overview" type="button" title="Mission control and audit setup">Overview</button>
+            <button class="sidebar-item active" data-view="overview" type="button" title="Target and run control">Overview</button>
             <button class="sidebar-item" data-view="operations" type="button" title="Run progress and engine timeline">Runs</button>
-            <button class="sidebar-item" data-view="findings" type="button" title="Priority issues and decision board">Findings</button>
-            <button class="sidebar-item" data-view="seo" type="button" title="SEO command room">SEO</button>
-            <button class="sidebar-item" data-view="compare" type="button" title="Delta against baseline">Compare</button>
+            <button class="sidebar-item" data-view="findings" type="button" title="Issues from report, enriched by engines">Findings</button>
+            <button class="sidebar-item" data-view="seo" type="button" title="SEO slice of report">SEO</button>
+            <button class="sidebar-item" data-view="compare" type="button" title="Baseline vs current run">Compare</button>
           </div>
           <div class="sidebar-section">
             <p class="sidebar-label">Intelligence</p>
-            <button class="sidebar-item" type="button" disabled>Memory</button>
-            <button class="sidebar-item" type="button" disabled>Healing</button>
-            <button class="sidebar-item" type="button" disabled>Predictive</button>
-            <button class="sidebar-item" type="button" disabled>Optimization</button>
+            <button class="sidebar-item" data-view="settings" type="button" title="Validated learnings and memory" data-focus="memory">Memory</button>
+            <button class="sidebar-item" data-view="prompts" type="button" title="Healing queue and assisted correction" data-focus="healing">Healing</button>
+            <button class="sidebar-item" data-view="overview" type="button" title="Predictive risk and patterns">Predictive</button>
+            <button class="sidebar-item" data-view="overview" type="button" title="Structural improvements and clusters" data-focus="optimization">Optimization</button>
+            <button class="sidebar-item" data-view="overview" type="button" title="Quality control and consistency" data-focus="quality-control">Quality Control</button>
           </div>
           <div class="sidebar-section">
             <p class="sidebar-label">Productivity</p>
-            <button class="sidebar-item" data-view="prompts" type="button" title="Prompt pack and replay">Prompts</button>
-            <button class="sidebar-item" data-view="reports" type="button" title="Evidence and report vault">Reports</button>
-            <button class="sidebar-item" data-view="preview" type="button" title="Embedded site preview">Preview</button>
+            <button class="sidebar-item" data-view="prompts" type="button" title="Prompt pack, healing queue, replay">Prompt Workspace</button>
+            <button class="sidebar-item" data-view="reports" type="button" title="Report vault">Reports</button>
+            <button class="sidebar-item" data-view="preview" type="button" title="Live target preview">Preview</button>
           </div>
           <div class="sidebar-section">
             <p class="sidebar-label">System</p>
-            <button class="sidebar-item" data-view="settings" type="button" title="Engine and desktop settings">Settings</button>
+            <button class="sidebar-item" data-view="settings" type="button" title="Engine, memory, paths">Settings</button>
           </div>
         </aside>
 
@@ -77,7 +83,7 @@
               </div>
 
               <div class="workbench-utility">
-                <span class="utility-hint">Ctrl+K &mdash; Command palette · Ctrl+J &mdash; AI workspace</span>
+                <span class="utility-hint">Ctrl+K &mdash; Command palette · Ctrl+J &mdash; AI Inspector</span>
               </div>
             </div>
           </section>
@@ -92,6 +98,7 @@
                 Configure the target, define execution depth and prepare the run before moving into live operations.
               </p>
             </div>
+            <div id="engineSummaryStrip" class="engine-summary-strip hidden" aria-live="polite"></div>
             <div class="workspace-summary">
               <div class="workspace-summary-item">
                 <span class="info-label">Mission brief</span>
@@ -103,387 +110,225 @@
                 <span class="info-label">Run status</span>
                 <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
               </div>
+              <div class="workspace-summary-item workspace-summary-item-compact hidden" id="baselineIndicatorWrap">
+                <span class="info-label">Baseline</span>
+                <div id="baselineIndicator" class="headline-status">None</div>
+              </div>
+              <div class="workspace-summary-item workspace-summary-item-compact" id="compactRunHistoryWrap">
+                <span class="info-label">Run history</span>
+                <div id="compactRunHistory" class="compact-run-history"></div>
+              </div>
             </div>
           </header>
 
           <section class="workspace-body">
             <section class="view-panel active" data-view-panel="overview">
-              <div class="mission-control-board">
-              <section class="panel control-panel mission-control-profile">
-                <div class="panel-head split-head">
-                  <div>
-                    <p class="eyebrow">audit setup</p>
-                    <h3>Execution profile</h3>
+              <div class="op-workspace">
+                <div class="op-state-strip" role="status" aria-live="polite">
+                  <div class="op-state-cell"><span class="op-state-label">Routes</span><span id="routesMetric" class="op-state-value">0</span></div>
+                  <div class="op-state-cell"><span class="op-state-label">Actions</span><span id="actionsMetric" class="op-state-value">0</span></div>
+                  <div class="op-state-cell"><span class="op-state-label">Issues</span><span id="issuesMetric" class="op-state-value bad">0</span></div>
+                  <div class="op-state-cell"><span class="op-state-label">SEO</span><span id="seoMetric" class="op-state-value ok">0</span></div>
+                  <div class="op-state-cell"><span class="op-state-label">Risk</span><span id="riskMetric" class="op-state-value warn">0</span></div>
+                  <div class="op-state-cell op-state-cell-status"><span class="op-state-label">Status</span><span class="op-state-value op-state-status-copy">See mission brief above.</span></div>
+                </div>
+                <div class="op-actions">
+                  <button id="doNext" class="primary" type="button" title="Execute the next recommended action (open Findings or Prepare healing)">Do next</button>
+                  <button id="runAudit" class="primary" type="button">Run native audit</button>
+                  <button id="runCmd" class="secondary" type="button">Open CMD flow</button>
+                  <button id="copyReplayCommand" type="button">Copy replay command</button>
+                  <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
+                  <button id="loadReportFile" type="button">Load report</button>
+                  <button id="exportCurrentReport" type="button">Export report</button>
+                  <button id="quickAuditButton" class="secondary" type="button">Quick audit</button>
+                  <button id="deepAuditButton" type="button">Deep audit</button>
+                  <button id="openLatestEvidence" type="button">Open evidence</button>
+                  <button id="openReports" type="button">Report vault</button>
+                  <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
+                </div>
+                <div class="op-surface op-surface-split">
+                  <div class="op-panel op-profile-panel">
+                    <div class="op-panel-head">Execution profile</div>
+                    <label class="field-block">
+                      <span class="field-label">Target URL</span>
+                      <input id="targetUrl" class="text-input" type="url" placeholder="https://example.com" />
+                    </label>
+                    <div class="controls-grid">
+                      <section class="control-group">
+                        <span class="field-label">Device mode</span>
+                        <div class="segment" id="modeSegment">
+                          <button type="button" data-mode="desktop" class="segment-btn active">Desktop</button>
+                          <button type="button" data-mode="mobile" class="segment-btn">Mobile</button>
+                        </div>
+                      </section>
+                      <section class="control-group">
+                        <span class="field-label">Audit focus</span>
+                        <div class="segment segment-3" id="scopeSegment">
+                          <button type="button" data-scope="full" class="segment-btn active">Full stack</button>
+                          <button type="button" data-scope="seo" class="segment-btn">SEO only</button>
+                          <button type="button" data-scope="experience" class="segment-btn">UX only</button>
+                        </div>
+                      </section>
+                      <section class="control-group">
+                        <span class="field-label">Sweep depth</span>
+                        <div class="segment" id="depthSegment">
+                          <button type="button" data-depth="signal" class="segment-btn active">Signal sweep</button>
+                          <button type="button" data-depth="deep" class="segment-btn">Deep crawl</button>
+                        </div>
+                      </section>
+                    </div>
+                    <section id="mobileSweepControls" class="control-group hidden">
+                      <div class="split-head compact-head">
+                        <div>
+                          <span class="field-label">Mobile coverage</span>
+                          <p id="mobileSweepHint" class="control-hint">Run one mobile viewport or sweep the phone family.</p>
+                        </div>
+                      </div>
+                      <div class="segment" id="mobileSweepSegment">
+                        <button type="button" data-mobile-sweep="single" class="segment-btn active">Single device</button>
+                        <button type="button" data-mobile-sweep="family" class="segment-btn">Family sweep</button>
+                      </div>
+                    </section>
+                    <div class="toggle-grid">
+                      <label class="toggle-row compact"><input id="noServer" type="checkbox" checked /><span>External URL (--no-server)</span></label>
+                      <label class="toggle-row compact"><input id="headed" type="checkbox" /><span>Show browser during run</span></label>
+                      <label class="toggle-row compact"><input id="elevated" type="checkbox" /><span>Request admin for CMD</span></label>
+                    </div>
+                  </div>
+                  <div class="op-analysis-scroll">
+                    <div class="op-panel op-runtime-panel">
+                      <div class="op-panel-head">Runtime</div>
+                      <div class="op-table-wrap">
+                        <table class="op-table" role="grid">
+                          <tbody>
+                            <tr><th scope="row">Audit</th><td id="auditStatus">idle</td></tr>
+                            <tr><th scope="row">Bridge</th><td id="bridgeStatus">offline</td></tr>
+                            <tr><th scope="row">Version</th><td id="versionText">1.0.0</td></tr>
+                            <tr><th scope="row">Service</th><td id="serviceName">SitePulse Studio</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Next actions</div>
+                      <ol id="stepsList" class="steps-list"> <li>Run an audit to generate the first operating brief.</li> </ol>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Impact and trend</div>
+                      <div id="executiveSummaryHeadline" class="history-copy">Run an audit to generate impact scoring and trend intelligence.</div>
+                      <div class="pill-row op-pills">
+                        <span id="executivePriorityP0" class="pill bad">P0 0</span>
+                        <span id="executivePriorityP1" class="pill warn">P1 0</span>
+                        <span id="executivePriorityP2" class="pill">P2 0</span>
+                        <span id="executiveQualityScore" class="pill ok">Quality 0</span>
+                        <span id="executiveQualityTrajectory" class="pill">Trajectory = stable</span>
+                        <span id="executiveTrendSeo" class="pill">SEO = stable</span>
+                        <span id="executiveTrendRuntime" class="pill">Runtime = stable</span>
+                        <span id="executiveTrendUx" class="pill">UX = stable</span>
+                        <span id="executivePredictiveHighRisk" class="pill bad">High risk 0</span>
+                        <span id="executivePredictiveRecurring" class="pill">Patterns 0</span>
+                      </div>
+                      <div class="op-board">
+                        <div class="op-board-row">
+                          <div class="nav-title">Top risks</div>
+                          <ul id="executiveSummaryTopRisks" class="steps-list"><li>No impact summary loaded yet.</li></ul>
+                        </div>
+                        <div class="op-board-row">
+                          <div class="nav-title">Top opportunities</div>
+                          <ul id="executiveSummaryTopOpportunities" class="steps-list"><li>No opportunity snapshot loaded yet.</li></ul>
+                        </div>
+                        <div class="op-board-row">
+                          <div class="nav-title">Action order</div>
+                          <ul id="executiveSummaryActionOrder" class="steps-list"><li>Run an audit to generate action order.</li></ul>
+                        </div>
+                        <div class="op-board-row">
+                          <div class="nav-title">Patterns</div>
+                          <ul id="executiveSummaryPatterns" class="steps-list"><li>No recurring pattern loaded yet.</li></ul>
+                        </div>
+                        <div class="op-board-row">
+                          <div class="nav-title">Predictive alerts</div>
+                          <ul id="executiveSummaryPredictiveAlerts" class="steps-list"><li>No predictive alert available yet.</li></ul>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Quality state</div>
+                      <div id="qualityDashboardHeadline" class="headline-status">Run an audit to load quality dimensions.</div>
+                      <div class="op-table-wrap">
+                        <table class="op-table" aria-label="Quality scores">
+                          <tbody>
+                            <tr><th scope="row">Overall</th><td id="qualityDashboardOverall">0</td></tr>
+                            <tr><th scope="row">SEO</th><td id="qualityDashboardSeo">0</td></tr>
+                            <tr><th scope="row">UX</th><td id="qualityDashboardUx">0</td></tr>
+                            <tr><th scope="row">Performance</th><td id="qualityDashboardPerformance">0</td></tr>
+                            <tr><th scope="row">Technical</th><td id="qualityDashboardTechnical">0</td></tr>
+                            <tr><th scope="row">Visual</th><td id="qualityDashboardVisual">0</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Risk map</div>
+                      <div id="riskMapHeadline" class="headline-status">Run an audit to classify risk.</div>
+                      <div class="op-table-wrap">
+                        <table class="op-table" aria-label="Risk levels">
+                          <tbody>
+                            <tr><th scope="row">SEO</th><td id="riskMapSeo">low</td></tr>
+                            <tr><th scope="row">UX</th><td id="riskMapUx">low</td></tr>
+                            <tr><th scope="row">Performance</th><td id="riskMapPerformance">low</td></tr>
+                            <tr><th scope="row">Technical</th><td id="riskMapTechnical">low</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Priority queue</div>
+                      <div id="priorityViewHeadline" class="headline-status">Run an audit to rank issues.</div>
+                      <div id="priorityViewList" class="explorer-list"><article class="empty-state">No ranked issue queue loaded yet.</article></div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Optimization (clusters)</div>
+                      <div id="optimizationHeadline" class="headline-status">Run an audit to detect structural improvements.</div>
+                      <div class="op-board">
+                        <div class="op-board-row">
+                          <div class="nav-title">Top improvements</div>
+                          <ul id="optimizationTopImprovements" class="steps-list"><li>No structural improvement list available yet.</li></ul>
+                        </div>
+                        <div class="op-board-row">
+                          <div class="nav-title">Clusters and recommendations</div>
+                          <ul id="optimizationClusters" class="steps-list"><li>No issue cluster available yet.</li></ul>
+                        </div>
+                        <div class="panel-drill-row"><button type="button" class="engine-strip-link" data-view="findings">Open Findings</button></div>
+                      </div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Quality control</div>
+                      <div id="qualityControlHeadline" class="headline-status">Run an audit to validate consistency.</div>
+                      <div class="op-table-wrap">
+                        <table class="op-table" aria-label="QC metrics">
+                          <tbody>
+                            <tr><th scope="row">Suspected false positives</th><td id="qualityControlFalsePositives">0</td></tr>
+                            <tr><th scope="row">Inconsistent</th><td id="qualityControlInconsistencies">0</td></tr>
+                            <tr><th scope="row">Warnings</th><td id="qualityControlWarnings">0</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                      <div class="nav-title">Top warnings</div>
+                      <ul id="qualityControlWarningsList" class="steps-list"><li>No quality-control warning available yet.</li></ul>
+                      <div class="panel-drill-row"><button type="button" class="engine-strip-link" data-view="findings">Open Findings</button></div>
+                    </div>
+                    <div id="mobileMatrixPanel" class="op-panel hidden">
+                      <div class="op-panel-head">Viewport matrix</div>
+                      <p id="mobileMatrixHeadline" class="muted">Switch to Mobile mode to configure coverage.</p>
+                      <div id="mobileMatrixGrid" class="mobile-matrix-grid"><article class="empty-state">No mobile family data loaded yet.</article></div>
+                    </div>
+                    <div class="op-panel">
+                      <div class="op-panel-head">Quality timeline</div>
+                      <div id="qualityTimelineHeadline" class="headline-status">Need comparable history for timeline.</div>
+                      <div id="qualityTimelineList" class="explorer-list"><article class="empty-state">Run an audit and keep history for the same target.</article></div>
+                    </div>
                   </div>
                 </div>
-
-              <label class="field-block">
-                <span class="field-label">Target URL</span>
-                <input id="targetUrl" class="text-input" type="url" placeholder="https://example.com" />
-              </label>
-
-              <div class="controls-grid">
-                <section class="control-group">
-                  <span class="field-label">Device mode</span>
-                  <div class="segment" id="modeSegment">
-                    <button type="button" data-mode="desktop" class="segment-btn active">Desktop</button>
-                    <button type="button" data-mode="mobile" class="segment-btn">Mobile</button>
-                  </div>
-                </section>
-
-                <section class="control-group">
-                  <span class="field-label">Audit focus</span>
-                  <div class="segment segment-3" id="scopeSegment">
-                    <button type="button" data-scope="full" class="segment-btn active">Full stack</button>
-                    <button type="button" data-scope="seo" class="segment-btn">SEO only</button>
-                    <button type="button" data-scope="experience" class="segment-btn">UX only</button>
-                  </div>
-                </section>
-
-                <section class="control-group">
-                  <span class="field-label">Sweep depth</span>
-                  <div class="segment" id="depthSegment">
-                    <button type="button" data-depth="signal" class="segment-btn active">Signal sweep</button>
-                    <button type="button" data-depth="deep" class="segment-btn">Deep crawl</button>
-                  </div>
-                </section>
-              </div>
-
-              <section id="mobileSweepControls" class="control-group hidden">
-                <div class="split-head compact-head">
-                  <div>
-                    <span class="field-label">Mobile coverage</span>
-                    <p id="mobileSweepHint" class="control-hint">
-                      Run one mobile viewport or sweep the phone family in sequence: Small, Medium, Large, XL and XXL.
-                    </p>
-                  </div>
-                </div>
-                <div class="segment" id="mobileSweepSegment">
-                  <button type="button" data-mobile-sweep="single" class="segment-btn active">Single device</button>
-                  <button type="button" data-mobile-sweep="family" class="segment-btn">Family sweep</button>
-                </div>
-              </section>
-
-              <div class="toggle-grid">
-                <label class="toggle-row compact">
-                  <input id="noServer" type="checkbox" checked />
-                  <span>External URL mode (--no-server)</span>
-                </label>
-                <label class="toggle-row compact">
-                  <input id="headed" type="checkbox" />
-                  <span>Show browser while the engine works</span>
-                </label>
-                <label class="toggle-row compact">
-                  <input id="elevated" type="checkbox" />
-                  <span>Request admin when opening CMD</span>
-                </label>
-              </div>
-
-              <div class="action-row">
-                <button id="runAudit" class="primary xl" type="button">Run native audit</button>
-                <button id="runCmd" class="secondary xl" type="button">Open full CMD flow</button>
-                <button id="copyReplayCommand" type="button">Copy replay command</button>
-                <button id="copyQuickPrompt" type="button">Copy fix prompt</button>
-              </div>
-
-            </section>
-
-            <section class="metrics-grid">
-              <article class="metric-card">
-                <span class="metric-label">Routes checked</span>
-                <strong id="routesMetric">0</strong>
-              </article>
-              <article class="metric-card">
-                <span class="metric-label">Actions mapped</span>
-                <strong id="actionsMetric">0</strong>
-              </article>
-              <article class="metric-card danger">
-                <span class="metric-label">Open issues</span>
-                <strong id="issuesMetric">0</strong>
-              </article>
-              <article class="metric-card ok">
-                <span class="metric-label">SEO score</span>
-                <strong id="seoMetric">0</strong>
-              </article>
-              <article class="metric-card warn">
-                <span class="metric-label">Risk score</span>
-                <strong id="riskMetric">0</strong>
-              </article>
-            </section>
-
-              <section class="overview-grid">
-                <article class="panel overview-launchpad-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">program actions</p>
-                      <h3>Launchpad</h3>
-                    </div>
-                  </div>
-                  <div class="action-row stack">
-                    <button id="quickAuditButton" class="primary" type="button">Run quick audit</button>
-                    <button id="deepAuditButton" class="secondary" type="button">Run deep audit</button>
-                    <button id="loadReportFile" type="button">Load report file</button>
-                    <button id="exportCurrentReport" type="button">Export current report</button>
-                    <button id="openLatestEvidence" type="button">Open latest evidence</button>
-                    <button id="openReports" type="button">Open report vault</button>
-                    <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
-                  </div>
-                </article>
-
-                <article class="panel overview-watch-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">system watch</p>
-                      <h3>Runtime health</h3>
-                    </div>
-                  </div>
-                  <div class="rail-status-grid">
-                    <article class="stat-tile">
-                      <span class="info-label">Audit</span>
-                      <strong id="auditStatus">idle</strong>
-                    </article>
-                    <article class="stat-tile">
-                      <span class="info-label">Bridge</span>
-                      <strong id="bridgeStatus">offline</strong>
-                    </article>
-                    <article class="stat-tile">
-                      <span class="info-label">Version</span>
-                      <strong id="versionText">1.0.0</strong>
-                    </article>
-                    <article class="stat-tile">
-                      <span class="info-label">Service</span>
-                      <strong id="serviceName">SitePulse Studio</strong>
-                    </article>
-                  </div>
-                </article>
-
-                <article id="mobileMatrixPanel" class="panel overview-mobile-panel hidden">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">mobile coverage</p>
-                      <h3>Viewport matrix</h3>
-                    </div>
-                  </div>
-                  <p id="mobileMatrixHeadline" class="muted">
-                    Switch to Mobile mode to configure single-device or family-sweep coverage.
-                  </p>
-                  <div id="mobileMatrixGrid" class="mobile-matrix-grid">
-                    <article class="empty-state">No mobile family data loaded yet.</article>
-                  </div>
-                </article>
-
-                <article class="panel overview-brief-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">operator guide</p>
-                      <h3>Next actions</h3>
-                    </div>
-                  </div>
-                  <ol id="stepsList" class="steps-list">
-                    <li>Run an audit to generate the first operating brief.</li>
-                  </ol>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">continuous intelligence</p>
-                      <h3>Impact and trend summary</h3>
-                    </div>
-                  </div>
-                  <div id="executiveSummaryHeadline" class="history-copy">Run an audit to generate impact scoring, priority and trend intelligence.</div>
-                  <div class="action-row wrap">
-                    <span id="executivePriorityP0" class="pill bad">P0 0</span>
-                    <span id="executivePriorityP1" class="pill warn">P1 0</span>
-                    <span id="executivePriorityP2" class="pill">P2 0</span>
-                    <span id="executiveQualityScore" class="pill ok">Quality 0</span>
-                    <span id="executiveQualityTrajectory" class="pill">Trajectory = stable</span>
-                    <span id="executiveTrendSeo" class="pill">SEO = stable</span>
-                    <span id="executiveTrendRuntime" class="pill">Runtime = stable</span>
-                    <span id="executiveTrendUx" class="pill">UX = stable</span>
-                    <span id="executivePredictiveHighRisk" class="pill bad">High risk 0</span>
-                    <span id="executivePredictiveRecurring" class="pill">Patterns 0</span>
-                  </div>
-                  <div class="explorer-list">
-                    <article class="explorer-item">
-                      <div class="nav-title">Top risks</div>
-                      <ul id="executiveSummaryTopRisks" class="steps-list">
-                        <li>No impact summary loaded yet.</li>
-                      </ul>
-                    </article>
-                    <article class="explorer-item">
-                      <div class="nav-title">Top opportunities</div>
-                      <ul id="executiveSummaryTopOpportunities" class="steps-list">
-                        <li>No opportunity snapshot loaded yet.</li>
-                      </ul>
-                    </article>
-                    <article class="explorer-item">
-                      <div class="nav-title">Recommended action order</div>
-                      <ul id="executiveSummaryActionOrder" class="steps-list">
-                        <li>Run an audit to generate action order.</li>
-                      </ul>
-                    </article>
-                    <article class="explorer-item">
-                      <div class="nav-title">Patterns detected</div>
-                      <ul id="executiveSummaryPatterns" class="steps-list">
-                        <li>No recurring pattern is loaded yet.</li>
-                      </ul>
-                    </article>
-                    <article class="explorer-item">
-                      <div class="nav-title">Predictive alerts</div>
-                      <ul id="executiveSummaryPredictiveAlerts" class="steps-list">
-                        <li>No predictive alert is available yet.</li>
-                      </ul>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">quality dashboard</p>
-                      <h3>State of the site</h3>
-                    </div>
-                    <div id="qualityDashboardHeadline" class="headline-status">Run an audit to load quality dimensions.</div>
-                  </div>
-                  <div class="report-grid comparison-metrics-grid">
-                    <article class="info-card ok">
-                      <span class="info-label">Quality score</span>
-                      <code id="qualityDashboardOverall">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">SEO score</span>
-                      <code id="qualityDashboardSeo">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">UX score</span>
-                      <code id="qualityDashboardUx">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Performance score</span>
-                      <code id="qualityDashboardPerformance">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Technical score</span>
-                      <code id="qualityDashboardTechnical">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Visual score</span>
-                      <code id="qualityDashboardVisual">0</code>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">quality timeline</p>
-                      <h3>Score by run</h3>
-                    </div>
-                    <div id="qualityTimelineHeadline" class="headline-status">Need comparable history to draw the quality timeline.</div>
-                  </div>
-                  <div id="qualityTimelineList" class="explorer-list">
-                    <article class="empty-state">Run an audit and keep history for the same target to unlock the quality timeline.</article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">risk map</p>
-                      <h3>Risk concentration</h3>
-                    </div>
-                    <div id="riskMapHeadline" class="headline-status">Run an audit to classify SEO, UX, performance and technical risk.</div>
-                  </div>
-                  <div class="report-grid comparison-metrics-grid">
-                    <article class="info-card">
-                      <span class="info-label">SEO risk</span>
-                      <code id="riskMapSeo">low</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">UX risk</span>
-                      <code id="riskMapUx">low</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Performance risk</span>
-                      <code id="riskMapPerformance">low</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Technical risk</span>
-                      <code id="riskMapTechnical">low</code>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">issue priority view</p>
-                      <h3>What matters first</h3>
-                    </div>
-                    <div id="priorityViewHeadline" class="headline-status">Run an audit to rank issues by impact, predictive risk and healing confidence.</div>
-                  </div>
-                  <div id="priorityViewList" class="explorer-list">
-                    <article class="empty-state">No ranked issue queue is loaded yet.</article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">optimization engine</p>
-                      <h3>Structural improvements</h3>
-                    </div>
-                    <div id="optimizationHeadline" class="headline-status">Run an audit to detect SEO opportunities, UX improvements and performance gains.</div>
-                  </div>
-                  <div class="explorer-list">
-                    <article class="explorer-item">
-                      <div class="nav-title">Top 5 improvements</div>
-                      <ul id="optimizationTopImprovements" class="steps-list">
-                        <li>No structural improvement list is available yet.</li>
-                      </ul>
-                    </article>
-                    <article class="explorer-item">
-                      <div class="nav-title">Issue clusters and recommendations</div>
-                      <ul id="optimizationClusters" class="steps-list">
-                        <li>No issue cluster is available yet.</li>
-                      </ul>
-                    </article>
-                  </div>
-                </article>
-
-                <article class="panel overview-summary-panel">
-                  <div class="panel-head">
-                    <div>
-                      <p class="eyebrow">quality control engine</p>
-                      <h3>Consistency and false-positive control</h3>
-                    </div>
-                    <div id="qualityControlHeadline" class="headline-status">Run an audit to validate scoring consistency and false-positive signals.</div>
-                  </div>
-                  <div class="report-grid comparison-metrics-grid">
-                    <article class="info-card">
-                      <span class="info-label">Suspected false positives</span>
-                      <code id="qualityControlFalsePositives">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Inconsistent issues</span>
-                      <code id="qualityControlInconsistencies">0</code>
-                    </article>
-                    <article class="info-card">
-                      <span class="info-label">Validation warnings</span>
-                      <code id="qualityControlWarnings">0</code>
-                    </article>
-                  </div>
-                  <div class="explorer-list">
-                    <article class="explorer-item">
-                      <div class="nav-title">Top quality-control warnings</div>
-                      <ul id="qualityControlWarningsList" class="steps-list">
-                        <li>No quality-control warning is available yet.</li>
-                      </ul>
-                    </article>
-                  </div>
-                </article>
-              </section>
               </div>
             </section>
 
@@ -1463,134 +1308,133 @@
           </section>
         </section>
 
-        <aside id="assistantWorkspace" class="assistant-workspace right-context-panel hidden" aria-label="AI Workspace">
+        <aside id="assistantWorkspace" class="ai-inspector-panel assistant-workspace hidden" aria-label="AI Operator Console">
           <div class="assistant-workspace-layout">
             <nav class="assistant-conversation-history" aria-label="Conversation history">
               <div class="assistant-history-head">
-                <button id="assistantNewChat" class="primary" type="button">New chat</button>
+                <button id="assistantNewChat" class="primary" type="button">New</button>
                 <label class="toolbar-field assistant-history-search">
-                  <span class="visually-hidden">Search conversations</span>
-                  <input id="assistantConversationSearch" class="toolbar-input" type="search" placeholder="Search conversations..." />
+                  <span class="visually-hidden">Search</span>
+                  <input id="assistantConversationSearch" class="toolbar-input" type="search" placeholder="Search..." />
                 </label>
               </div>
-              <div id="assistantConversationList" class="assistant-conversation-list" role="list">
-                <!-- Filled by JS: recent and pinned conversations -->
-              </div>
+              <div id="assistantConversationList" class="assistant-conversation-list" role="list"></div>
             </nav>
-            <div class="assistant-workspace-shell">
-            <header class="assistant-workspace-head">
-              <div>
-                <p id="assistantEyebrow" class="eyebrow">operational assistant</p>
-                <h3 id="assistantTitle">Reason over the real app state</h3>
+            <div class="assistant-workspace-shell ai-operator-console">
+              <header class="console-head">
+                <h3 class="console-title">AI Operator Console</h3>
+                <div class="console-head-actions">
+                  <span id="assistantModePill" class="console-pill">Mode: auto</span>
+                  <span id="assistantIntentPill" class="console-pill">Intent: —</span>
+                  <button id="assistantExpand" class="console-btn" type="button">Expand</button>
+                  <button id="dismissAssistant" class="console-btn" type="button">Collapse</button>
+                </div>
+              </header>
+              <div class="console-strip" role="status" aria-live="polite">
+                <div class="console-strip-cell">
+                  <span class="console-strip-label">Context</span>
+                  <span id="assistantConsoleContext" class="console-strip-value">No report</span>
+                </div>
+                <div class="console-strip-cell">
+                  <span class="console-strip-label">Risk</span>
+                  <span id="assistantConsoleRisk" class="console-strip-value">—</span>
+                </div>
+                <div class="console-strip-cell">
+                  <span class="console-strip-label">Priority</span>
+                  <span id="assistantConsolePriority" class="console-strip-value">—</span>
+                </div>
+                <div class="console-strip-cell console-strip-cell-actions">
+                  <span class="console-strip-label">Next actions</span>
+                  <span id="assistantConsoleNextActions" class="console-strip-value">Load report</span>
+                </div>
               </div>
-              <div class="assistant-head-actions">
-                <button id="assistantExpand" class="ghost" type="button">Expand</button>
-                <button id="dismissAssistant" class="ghost" type="button">Collapse</button>
+              <div id="assistantOperatorStatus" class="assistant-operator-status hidden" aria-live="polite">
+                <span class="assistant-operator-status-label">Operator</span>
+                <span id="assistantOperatorStatusText" class="assistant-operator-status-text">—</span>
               </div>
-            </header>
-
-            <div class="assistant-identity-row">
-              <span id="assistantModePill" class="pill">Mode: auto</span>
-              <span id="assistantIntentPill" class="pill">Intent: waiting</span>
-              <span id="assistantLanguagePill" class="pill">Language: auto</span>
-            </div>
-            <div id="assistantOperatorStatus" class="assistant-operator-status hidden" aria-live="polite">
-              <span class="assistant-operator-status-label">Operator</span>
-              <span id="assistantOperatorStatusText" class="assistant-operator-status-text">—</span>
-            </div>
-
-            <div id="assistantContextPills" class="assistant-context-pills">
-              <span class="assistant-context-chip">Run: not loaded</span>
-              <span class="assistant-context-chip">Scope: overview</span>
-              <span class="assistant-context-chip">Focus: waiting</span>
-            </div>
-
-            <div class="assistant-workspace-tabs">
-              <button class="assistant-view-tab active" data-assistant-view="conversation" type="button">Conversation</button>
-              <button class="assistant-view-tab" data-assistant-view="insights" type="button">Insights</button>
-            </div>
-
-            <div class="assistant-workspace-body">
-              <section class="assistant-view-panel assistant-view-panel-conversation active" data-assistant-view-panel="conversation">
-                <article class="assistant-stage-card assistant-conversation-card assistant-chat-primary">
-                  <div class="assistant-stage-head">
-                    <div>
-                      <p class="eyebrow">conversation</p>
-                      <h4>Work beside the app</h4>
+              <div id="assistantContextPills" class="assistant-context-pills">
+                <span class="assistant-context-chip">Run: not loaded</span>
+                <span class="assistant-context-chip">Scope: overview</span>
+                <span class="assistant-context-chip">Focus: —</span>
+              </div>
+              <div class="assistant-workspace-tabs console-tabs">
+                <button class="assistant-view-tab console-tab active" data-assistant-view="conversation" type="button">Conversation</button>
+                <button class="assistant-view-tab console-tab" data-assistant-view="insights" type="button">Insights</button>
+                <button class="assistant-view-tab console-tab" data-assistant-view="actions" type="button">Actions</button>
+                <button class="assistant-view-tab console-tab" data-assistant-view="memory" type="button">Memory</button>
+                <button class="assistant-view-tab console-tab" data-assistant-view="healing" type="button">Healing</button>
+              </div>
+              <div class="assistant-workspace-body console-body">
+                <section class="assistant-view-panel active" data-assistant-view-panel="conversation">
+                  <div class="console-panel">
+                    <div class="console-panel-head">Response</div>
+                    <div id="assistantResponse" class="assistant-console-response">Query the operator. Response will use report, memory and UI state.</div>
+                  </div>
+                  <div class="console-panel">
+                    <div class="console-panel-head">Quick queries</div>
+                    <div class="assistant-quick-grid">
+                      <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
+                      <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
+                      <button id="assistantQuickPrompt" type="button">Generate prompt</button>
+                      <button id="assistantQuickGuide" type="button">Explain this workspace</button>
                     </div>
                   </div>
-                  <div id="assistantResponse" class="assistant-chat-thread prompt-box">Ask something operational. The assistant will answer from the loaded report, memory, logs and UI state.</div>
-                </article>
-
-                <article class="assistant-stage-card assistant-quick-actions-card">
-                  <div class="assistant-stage-head">
-                    <div>
-                      <p class="eyebrow">quick tools</p>
-                      <h4>Suggested actions</h4>
+                </section>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
+                  <div class="console-panel">
+                    <div class="console-panel-head">Context</div>
+                    <div id="assistantContextSummary" class="assistant-context-box">Current report, memory, logs and workspace state.</div>
+                    <div id="assistantModeSummary" class="history-copy">Requests are routed by operational mode.</div>
+                  </div>
+                  <div class="console-panel">
+                    <div class="console-panel-head">Intelligence</div>
+                    <div id="assistantInsights" class="assistant-insights-grid"></div>
+                  </div>
+                </section>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="actions">
+                  <div class="console-panel">
+                    <div class="console-panel-head">Suggested actions</div>
+                    <div id="assistantActions" class="assistant-action-stack">
+                      <article class="empty-state">Action suggestions appear after a query or when context is loaded.</article>
                     </div>
                   </div>
-                  <div class="assistant-quick-grid">
-                    <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
-                    <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
-                    <button id="assistantQuickPrompt" type="button">Generate prompt</button>
-                    <button id="assistantQuickGuide" type="button">Explain this workspace</button>
+                </section>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="memory">
+                  <div class="console-panel">
+                    <div class="console-panel-head">Operational memory</div>
+                    <div id="assistantMemorySummary" class="console-panel-value">No memory snapshot. Run audits to build validated learnings.</div>
                   </div>
-                  <div id="assistantActions" class="assistant-action-stack">
-                    <article class="empty-state">Action suggestions will appear here when the assistant has enough context.</article>
+                </section>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="healing">
+                  <div class="console-panel">
+                    <div class="console-panel-head">Healing queue</div>
+                    <div id="assistantHealingSummary" class="console-panel-value">No healing snapshot. Load a report to see eligible issues.</div>
                   </div>
-                </article>
-              </section>
-
-              <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
-                <article class="assistant-stage-card assistant-context-diagnostics">
-                  <div class="assistant-stage-head">
-                    <div>
-                      <p class="eyebrow">active scope</p>
-                      <h4>Live context</h4>
-                    </div>
-                  </div>
-                  <div id="assistantContextSummary" class="assistant-context-box">The assistant will use the current report, memory, logs and workspace state.</div>
-                  <div id="assistantModeSummary" class="history-copy">The assistant will auto-route each request into the correct operational mode.</div>
-                </article>
-                <article class="assistant-stage-card assistant-insights-card">
-                  <div class="assistant-stage-head">
-                    <div>
-                      <p class="eyebrow">ai metrics</p>
-                      <h4>Operational intelligence</h4>
-                    </div>
-                  </div>
-                  <div id="assistantInsights" class="assistant-insights-grid">
-                    <article class="assistant-insight-card">
-                      <span class="info-label">Current context</span>
-                      <strong>Load a report to unlock AI insights.</strong>
-                    </article>
-                  </div>
-                </article>
-              </section>
-            </div>
-
-            <footer class="assistant-composer">
-              <label class="toolbar-field assistant-composer-field">
-                <span id="assistantInputLabel" class="field-label">Ask the assistant</span>
-                <input id="assistantInput" class="toolbar-input" type="search" placeholder="analyse the latest SEO issues, compare runs, explain SEO_LANG_MISSING..." />
-              </label>
-              <div class="assistant-composer-actions">
-                <label class="toolbar-field toolbar-field-compact assistant-language-field">
-                  <span id="assistantLanguageLabel" class="field-label">Assistant language</span>
-                  <select id="assistantLanguageSelect" class="toolbar-select">
-                    <option value="auto">Auto</option>
-                    <option value="pt">Português</option>
-                    <option value="es">Español</option>
-                    <option value="en">English</option>
-                    <option value="ca">Català</option>
-                  </select>
+                </section>
+              </div>
+              <footer class="assistant-composer console-composer">
+                <label class="toolbar-field assistant-composer-field">
+                  <span id="assistantInputLabel" class="field-label">Query</span>
+                  <input id="assistantInput" class="toolbar-input" type="search" placeholder="priorities, explain SEO_LANG_MISSING, compare runs..." />
                 </label>
-                <button id="assistantAsk" class="primary" type="button">Run analysis</button>
-              </div>
-            </footer>
+                <div class="assistant-composer-actions">
+                  <label class="toolbar-field toolbar-field-compact assistant-language-field">
+                    <span id="assistantLanguageLabel" class="field-label">Lang</span>
+                    <select id="assistantLanguageSelect" class="toolbar-select">
+                      <option value="auto">Auto</option>
+                      <option value="pt">PT</option>
+                      <option value="es">ES</option>
+                      <option value="en">EN</option>
+                      <option value="ca">CA</option>
+                    </select>
+                  </label>
+                  <button id="assistantAsk" class="primary" type="button">Run</button>
+                </div>
+              </footer>
             </div>
           </div>
         </aside>
+        </div>
       </main>
     </div>
 
@@ -1635,7 +1479,7 @@
           <article><strong>Ctrl+1..8</strong><span>Switch between overview, operations, findings, SEO, prompts, compare, reports and settings</span></article>
           <article><strong>Ctrl+9</strong><span>Open the embedded preview workspace</span></article>
           <article><strong>Ctrl+K</strong><span>Open the command palette</span></article>
-          <article><strong>Ctrl+J</strong><span>Open the AI workspace</span></article>
+          <article><strong>Ctrl+J</strong><span>Open the AI Inspector panel</span></article>
           <article><strong>Ctrl+Enter</strong><span>Run native audit with current profile</span></article>
           <article><strong>Ctrl+Shift+Enter</strong><span>Run deep audit immediately</span></article>
           <article><strong>Ctrl+Shift+C</strong><span>Open the full CMD flow</span></article>

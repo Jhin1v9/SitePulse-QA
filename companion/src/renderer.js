@@ -41,6 +41,8 @@ const HISTORY_TOTAL_LIMIT = 12;
 const HISTORY_PER_TARGET_LIMIT = 6;
 const HISTORY_COMPARABLE_LIMIT = 8;
 const HISTORY_RECURRENCE_LIMIT = 6;
+const CONVERSATION_LIST_LIMIT = 50;
+const CONVERSATION_MESSAGE_LIMIT = 100;
 
 const VIEW_META = {
   overview: {
@@ -201,7 +203,8 @@ const stateEl = {
   copyBridgeUrlSecondary: document.getElementById("copyBridgeUrlSecondary"),
   quickAuditButton: document.getElementById("quickAuditButton"),
   deepAuditButton: document.getElementById("deepAuditButton"),
-  shellGrid: document.getElementById("shellGrid"),
+  appBody: document.getElementById("appBody"),
+  mainGrid: document.getElementById("mainGrid"),
   targetUrl: document.getElementById("targetUrl"),
   previewLocation: document.getElementById("previewLocation"),
   previewStatus: document.getElementById("previewStatus"),
@@ -225,6 +228,7 @@ const stateEl = {
   noServer: document.getElementById("noServer"),
   headed: document.getElementById("headed"),
   elevated: document.getElementById("elevated"),
+  doNext: document.getElementById("doNext"),
   runAudit: document.getElementById("runAudit"),
   runCmd: document.getElementById("runCmd"),
   copyReplayCommand: document.getElementById("copyReplayCommand"),
@@ -232,10 +236,14 @@ const stateEl = {
   copyQuickPromptSecondary: document.getElementById("copyQuickPromptSecondary"),
   openAssistant: document.getElementById("openAssistant"),
   openCommandPalette: document.getElementById("openCommandPalette"),
+  topbarContext: document.getElementById("topbarContext"),
+  runAuditTopbar: document.getElementById("runAuditTopbar"),
+  loadReportTopbar: document.getElementById("loadReportTopbar"),
   menuFlyout: document.getElementById("menuFlyout"),
   workspaceEyebrow: document.getElementById("workspaceEyebrow"),
   workspaceTitle: document.getElementById("workspaceTitle"),
   workspaceDescription: document.getElementById("workspaceDescription"),
+  engineSummaryStrip: document.getElementById("engineSummaryStrip"),
   headlineStatus: document.getElementById("headlineStatus"),
   auditProgressLabel: document.getElementById("auditProgressLabel"),
   auditProgressPercent: document.getElementById("auditProgressPercent"),
@@ -428,6 +436,10 @@ const stateEl = {
   copyRouteDigest: document.getElementById("copyRouteDigest"),
   copyActionDigest: document.getElementById("copyActionDigest"),
   missionBrief: document.getElementById("missionBrief"),
+  baselineIndicator: document.getElementById("baselineIndicator"),
+  baselineIndicatorWrap: document.getElementById("baselineIndicatorWrap"),
+  compactRunHistory: document.getElementById("compactRunHistory"),
+  compactRunHistoryWrap: document.getElementById("compactRunHistoryWrap"),
   clearLog: document.getElementById("clearLog"),
   logOutput: document.getElementById("logOutput"),
   openShortcuts: document.getElementById("openShortcuts"),
@@ -471,6 +483,12 @@ const stateEl = {
   assistantInsights: document.getElementById("assistantInsights"),
   assistantResponse: document.getElementById("assistantResponse"),
   assistantActions: document.getElementById("assistantActions"),
+  assistantConsoleContext: document.getElementById("assistantConsoleContext"),
+  assistantConsoleRisk: document.getElementById("assistantConsoleRisk"),
+  assistantConsolePriority: document.getElementById("assistantConsolePriority"),
+  assistantConsoleNextActions: document.getElementById("assistantConsoleNextActions"),
+  assistantMemorySummary: document.getElementById("assistantMemorySummary"),
+  assistantHealingSummary: document.getElementById("assistantHealingSummary"),
   assistantNewChat: document.getElementById("assistantNewChat"),
   assistantConversationSearch: document.getElementById("assistantConversationSearch"),
   assistantConversationList: document.getElementById("assistantConversationList"),
@@ -1021,9 +1039,6 @@ function pruneAssistantConversation(entries) {
     .slice(-20);
 }
 
-const CONVERSATION_LIST_LIMIT = 50;
-const CONVERSATION_MESSAGE_LIMIT = 100;
-
 function loadConversationList() {
   const raw = readStorage(STORAGE_KEYS.assistantConversationList, []);
   if (!Array.isArray(raw)) return [];
@@ -1540,8 +1555,11 @@ function renderAssistantCards(result) {
   stateEl.assistantActions.innerHTML = sections.join("");
 }
 
+const ASSISTANT_VIEW_KEYS = ["conversation", "insights", "actions", "memory", "healing"];
+
 function switchAssistantView(viewKey) {
-  uiState.assistantView = String(viewKey || "") === "insights" ? "insights" : "conversation";
+  const key = String(viewKey || "").toLowerCase();
+  uiState.assistantView = ASSISTANT_VIEW_KEYS.includes(key) ? key : "conversation";
   if (Array.isArray(stateEl.assistantViewButtons)) {
     stateEl.assistantViewButtons.forEach((button) => {
       const isActive = button.dataset.assistantView === uiState.assistantView;
@@ -1561,9 +1579,13 @@ function switchAssistantView(viewKey) {
 function renderAssistantWorkspaceLayout() {
   const isOpen = uiState.assistantOpen === true;
   const isExpanded = isOpen && uiState.assistantExpanded === true;
-  if (stateEl.shellGrid) {
-    stateEl.shellGrid.classList.toggle("assistant-open", isOpen);
-    stateEl.shellGrid.classList.toggle("assistant-expanded", isExpanded);
+  if (stateEl.appBody) {
+    stateEl.appBody.classList.toggle("ai-inspector-open", isOpen);
+    stateEl.appBody.classList.toggle("ai-inspector-expanded", isExpanded);
+  }
+  if (stateEl.mainGrid) {
+    stateEl.mainGrid.classList.toggle("ai-inspector-open", isOpen);
+    stateEl.mainGrid.classList.toggle("ai-inspector-expanded", isExpanded);
   }
   if (stateEl.assistantWorkspace) {
     stateEl.assistantWorkspace.classList.toggle("hidden", !isOpen);
@@ -1575,10 +1597,10 @@ function renderAssistantWorkspaceLayout() {
   }
   if (stateEl.assistantExpand) {
     stateEl.assistantExpand.textContent = localizePromptLine(getAssistantLanguage(), {
-      pt: isExpanded ? "Fixar lateral" : "Expandir",
-      es: isExpanded ? "Volver al lateral" : "Expandir",
-      en: isExpanded ? "Dock view" : "Expand",
-      ca: isExpanded ? "Tornar al lateral" : "Expandir",
+      pt: isExpanded ? "Painel menor" : "Expandir painel",
+      es: isExpanded ? "Panel menor" : "Expandir panel",
+      en: isExpanded ? "Shrink panel" : "Expand panel",
+      ca: isExpanded ? "Panel més petit" : "Expandir panel",
     });
   }
   switchAssistantView(uiState.assistantView);
@@ -1738,6 +1760,66 @@ function buildAssistantInsightsMarkup(report, intelligenceSnapshot) {
       </div>
     </article>
   `).join("");
+}
+
+function renderAssistantConsoleStrip(report, intelligenceSnapshot) {
+  const languageKey = getAssistantLanguage();
+  const dataIntelligence = intelligenceSnapshot?.dataIntelligence || {};
+  const riskState = dataIntelligence.RISK_STATE || {};
+  const qualityState = dataIntelligence.QUALITY_STATE || {};
+  const nextActions = intelligenceSnapshot?.autonomous?.nextActions || [];
+  const t = (pt, es, en, ca) => localizePromptLine(languageKey, { pt, es, en, ca });
+  const context = report
+    ? `${String(report.meta?.baseUrl || "").slice(0, 32)}${(report.meta?.baseUrl || "").length > 32 ? "…" : ""} · ${report.summary?.totalIssues ?? 0} issues`
+    : t("Nenhuma run", "Ninguna run", "No report", "Cap report");
+  const risk = report
+    ? `${riskState.highRiskAlertCount ?? 0} high · ${qualityState.trajectory || "stable"}`
+    : "—";
+  const priority = report
+    ? `P0 ${report.summary?.priorityP0 ?? 0} / P1 ${report.summary?.priorityP1 ?? 0}`
+    : "—";
+  const next = nextActions[0]?.actionLabel || (report ? t("Ver Findings", "Ver Findings", "Open Findings", "Obrir Findings") : t("Carregar report", "Cargar report", "Load report", "Carregar report"));
+  if (stateEl.assistantConsoleContext) stateEl.assistantConsoleContext.textContent = context;
+  if (stateEl.assistantConsoleRisk) stateEl.assistantConsoleRisk.textContent = risk;
+  if (stateEl.assistantConsolePriority) stateEl.assistantConsolePriority.textContent = priority;
+  if (stateEl.assistantConsoleNextActions) {
+    const code = nextActions[0]?.issueCode;
+    if (report && code) {
+      stateEl.assistantConsoleNextActions.innerHTML = `<button type="button" class="action-link open-findings-search console-strip-value" data-findings-search="${escapeHtml(String(code))}">${escapeHtml(next)}</button>`;
+    } else {
+      stateEl.assistantConsoleNextActions.textContent = next;
+    }
+  }
+}
+
+function renderAssistantMemoryHealingSummaries(report, intelligenceSnapshot) {
+  const languageKey = getAssistantLanguage();
+  const memory = intelligenceSnapshot?.learningMemory || {};
+  const healing = intelligenceSnapshot?.selfHealing || {};
+  const t = (pt, es, en, ca) => localizePromptLine(languageKey, { pt, es, en, ca });
+  const memEntries = memory?.summary?.entries ?? 0;
+  const memValidated = memory?.summary?.validated ?? 0;
+  const memFailed = memory?.summary?.failed ?? 0;
+  const healEligible = healing?.summary?.eligible ?? 0;
+  const healReady = healing?.summary?.ready ?? 0;
+  const memoryText = report
+    ? t(
+        `${memEntries} entradas · ${memValidated} validadas · ${memFailed} falhas`,
+        `${memEntries} entradas · ${memValidated} validadas · ${memFailed} fallos`,
+        `${memEntries} entries · ${memValidated} validated · ${memFailed} failed`,
+        `${memEntries} entrades · ${memValidated} validades · ${memFailed} fallades`
+      )
+    : t("Nenhuma memoria", "Ninguna memoria", "No memory snapshot", "Cap memòria");
+  const healingText = report
+    ? t(
+        `${healEligible} elegiveis · ${healReady} prontos`,
+        `${healEligible} elegibles · ${healReady} listos`,
+        `${healEligible} eligible · ${healReady} ready`,
+        `${healEligible} elegibles · ${healReady} llestos`
+      )
+    : t("Nenhum healing", "Ningún healing", "No healing snapshot", "Cap healing");
+  if (stateEl.assistantMemorySummary) stateEl.assistantMemorySummary.textContent = memoryText;
+  if (stateEl.assistantHealingSummary) stateEl.assistantHealingSummary.textContent = healingText;
 }
 
 function rerenderAssistantInActiveLanguage() {
@@ -2469,11 +2551,84 @@ function updateSegmentButtons(buttons, fieldName, activeValue) {
   });
 }
 
+function renderEngineSummaryStrip(report) {
+  const el = stateEl.engineSummaryStrip;
+  if (!el) return;
+  if (!report) {
+    el.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+  const snap = buildDesktopIntelligenceSnapshot(report);
+  const memory = snap.learningMemory?.summary?.entries ?? 0;
+  const healingReady = snap.selfHealing?.summary?.promptReady ?? 0;
+  const healingEligible = snap.selfHealing?.summary?.eligible ?? 0;
+  const issues = report.summary?.totalIssues ?? 0;
+  const predictiveN = snap.predictive?.summary?.highRiskAlerts ?? 0;
+  const qualityState = snap.dataIntelligence?.QUALITY_STATE || {};
+  const trajectory = qualityState.trajectory || "stable";
+  const optCount = Array.isArray(snap.optimization?.topImprovements) ? snap.optimization.topImprovements.length : 0;
+  const qcWarnings = Array.isArray(snap.qualityControl?.topWarnings) ? snap.qualityControl.topWarnings.length : 0;
+  const baselineSet = !!(uiState.baseline && uiState.baseline.report);
+  const segments = [];
+  segments.push(`<button type="button" class="engine-strip-link" data-view="findings">Issues ${issues}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-view="settings">Memory ${memory}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-view="prompts">Healing ${healingReady} ready</button>`);
+  if (predictiveN > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">Predictive ${predictiveN}</button>`);
+  if (optCount > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">Optimization ${optCount}</button>`);
+  if (qcWarnings > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">QC ${qcWarnings}</button>`);
+  segments.push(`<span class="engine-strip-text">Trajectory ${trajectory}</span>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-view="compare">${baselineSet ? "Baseline set" : "Baseline none"}</button>`);
+  el.classList.remove("hidden");
+  el.innerHTML = segments.join(" · ");
+}
+
+function renderCompactRunHistory() {
+  const el = stateEl.compactRunHistory;
+  const wrap = stateEl.compactRunHistoryWrap;
+  if (!el) return;
+  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 6) : [];
+  if (!history.length) {
+    if (wrap) wrap.classList.add("hidden");
+    el.innerHTML = "";
+    return;
+  }
+  if (wrap) wrap.classList.remove("hidden");
+  el.innerHTML = history.map((item, index) => {
+    const prev = history[index + 1];
+    let purpose = "—";
+    if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
+      if (item.issueCount < prev.issueCount) purpose = "↓ better";
+      else if (item.issueCount > prev.issueCount) purpose = "↑ worse";
+      else purpose = "→ stable";
+    }
+    const baseUrlShort = (item.baseUrl || "").length > 24 ? (item.baseUrl || "").slice(0, 21) + "…" : (item.baseUrl || "");
+    const isBaseline = uiState.baseline?.stamp === item.stamp;
+    return `
+      <div class="compact-run-row">
+        <span class="compact-run-meta">${escapeHtml(formatLocalDate(item.stamp))} · ${escapeHtml(String(item.issueCount || 0))} issues</span>
+        <span class="compact-run-purpose">${escapeHtml(purpose)}</span>
+        ${isBaseline ? '<span class="pill ok baseline-tag">baseline</span>' : ""}
+        <button type="button" class="engine-strip-link" data-history-index="${index}" data-history-action="load">Load</button>
+        <button type="button" class="engine-strip-link" data-history-index="${index}" data-history-action="baseline">Baseline</button>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderWorkspaceHeader(viewName) {
   const meta = VIEW_META[viewName] || VIEW_META.overview;
   if (stateEl.workspaceEyebrow) stateEl.workspaceEyebrow.textContent = meta.eyebrow;
   if (stateEl.workspaceTitle) stateEl.workspaceTitle.textContent = meta.title;
   if (stateEl.workspaceDescription) stateEl.workspaceDescription.textContent = meta.description;
+  if (stateEl.topbarContext) stateEl.topbarContext.textContent = meta.title;
+  if (stateEl.baselineIndicator) {
+    const baseline = uiState.baseline && uiState.baseline.report ? uiState.baseline : null;
+    if (stateEl.baselineIndicatorWrap) stateEl.baselineIndicatorWrap.classList.toggle("hidden", !baseline);
+    stateEl.baselineIndicator.textContent = baseline ? `Baseline: ${formatLocalDate(baseline.stamp)}` : "None";
+  }
+  renderCompactRunHistory();
+  renderEngineSummaryStrip(getVisibleReport());
 }
 
 function getMenuItems(menuName) {
@@ -2578,6 +2733,50 @@ function switchView(viewName) {
   if (nextView === "preview") {
     queuePreviewSync("view_switch");
   }
+}
+
+function openFindingsWithSearch(searchText) {
+  const q = String(searchText || "").trim();
+  uiState.findingsSearch = q;
+  if (stateEl.findingsSearch) {
+    stateEl.findingsSearch.value = q;
+  }
+  switchView("findings");
+  renderIssues(getVisibleReport());
+}
+
+function executeDoNext() {
+  const report = getVisibleReport();
+  if (!report) {
+    switchView("overview");
+    return;
+  }
+  const snapshot = buildDesktopIntelligenceSnapshot(report);
+  const autonomous = snapshot?.autonomous || {};
+  const riskState = snapshot?.dataIntelligence?.RISK_STATE || {};
+  const nextActions = Array.isArray(autonomous.nextActions) ? autonomous.nextActions : [];
+  const recommendedOrder = Array.isArray(riskState.recommendedActionOrder) ? riskState.recommendedActionOrder : [];
+  const priorityQueue = Array.isArray(riskState.priorityQueue) ? riskState.priorityQueue : [];
+  let lead = nextActions[0] || null;
+  if (!lead && recommendedOrder.length > 0) {
+    const firstCode = String(recommendedOrder[0] || "").trim();
+    if (firstCode) lead = { issueCode: firstCode, route: "/", action: "" };
+  }
+  if (!lead && priorityQueue.length > 0) lead = priorityQueue[0];
+  if (!lead) {
+    switchView("overview");
+    return;
+  }
+  const issueCode = lead.issueCode || (typeof lead === "string" ? lead : "");
+  const route = lead.route || "/";
+  const action = lead.action || "";
+  const issue = findVisibleIssue(issueCode, route, action);
+  const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+  if (issue && healing && ["eligible_for_healing", "assist_only"].includes(healing.eligibility)) {
+    requestHealingPreparation(issue);
+    return;
+  }
+  openFindingsWithSearch(issueCode || (lead.actionLabel || ""));
 }
 
 function previewSurfaceSupportsEmbedding() {
@@ -4875,7 +5074,7 @@ function renderExecutiveSummary(report) {
     ? executive.topOpportunities.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
     : "<li>No fast opportunity is attached to this run yet.</li>";
   stateEl.executiveSummaryActionOrder.innerHTML = (executive.recommendedActionOrder || []).length
-    ? executive.recommendedActionOrder.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    ? executive.recommendedActionOrder.slice(0, 4).map((item) => `<li><button type="button" class="action-link open-findings-search" data-findings-search="${escapeHtml(String(item))}">${escapeHtml(item)}</button></li>`).join("")
     : "<li>No action order is available yet.</li>";
   const patterns = [...(report.intelligence?.patterns || []), ...intelligence.recurringIssues.slice(0, 2).map((item) => ({
     label: `${item.issue.code} recurring in ${item.recurringCount} run(s).`,
@@ -4975,7 +5174,7 @@ function renderQualityVisuals(report) {
     : "No ranked issue queue is available for the current run.";
   stateEl.priorityViewList.innerHTML = priorityQueue.length
     ? priorityQueue.map((item, index) => `
-        <article class="explorer-item">
+        <article class="explorer-item explorer-item-clickable" data-findings-search="${escapeHtml(String(item.issueCode || ""))}">
           <div class="split-head" style="align-items:flex-start; gap:12px;">
             <div>
               <div class="nav-title">${escapeHtml(`${index + 1}. ${item.issueCode}`)}</div>
@@ -6472,6 +6671,8 @@ function renderAssistantState() {
       .join("");
   }
   buildAssistantInsightsMarkup(report, intelligenceSnapshot);
+  renderAssistantConsoleStrip(report, intelligenceSnapshot);
+  renderAssistantMemoryHealingSummaries(report, intelligenceSnapshot);
 
   const result = uiState.assistantResult;
   if (!result) {
@@ -6526,6 +6727,10 @@ async function executeAssistantAction(action) {
     uiState.findingsSearch = stateEl.findingsSearch.value.trim();
     switchView("findings");
     renderIssues(getVisibleReport());
+    return;
+  }
+  if (action.id === "open-issue") {
+    openFindingsWithSearch(payload.issueCode || payload.query || "");
     return;
   }
   if (action.id === "open-memory") {
@@ -7020,6 +7225,7 @@ function renderCompanionState(payload) {
 
 function renderAllReportState(report) {
   renderWorkspaceReport(report, { transient: false });
+  renderEngineSummaryStrip(report || getVisibleReport());
   void refreshOperationalMemorySnapshot();
   void refreshSelfHealingSnapshot();
 }
@@ -7427,8 +7633,19 @@ function applyPresetFirstAudit() {
   switchView("overview");
 }
 
+function bindNavigation() {
+  document.body.addEventListener("click", (e) => {
+    const target = e.target && e.target.closest ? e.target.closest("[data-view]") : null;
+    if (target && target.getAttribute("data-view") && !target.disabled) {
+      e.preventDefault();
+      e.stopPropagation();
+      switchView(target.getAttribute("data-view") || "overview");
+    }
+  }, true);
+}
+
 function bindSelectionEvents() {
-  stateEl.modeButtons.forEach((button) => {
+  (stateEl.modeButtons || []).forEach((button) => {
     button.addEventListener("click", () => {
       uiState.mode = normalizeMode(button.dataset.mode);
       renderStaticSelections();
@@ -7436,7 +7653,7 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.mobileSweepButtons.forEach((button) => {
+  (stateEl.mobileSweepButtons || []).forEach((button) => {
     button.addEventListener("click", () => {
       uiState.mobileSweep = normalizeMobileSweep(button.dataset.mobileSweep);
       renderStaticSelections();
@@ -7444,7 +7661,7 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.scopeButtons.forEach((button) => {
+  (stateEl.scopeButtons || []).forEach((button) => {
     button.addEventListener("click", () => {
       uiState.scope = normalizeScope(button.dataset.scope);
       renderStaticSelections();
@@ -7452,7 +7669,7 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.depthButtons.forEach((button) => {
+  (stateEl.depthButtons || []).forEach((button) => {
     button.addEventListener("click", () => {
       uiState.depth = normalizeDepth(button.dataset.depth);
       renderStaticSelections();
@@ -7460,7 +7677,7 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.severityFilterButtons.forEach((button) => {
+  (stateEl.severityFilterButtons || []).forEach((button) => {
     button.addEventListener("click", () => {
       uiState.issueFilter = button.dataset.issueFilter || "all";
       renderStaticSelections();
@@ -7468,15 +7685,33 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.findingsSearch.addEventListener("input", () => {
-    uiState.findingsSearch = stateEl.findingsSearch.value.trim();
-    renderIssues(getVisibleReport());
+  if (stateEl.findingsSearch) {
+    stateEl.findingsSearch.addEventListener("input", () => {
+      uiState.findingsSearch = stateEl.findingsSearch.value.trim();
+      renderIssues(getVisibleReport());
+    });
+  }
+  document.addEventListener("click", (e) => {
+    const el = e.target.closest && (e.target.closest(".open-findings-search") || e.target.closest(".explorer-item-clickable[data-findings-search]"));
+    if (!el || !el.getAttribute) return;
+    const search = el.getAttribute("data-findings-search");
+    if (search != null) {
+      e.preventDefault();
+      openFindingsWithSearch(search);
+    }
   });
-
-  stateEl.findingsRouteFilter.addEventListener("change", () => {
-    uiState.findingsRoute = stateEl.findingsRouteFilter.value || "all";
-    renderIssues(getVisibleReport());
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest && e.target.closest(".engine-strip-link");
+    if (!btn || !btn.dataset.view) return;
+    e.preventDefault();
+    switchView(btn.dataset.view);
   });
+  if (stateEl.findingsRouteFilter) {
+    stateEl.findingsRouteFilter.addEventListener("change", () => {
+      uiState.findingsRoute = stateEl.findingsRouteFilter.value || "all";
+      renderIssues(getVisibleReport());
+    });
+  }
 
   [
     [stateEl.findingsQualityFilter, "quality"],
@@ -7488,17 +7723,19 @@ function bindSelectionEvents() {
     [stateEl.findingsResolutionFilter, "resolution"],
     [stateEl.findingsImpactFilter, "impact"],
   ].forEach(([node, key]) => {
-    if (!(node instanceof HTMLSelectElement)) return;
+    if (!node || !(node instanceof HTMLSelectElement)) return;
     node.addEventListener("change", () => {
       uiState.findingsIntelligenceFilters[key] = node.value || "all";
       renderIssues(getVisibleReport());
     });
   });
 
-  stateEl.commandPaletteSearch.addEventListener("input", () => {
-    uiState.commandPaletteQuery = stateEl.commandPaletteSearch.value.trim();
-    renderCommandPalette();
-  });
+  if (stateEl.commandPaletteSearch) {
+    stateEl.commandPaletteSearch.addEventListener("input", () => {
+      uiState.commandPaletteQuery = stateEl.commandPaletteSearch.value.trim();
+      renderCommandPalette();
+    });
+  }
 
   [
     stateEl.learningMemoryStatusFilter,
@@ -7506,6 +7743,7 @@ function bindSelectionEvents() {
     stateEl.learningMemorySeverityFilter,
     stateEl.learningMemorySort,
   ].forEach((node) => {
+    if (!node) return;
     node.addEventListener("change", () => {
       uiState.learningMemoryFilters.status = stateEl.learningMemoryStatusFilter.value || "all";
       uiState.learningMemoryFilters.category = stateEl.learningMemoryCategoryFilter.value || "all";
@@ -7515,23 +7753,22 @@ function bindSelectionEvents() {
     });
   });
 
-  stateEl.learningMemoryIssueFilter.addEventListener("input", () => {
-    uiState.learningMemoryFilters.issueCode = stateEl.learningMemoryIssueFilter.value.trim();
-    renderLearningMemory(getVisibleReport());
-  });
-
-  stateEl.learningMemorySourceFilter.addEventListener("input", () => {
-    uiState.learningMemoryFilters.source = stateEl.learningMemorySourceFilter.value.trim();
-    renderLearningMemory(getVisibleReport());
-  });
-
-  stateEl.navButtons.forEach((button) => {
-    button.addEventListener("click", () => switchView(button.dataset.view || "overview"));
-  });
+  if (stateEl.learningMemoryIssueFilter) {
+    stateEl.learningMemoryIssueFilter.addEventListener("input", () => {
+      uiState.learningMemoryFilters.issueCode = stateEl.learningMemoryIssueFilter.value.trim();
+      renderLearningMemory(getVisibleReport());
+    });
+  }
+  if (stateEl.learningMemorySourceFilter) {
+    stateEl.learningMemorySourceFilter.addEventListener("input", () => {
+      uiState.learningMemoryFilters.source = stateEl.learningMemorySourceFilter.value.trim();
+      renderLearningMemory(getVisibleReport());
+    });
+  }
 }
 
 function bindPersistenceEvents() {
-  [stateEl.targetUrl, stateEl.noServer, stateEl.headed, stateEl.elevated].forEach((node) => {
+  [stateEl.targetUrl, stateEl.noServer, stateEl.headed, stateEl.elevated].filter(Boolean).forEach((node) => {
     node.addEventListener("input", persistProfile);
     node.addEventListener("change", persistProfile);
   });
@@ -7541,107 +7778,113 @@ function bindPersistenceEvents() {
     renderMissionBrief();
     renderReportSummary(getVisibleReport());
   };
-  stateEl.targetUrl.addEventListener("input", refreshPreparedTargetState);
-  stateEl.targetUrl.addEventListener("change", refreshPreparedTargetState);
-  stateEl.headed.addEventListener("change", () => renderPreviewWorkspace());
+  if (stateEl.targetUrl) {
+    stateEl.targetUrl.addEventListener("input", refreshPreparedTargetState);
+    stateEl.targetUrl.addEventListener("change", refreshPreparedTargetState);
+  }
+  if (stateEl.headed) stateEl.headed.addEventListener("change", () => renderPreviewWorkspace());
 }
 
 function bindButtons() {
-  stateEl.runAudit.addEventListener("click", async () => handleAuditRun());
-  stateEl.quickAuditButton.addEventListener("click", async () => handleAuditRun("signal"));
-  stateEl.deepAuditButton.addEventListener("click", async () => handleAuditRun("deep"));
-  stateEl.runCmd.addEventListener("click", openCmdWindow);
-  stateEl.previewReload.addEventListener("click", reloadPreview);
-  stateEl.previewOpenExternal.addEventListener("click", openPreviewExternal);
-  stateEl.previewToggleFollow.addEventListener("click", togglePreviewFollowMode);
-  stateEl.loadReportFile.addEventListener("click", loadReportFromFile);
-  stateEl.exportCurrentReport.addEventListener("click", exportCurrentReport);
-  stateEl.openLatestEvidence.addEventListener("click", openLatestEvidence);
-  stateEl.startBridge.addEventListener("click", startEngine);
-  stateEl.stopBridge.addEventListener("click", stopEngine);
-  stateEl.openReports.addEventListener("click", openReportsVault);
-  stateEl.openReportsSecondary.addEventListener("click", openReportsVault);
-  stateEl.copyBridgeUrl.addEventListener("click", copyBridgeUrl);
-  stateEl.copyBridgeUrlSecondary.addEventListener("click", copyBridgeUrl);
-  stateEl.copyReplayCommand.addEventListener("click", async () => copyText(stateEl.currentCommand.textContent, "[studio] replay command copied."));
-  stateEl.copyQuickPrompt.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
-  stateEl.copyQuickPromptSecondary.addEventListener("click", async () => copyText(stateEl.quickPromptBox.textContent, "[studio] fix prompt copied."));
-  stateEl.copyQuickPromptPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceFix.textContent, "[studio] fix prompt copied."));
-  stateEl.copySelfHealingSummary.addEventListener("click", async () => copyText(buildSelfHealingSummary(getVisibleReport()), "[studio] self-healing summary copied."));
-  stateEl.copyAutonomousSummary.addEventListener("click", async () => copyText(stateEl.autonomousQaSummary.textContent, "[studio] autonomous QA summary copied."));
-  stateEl.copyAutonomousLoop.addEventListener("click", async () => copyText(stateEl.autonomousQaLoop.textContent, "[studio] autonomous QA loop copied."));
-  stateEl.copyReplayCommandPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
-  stateEl.copyReplayCommandSecondary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceReplay.textContent, "[studio] replay command copied."));
-  stateEl.copyIssueDigest.addEventListener("click", async () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
-  stateEl.copyIssueDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceIssues.textContent, "[studio] issue digest copied."));
-  stateEl.copyRouteDigest.addEventListener("click", async () => copyText(buildRouteDigest(getVisibleReport()), "[studio] route digest copied."));
-  stateEl.copyRouteDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceRoutes.textContent, "[studio] route digest copied."));
-  stateEl.copyActionDigest.addEventListener("click", async () => copyText(buildActionDigest(getVisibleReport()), "[studio] action digest copied."));
-  stateEl.copyActionDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceActions.textContent, "[studio] action digest copied."));
-  stateEl.copyClientOutreachPrompt.addEventListener("click", async () => copyText(stateEl.promptWorkspaceClientPrompt.textContent, "[studio] client outreach prompt copied."));
-  stateEl.copyClientOutreachMessage.addEventListener("click", async () => copyText(stateEl.promptWorkspaceClientMessage.textContent, "[studio] client outreach message copied."));
-  stateEl.copyCompareDigest.addEventListener("click", async () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
-  stateEl.copyCompareDigestPrimary.addEventListener("click", async () => copyText(stateEl.promptWorkspaceCompare.textContent, "[studio] comparison digest copied."));
-  stateEl.copySeoDigest.addEventListener("click", async () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
-  stateEl.refreshSeoSource.addEventListener("click", refreshSeoSource);
-  stateEl.saveSeoSource.addEventListener("click", saveSeoSource);
-  stateEl.checkForUpdates.addEventListener("click", checkForUpdates);
-  stateEl.downloadUpdate.addEventListener("click", downloadUpdate);
-  stateEl.installUpdate.addEventListener("click", installUpdate);
-  stateEl.copyPromptPack.addEventListener("click", async () => copyText(
+  const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  if (stateEl.doNext) on(stateEl.doNext, "click", () => executeDoNext());
+  on(stateEl.runAudit, "click", () => handleAuditRun());
+  on(stateEl.runAuditTopbar, "click", () => handleAuditRun());
+  on(stateEl.quickAuditButton, "click", () => handleAuditRun("signal"));
+  on(stateEl.deepAuditButton, "click", () => handleAuditRun("deep"));
+  on(stateEl.runCmd, "click", openCmdWindow);
+  on(stateEl.previewReload, "click", reloadPreview);
+  on(stateEl.previewOpenExternal, "click", openPreviewExternal);
+  on(stateEl.previewToggleFollow, "click", togglePreviewFollowMode);
+  on(stateEl.loadReportFile, "click", loadReportFromFile);
+  on(stateEl.loadReportTopbar, "click", loadReportFromFile);
+  on(stateEl.exportCurrentReport, "click", exportCurrentReport);
+  on(stateEl.openLatestEvidence, "click", openLatestEvidence);
+  on(stateEl.startBridge, "click", startEngine);
+  on(stateEl.stopBridge, "click", stopEngine);
+  on(stateEl.openReports, "click", openReportsVault);
+  on(stateEl.openReportsSecondary, "click", openReportsVault);
+  on(stateEl.copyBridgeUrl, "click", copyBridgeUrl);
+  on(stateEl.copyBridgeUrlSecondary, "click", copyBridgeUrl);
+  on(stateEl.copyReplayCommand, "click", () => copyText(stateEl.currentCommand?.textContent || "", "[studio] replay command copied."));
+  on(stateEl.copyQuickPrompt, "click", () => copyText(stateEl.quickPromptBox?.textContent || "", "[studio] fix prompt copied."));
+  on(stateEl.copyQuickPromptSecondary, "click", () => copyText(stateEl.quickPromptBox?.textContent || "", "[studio] fix prompt copied."));
+  on(stateEl.copyQuickPromptPrimary, "click", () => copyText(stateEl.promptWorkspaceFix?.textContent || "", "[studio] fix prompt copied."));
+  on(stateEl.copySelfHealingSummary, "click", () => copyText(buildSelfHealingSummary(getVisibleReport()), "[studio] self-healing summary copied."));
+  on(stateEl.copyAutonomousSummary, "click", () => copyText(stateEl.autonomousQaSummary?.textContent || "", "[studio] autonomous QA summary copied."));
+  on(stateEl.copyAutonomousLoop, "click", () => copyText(stateEl.autonomousQaLoop?.textContent || "", "[studio] autonomous QA loop copied."));
+  on(stateEl.copyReplayCommandPrimary, "click", () => copyText(stateEl.promptWorkspaceReplay?.textContent || "", "[studio] replay command copied."));
+  on(stateEl.copyReplayCommandSecondary, "click", () => copyText(stateEl.promptWorkspaceReplay?.textContent || "", "[studio] replay command copied."));
+  on(stateEl.copyIssueDigest, "click", () => copyText(buildIssueDigest(getVisibleReport()), "[studio] issue digest copied."));
+  on(stateEl.copyIssueDigestPrimary, "click", () => copyText(stateEl.promptWorkspaceIssues?.textContent || "", "[studio] issue digest copied."));
+  on(stateEl.copyRouteDigest, "click", () => copyText(buildRouteDigest(getVisibleReport()), "[studio] route digest copied."));
+  on(stateEl.copyRouteDigestPrimary, "click", () => copyText(stateEl.promptWorkspaceRoutes?.textContent || "", "[studio] route digest copied."));
+  on(stateEl.copyActionDigest, "click", () => copyText(buildActionDigest(getVisibleReport()), "[studio] action digest copied."));
+  on(stateEl.copyActionDigestPrimary, "click", () => copyText(stateEl.promptWorkspaceActions?.textContent || "", "[studio] action digest copied."));
+  on(stateEl.copyClientOutreachPrompt, "click", () => copyText(stateEl.promptWorkspaceClientPrompt?.textContent || "", "[studio] client outreach prompt copied."));
+  on(stateEl.copyClientOutreachMessage, "click", () => copyText(stateEl.promptWorkspaceClientMessage?.textContent || "", "[studio] client outreach message copied."));
+  on(stateEl.copyCompareDigest, "click", () => copyText(buildCompareDigest(getVisibleReport()), "[studio] comparison digest copied."));
+  on(stateEl.copyCompareDigestPrimary, "click", () => copyText(stateEl.promptWorkspaceCompare?.textContent || "", "[studio] comparison digest copied."));
+  on(stateEl.copySeoDigest, "click", () => copyText(buildSeoDigest(getVisibleReport()), "[studio] SEO digest copied."));
+  on(stateEl.refreshSeoSource, "click", refreshSeoSource);
+  on(stateEl.saveSeoSource, "click", saveSeoSource);
+  on(stateEl.checkForUpdates, "click", checkForUpdates);
+  on(stateEl.downloadUpdate, "click", downloadUpdate);
+  on(stateEl.installUpdate, "click", installUpdate);
+  on(stateEl.copyPromptPack, "click", () => copyText(
     [
-      stateEl.promptWorkspaceFix.textContent,
+      stateEl.promptWorkspaceFix?.textContent ?? "",
       "",
-      stateEl.autonomousQaSummary.textContent,
+      stateEl.autonomousQaSummary?.textContent ?? "",
       "",
-      stateEl.autonomousQaLoop.textContent,
+      stateEl.autonomousQaLoop?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceReplay.textContent,
+      stateEl.promptWorkspaceReplay?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceIssues.textContent,
+      stateEl.promptWorkspaceIssues?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceCompare.textContent,
+      stateEl.promptWorkspaceCompare?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceRoutes.textContent,
+      stateEl.promptWorkspaceRoutes?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceActions.textContent,
+      stateEl.promptWorkspaceActions?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceClientPrompt.textContent,
+      stateEl.promptWorkspaceClientPrompt?.textContent ?? "",
       "",
-      stateEl.promptWorkspaceClientMessage.textContent,
+      stateEl.promptWorkspaceClientMessage?.textContent ?? "",
     ].join("\n"),
     "[studio] prompt pack copied.",
   ));
-  stateEl.seoOnlyPreset.addEventListener("click", () => {
+  on(stateEl.seoOnlyPreset, "click", () => {
     uiState.scope = "seo";
     renderStaticSelections();
     persistProfile();
     switchView("overview");
     showToast("SEO-only profile selected.", "ok");
   });
-  stateEl.pinCurrentBaseline.addEventListener("click", pinCurrentReportAsBaseline);
-  stateEl.clearBaseline.addEventListener("click", clearBaseline);
-  stateEl.clearLog.addEventListener("click", () => {
+  on(stateEl.pinCurrentBaseline, "click", pinCurrentReportAsBaseline);
+  on(stateEl.clearBaseline, "click", clearBaseline);
+  on(stateEl.clearLog, "click", () => {
     uiState.logs = ["[studio] local log cleared"];
     renderLogs();
     showToast("Live log cleared.", "ok");
   });
-  stateEl.clearHistory.addEventListener("click", () => {
+  on(stateEl.clearHistory, "click", () => {
     uiState.history = [];
     persistHistory();
     renderHistory();
     showToast("Run history cleared.", "warn");
   });
-  stateEl.revealOnboarding.addEventListener("click", revealOnboarding);
-  stateEl.dismissOnboarding.addEventListener("click", () => {
+  on(stateEl.revealOnboarding, "click", revealOnboarding);
+  on(stateEl.dismissOnboarding, "click", () => {
     persistOnboardingState(true);
     renderOnboarding();
   });
-  stateEl.startTourAudit.addEventListener("click", applyPresetFirstAudit);
-  stateEl.openShortcuts.addEventListener("click", () => toggleShortcutsOverlay());
-  stateEl.openAssistant.addEventListener("click", () => toggleAssistant());
-  stateEl.openCommandPalette.addEventListener("click", () => toggleCommandPalette());
-  stateEl.menuButtons.forEach((button) => {
+  on(stateEl.startTourAudit, "click", applyPresetFirstAudit);
+  on(stateEl.openShortcuts, "click", () => toggleShortcutsOverlay());
+  on(stateEl.openAssistant, "click", () => toggleAssistant());
+  on(stateEl.openCommandPalette, "click", () => toggleCommandPalette());
+  (stateEl.menuButtons || []).forEach((button) => {
     button.addEventListener("click", (event) => {
       const menuName = button.dataset.menuAction || "";
       if (!menuName) return;
@@ -7652,14 +7895,14 @@ function bindButtons() {
       showMenuFlyout(menuName, event.currentTarget);
     });
   });
-  stateEl.dismissShortcuts.addEventListener("click", () => toggleShortcutsOverlay(false));
-  stateEl.shortcutsOverlay.addEventListener("click", (event) => {
+  on(stateEl.dismissShortcuts, "click", () => toggleShortcutsOverlay(false));
+  on(stateEl.shortcutsOverlay, "click", (event) => {
     if (event.target === stateEl.shortcutsOverlay) {
       toggleShortcutsOverlay(false);
     }
   });
-  stateEl.dismissAssistant.addEventListener("click", () => toggleAssistant(false));
-  stateEl.assistantExpand.addEventListener("click", () => toggleAssistantExpanded());
+  on(stateEl.dismissAssistant, "click", () => toggleAssistant(false));
+  on(stateEl.assistantExpand, "click", () => toggleAssistantExpanded());
   if (stateEl.assistantNewChat) {
     stateEl.assistantNewChat.addEventListener("click", () => createNewConversation());
   }
@@ -7669,28 +7912,29 @@ function bindButtons() {
       renderConversationList();
     });
   }
-  stateEl.assistantViewButtons.forEach((button) => {
+  (stateEl.assistantViewButtons || []).forEach((button) => {
     button.addEventListener("click", () => switchAssistantView(button.dataset.assistantView || "conversation"));
   });
-  stateEl.assistantAsk.addEventListener("click", async () => runAssistantQuery(stateEl.assistantInput.value));
-  stateEl.assistantQuickPriorities.addEventListener("click", async () => {
-    stateEl.assistantInput.value = getAssistantQuickQuery("priorities");
-    await runAssistantQuery(stateEl.assistantInput.value);
+  on(stateEl.assistantAsk, "click", () => runAssistantQuery(stateEl.assistantInput?.value || ""));
+  on(stateEl.assistantQuickPriorities, "click", async () => {
+    if (stateEl.assistantInput) stateEl.assistantInput.value = getAssistantQuickQuery("priorities");
+    await runAssistantQuery(getAssistantQuickQuery("priorities"));
   });
-  stateEl.assistantQuickSeo.addEventListener("click", async () => {
-    stateEl.assistantInput.value = getAssistantQuickQuery("seo");
-    await runAssistantQuery(stateEl.assistantInput.value);
+  on(stateEl.assistantQuickSeo, "click", async () => {
+    if (stateEl.assistantInput) stateEl.assistantInput.value = getAssistantQuickQuery("seo");
+    await runAssistantQuery(getAssistantQuickQuery("seo"));
   });
-  stateEl.assistantQuickPrompt.addEventListener("click", async () => {
+  on(stateEl.assistantQuickPrompt, "click", async () => {
     const code = getVisibleReport()?.issues?.[0]?.code || "";
-    stateEl.assistantInput.value = buildAssistantPromptRequest(code);
-    await runAssistantQuery(stateEl.assistantInput.value);
+    const text = buildAssistantPromptRequest(code);
+    if (stateEl.assistantInput) stateEl.assistantInput.value = text;
+    await runAssistantQuery(text);
   });
-  stateEl.assistantQuickGuide.addEventListener("click", async () => {
-    stateEl.assistantInput.value = getAssistantQuickQuery("guide");
-    await runAssistantQuery(stateEl.assistantInput.value);
+  on(stateEl.assistantQuickGuide, "click", async () => {
+    if (stateEl.assistantInput) stateEl.assistantInput.value = getAssistantQuickQuery("guide");
+    await runAssistantQuery(getAssistantQuickQuery("guide"));
   });
-  stateEl.assistantLanguageSelect.addEventListener("change", () => {
+  if (stateEl.assistantLanguageSelect) stateEl.assistantLanguageSelect.addEventListener("change", () => {
     const adaptiveLanguage = ensureAdaptiveLanguageService();
     if (!adaptiveLanguage) return;
     uiState.assistantLanguageState = stateEl.assistantLanguageSelect.value === "auto"
@@ -7698,13 +7942,13 @@ function bindButtons() {
       : adaptiveLanguage.setManualLanguage(stateEl.assistantLanguageSelect.value);
     rerenderAssistantInActiveLanguage();
   });
-  stateEl.dismissCommandPalette.addEventListener("click", () => toggleCommandPalette(false));
-  stateEl.commandPaletteOverlay.addEventListener("click", (event) => {
+  on(stateEl.dismissCommandPalette, "click", () => toggleCommandPalette(false));
+  on(stateEl.commandPaletteOverlay, "click", (event) => {
     if (event.target === stateEl.commandPaletteOverlay) {
       toggleCommandPalette(false);
     }
   });
-  stateEl.assistantActions.addEventListener("click", async (event) => {
+  if (stateEl.assistantActions) stateEl.assistantActions.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const cardActionButton = target.closest("[data-assistant-card-action]");
@@ -7726,26 +7970,26 @@ function bindButtons() {
     const actions = Array.isArray(uiState.assistantResult?.actions) ? uiState.assistantResult.actions : [];
     await executeAssistantAction(actions[index]);
   });
-  stateEl.dismissEvidenceLightbox.addEventListener("click", closeEvidencePreview);
-  stateEl.evidenceLightbox.addEventListener("click", (event) => {
+  on(stateEl.dismissEvidenceLightbox, "click", closeEvidencePreview);
+  on(stateEl.evidenceLightbox, "click", (event) => {
     if (event.target === stateEl.evidenceLightbox) {
       closeEvidencePreview();
     }
   });
-  stateEl.evidenceOpenImage.addEventListener("click", async () => {
+  on(stateEl.evidenceOpenImage, "click", async () => {
     await openArtifactFile(uiState.activeEvidence?.path || "");
   });
-  stateEl.evidenceRevealImage.addEventListener("click", async () => {
+  on(stateEl.evidenceRevealImage, "click", async () => {
     await openArtifactPath(uiState.activeEvidence?.path || "");
   });
-  stateEl.dismissLongRunOverlay.addEventListener("click", closeLongRunAdvisor);
-  stateEl.dismissLongRunSecondary.addEventListener("click", closeLongRunAdvisor);
-  stateEl.longRunOverlay.addEventListener("click", (event) => {
+  on(stateEl.dismissLongRunOverlay, "click", closeLongRunAdvisor);
+  on(stateEl.dismissLongRunSecondary, "click", closeLongRunAdvisor);
+  on(stateEl.longRunOverlay, "click", (event) => {
     if (event.target === stateEl.longRunOverlay) {
       closeLongRunAdvisor();
     }
   });
-  stateEl.applyFastMode.addEventListener("click", async () => {
+  on(stateEl.applyFastMode, "click", async () => {
     const audit = uiState.companionState?.audit || {};
     if (canResumeCurrentRunInFastMode(audit)) {
       const result = await window.sitePulseCompanion.switchAuditToFastMode(buildFastModeResumeInput(audit));
@@ -7785,23 +8029,23 @@ function bindButtons() {
     if (target.closest("[data-menu-action]") || target.closest("#menuFlyout")) return;
     hideMenuFlyout();
   });
-  stateEl.launchOnLogin.addEventListener("change", async () => {
+  if (stateEl.launchOnLogin) stateEl.launchOnLogin.addEventListener("change", async () => {
     const result = await window.sitePulseCompanion.setLaunchOnLogin(stateEl.launchOnLogin.checked);
     appendLog(result.ok ? `[studio] open on login ${result.enabled ? "enabled" : "disabled"}.` : `[studio] launch on login failed: ${result.error || "unknown"}`);
     showToast(result.ok ? `Open on login ${result.enabled ? "enabled" : "disabled"}.` : "Could not change startup behavior.", result.ok ? "ok" : "bad");
   });
-  stateEl.winMinimize.addEventListener("click", async () => {
+  on(stateEl.winMinimize, "click", async () => {
     await window.sitePulseCompanion.minimizeWindow();
   });
-  stateEl.winMaximize.addEventListener("click", async () => {
+  on(stateEl.winMaximize, "click", async () => {
     const payload = await window.sitePulseCompanion.toggleMaximizeWindow();
     if (!payload?.ok) return;
     stateEl.winMaximize.textContent = payload.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
   });
-  stateEl.winClose.addEventListener("click", async () => {
+  on(stateEl.winClose, "click", async () => {
     await window.sitePulseCompanion.closeWindow();
   });
-  stateEl.historyList.addEventListener("click", (event) => {
+  function handleHistoryAction(event) {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const button = target.closest("[data-history-index]");
@@ -7815,6 +8059,7 @@ function bindButtons() {
       persistBaseline(snapshot);
       renderHistory();
       renderComparison(getVisibleReport());
+      renderWorkspaceHeader(uiState.activeView);
       appendLog(`[studio] baseline set from history snapshot ${snapshot.baseUrl}.`);
       showToast("History snapshot set as baseline.", "ok");
       return;
@@ -7823,7 +8068,9 @@ function bindButtons() {
     switchView("reports");
     appendLog(`[studio] loaded snapshot ${snapshot.baseUrl} from history.`);
     showToast("Stored snapshot loaded.", "ok");
-  });
+  }
+  if (stateEl.historyList) stateEl.historyList.addEventListener("click", handleHistoryAction);
+  if (stateEl.compactRunHistory) stateEl.compactRunHistory.addEventListener("click", handleHistoryAction);
   [stateEl.issuesList, stateEl.evidenceGallery, stateEl.routeContactSheet].forEach((container) => {
     container.addEventListener("click", async (event) => {
       const target = event.target;
@@ -7888,7 +8135,7 @@ function bindButtons() {
       await openArtifactPath(button.dataset.artifactPath || "");
     });
   });
-  stateEl.learningMemoryList.addEventListener("click", async (event) => {
+  if (stateEl.learningMemoryList) stateEl.learningMemoryList.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const button = target.closest("[data-learning-action]");
@@ -7907,7 +8154,7 @@ function bindButtons() {
       }
     }
   });
-  stateEl.selfHealingList.addEventListener("click", async (event) => {
+  if (stateEl.selfHealingList) stateEl.selfHealingList.addEventListener("click", async (event) => {
     const target = event.target;
     if (!(target instanceof HTMLElement)) return;
     const button = target.closest("[data-healing-action]");
@@ -8093,6 +8340,8 @@ function bindRuntimeEvents() {
 }
 
 async function bootstrap() {
+  bindNavigation();
+  document.body.classList.add("studio-ready");
   restoreProfile();
   renderStaticSelections();
   renderOnboarding();
@@ -8128,8 +8377,19 @@ async function bootstrap() {
   queuePreviewSync("bootstrap");
 }
 
-bootstrap().catch((error) => {
-  appendLog(`[studio] bootstrap failed: ${error?.message || error}`);
+function onDomReady(fn) {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fn);
+  } else {
+    fn();
+  }
+}
+
+onDomReady(() => {
+  bootstrap().catch((error) => {
+    appendLog(`[studio] bootstrap failed: ${error?.message || error}`);
+    if (typeof console !== "undefined" && console.error) console.error("[studio] bootstrap", error);
+  });
 });
 
 
