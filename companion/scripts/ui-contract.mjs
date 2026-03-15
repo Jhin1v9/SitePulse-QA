@@ -469,26 +469,43 @@ try {
   await page.waitForSelector(".studio-shell");
   await page.waitForSelector('[data-view-panel="overview"].active');
 
-  const navigationState = await page.evaluate(() => {
-    const buttons = Array.from(document.querySelectorAll("[data-view]"));
-    const labels = buttons.map((button) => button.textContent?.trim() || "");
-    const computed = getComputedStyle(document.querySelector(".workspace-body"));
-    const logView = document.querySelector(".log-view");
-    const stepsList = document.querySelector(".steps-list");
-    const dnaList = document.querySelector(".dna-list");
-    return {
-      count: buttons.length,
-      hasSettings: labels.some((label) => label.includes("Settings")),
-      hasOperations: labels.some((label) => label.includes("Operations")),
-      workspaceOverflowY: computed.overflowY,
-      logOverflowY: logView ? getComputedStyle(logView).overflowY : "missing",
-      stepsOverflowY: stepsList ? getComputedStyle(stepsList).overflowY : "missing",
-      dnaOverflowY: dnaList ? getComputedStyle(dnaList).overflowY : "missing",
-    };
-  });
+  const readNavigationState = async () =>
+    await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll("[data-view]"));
+      const labels = buttons.map((button) => button.textContent?.trim() || "");
+      const computed = getComputedStyle(document.querySelector(".workspace-body"));
+      const shell = document.querySelector(".workspace-shell");
+      const shellWidth = shell instanceof HTMLElement ? shell.getBoundingClientRect().width : 0;
+      const viewportWidth = window.innerWidth || 0;
+      const logView = document.querySelector(".log-view");
+      const stepsList = document.querySelector(".steps-list");
+      const dnaList = document.querySelector(".dna-list");
+      const menuStrip = document.querySelector(".menu-strip");
+      const menuButtons = Array.from(document.querySelectorAll(".menu-strip .menu-btn"));
+      const tabButtons = Array.from(document.querySelectorAll(".workspace-tabbar .workspace-tab"));
+      return {
+        count: buttons.length,
+        hasSettings: labels.some((label) => label.includes("Settings")),
+        hasOperations: labels.some((label) => label.includes("Operations") || label.includes("Runs")),
+        shellWidthRatio: viewportWidth > 0 ? shellWidth / viewportWidth : 0,
+        workspaceOverflowY: computed.overflowY,
+        logOverflowY: logView ? getComputedStyle(logView).overflowY : "missing",
+        stepsOverflowY: stepsList ? getComputedStyle(stepsList).overflowY : "missing",
+        dnaOverflowY: dnaList ? getComputedStyle(dnaList).overflowY : "missing",
+        menuOverflowX: menuStrip ? getComputedStyle(menuStrip).overflowX : "missing",
+        wrappedMenuButtons: menuButtons.filter((button) => button.getBoundingClientRect().height > 44).length,
+        wrappedTabButtons: tabButtons.filter((button) => button.getBoundingClientRect().height > 50).length,
+      };
+    });
+
+  const navigationState = await readNavigationState();
 
   if (navigationState.count < 5 || !navigationState.hasSettings || !navigationState.hasOperations) {
-    fail("navigation stack is incomplete");
+    fail(`navigation stack is incomplete (count=${navigationState.count}, settings=${navigationState.hasSettings}, operations=${navigationState.hasOperations})`);
+  }
+
+  if (navigationState.shellWidthRatio < 0.75) {
+    fail("workspace shell is unexpectedly compressed for the viewport");
   }
 
   if (!["auto", "scroll"].includes(navigationState.workspaceOverflowY)) {
@@ -502,6 +519,28 @@ try {
   ) {
     fail("internal scroll surfaces are not configured");
   }
+
+  if (!["auto", "scroll"].includes(navigationState.menuOverflowX)) {
+    fail("menu strip horizontal overflow handling is missing");
+  }
+
+  if (navigationState.wrappedMenuButtons > 0 || navigationState.wrappedTabButtons > 0) {
+    fail("menu or workspace tabs wrapped unexpectedly");
+  }
+
+  for (const viewportWidth of [1536, 1280, 1060]) {
+    await page.setViewportSize({ width: viewportWidth, height: 760 });
+    await page.waitForTimeout(30);
+    const stateAtWidth = await readNavigationState();
+    if (stateAtWidth.shellWidthRatio < 0.75) {
+      fail(`workspace shell compressed at width ${viewportWidth}`);
+    }
+    if (stateAtWidth.wrappedMenuButtons > 0 || stateAtWidth.wrappedTabButtons > 0) {
+      fail(`menu or workspace tabs wrapped at width ${viewportWidth}`);
+    }
+  }
+
+  await page.setViewportSize({ width: 1280, height: 760 });
 
   const initialScroll = await page.evaluate(() => {
     const workspaceBody = document.querySelector(".workspace-body");
@@ -622,7 +661,7 @@ try {
   await page.waitForSelector('[data-view-panel="compare"].active');
   await page.getByRole("button", { name: "Pin current as baseline" }).click();
 
-  await page.locator('[data-view="overview"]').click();
+  await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Run native audit" }).click();
   await page.waitForFunction(() => document.querySelectorAll("[data-history-index]").length >= 2);
 
@@ -673,7 +712,7 @@ try {
     fail("comparison classification metrics are incorrect");
   }
 
-  await page.locator('[data-view="overview"]').click();
+  await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Mobile" }).click();
   await page.waitForFunction(() => !document.getElementById("mobileSweepControls")?.classList.contains("hidden"));
   await page.getByRole("button", { name: "Family sweep" }).click();
@@ -706,12 +745,12 @@ try {
   await page.keyboard.press("Escape");
   await page.waitForFunction(() => document.getElementById("shortcutsOverlay")?.classList.contains("hidden"));
 
-  await page.locator('[data-view="overview"]').click();
+  await page.getByRole("button", { name: "Overview" }).click();
   await page.getByRole("button", { name: "Desktop" }).click();
   await page.getByRole("button", { name: "Open full CMD flow" }).click();
   await page.waitForFunction(() => document.getElementById("auditChip")?.textContent?.toLowerCase().includes("audit running"));
 
-  await page.locator('[data-view="settings"]').click();
+  await page.getByRole("button", { name: "Settings" }).click();
   await page.waitForSelector('[data-view-panel="settings"].active');
   await page.waitForFunction(() => document.getElementById("stopBridge") && !document.getElementById("stopBridge").disabled);
   await page.getByRole("button", { name: "Stop engine" }).click();

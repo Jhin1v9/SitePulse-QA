@@ -3301,6 +3301,15 @@ button.xl {
   }
 }
 
+@media (max-width: 1120px) {
+  .main-grid {
+    grid-template-columns: 192px minmax(0, 1fr);
+  }
+  .main-grid.ai-inspector-open {
+    grid-template-columns: 192px minmax(0, 1fr) minmax(240px, 22vw);
+  }
+}
+
 @media (max-width: 1180px) {
   .controls-grid,
   .analysis-grid,

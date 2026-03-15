@@ -2571,14 +2571,14 @@ function renderEngineSummaryStrip(report) {
   const qcWarnings = Array.isArray(snap.qualityControl?.topWarnings) ? snap.qualityControl.topWarnings.length : 0;
   const baselineSet = !!(uiState.baseline && uiState.baseline.report);
   const segments = [];
-  segments.push(`<button type="button" class="engine-strip-link" data-view="findings">Issues ${issues}</button>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-view="settings">Memory ${memory}</button>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-view="prompts">Healing ${healingReady} ready</button>`);
-  if (predictiveN > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">Predictive ${predictiveN}</button>`);
-  if (optCount > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">Optimization ${optCount}</button>`);
-  if (qcWarnings > 0) segments.push(`<button type="button" class="engine-strip-link" data-view="overview">QC ${qcWarnings}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="findings">Issues ${issues}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="settings">Memory ${memory}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="prompts">Healing ${healingReady} ready</button>`);
+  if (predictiveN > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">Predictive ${predictiveN}</button>`);
+  if (optCount > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">Optimization ${optCount}</button>`);
+  if (qcWarnings > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">QC ${qcWarnings}</button>`);
   segments.push(`<span class="engine-strip-text">Trajectory ${trajectory}</span>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-view="compare">${baselineSet ? "Baseline set" : "Baseline none"}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="compare">${baselineSet ? "Baseline set" : "Baseline none"}</button>`);
   el.classList.remove("hidden");
   el.innerHTML = segments.join(" · ");
 }
@@ -7702,9 +7702,11 @@ function bindSelectionEvents() {
   });
   document.addEventListener("click", (e) => {
     const btn = e.target.closest && e.target.closest(".engine-strip-link");
-    if (!btn || !btn.dataset.view) return;
+    if (!btn) return;
+    const view = btn.dataset.view || btn.dataset.stripView;
+    if (!view) return;
     e.preventDefault();
-    switchView(btn.dataset.view);
+    switchView(view);
   });
   if (stateEl.findingsRouteFilter) {
     stateEl.findingsRouteFilter.addEventListener("change", () => {
