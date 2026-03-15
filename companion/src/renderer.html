@@ -92,13 +92,22 @@
 
           <header class="panel workspace-header workspace-header-compact">
             <div class="workspace-copy">
-              <p class="eyebrow" id="workspaceEyebrow">mission control</p>
+              <p class="eyebrow" id="workspaceEyebrow">operational control</p>
               <h2 id="workspaceTitle">Overview</h2>
-              <p class="muted" id="workspaceDescription">
-                Configure the target, define execution depth and prepare the run before moving into live operations.
+              <p class="muted workspace-description" id="workspaceDescription">
+                Target, execution profile and run control. System state and next action.
               </p>
             </div>
             <div id="engineSummaryStrip" class="engine-summary-strip hidden" aria-live="polite"></div>
+            <div id="systemStateStrip" class="system-state-strip" role="status" aria-live="polite">
+              <span class="system-state-label">System state</span>
+              <span class="system-state-cell"><span class="system-state-k">Issues</span><span id="systemStateIssues" class="system-state-v">0</span></span>
+              <span class="system-state-cell"><span class="system-state-k">Memory</span><span id="systemStateMemory" class="system-state-v">0</span></span>
+              <span class="system-state-cell"><span class="system-state-k">Healing ready</span><span id="systemStateHealingReady" class="system-state-v">0</span></span>
+              <span class="system-state-cell"><span class="system-state-k">Predictive alerts</span><span id="systemStatePredictiveAlerts" class="system-state-v">0</span></span>
+              <span class="system-state-cell"><span class="system-state-k">Optimization</span><span id="systemStateOptimization" class="system-state-v">0</span></span>
+              <span class="system-state-cell"><span class="system-state-k">Trajectory</span><span id="systemStateTrajectory" class="system-state-v">—</span></span>
+            </div>
             <div class="workspace-summary">
               <div class="workspace-summary-item">
                 <span class="info-label">Mission brief</span>
@@ -131,6 +140,15 @@
                   <div class="op-state-cell"><span class="op-state-label">SEO</span><span id="seoMetric" class="op-state-value ok">0</span></div>
                   <div class="op-state-cell"><span class="op-state-label">Risk</span><span id="riskMetric" class="op-state-value warn">0</span></div>
                   <div class="op-state-cell op-state-cell-status"><span class="op-state-label">Status</span><span class="op-state-value op-state-status-copy">See mission brief above.</span></div>
+                </div>
+                <div id="nextActionBlock" class="next-action-block">
+                  <span class="next-action-label">Next action</span>
+                  <p id="nextActionDescription" class="next-action-description">Run an audit to generate the next recommended action.</p>
+                  <div class="next-action-buttons">
+                    <button id="nextActionOpenIssue" type="button" class="op-btn-secondary" data-next-action="open-issue">Open issue</button>
+                    <button id="nextActionPrepareHealing" type="button" class="op-btn-secondary" data-next-action="prepare-healing">Prepare healing</button>
+                    <button id="nextActionGeneratePrompt" type="button" class="op-btn-secondary" data-next-action="generate-prompt">Generate prompt</button>
+                  </div>
                 </div>
                 <div class="op-actions">
                   <button id="doNext" class="primary" type="button" title="Execute the next recommended action (open Findings or Prepare healing)">Do next</button>
@@ -281,10 +299,19 @@
                         </table>
                       </div>
                     </div>
-                    <div class="op-panel">
+                    <div class="op-panel op-panel-dense">
                       <div class="op-panel-head">Priority queue</div>
                       <div id="priorityViewHeadline" class="headline-status">Run an audit to rank issues.</div>
-                      <div id="priorityViewList" class="explorer-list"><article class="empty-state">No ranked issue queue loaded yet.</article></div>
+                      <div class="op-table-wrap">
+                        <table class="op-table op-table-priority" aria-label="Priority queue">
+                          <thead>
+                            <tr><th scope="col">Issue</th><th scope="col">Impact</th><th scope="col">Confidence</th><th scope="col">Action</th></tr>
+                          </thead>
+                          <tbody id="priorityQueueTableBody">
+                            <tr><td colspan="4" class="op-table-empty">No ranked issue queue loaded yet.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                     <div class="op-panel">
                       <div class="op-panel-head">Optimization (clusters)</div>
@@ -322,7 +349,20 @@
                       <p id="mobileMatrixHeadline" class="muted">Switch to Mobile mode to configure coverage.</p>
                       <div id="mobileMatrixGrid" class="mobile-matrix-grid"><article class="empty-state">No mobile family data loaded yet.</article></div>
                     </div>
-                    <div class="op-panel">
+                    <div class="op-panel op-panel-dense">
+                      <div class="op-panel-head">Run history</div>
+                      <div class="op-table-wrap">
+                        <table class="op-table op-table-runs" aria-label="Run history">
+                          <thead>
+                            <tr><th scope="col">Stamp</th><th scope="col">Issues</th><th scope="col">Trend</th><th scope="col">Action</th></tr>
+                          </thead>
+                          <tbody id="runHistoryTableBody">
+                            <tr><td colspan="4" class="op-table-empty">No run history yet.</td></tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                    <div class="op-panel op-panel-dense">
                       <div class="op-panel-head">Quality timeline</div>
                       <div id="qualityTimelineHeadline" class="headline-status">Need comparable history for timeline.</div>
                       <div id="qualityTimelineList" class="explorer-list"><article class="empty-state">Run an audit and keep history for the same target.</article></div>
@@ -1307,8 +1347,9 @@
           </section>
           </section>
         </section>
+        </div>
 
-        <aside id="assistantWorkspace" class="ai-inspector-panel assistant-workspace hidden" aria-label="AI Operator Console">
+        <aside id="assistantWorkspace" class="ai-inspector-panel ai-workspace-dock assistant-workspace hidden" aria-label="AI Workspace">
           <div class="assistant-workspace-layout">
             <nav class="assistant-conversation-history" aria-label="Conversation history">
               <div class="assistant-history-head">
@@ -1320,59 +1361,41 @@
               </div>
               <div id="assistantConversationList" class="assistant-conversation-list" role="list"></div>
             </nav>
-            <div class="assistant-workspace-shell ai-operator-console">
-              <header class="console-head">
-                <h3 class="console-title">AI Operator Console</h3>
-                <div class="console-head-actions">
-                  <span id="assistantModePill" class="console-pill">Mode: auto</span>
-                  <span id="assistantIntentPill" class="console-pill">Intent: —</span>
-                  <button id="assistantExpand" class="console-btn" type="button">Expand</button>
-                  <button id="dismissAssistant" class="console-btn" type="button">Collapse</button>
+            <div class="assistant-workspace-shell ai-workspace-premium">
+              <header class="ai-workspace-head">
+                <h3 class="ai-workspace-title">AI Workspace</h3>
+                <div class="ai-workspace-head-actions">
+                  <span id="assistantModePill" class="ai-workspace-pill">Mode: auto</span>
+                  <button id="assistantExpand" class="ai-workspace-btn" type="button">Expand</button>
+                  <button id="dismissAssistant" class="ai-workspace-btn" type="button">Collapse</button>
                 </div>
               </header>
-              <div class="console-strip" role="status" aria-live="polite">
-                <div class="console-strip-cell">
-                  <span class="console-strip-label">Context</span>
-                  <span id="assistantConsoleContext" class="console-strip-value">No report</span>
-                </div>
-                <div class="console-strip-cell">
-                  <span class="console-strip-label">Risk</span>
-                  <span id="assistantConsoleRisk" class="console-strip-value">—</span>
-                </div>
-                <div class="console-strip-cell">
-                  <span class="console-strip-label">Priority</span>
-                  <span id="assistantConsolePriority" class="console-strip-value">—</span>
-                </div>
-                <div class="console-strip-cell console-strip-cell-actions">
-                  <span class="console-strip-label">Next actions</span>
-                  <span id="assistantConsoleNextActions" class="console-strip-value">Load report</span>
-                </div>
+              <div id="assistantContextPills" class="ai-workspace-context-pills" role="status">
+                <span class="ai-workspace-pill" id="assistantPillRun">Run: not loaded</span>
+                <span class="ai-workspace-pill" id="assistantPillWorkspace">Workspace: overview</span>
+                <span class="ai-workspace-pill" id="assistantPillFocus">Focus: —</span>
+                <span class="ai-workspace-pill" id="assistantPillLang">Lang: auto</span>
               </div>
-              <div id="assistantOperatorStatus" class="assistant-operator-status hidden" aria-live="polite">
-                <span class="assistant-operator-status-label">Operator</span>
-                <span id="assistantOperatorStatusText" class="assistant-operator-status-text">—</span>
+              <div id="assistantConsoleNextActions" class="ai-workspace-next-pill hidden" aria-live="polite"></div>
+              <div class="hidden" aria-hidden="true" id="assistantStripState">
+                <span id="assistantConsoleContext">No report</span>
+                <span id="assistantConsoleRisk">—</span>
+                <span id="assistantConsolePriority">—</span>
               </div>
-              <div id="assistantContextPills" class="assistant-context-pills">
-                <span class="assistant-context-chip">Run: not loaded</span>
-                <span class="assistant-context-chip">Scope: overview</span>
-                <span class="assistant-context-chip">Focus: —</span>
+              <div class="assistant-workspace-tabs ai-workspace-tabs">
+                <button class="assistant-view-tab ai-workspace-tab active" data-assistant-view="conversation" type="button">Chat</button>
+                <button class="assistant-view-tab ai-workspace-tab" data-assistant-view="actions" type="button">Actions</button>
+                <button class="assistant-view-tab ai-workspace-tab" data-assistant-view="insights" type="button">Insights</button>
+                <button class="assistant-view-tab ai-workspace-tab" data-assistant-view="diagnostics" type="button">Diagnostics</button>
               </div>
-              <div class="assistant-workspace-tabs console-tabs">
-                <button class="assistant-view-tab console-tab active" data-assistant-view="conversation" type="button">Conversation</button>
-                <button class="assistant-view-tab console-tab" data-assistant-view="insights" type="button">Insights</button>
-                <button class="assistant-view-tab console-tab" data-assistant-view="actions" type="button">Actions</button>
-                <button class="assistant-view-tab console-tab" data-assistant-view="memory" type="button">Memory</button>
-                <button class="assistant-view-tab console-tab" data-assistant-view="healing" type="button">Healing</button>
-              </div>
-              <div class="assistant-workspace-body console-body">
+              <div class="assistant-workspace-body ai-workspace-body">
                 <section class="assistant-view-panel active" data-assistant-view-panel="conversation">
-                  <div class="console-panel">
-                    <div class="console-panel-head">Response</div>
-                    <div id="assistantResponse" class="assistant-console-response">Query the operator. Response will use report, memory and UI state.</div>
+                  <div class="ai-workspace-chat-scroll" id="assistantChatScroll">
+                    <div id="assistantResponse" class="ai-workspace-messages" role="log" aria-live="polite"></div>
                   </div>
-                  <div class="console-panel">
-                    <div class="console-panel-head">Quick queries</div>
-                    <div class="assistant-quick-grid">
+                  <div class="ai-workspace-tool-strip">
+                    <span class="ai-workspace-tool-strip-label" aria-hidden="true">Tools</span>
+                    <div class="ai-workspace-quick-actions">
                       <button id="assistantQuickPriorities" type="button">What should I fix first?</button>
                       <button id="assistantQuickSeo" type="button">Prioritize SEO</button>
                       <button id="assistantQuickPrompt" type="button">Generate prompt</button>
@@ -1380,61 +1403,52 @@
                     </div>
                   </div>
                 </section>
-                <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
-                  <div class="console-panel">
-                    <div class="console-panel-head">Context</div>
-                    <div id="assistantContextSummary" class="assistant-context-box">Current report, memory, logs and workspace state.</div>
-                    <div id="assistantModeSummary" class="history-copy">Requests are routed by operational mode.</div>
-                  </div>
-                  <div class="console-panel">
-                    <div class="console-panel-head">Intelligence</div>
-                    <div id="assistantInsights" class="assistant-insights-grid"></div>
-                  </div>
-                </section>
                 <section class="assistant-view-panel hidden" data-assistant-view-panel="actions">
-                  <div class="console-panel">
-                    <div class="console-panel-head">Suggested actions</div>
+                  <div class="ai-workspace-panel-content">
                     <div id="assistantActions" class="assistant-action-stack">
-                      <article class="empty-state">Action suggestions appear after a query or when context is loaded.</article>
+                      <article class="empty-state">Action suggestions will appear here after you ask something or when context is loaded.</article>
                     </div>
                   </div>
                 </section>
-                <section class="assistant-view-panel hidden" data-assistant-view-panel="memory">
-                  <div class="console-panel">
-                    <div class="console-panel-head">Operational memory</div>
-                    <div id="assistantMemorySummary" class="console-panel-value">No memory snapshot. Run audits to build validated learnings.</div>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="insights">
+                  <div class="ai-workspace-panel-content">
+                    <div id="assistantContextSummary" class="assistant-context-box">Current report, memory, logs and workspace state.</div>
+                    <div id="assistantModeSummary" class="history-copy">Requests are routed by operational mode.</div>
+                    <div id="assistantInsights" class="assistant-insights-grid"></div>
                   </div>
                 </section>
-                <section class="assistant-view-panel hidden" data-assistant-view-panel="healing">
-                  <div class="console-panel">
-                    <div class="console-panel-head">Healing queue</div>
-                    <div id="assistantHealingSummary" class="console-panel-value">No healing snapshot. Load a report to see eligible issues.</div>
+                <section class="assistant-view-panel hidden" data-assistant-view-panel="diagnostics">
+                  <div class="ai-workspace-panel-content">
+                    <div class="ai-workspace-diagnostics-section">
+                      <span class="ai-workspace-diagnostics-label">Memory</span>
+                      <div id="assistantMemorySummary" class="console-panel-value">No memory snapshot. Run audits to build validated learnings.</div>
+                    </div>
+                    <div class="ai-workspace-diagnostics-section">
+                      <span class="ai-workspace-diagnostics-label">Healing</span>
+                      <div id="assistantHealingSummary" class="console-panel-value">No healing snapshot. Load a report to see eligible issues.</div>
+                    </div>
                   </div>
                 </section>
               </div>
-              <footer class="assistant-composer console-composer">
-                <label class="toolbar-field assistant-composer-field">
-                  <span id="assistantInputLabel" class="field-label">Query</span>
-                  <input id="assistantInput" class="toolbar-input" type="search" placeholder="priorities, explain SEO_LANG_MISSING, compare runs..." />
+              <footer class="ai-workspace-composer">
+                <label class="toolbar-field assistant-composer-field ai-workspace-composer-field">
+                  <span id="assistantInputLabel" class="field-label visually-hidden">Message</span>
+                  <input id="assistantInput" class="toolbar-input ai-workspace-input" type="text" placeholder="Pergunte algo ou peça uma ação..." autocomplete="off" />
                 </label>
-                <div class="assistant-composer-actions">
-                  <label class="toolbar-field toolbar-field-compact assistant-language-field">
-                    <span id="assistantLanguageLabel" class="field-label">Lang</span>
-                    <select id="assistantLanguageSelect" class="toolbar-select">
-                      <option value="auto">Auto</option>
-                      <option value="pt">PT</option>
-                      <option value="es">ES</option>
-                      <option value="en">EN</option>
-                      <option value="ca">CA</option>
-                    </select>
-                  </label>
-                  <button id="assistantAsk" class="primary" type="button">Run</button>
+                <div class="ai-workspace-composer-actions">
+                  <select id="assistantLanguageSelect" class="toolbar-select ai-workspace-lang-select" aria-label="Language">
+                    <option value="auto">Auto</option>
+                    <option value="pt">PT</option>
+                    <option value="es">ES</option>
+                    <option value="en">EN</option>
+                    <option value="ca">CA</option>
+                  </select>
+                  <button id="assistantAsk" class="primary ai-workspace-send" type="button">Send</button>
                 </div>
               </footer>
             </div>
           </div>
         </aside>
-        </div>
       </main>
     </div>
 
