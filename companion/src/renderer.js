@@ -1,3 +1,8 @@
+import { inferIntent } from "./ai/intent/intentEngine.js";
+import { buildContextSnapshot } from "./ai/context/contextEngine.js";
+import { buildEvidenceResult } from "./ai/evidence/evidenceEngine.js";
+import { buildPatternMemory } from "./ai/memory/memoryEngine.js";
+
 const STORAGE_KEYS = {
   lastReport: "sitepulse-studio:last-report-v1",
   lastProfile: "sitepulse-studio:last-profile-v1",
@@ -9,6 +14,7 @@ const STORAGE_KEYS = {
   assistantConversationMessages: "sitepulse-studio:assistant-conversation-messages-v1",
   assistantCurrentConversationId: "sitepulse-studio:assistant-current-conversation-id-v1",
   assistantSavedPrompts: "sitepulse-studio:assistant-saved-prompts-v1",
+  assistantWorkspaceUI: "sitepulse-studio:assistant-workspace-ui-v1",
 };
 
 const ISSUE_GROUP = {
@@ -46,49 +52,49 @@ const CONVERSATION_MESSAGE_LIMIT = 100;
 
 const VIEW_META = {
   overview: {
-    eyebrow: "mission control",
+    eyebrow: "operational control",
     title: "Overview",
-    description: "Configure the target, define execution depth and prepare the run before moving into live operations.",
+    description: "Target, execution profile and run control. System state and next action.",
   },
   preview: {
-    eyebrow: "operator preview",
+    eyebrow: "preview",
     title: "Preview",
-    description: "Inspect the current target in an embedded surface. When headed mode is enabled, SitePulse keeps this workspace aligned with the route currently being exercised.",
+    description: "Embedded target surface. Aligned with current route when headed.",
   },
   operations: {
     eyebrow: "live operations",
     title: "Operations",
-    description: "Follow the engine while it runs: progress, live protocol, stage evidence and runtime logs stay in one operational surface.",
+    description: "Engine progress, live protocol, stage evidence and runtime logs.",
   },
   findings: {
     eyebrow: "fix sequence",
     title: "Findings",
-    description: "Triaging, visual quality, route coverage and action intent live here so the operator can work the queue without dashboard clutter.",
+    description: "Triaging, route coverage and action intent. Work the queue.",
   },
   seo: {
     eyebrow: "search performance",
     title: "SEO",
-    description: "Search-focused diagnostics, score deltas and priority recommendations live here as a dedicated workspace.",
+    description: "Search diagnostics, score deltas and priority recommendations.",
   },
   prompts: {
     eyebrow: "operator prompts",
     title: "Prompts",
-    description: "Fix prompts, replay commands and reusable digests are separated here so operators can copy exactly what they need.",
+    description: "Fix prompts, replay commands and digests. Copy and reuse.",
   },
   compare: {
     eyebrow: "comparison room",
     title: "Compare",
-    description: "Track what improved, what regressed and what is still unresolved against a baseline or the previous run.",
+    description: "What improved, regressed or unresolved vs baseline.",
   },
   reports: {
     eyebrow: "evidence room",
     title: "Reports",
-    description: "Captured proof, route contact sheets and stored run history stay here as a reusable evidence package.",
+    description: "Proof, route sheets and run history. Evidence package.",
   },
   settings: {
     eyebrow: "system controls",
     title: "Settings",
-    description: "Runtime paths, engine lifecycle and workstation policy are isolated from the audit workflow.",
+    description: "Runtime paths, engine lifecycle and workstation policy.",
   },
 };
 
@@ -230,6 +236,7 @@ const stateEl = {
   elevated: document.getElementById("elevated"),
   doNext: document.getElementById("doNext"),
   runAudit: document.getElementById("runAudit"),
+  runAuditOverview: document.getElementById("runAuditOverview"),
   runCmd: document.getElementById("runCmd"),
   copyReplayCommand: document.getElementById("copyReplayCommand"),
   copyQuickPrompt: document.getElementById("copyQuickPrompt"),
@@ -243,6 +250,9 @@ const stateEl = {
   workspaceEyebrow: document.getElementById("workspaceEyebrow"),
   workspaceTitle: document.getElementById("workspaceTitle"),
   workspaceDescription: document.getElementById("workspaceDescription"),
+  workspaceHeader: document.getElementById("workspaceHeader"),
+  workspaceShell: document.getElementById("workspaceShell"),
+  workspaceSummary: document.getElementById("workspaceSummary"),
   engineSummaryStrip: document.getElementById("engineSummaryStrip"),
   headlineStatus: document.getElementById("headlineStatus"),
   auditProgressLabel: document.getElementById("auditProgressLabel"),
@@ -330,6 +340,18 @@ const stateEl = {
   riskMapTechnical: document.getElementById("riskMapTechnical"),
   priorityViewHeadline: document.getElementById("priorityViewHeadline"),
   priorityViewList: document.getElementById("priorityViewList"),
+  priorityQueueTableBody: document.getElementById("priorityQueueTableBody"),
+  runHistoryTableBody: document.getElementById("runHistoryTableBody"),
+  systemStateIssues: document.getElementById("systemStateIssues"),
+  systemStateMemory: document.getElementById("systemStateMemory"),
+  systemStateHealingReady: document.getElementById("systemStateHealingReady"),
+  systemStatePredictiveAlerts: document.getElementById("systemStatePredictiveAlerts"),
+  systemStateOptimization: document.getElementById("systemStateOptimization"),
+  systemStateTrajectory: document.getElementById("systemStateTrajectory"),
+  nextActionDescription: document.getElementById("nextActionDescription"),
+  nextActionOpenIssue: document.getElementById("nextActionOpenIssue"),
+  nextActionPrepareHealing: document.getElementById("nextActionPrepareHealing"),
+  nextActionGeneratePrompt: document.getElementById("nextActionGeneratePrompt"),
   optimizationHeadline: document.getElementById("optimizationHeadline"),
   optimizationTopImprovements: document.getElementById("optimizationTopImprovements"),
   optimizationClusters: document.getElementById("optimizationClusters"),
@@ -459,6 +481,9 @@ const stateEl = {
   assistantWorkspace: document.getElementById("assistantWorkspace"),
   dismissAssistant: document.getElementById("dismissAssistant"),
   assistantExpand: document.getElementById("assistantExpand"),
+  assistantFocus: document.getElementById("assistantFocus"),
+  assistantBackToDock: document.getElementById("assistantBackToDock"),
+  assistantDockResizeHandle: document.getElementById("assistantDockResizeHandle"),
   assistantEyebrow: document.getElementById("assistantEyebrow"),
   assistantTitle: document.getElementById("assistantTitle"),
   assistantContextPills: document.getElementById("assistantContextPills"),
@@ -482,11 +507,16 @@ const stateEl = {
   assistantViewPanels: Array.from(document.querySelectorAll("[data-assistant-view-panel]")),
   assistantInsights: document.getElementById("assistantInsights"),
   assistantResponse: document.getElementById("assistantResponse"),
+  assistantChatScroll: document.getElementById("assistantChatScroll"),
   assistantActions: document.getElementById("assistantActions"),
   assistantConsoleContext: document.getElementById("assistantConsoleContext"),
   assistantConsoleRisk: document.getElementById("assistantConsoleRisk"),
   assistantConsolePriority: document.getElementById("assistantConsolePriority"),
   assistantConsoleNextActions: document.getElementById("assistantConsoleNextActions"),
+  assistantPillRun: document.getElementById("assistantPillRun"),
+  assistantPillWorkspace: document.getElementById("assistantPillWorkspace"),
+  assistantPillFocus: document.getElementById("assistantPillFocus"),
+  assistantPillLang: document.getElementById("assistantPillLang"),
   assistantMemorySummary: document.getElementById("assistantMemorySummary"),
   assistantHealingSummary: document.getElementById("assistantHealingSummary"),
   assistantNewChat: document.getElementById("assistantNewChat"),
@@ -546,8 +576,11 @@ const uiState = {
   onboardingDismissed: loadOnboardingState(),
   shortcutsOpen: false,
   commandPaletteOpen: false,
-  assistantOpen: false,
+  assistantOpen: true,
   assistantExpanded: false,
+  aiWorkspaceMode: "docked",
+  aiDockHeightVh: 55,
+  lastNonFocusMode: "docked",
   assistantView: "conversation",
   activeMenu: "",
   commandPaletteQuery: "",
@@ -561,6 +594,8 @@ const uiState = {
   assistantService: null,
   adaptiveLanguageService: null,
   assistantLanguageState: null,
+  assistantIntentSnapshot: null,
+  assistantContextSnapshot: null,
   learningMemorySnapshot: null,
   learningMemoryRefreshInFlight: false,
   selfHealingSnapshot: null,
@@ -1029,6 +1064,9 @@ function normalizeAssistantConversationEntry(entry) {
     toneKey: String(entry.toneKey || ""),
     intentId: String(entry.intentId || ""),
     at: String(entry.at || ""),
+    isProgress: Boolean(entry.isProgress),
+    isThinking: Boolean(entry.isThinking),
+    plan: Array.isArray(entry.plan) ? entry.plan.map((s) => ({ id: String(s.id || ""), label: String(s.label || "") })) : [],
   };
 }
 
@@ -1149,6 +1187,59 @@ function loadAssistantSavedPrompts() {
 
 function persistAssistantSavedPrompts() {
   writeStorage(STORAGE_KEYS.assistantSavedPrompts, uiState.assistantSavedPrompts.slice(-12));
+}
+
+const AI_WORKSPACE_MODE_HIDDEN = "hidden";
+const AI_WORKSPACE_MODE_DOCKED = "docked";
+const AI_WORKSPACE_MODE_EXPANDED = "expanded";
+const AI_WORKSPACE_MODE_FOCUS = "focus";
+
+function loadAssistantWorkspaceUIPrefs() {
+  const raw = readStorage(STORAGE_KEYS.assistantWorkspaceUI, null);
+  if (raw && typeof raw === "object") {
+    const mode = String(raw.mode || "").toLowerCase();
+    if ([AI_WORKSPACE_MODE_HIDDEN, AI_WORKSPACE_MODE_DOCKED, AI_WORKSPACE_MODE_EXPANDED, AI_WORKSPACE_MODE_FOCUS].includes(mode)) {
+      uiState.aiWorkspaceMode = mode;
+    }
+    const vh = Number(raw.dockHeightVh);
+    if (Number.isFinite(vh) && vh >= 28 && vh <= 80) uiState.aiDockHeightVh = vh;
+    const last = String(raw.lastNonFocusMode || "").toLowerCase();
+    if (last === AI_WORKSPACE_MODE_DOCKED || last === AI_WORKSPACE_MODE_EXPANDED) uiState.lastNonFocusMode = last;
+  }
+  uiState.assistantOpen = uiState.aiWorkspaceMode !== AI_WORKSPACE_MODE_HIDDEN;
+  uiState.assistantExpanded = uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_EXPANDED;
+}
+
+function saveAssistantWorkspaceUIPrefs() {
+  writeStorage(STORAGE_KEYS.assistantWorkspaceUI, {
+    mode: uiState.aiWorkspaceMode,
+    dockHeightVh: uiState.aiDockHeightVh,
+    lastNonFocusMode: uiState.lastNonFocusMode,
+  });
+}
+
+function setAiWorkspaceMode(mode) {
+  const prev = uiState.aiWorkspaceMode;
+  if (mode === AI_WORKSPACE_MODE_FOCUS) {
+    if (prev === AI_WORKSPACE_MODE_DOCKED || prev === AI_WORKSPACE_MODE_EXPANDED) {
+      uiState.lastNonFocusMode = prev;
+    }
+  } else if (prev === AI_WORKSPACE_MODE_FOCUS && (mode === AI_WORKSPACE_MODE_DOCKED || mode === AI_WORKSPACE_MODE_EXPANDED)) {
+    uiState.lastNonFocusMode = mode;
+  }
+  uiState.aiWorkspaceMode = mode;
+  uiState.assistantOpen = mode !== AI_WORKSPACE_MODE_HIDDEN;
+  uiState.assistantExpanded = mode === AI_WORKSPACE_MODE_EXPANDED;
+  saveAssistantWorkspaceUIPrefs();
+  renderAssistantWorkspaceLayout();
+  if (uiState.assistantOpen) {
+    renderAssistantState();
+    window.setTimeout(() => {
+      if (stateEl.assistantInput) {
+        stateEl.assistantInput.focus();
+      }
+    }, 0);
+  }
 }
 
 function ensureAdaptiveLanguageService() {
@@ -1280,10 +1371,17 @@ function renderAssistantLanguageUi() {
     stateEl.assistantViewButtons.forEach((button) => {
       if (button.dataset.assistantView === "conversation") {
         button.textContent = localizePromptLine(state.activeLanguage, {
-          pt: "Conversa",
-          es: "Conversacion",
-          en: "Conversation",
-          ca: "Conversa",
+          pt: "Chat",
+          es: "Chat",
+          en: "Chat",
+          ca: "Chat",
+        });
+      } else if (button.dataset.assistantView === "actions") {
+        button.textContent = localizePromptLine(state.activeLanguage, {
+          pt: "Ações",
+          es: "Acciones",
+          en: "Actions",
+          ca: "Accions",
         });
       } else if (button.dataset.assistantView === "insights") {
         button.textContent = localizePromptLine(state.activeLanguage, {
@@ -1291,6 +1389,13 @@ function renderAssistantLanguageUi() {
           es: "Insights",
           en: "Insights",
           ca: "Insights",
+        });
+      } else if (button.dataset.assistantView === "diagnostics") {
+        button.textContent = localizePromptLine(state.activeLanguage, {
+          pt: "Diagnósticos",
+          es: "Diagnósticos",
+          en: "Diagnostics",
+          ca: "Diagnòstics",
         });
       }
     });
@@ -1328,23 +1433,30 @@ function buildAssistantPromptRequest(issueCode = "") {
 }
 
 function buildAssistantStarterEntry(languageKey = getAssistantLanguage()) {
-  const uiText = getAssistantUiText();
   return {
     id: "assistant-starter",
     role: "assistant",
     lead: localizePromptLine(languageKey, {
-      pt: "Olá. Posso te ajudar a analisar a auditoria atual, interpretar um log, gerar um prompt ou te orientar pelo app.",
-      es: "Hola. Puedo ayudarte a analizar la auditoría actual, interpretar un log, generar un prompt o guiarte por la app.",
-      en: "Hello. I can help you analyze the current audit, interpret a log, generate a prompt or guide you through the app.",
-      ca: "Hola. Puc ajudar-te a analitzar l'auditoria actual, interpretar un log, generar un prompt o guiar-te per l'app.",
+      pt: "Olá 👋",
+      es: "Hola 👋",
+      en: "Hi 👋",
+      ca: "Hola 👋",
     }),
-    body: [String(uiText?.responseDefault || "")],
-    followUp: localizePromptLine(languageKey, {
-      pt: "Se quiser, eu começo pelo que corrigir primeiro.",
-      es: "Si quieres, empiezo por lo que deberías corregir primero.",
-      en: "If you want, I can start with what you should fix first.",
-      ca: "Si vols, començo pel que hauries de corregir primer.",
-    }),
+    body: [
+      localizePromptLine(languageKey, {
+        pt: "Como posso te ajudar hoje?",
+        es: "¿Cómo puedo ayudarte hoy?",
+        en: "How can I help you today?",
+        ca: "Com et puc ajudar avui?",
+      }),
+      localizePromptLine(languageKey, {
+        pt: "Posso, por exemplo:\n• rodar uma auditoria\n• analisar SEO de um site\n• revisar a última execução\n• explicar problemas encontrados",
+        es: "Puedo, por ejemplo:\n• ejecutar una auditoría\n• analizar SEO de un sitio\n• revisar la última ejecución\n• explicar problemas encontrados",
+        en: "I can, for example:\n• run an audit\n• analyze a site's SEO\n• review the latest run\n• explain issues found",
+        ca: "Puc, per exemple:\n• executar una auditoria\n• analitzar SEO d’un lloc\n• revisar l’última execució\n• explicar problemes trobats",
+      }),
+    ],
+    followUp: "",
     modeKey: "product_guide",
     toneKey: "friendly",
     intentId: "greeting",
@@ -1387,7 +1499,69 @@ function createAssistantUserEntry(text) {
   };
 }
 
+const ASSISTANT_PROGRESS_MESSAGES = {
+  "run-audit": { pt: "Iniciando auditoria...", es: "Iniciando auditoría...", en: "Starting audit...", ca: "Iniciant auditoria..." },
+  "switch-findings": { pt: "Abrindo findings...", es: "Abriendo findings...", en: "Opening findings...", ca: "Obrint findings..." },
+  "findings-search": { pt: "Abrindo findings...", es: "Abriendo findings...", en: "Opening findings...", ca: "Obrint findings..." },
+  "open-issue": { pt: "Abrindo issue...", es: "Abriendo issue...", en: "Opening issue...", ca: "Obrint issue..." },
+  "open-healing": { pt: "Abrindo healing...", es: "Abriendo healing...", en: "Opening healing...", ca: "Obrint healing..." },
+  "prepare-healing": { pt: "Preparando healing...", es: "Preparando healing...", en: "Preparing healing...", ca: "Preparant healing..." },
+  "generate-prompt": { pt: "Gerando prompt...", es: "Generando prompt...", en: "Generating prompt...", ca: "Generant prompt..." },
+  "switch-compare": { pt: "Abrindo compare...", es: "Abriendo compare...", en: "Opening compare...", ca: "Obrint compare..." },
+};
+
+function getAssistantProgressMessage(actionId) {
+  const lang = getAssistantLanguage();
+  const map = ASSISTANT_PROGRESS_MESSAGES[String(actionId || "")];
+  return map ? (map[lang] || map.en) : null;
+}
+
+function createAssistantProgressEntry(text) {
+  return {
+    id: `assistant-progress-${Date.now()}`,
+    role: "assistant",
+    isProgress: true,
+    lead: String(text || ""),
+    body: [],
+    followUp: "",
+    modeKey: "",
+    toneKey: "",
+    intentId: "",
+    at: new Date().toISOString(),
+  };
+}
+
+function createAssistantThinkingEntry() {
+  return {
+    id: `assistant-thinking-${Date.now()}`,
+    role: "assistant",
+    isThinking: true,
+    lead: "",
+    body: [],
+    followUp: "",
+    modeKey: "",
+    toneKey: "",
+    intentId: "",
+    at: new Date().toISOString(),
+  };
+}
+
+function removeAssistantThinkingEntry() {
+  uiState.assistantConversation = uiState.assistantConversation.filter((e) => !e.isThinking);
+  persistAssistantConversation();
+}
+
+function appendAssistantProgressMessage(text) {
+  const msg = String(text || "").trim();
+  if (!msg) return;
+  appendAssistantConversationEntry(createAssistantProgressEntry(msg));
+  renderAssistantConversation();
+  const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+  if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+}
+
 function createAssistantResultEntry(result) {
+  const plan = Array.isArray(result?.plan) ? result.plan.map((s) => ({ id: String(s.id || ""), label: String(s.label || "") })) : [];
   return {
     id: `assistant-reply-${Date.now()}`,
     role: "assistant",
@@ -1398,6 +1572,7 @@ function createAssistantResultEntry(result) {
     toneKey: String(result?.toneKey || ""),
     intentId: String(result?.intentId || ""),
     at: new Date().toISOString(),
+    plan,
   };
 }
 
@@ -1458,10 +1633,31 @@ function renderAssistantConversation() {
         </article>
       `;
     }
+    if (entry.isProgress) {
+      return `
+        <article class="assistant-message assistant-message-assistant assistant-message-progress">
+          <div class="assistant-message-bubble">${escapeHtml(localizeAssistantLine(entry.lead, languageKey))}</div>
+        </article>
+      `;
+    }
+    if (entry.isThinking) {
+      const thinkingText = localizePromptLine(languageKey, { pt: "Analisando…", es: "Analizando…", en: "Thinking…", ca: "Pensant…" });
+      return `
+        <article class="assistant-message assistant-message-assistant assistant-message-thinking" aria-live="polite">
+          <div class="assistant-message-bubble assistant-thinking-bubble">
+            <span class="assistant-thinking-dots"><span></span><span></span><span></span></span>
+            <span class="assistant-thinking-text">${escapeHtml(thinkingText)}</span>
+          </div>
+        </article>
+      `;
+    }
     const localizedMode = entry.modeKey ? getLocalizedAssistantModeMeta(entry.modeKey, languageKey).name : "";
     const toneLabel = entry.toneKey ? formatAssistantToneLabel(entry.toneKey, languageKey) : "";
     const body = Array.isArray(entry.body) && entry.body.length
       ? `<div class="assistant-message-body">${entry.body.map((item) => `<p>${escapeHtml(localizeAssistantLine(item, languageKey))}</p>`).join("")}</div>`
+      : "";
+    const planBlock = Array.isArray(entry.plan) && entry.plan.length
+      ? `<ol class="assistant-message-plan" aria-label="${escapeHtml(localizePromptLine(languageKey, { pt: "Plano", es: "Plan", en: "Plan", ca: "Pla" }))}">${entry.plan.map((s) => `<li>${escapeHtml(localizeAssistantLine(s.label, languageKey))}</li>`).join("")}</ol>`
       : "";
     const followUp = entry.followUp
       ? `<div class="assistant-message-followup">${escapeHtml(localizeAssistantLine(entry.followUp, languageKey))}</div>`
@@ -1472,13 +1668,15 @@ function renderAssistantConversation() {
         <div class="assistant-message-meta">${escapeHtml(meta || localizePromptLine(languageKey, { pt: "assistente", es: "asistente", en: "assistant", ca: "assistent" }))}</div>
         <div class="assistant-message-bubble">
           <strong>${escapeHtml(localizeAssistantLine(entry.lead, languageKey))}</strong>
+          ${planBlock}
           ${body}
           ${followUp}
         </div>
       </article>
     `;
   }).join("");
-  stateEl.assistantResponse.scrollTop = stateEl.assistantResponse.scrollHeight;
+  const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+  if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
 }
 
 function saveAssistantPromptCard(card) {
@@ -1518,7 +1716,8 @@ function renderAssistantCards(result) {
 
   if (promptCard) {
     sections.push(`
-      <article class="assistant-prompt-card">
+      <article class="assistant-prompt-card ai-workspace-card">
+        <span class="ai-workspace-card-label" aria-hidden="true">Prompt card</span>
         <div class="assistant-card-top">
           <div>
             <span class="info-label">${escapeHtml(promptCard.title || "Prompt")}</span>
@@ -1528,7 +1727,7 @@ function renderAssistantCards(result) {
         <pre class="assistant-prompt-card-body">${escapeHtml(promptCard.promptText || "")}</pre>
         <div class="assistant-card-actions">
           <button type="button" data-assistant-card-action="copy-prompt">${escapeHtml(promptCard.copyLabel || "Copy")}</button>
-          <button type="button" data-assistant-card-action="send-prompt">${escapeHtml(promptCard.sendLabel || "Send to Prompts")}</button>
+          <button type="button" data-assistant-card-action="send-prompt">${escapeHtml(promptCard.sendLabel || "Send to Prompt Workspace")}</button>
           <button type="button" data-assistant-card-action="save-prompt">${escapeHtml(promptCard.saveLabel || "Save")}</button>
         </div>
       </article>
@@ -1537,7 +1736,8 @@ function renderAssistantCards(result) {
 
   if (actionCards.length) {
     sections.push(actionCards.map((action, index) => `
-      <button type="button" class="assistant-action-card" data-assistant-index="${index}">
+      <button type="button" class="assistant-action-card ai-workspace-card" data-assistant-index="${index}">
+        <span class="ai-workspace-card-label" aria-hidden="true">Action card</span>
         <div class="assistant-card-top">
           <span class="info-label">${escapeHtml(action.id || "action")}</span>
           <strong>${escapeHtml(localizeAssistantActionLabel(action.label || action.id || `action-${index + 1}`, getAssistantLanguage()))}</strong>
@@ -1555,7 +1755,7 @@ function renderAssistantCards(result) {
   stateEl.assistantActions.innerHTML = sections.join("");
 }
 
-const ASSISTANT_VIEW_KEYS = ["conversation", "insights", "actions", "memory", "healing"];
+const ASSISTANT_VIEW_KEYS = ["conversation", "actions", "insights", "diagnostics"];
 
 function switchAssistantView(viewKey) {
   const key = String(viewKey || "").toLowerCase();
@@ -1577,19 +1777,24 @@ function switchAssistantView(viewKey) {
 }
 
 function renderAssistantWorkspaceLayout() {
-  const isOpen = uiState.assistantOpen === true;
-  const isExpanded = isOpen && uiState.assistantExpanded === true;
+  const mode = uiState.aiWorkspaceMode;
+  const isOpen = mode !== AI_WORKSPACE_MODE_HIDDEN;
+  const isExpanded = mode === AI_WORKSPACE_MODE_EXPANDED;
+  const isFocus = mode === AI_WORKSPACE_MODE_FOCUS;
+
   if (stateEl.appBody) {
-    stateEl.appBody.classList.toggle("ai-inspector-open", isOpen);
+    stateEl.appBody.classList.toggle("ai-inspector-open", isOpen && !isFocus);
     stateEl.appBody.classList.toggle("ai-inspector-expanded", isExpanded);
+    stateEl.appBody.classList.toggle("ai-workspace-focus", isFocus);
+    stateEl.appBody.style.setProperty("--ai-dock-height-vh", String(uiState.aiDockHeightVh));
   }
   if (stateEl.mainGrid) {
-    stateEl.mainGrid.classList.toggle("ai-inspector-open", isOpen);
-    stateEl.mainGrid.classList.toggle("ai-inspector-expanded", isExpanded);
+    stateEl.mainGrid.classList.toggle("hidden", isFocus);
   }
   if (stateEl.assistantWorkspace) {
     stateEl.assistantWorkspace.classList.toggle("hidden", !isOpen);
     stateEl.assistantWorkspace.classList.toggle("expanded", isExpanded);
+    stateEl.assistantWorkspace.classList.toggle("ai-workspace-focus-mode", isFocus);
   }
   if (stateEl.openAssistant) {
     stateEl.openAssistant.classList.toggle("ok", isOpen);
@@ -1602,6 +1807,15 @@ function renderAssistantWorkspaceLayout() {
       en: isExpanded ? "Shrink panel" : "Expand panel",
       ca: isExpanded ? "Panel més petit" : "Expandir panel",
     });
+  }
+  if (stateEl.assistantFocus) {
+    stateEl.assistantFocus.classList.toggle("hidden", isFocus);
+  }
+  if (stateEl.assistantBackToDock) {
+    stateEl.assistantBackToDock.classList.toggle("hidden", !isFocus);
+  }
+  if (stateEl.assistantDockResizeHandle) {
+    stateEl.assistantDockResizeHandle.classList.toggle("hidden", !isExpanded || isFocus);
   }
   switchAssistantView(uiState.assistantView);
 }
@@ -1785,11 +1999,18 @@ function renderAssistantConsoleStrip(report, intelligenceSnapshot) {
   if (stateEl.assistantConsoleNextActions) {
     const code = nextActions[0]?.issueCode;
     if (report && code) {
-      stateEl.assistantConsoleNextActions.innerHTML = `<button type="button" class="action-link open-findings-search console-strip-value" data-findings-search="${escapeHtml(String(code))}">${escapeHtml(next)}</button>`;
+      stateEl.assistantConsoleNextActions.innerHTML = `<button type="button" class="action-link open-findings-search ai-workspace-next-btn" data-findings-search="${escapeHtml(String(code))}">${escapeHtml(next)}</button>`;
+      stateEl.assistantConsoleNextActions.classList.remove("hidden");
     } else {
       stateEl.assistantConsoleNextActions.textContent = next;
+      stateEl.assistantConsoleNextActions.classList.toggle("hidden", !report);
     }
   }
+  if (stateEl.assistantPillRun) stateEl.assistantPillRun.textContent = report ? `Run: ${String(report.meta?.baseUrl || "").slice(0, 20)}${(report.meta?.baseUrl || "").length > 20 ? "…" : ""}` : "Run: not loaded";
+  if (stateEl.assistantPillWorkspace) stateEl.assistantPillWorkspace.textContent = `Workspace: ${uiState.activeView || "overview"}`;
+  if (stateEl.assistantPillFocus) stateEl.assistantPillFocus.textContent = nextActions[0]?.issueCode ? `Focus: ${nextActions[0].issueCode}` : "Focus: —";
+  const langSelect = document.getElementById("assistantLanguageSelect");
+  if (stateEl.assistantPillLang) stateEl.assistantPillLang.textContent = langSelect ? `Lang: ${langSelect.value || "auto"}` : "Lang: auto";
 }
 
 function renderAssistantMemoryHealingSummaries(report, intelligenceSnapshot) {
@@ -1868,24 +2089,50 @@ function toggleCommandPalette(forceOpen = null) {
 }
 
 function toggleAssistant(forceOpen = null) {
-  uiState.assistantOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
-  renderAssistantWorkspaceLayout();
-  if (uiState.assistantOpen) {
+  const nextOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
+  if (nextOpen) {
+    setAiWorkspaceMode(uiState.lastNonFocusMode);
     hideMenuFlyout();
-    if (uiState.commandPaletteOpen) {
-      toggleCommandPalette(false);
-    }
-    window.setTimeout(() => {
-      stateEl.assistantInput.focus();
-      stateEl.assistantInput.select();
-    }, 0);
+    if (uiState.commandPaletteOpen) toggleCommandPalette(false);
+  } else {
+    setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
   }
   renderAssistantState();
 }
 
 function toggleAssistantExpanded(forceExpanded = null) {
-  uiState.assistantExpanded = forceExpanded === null ? !uiState.assistantExpanded : forceExpanded === true;
-  renderAssistantWorkspaceLayout();
+  const nextExpanded = forceExpanded === null ? !uiState.assistantExpanded : forceExpanded === true;
+  setAiWorkspaceMode(nextExpanded ? AI_WORKSPACE_MODE_EXPANDED : AI_WORKSPACE_MODE_DOCKED);
+}
+
+function bindAssistantDockResize() {
+  const handle = stateEl.assistantDockResizeHandle;
+  if (!handle || !stateEl.appBody) return;
+  let moveHandler = null;
+  let upHandler = null;
+  handle.addEventListener("mousedown", (e) => {
+    if (e.button !== 0 || uiState.aiWorkspaceMode !== AI_WORKSPACE_MODE_EXPANDED) return;
+    e.preventDefault();
+    const startY = e.clientY;
+    const startVh = uiState.aiDockHeightVh;
+    moveHandler = (ev) => {
+      const dy = startY - ev.clientY;
+      const vhDelta = (dy / window.innerHeight) * 100;
+      let next = startVh + vhDelta;
+      next = Math.max(28, Math.min(80, next));
+      uiState.aiDockHeightVh = Math.round(next);
+      stateEl.appBody.style.setProperty("--ai-dock-height-vh", String(uiState.aiDockHeightVh));
+    };
+    upHandler = () => {
+      document.removeEventListener("mousemove", moveHandler);
+      document.removeEventListener("mouseup", upHandler);
+      moveHandler = null;
+      upHandler = null;
+      saveAssistantWorkspaceUIPrefs();
+    };
+    document.addEventListener("mousemove", moveHandler);
+    document.addEventListener("mouseup", upHandler);
+  });
 }
 
 function showToast(message, tone = "ok") {
@@ -2499,11 +2746,15 @@ function persistProfile() {
 function restoreProfile() {
   const payload = readStorage(STORAGE_KEYS.lastProfile, null);
   if (!payload) {
-    stateEl.targetUrl.value = DEFAULT_TARGET;
+    // Start with a fresh session: do not preload any target URL.
+    // Persisted profile is used only for non-visual defaults (mode/scope/depth).
+    stateEl.targetUrl.value = "";
     return;
   }
 
-  stateEl.targetUrl.value = String(payload.targetUrl || DEFAULT_TARGET);
+  // Do not rehydrate the last target URL into the visible UI.
+  // This avoids leaking the previous site to the next session.
+  stateEl.targetUrl.value = "";
   uiState.mode = normalizeMode(payload.mode);
   uiState.mobileSweep = normalizeMobileSweep(payload.mobileSweep);
   uiState.scope = normalizeScope(payload.scope);
@@ -2583,6 +2834,56 @@ function renderEngineSummaryStrip(report) {
   el.innerHTML = segments.join(" · ");
 }
 
+function renderSystemStateStrip(report) {
+  if (!stateEl.systemStateIssues) return;
+  if (!report) {
+    stateEl.systemStateIssues.textContent = "0";
+    if (stateEl.systemStateMemory) stateEl.systemStateMemory.textContent = "0";
+    if (stateEl.systemStateHealingReady) stateEl.systemStateHealingReady.textContent = "0";
+    if (stateEl.systemStatePredictiveAlerts) stateEl.systemStatePredictiveAlerts.textContent = "0";
+    if (stateEl.systemStateOptimization) stateEl.systemStateOptimization.textContent = "0";
+    if (stateEl.systemStateTrajectory) stateEl.systemStateTrajectory.textContent = "—";
+    return;
+  }
+  const snap = buildDesktopIntelligenceSnapshot(report);
+  const memory = snap.learningMemory?.summary?.entries ?? 0;
+  const healingReady = snap.selfHealing?.summary?.promptReady ?? 0;
+  const issues = report.summary?.totalIssues ?? 0;
+  const predictiveN = snap.predictive?.summary?.highRiskAlerts ?? 0;
+  const optCount = Array.isArray(snap.optimization?.topImprovements) ? snap.optimization.topImprovements.length : 0;
+  const qualityState = snap.dataIntelligence?.QUALITY_STATE || {};
+  const trajectory = qualityState.trajectory || "stable";
+  stateEl.systemStateIssues.textContent = String(issues);
+  if (stateEl.systemStateMemory) stateEl.systemStateMemory.textContent = String(memory);
+  if (stateEl.systemStateHealingReady) stateEl.systemStateHealingReady.textContent = String(healingReady);
+  if (stateEl.systemStatePredictiveAlerts) stateEl.systemStatePredictiveAlerts.textContent = String(predictiveN);
+  if (stateEl.systemStateOptimization) stateEl.systemStateOptimization.textContent = String(optCount);
+  if (stateEl.systemStateTrajectory) stateEl.systemStateTrajectory.textContent = String(trajectory);
+}
+
+function renderNextActionBlock(report) {
+  if (!stateEl.nextActionDescription) return;
+  const snap = report ? buildDesktopIntelligenceSnapshot(report) : null;
+  const riskState = snap?.dataIntelligence?.RISK_STATE || {};
+  const nextActions = Array.isArray(snap?.autonomous?.nextActions) ? snap.autonomous.nextActions : [];
+  const priorityQueue = Array.isArray(riskState.priorityQueue) ? riskState.priorityQueue : [];
+  const lead = nextActions[0] || priorityQueue[0] || null;
+  uiState.nextActionLead = lead;
+  if (!lead) {
+    stateEl.nextActionDescription.textContent = "Run an audit to generate the next recommended action.";
+    if (stateEl.nextActionOpenIssue) stateEl.nextActionOpenIssue.disabled = true;
+    if (stateEl.nextActionPrepareHealing) stateEl.nextActionPrepareHealing.disabled = true;
+    if (stateEl.nextActionGeneratePrompt) stateEl.nextActionGeneratePrompt.disabled = true;
+    return;
+  }
+  const routeLabel = lead.route === "/" ? "home" : (lead.route || "").replace(/^\//, "") || "—";
+  const actionLabel = lead.actionLabel || lead.playbookTitle || `${lead.issueCode || "issue"}`;
+  stateEl.nextActionDescription.textContent = `Fix ${actionLabel} on /${routeLabel}`;
+  if (stateEl.nextActionOpenIssue) stateEl.nextActionOpenIssue.disabled = false;
+  if (stateEl.nextActionPrepareHealing) stateEl.nextActionPrepareHealing.disabled = false;
+  if (stateEl.nextActionGeneratePrompt) stateEl.nextActionGeneratePrompt.disabled = false;
+}
+
 function renderCompactRunHistory() {
   const el = stateEl.compactRunHistory;
   const wrap = stateEl.compactRunHistoryWrap;
@@ -2622,6 +2923,14 @@ function renderWorkspaceHeader(viewName) {
   if (stateEl.workspaceTitle) stateEl.workspaceTitle.textContent = meta.title;
   if (stateEl.workspaceDescription) stateEl.workspaceDescription.textContent = meta.description;
   if (stateEl.topbarContext) stateEl.topbarContext.textContent = meta.title;
+  if (stateEl.workspaceHeader) {
+    stateEl.workspaceHeader.classList.toggle("workspace-header-overview", viewName === "overview");
+  }
+  if (stateEl.workspaceShell) {
+    stateEl.workspaceShell.setAttribute("data-view", viewName);
+    stateEl.workspaceShell.className = stateEl.workspaceShell.className.replace(/\bworkspace-view-\S+/g, "").trim();
+    stateEl.workspaceShell.classList.add("workspace-view-" + viewName);
+  }
   if (stateEl.baselineIndicator) {
     const baseline = uiState.baseline && uiState.baseline.report ? uiState.baseline : null;
     if (stateEl.baselineIndicatorWrap) stateEl.baselineIndicatorWrap.classList.toggle("hidden", !baseline);
@@ -5106,7 +5415,8 @@ function renderQualityVisuals(report) {
     stateEl.riskMapPerformance.textContent = "low";
     stateEl.riskMapTechnical.textContent = "low";
     stateEl.priorityViewHeadline.textContent = "Run an audit to rank issues by impact, predictive risk and healing confidence.";
-    stateEl.priorityViewList.innerHTML = '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
+    if (stateEl.priorityQueueTableBody) stateEl.priorityQueueTableBody.innerHTML = '<tr><td colspan="4" class="op-table-empty">No ranked issue queue loaded yet.</td></tr>';
+    if (stateEl.priorityViewList) stateEl.priorityViewList.innerHTML = '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
     return;
   }
 
@@ -5172,22 +5482,71 @@ function renderQualityVisuals(report) {
   stateEl.priorityViewHeadline.textContent = priorityQueue.length
     ? `${priorityQueue.length} issue(s) ranked by impact, predictive risk and healing confidence.`
     : "No ranked issue queue is available for the current run.";
-  stateEl.priorityViewList.innerHTML = priorityQueue.length
-    ? priorityQueue.map((item, index) => `
-        <article class="explorer-item explorer-item-clickable" data-findings-search="${escapeHtml(String(item.issueCode || ""))}">
-          <div class="split-head" style="align-items:flex-start; gap:12px;">
-            <div>
-              <div class="nav-title">${escapeHtml(`${index + 1}. ${item.issueCode}`)}</div>
-              <div class="history-meta">${escapeHtml(item.route)}${item.action ? ` -> ${escapeHtml(item.action)}` : ""}</div>
+  if (stateEl.priorityQueueTableBody) {
+    stateEl.priorityQueueTableBody.innerHTML = priorityQueue.length
+      ? priorityQueue.map((item, index) => {
+          const impact = Number(toNumber(item.impactScore, 0)).toFixed(2);
+          const confidence = item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : (item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a");
+          const code = escapeHtml(String(item.issueCode || ""));
+          const route = escapeHtml(String(item.route || "/"));
+          const action = escapeHtml(String(item.action || ""));
+          return `<tr data-findings-search="${code}" data-priority-route="${route}" data-priority-action="${action}">
+            <td><button type="button" class="op-table-link open-findings-search" data-findings-search="${code}">${code}</button></td>
+            <td>${impact}</td>
+            <td>${escapeHtml(confidence)}</td>
+            <td><button type="button" class="op-btn-secondary op-table-action open-findings-search" data-findings-search="${code}">Open issue</button></td>
+          </tr>`;
+        }).join("")
+      : '<tr><td colspan="4" class="op-table-empty">No ranked issue queue loaded yet.</td></tr>';
+  }
+  if (stateEl.priorityViewList) {
+    stateEl.priorityViewList.innerHTML = priorityQueue.length
+      ? priorityQueue.map((item, index) => `
+          <article class="explorer-item explorer-item-clickable" data-findings-search="${escapeHtml(String(item.issueCode || ""))}">
+            <div class="split-head" style="align-items:flex-start; gap:12px;">
+              <div>
+                <div class="nav-title">${escapeHtml(`${index + 1}. ${item.issueCode}`)}</div>
+                <div class="history-meta">${escapeHtml(item.route)}${item.action ? ` -> ${escapeHtml(item.action)}` : ""}</div>
+              </div>
+              <span class="pill">${escapeHtml(`score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)}`)}</span>
             </div>
-            <span class="pill">${escapeHtml(`score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)}`)}</span>
-          </div>
-          <div class="history-copy" style="margin-top:8px;">
-            ${escapeHtml(`impact ${Number(toNumber(item.impactScore, 0)).toFixed(2)} | predictive ${item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a"} | healing ${item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : "n/a"}`)}
-          </div>
-        </article>
+            <div class="history-copy" style="margin-top:8px;">
+              ${escapeHtml(`impact ${Number(toNumber(item.impactScore, 0)).toFixed(2)} | predictive ${item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a"} | healing ${item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : "n/a"}`)}
+            </div>
+          </article>
       `).join("")
     : '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
+  }
+}
+
+function renderRunHistoryTable() {
+  if (!stateEl.runHistoryTableBody) return;
+  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 10) : [];
+  if (!history.length) {
+    stateEl.runHistoryTableBody.innerHTML = '<tr><td colspan="4" class="op-table-empty">No run history yet.</td></tr>';
+    return;
+  }
+  stateEl.runHistoryTableBody.innerHTML = history.map((item, index) => {
+    const prev = history[index + 1];
+    let trend = "—";
+    if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
+      if (item.issueCount < prev.issueCount) trend = "↓ better";
+      else if (item.issueCount > prev.issueCount) trend = "↑ worse";
+      else trend = "→ stable";
+    }
+    const stamp = escapeHtml(formatLocalDate(item.stamp));
+    const issues = escapeHtml(String(item.issueCount || 0));
+    const isBaseline = uiState.baseline?.stamp === item.stamp;
+    return `<tr>
+      <td>${stamp}</td>
+      <td>${issues}</td>
+      <td>${escapeHtml(trend)}${isBaseline ? ' <span class="pill ok">baseline</span>' : ""}</td>
+      <td>
+        <button type="button" class="op-btn-secondary op-table-action" data-history-index="${index}" data-history-action="load">Load</button>
+        <button type="button" class="op-btn-secondary op-table-action" data-history-index="${index}" data-history-action="baseline">Baseline</button>
+      </td>
+    </tr>`;
+  }).join("");
 }
 
 function renderOptimizationSummary(report) {
@@ -6592,6 +6951,46 @@ function ensureAssistantService() {
   if (typeof window.createSitePulseAssistantService !== "function") {
     return null;
   }
+
+  /**
+   * Build a lightweight ContextEngineInput from the current UI state and history.
+   * This is intentionally defensive and only uses primitives already available in the renderer.
+   */
+  const buildAssistantContextSnapshot = () => {
+    const report = getVisibleReport();
+    const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+    const memory = intelligenceSnapshot.learningMemory;
+    const healing = intelligenceSnapshot.selfHealing;
+    const predictive = intelligenceSnapshot.predictive;
+    const optimization = intelligenceSnapshot.optimization;
+    const autonomous = intelligenceSnapshot.autonomous;
+    const trendOverall = intelligenceSnapshot.intelligence?.trendSummary?.overall;
+
+    const system = {
+      issues: report && report.summary ? toNumber(report.summary.totalIssues, 0) : 0,
+      memory: memory && memory.summary ? toNumber(memory.summary.entries, 0) : 0,
+      healingReady: healing && healing.summary ? toNumber(healing.summary.eligible, 0) : 0,
+      predictiveAlerts: predictive && predictive.summary ? toNumber(predictive.summary.highRiskAlerts, 0) : 0,
+      optimizationSignals: Array.isArray(optimization?.topImprovements) ? optimization.topImprovements.length : 0,
+      trajectory: trendOverall?.direction || autonomous?.qualityTrajectory?.direction || "unknown",
+    };
+
+    const runs = {
+      history: Array.isArray(uiState.history) ? uiState.history : [],
+      latestRunId: uiState.history && uiState.history[0] ? String(uiState.history[0].runId || uiState.history[0].id || "") : "",
+    };
+
+    const workspace = {
+      workspace: uiState.activeView,
+      focusIssueCode: uiState.activeEvidence?.issueCode || null,
+      searchQuery: uiState.findingsSearch || "",
+    };
+
+    const issues = { report };
+
+    return buildContextSnapshot({ workspace, system, runs, issues });
+  };
+
   uiState.assistantService = window.createSitePulseAssistantService({
     getContext: () => {
       const report = getVisibleReport();
@@ -6609,6 +7008,11 @@ function ensureAssistantService() {
         qualityControl: intelligenceSnapshot.qualityControl,
         assistantLanguage: getAssistantLanguageState(),
         logs: [...uiState.logs],
+        intentSnapshot: uiState.assistantIntentSnapshot,
+        contextSnapshot: uiState.assistantContextSnapshot || buildAssistantContextSnapshot(),
+        evidenceSnapshot: buildEvidenceResult({ logs: uiState.logs, report }),
+        patternMemory: buildPatternMemory(uiState.history, { maxRuns: 20 }),
+        rawQuery: uiState.assistantQuery,
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
           stamp: String(entry?.stamp || ""),
@@ -6665,7 +7069,7 @@ function renderAssistantState() {
         en: `No audit loaded yet | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memory ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} eligible | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} opportunities | view ${uiState.activeView}`,
         ca: `Cap auditoria carregada | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunitats | view ${uiState.activeView}`,
       });
-  if (stateEl.assistantContextPills) {
+  if (stateEl.assistantContextPills && !stateEl.assistantPillRun) {
     stateEl.assistantContextPills.innerHTML = buildAssistantContextPills(report, intelligenceSnapshot)
       .map((pill) => `<span class="assistant-context-chip">${escapeHtml(pill)}</span>`)
       .join("");
@@ -6676,28 +7080,54 @@ function renderAssistantState() {
 
   const result = uiState.assistantResult;
   if (!result) {
-    stateEl.assistantModePill.textContent = uiText.modePillAuto;
-    stateEl.assistantIntentPill.textContent = uiText.intentWaiting;
-    stateEl.assistantModeSummary.textContent = uiText.modeSummaryDefault;
+    if (stateEl.assistantModePill) stateEl.assistantModePill.textContent = uiText.modePillAuto;
+    if (stateEl.assistantIntentPill) {
+      const intent = uiState.assistantIntentSnapshot;
+      if (!intent) {
+        stateEl.assistantIntentPill.textContent = uiText.intentWaiting;
+      } else {
+        const pct = Math.round(intent.confidence * 100);
+        stateEl.assistantIntentPill.textContent = localizePromptLine(languageKey, {
+          pt: `Intencao: ${intent.intent} · ${pct}%`,
+          es: `Intencion: ${intent.intent} · ${pct}%`,
+          en: `Intent: ${intent.intent} · ${pct}%`,
+          ca: `Intencio: ${intent.intent} · ${pct}%`,
+        });
+      }
+    }
+    if (stateEl.assistantModeSummary) stateEl.assistantModeSummary.textContent = uiText.modeSummaryDefault;
     renderAssistantConversation();
     renderAssistantCards(null);
     return;
   }
 
   const localizedMode = getLocalizedAssistantModeMeta(result.modeKey, languageKey);
-  stateEl.assistantModePill.textContent = localizePromptLine(languageKey, {
+  if (stateEl.assistantModePill) stateEl.assistantModePill.textContent = localizePromptLine(languageKey, {
     pt: `Modo: ${localizedMode.name || result.modeName || "Operacional"}`,
     es: `Modo: ${localizedMode.name || result.modeName || "Operacional"}`,
     en: `Mode: ${localizedMode.name || result.modeName || "Operational"}`,
     ca: `Mode: ${localizedMode.name || result.modeName || "Operacional"}`,
   });
-  stateEl.assistantIntentPill.textContent = localizePromptLine(languageKey, {
-    pt: `Intencao: ${result.intentId || "desconhecida"}`,
-    es: `Intencion: ${result.intentId || "desconocida"}`,
-    en: `Intent: ${result.intentId || "unknown"}`,
-    ca: `Intencio: ${result.intentId || "desconeguda"}`,
-  });
-  stateEl.assistantModeSummary.textContent = localizedMode.description
+  if (stateEl.assistantIntentPill) {
+    const intent = uiState.assistantIntentSnapshot;
+    if (!intent) {
+      stateEl.assistantIntentPill.textContent = localizePromptLine(languageKey, {
+        pt: `Intencao: ${result.intentId || "desconhecida"}`,
+        es: `Intencion: ${result.intentId || "desconocida"}`,
+        en: `Intent: ${result.intentId || "unknown"}`,
+        ca: `Intencio: ${result.intentId || "desconeguda"}`,
+      });
+    } else {
+      const pct = Math.round(intent.confidence * 100);
+      stateEl.assistantIntentPill.textContent = localizePromptLine(languageKey, {
+        pt: `Intencao: ${intent.intent} · ${pct}%`,
+        es: `Intencion: ${intent.intent} · ${pct}%`,
+        en: `Intent: ${intent.intent} · ${pct}%`,
+        ca: `Intencio: ${intent.intent} · ${pct}%`,
+      });
+    }
+  }
+  if (stateEl.assistantModeSummary) stateEl.assistantModeSummary.textContent = localizedMode.description
     || result.modeDescription
     || uiText.modeSummaryDefault;
   renderAssistantConversation();
@@ -6707,6 +7137,8 @@ function renderAssistantState() {
 async function executeAssistantAction(action) {
   if (!action || typeof action !== "object") return;
   const payload = action.payload && typeof action.payload === "object" ? action.payload : {};
+  const progressMsg = getAssistantProgressMessage(action.id);
+  if (progressMsg) appendAssistantProgressMessage(progressMsg);
 
   if (action.id === "copy-text") {
     await copyText(String(payload.text || ""), payload.successMessage || "[studio] assistant output copied.");
@@ -6744,6 +7176,10 @@ async function executeAssistantAction(action) {
   if (action.id === "open-healing") {
     switchView("prompts");
     renderPromptWorkspace(getVisibleReport());
+    return;
+  }
+  if (action.id === "switch-compare") {
+    switchView("compare");
     return;
   }
   if (action.id === "generate-prompt") {
@@ -6797,14 +7233,73 @@ async function runAssistantQuery(rawQuery) {
     renderAssistantState();
     return;
   }
+
+  // Intent Engine: transform imperfect input into a structured intent snapshot.
+  uiState.assistantIntentSnapshot = inferIntent(uiState.assistantQuery);
+  // Context Engine: capture a fresh snapshot of the operational state for this query.
+  uiState.assistantContextSnapshot = null; // lazy-built on first getContext() call
+
   const adaptiveLanguage = ensureAdaptiveLanguageService();
   if (adaptiveLanguage && uiState.assistantQuery) {
     uiState.assistantLanguageState = adaptiveLanguage.recordTextSignal(uiState.assistantQuery);
   }
   appendAssistantConversationEntry(createAssistantUserEntry(uiState.assistantQuery));
+  appendAssistantConversationEntry(createAssistantThinkingEntry());
+  renderAssistantConversation();
+  const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+  if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+
+  const thinkingMinMs = 520;
+  const thinkingStart = Date.now();
+  await new Promise((resolve) => setTimeout(resolve, thinkingMinMs));
+
   uiState.assistantResult = service.respond(uiState.assistantQuery);
-  appendAssistantConversationEntry(createAssistantResultEntry(uiState.assistantResult));
+  removeAssistantThinkingEntry();
+  const resultEntry = createAssistantResultEntry(uiState.assistantResult);
+  appendAssistantConversationEntry(resultEntry);
+  persistAssistantConversation();
   renderAssistantState();
+  const elapsed = Date.now() - thinkingStart;
+  if (elapsed < thinkingMinMs + 80) {
+    await new Promise((resolve) => setTimeout(resolve, thinkingMinMs + 100 - elapsed));
+  }
+  revealAssistantResponseStreaming(resultEntry);
+}
+
+function revealAssistantResponseStreaming(resultEntry) {
+  if (!resultEntry || !stateEl.assistantResponse) return;
+  const fullText = Array.isArray(resultEntry.body) ? resultEntry.body.join("\n") : "";
+  if (!fullText.length) return;
+  const lastBubble = stateEl.assistantResponse.querySelector(".assistant-message-assistant:last-child .assistant-message-body");
+  if (!lastBubble) return;
+  const paragraphs = lastBubble.querySelectorAll("p");
+  paragraphs.forEach((p) => {
+    p.textContent = "";
+    p.classList.add("assistant-streaming");
+  });
+  let index = 0;
+  const chunkSize = 4;
+  const interval = 22;
+  const streamId = `stream-${Date.now()}`;
+  uiState.assistantStreamId = streamId;
+  function tick() {
+    if (uiState.assistantStreamId !== streamId) return;
+    if (index >= fullText.length) {
+      paragraphs.forEach((p) => p.classList.remove("assistant-streaming"));
+      return;
+    }
+    const next = Math.min(index + chunkSize, fullText.length);
+    const chunk = fullText.slice(index, next);
+    index = next;
+    if (paragraphs.length > 0) {
+      const firstP = paragraphs[0];
+      firstP.textContent = (firstP.textContent || "") + chunk;
+    }
+    const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+    if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+    setTimeout(tick, interval);
+  }
+  setTimeout(tick, 60);
 }
 
 async function executeCommandPaletteAction(commandId) {
@@ -6828,6 +7323,10 @@ function renderAuditState(audit = {}) {
 
   stateEl.auditStatus.textContent = auditStatusLabel(status);
   stateEl.runAudit.disabled = busy;
+  if (stateEl.runAuditOverview) {
+    stateEl.runAuditOverview.disabled = busy;
+    stateEl.runAuditOverview.textContent = busy ? (audit.running === true ? "Running…" : "Starting…") : "Run";
+  }
   stateEl.runCmd.disabled = busy;
   stateEl.quickAuditButton.disabled = busy;
   stateEl.deepAuditButton.disabled = busy;
@@ -7113,12 +7612,15 @@ function renderWorkspaceReport(report, options = {}) {
   }
 
   renderMetrics(report);
+  renderSystemStateStrip(report);
+  renderNextActionBlock(report);
   renderMobileCoveragePanel(report);
   renderSignals(report);
   renderVisualQuality(report);
   renderSteps(report);
   renderExecutiveSummary(report);
   renderQualityVisuals(report);
+  renderRunHistoryTable();
   renderOptimizationSummary(report);
   renderQualityControlSummary(report);
   renderRouteFilterOptions(report);
@@ -7142,10 +7644,13 @@ function clearLiveReportState() {
   uiState.liveReportKey = "";
   const fallbackReport = getVisibleReport();
   renderMetrics(fallbackReport);
+  renderSystemStateStrip(fallbackReport);
+  renderNextActionBlock(fallbackReport);
   renderMobileCoveragePanel(fallbackReport);
   renderSignals(fallbackReport);
   renderVisualQuality(fallbackReport);
   renderSteps(fallbackReport);
+  renderRunHistoryTable();
   renderRouteFilterOptions(fallbackReport);
   renderIssues(fallbackReport);
   renderCoverageExplorers(fallbackReport);
@@ -7163,6 +7668,7 @@ function clearLiveReportState() {
 
 function renderCompanionState(payload) {
   uiState.companionState = payload;
+  document.title = payload?.packaged === false ? "SitePulse Studio (Dev)" : "SitePulse Studio";
   stateEl.serviceName.textContent = payload?.serviceName || "SitePulse Studio";
   stateEl.versionText.textContent = payload?.version || "1.0.0";
   stateEl.runtimePath.textContent = shortPath(payload?.qaRuntimeDir);
@@ -7790,8 +8296,28 @@ function bindPersistenceEvents() {
 function bindButtons() {
   const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
   if (stateEl.doNext) on(stateEl.doNext, "click", () => executeDoNext());
+  if (stateEl.nextActionOpenIssue) on(stateEl.nextActionOpenIssue, "click", () => {
+    const lead = uiState.nextActionLead;
+    if (lead?.issueCode) openFindingsWithSearch(lead.issueCode);
+  });
+  if (stateEl.nextActionPrepareHealing) on(stateEl.nextActionPrepareHealing, "click", async () => {
+    const lead = uiState.nextActionLead;
+    if (!lead) return;
+    const issue = findVisibleIssue(lead.issueCode || "", lead.route || "/", lead.action || "");
+    if (issue) await requestHealingPreparation(issue);
+    else showToast("The requested healing issue is not loaded right now.", "warn");
+  });
+  if (stateEl.nextActionGeneratePrompt) on(stateEl.nextActionGeneratePrompt, "click", async () => {
+    const lead = uiState.nextActionLead;
+    if (!lead?.issueCode) return;
+    const request = buildAssistantPromptRequest(lead.issueCode);
+    stateEl.assistantInput.value = request;
+    toggleAssistant(true);
+    await runAssistantQuery(request);
+  });
   on(stateEl.runAudit, "click", () => handleAuditRun());
   on(stateEl.runAuditTopbar, "click", () => handleAuditRun());
+  on(stateEl.runAuditOverview, "click", () => handleAuditRun());
   on(stateEl.quickAuditButton, "click", () => handleAuditRun("signal"));
   on(stateEl.deepAuditButton, "click", () => handleAuditRun("deep"));
   on(stateEl.runCmd, "click", openCmdWindow);
@@ -7905,6 +8431,13 @@ function bindButtons() {
   });
   on(stateEl.dismissAssistant, "click", () => toggleAssistant(false));
   on(stateEl.assistantExpand, "click", () => toggleAssistantExpanded());
+  if (stateEl.assistantFocus) {
+    on(stateEl.assistantFocus, "click", () => setAiWorkspaceMode(AI_WORKSPACE_MODE_FOCUS));
+  }
+  if (stateEl.assistantBackToDock) {
+    on(stateEl.assistantBackToDock, "click", () => setAiWorkspaceMode(uiState.lastNonFocusMode));
+  }
+  bindAssistantDockResize();
   if (stateEl.assistantNewChat) {
     stateEl.assistantNewChat.addEventListener("click", () => createNewConversation());
   }
@@ -7969,8 +8502,10 @@ function bindButtons() {
     const button = target.closest("[data-assistant-index]");
     if (!(button instanceof HTMLElement)) return;
     const index = Number(button.dataset.assistantIndex);
+    const actionCards = Array.isArray(uiState.assistantResult?.actionCards) ? uiState.assistantResult.actionCards : [];
     const actions = Array.isArray(uiState.assistantResult?.actions) ? uiState.assistantResult.actions : [];
-    await executeAssistantAction(actions[index]);
+    const action = actionCards[index] ? { id: actionCards[index].id, label: actionCards[index].label, payload: actionCards[index].payload || {} } : actions[index];
+    await executeAssistantAction(action);
   });
   on(stateEl.dismissEvidenceLightbox, "click", closeEvidencePreview);
   on(stateEl.evidenceLightbox, "click", (event) => {
@@ -8060,6 +8595,7 @@ function bindButtons() {
     if (action === "baseline") {
       persistBaseline(snapshot);
       renderHistory();
+      renderRunHistoryTable();
       renderComparison(getVisibleReport());
       renderWorkspaceHeader(uiState.activeView);
       appendLog(`[studio] baseline set from history snapshot ${snapshot.baseUrl}.`);
@@ -8073,6 +8609,7 @@ function bindButtons() {
   }
   if (stateEl.historyList) stateEl.historyList.addEventListener("click", handleHistoryAction);
   if (stateEl.compactRunHistory) stateEl.compactRunHistory.addEventListener("click", handleHistoryAction);
+  if (stateEl.runHistoryTableBody) stateEl.runHistoryTableBody.addEventListener("click", handleHistoryAction);
   [stateEl.issuesList, stateEl.evidenceGallery, stateEl.routeContactSheet].forEach((container) => {
     container.addEventListener("click", async (event) => {
       const target = event.target;
@@ -8349,12 +8886,10 @@ async function bootstrap() {
   renderOnboarding();
   bindPreviewSurface();
 
-  const savedReport = restoreLastReport();
-  if (savedReport) {
-    renderAllReportState(savedReport);
-  } else {
-    renderAllReportState(null);
-  }
+  // Start the workspace in a neutral state. Historical reports remain
+  // available via Runs / Reports / Compare, but we do not preload the last
+  // report into the visible UI to keep the session fresh.
+  renderAllReportState(null);
   renderHistory();
   renderLogs();
   renderCommandPalette();
@@ -8375,7 +8910,9 @@ async function bootstrap() {
   renderCompanionState(payload);
   stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
   await refreshOperationalMemorySnapshot();
+  loadAssistantWorkspaceUIPrefs();
   renderAssistantState();
+  renderAssistantWorkspaceLayout();
   queuePreviewSync("bootstrap");
 }
 

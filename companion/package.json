@@ -13,6 +13,8 @@
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "test:ui": "node scripts/ui-contract.mjs",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
+    "build": "npm run pack:dir",
+    "build:run": "node scripts/build-and-run.mjs",
     "build:win:staging": "npm run sync:runtime && electron-builder --win nsis-web zip --config.directories.output=dist-staging",
     "build:win": "npm run sync:runtime && electron-builder --win nsis-web zip",
     "build:update:metadata": "node scripts/build-version-json.mjs --output-dir dist-staging --notes \"SitePulse Studio desktop release.\""

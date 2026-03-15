@@ -128,7 +128,7 @@
     { id: "memory_guide", mode: "product_guide", terms: ["painel de memoria", "memory panel", "painel de aprendizados", "painel de memoria"], builder: (context) => buildMemoryGuideResponse(context) },
     { id: "guide", mode: "product_guide", terms: ["como usar", "how do i use", "como usar o painel", "guide", "what does", "me ensine", "ensine", "painel atual"], builder: (context) => buildGuideResponse(context) },
     { id: "seo", mode: "audit_analyst", terms: ["analise o log", "analyze the log", "problemas prioritarios de seo", "seo priorities"], builder: (context) => buildSeoResponse(context) },
-    { id: "issue_explain", mode: "audit_analyst", terms: ["o que significa", "what means", "explain", "explique"], builder: (context, rawQuery) => buildIssueExplanation(context, rawQuery) },
+    { id: "issue_explain", mode: "audit_analyst", terms: ["o que significa", "what means", "explain", "explique", "explique este problema", "explain this problem", "este problema"], builder: (context, rawQuery) => buildIssueExplanation(context, rawQuery) },
     { id: "unresolved_critical", mode: "audit_analyst", terms: ["ainda nao tem solucao", "still lack", "sem solucao validada", "without final resolution"], builder: (context) => buildUnresolvedCriticalResponse(context) },
     { id: "validated", mode: "audit_analyst", terms: ["quais problemas criticos", "critical issues", "solucao validada"], builder: (context) => buildValidatedResponse(context) },
     { id: "failed", mode: "audit_analyst", terms: ["quais solucoes falharam", "failed solutions", "failed attempts"], builder: (context, rawQuery) => buildFailedResponse(context, rawQuery) },
@@ -146,16 +146,17 @@
     { id: "quality_trajectory", mode: "strategy_advisor", terms: ["site esta melhorando", "site esta piorando", "quality trajectory", "quality score", "trajectory"], builder: (context) => buildQualityTrajectoryResponse(context) },
     { id: "biggest_risk", mode: "strategy_advisor", terms: ["qual e o maior risco atual", "biggest current risk", "maior risco atual"], builder: (context) => buildBiggestRiskResponse(context) },
     { id: "regression", mode: "strategy_advisor", terms: ["o que piorou", "what got worse", "piorou"], builder: (context) => buildRegressionResponse(context) },
-    { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior"], builder: (context) => buildCompareResponse(context) },
+    { id: "compare", mode: "strategy_advisor", terms: ["compare", "comparar", "compare a run", "run atual com a anterior", "compare execucoes", "compare execuções", "compare runs"], builder: (context) => buildCompareResponse(context) },
     { id: "impact", mode: "strategy_advisor", terms: ["maior impacto", "highest impact", "issues tem maior impacto", "which issues have the highest impact"], builder: (context) => buildImpactResponse(context) },
     { id: "seo_risk", mode: "strategy_advisor", terms: ["maior risco de seo", "biggest seo risk", "seo risk now"], builder: (context) => buildSeoRiskResponse(context) },
     { id: "optimization_opportunities", mode: "strategy_advisor", terms: ["seo opportunities", "ux improvements", "performance gains", "optimization opportunities", "top improvements", "oportunidades"], builder: (context) => buildOptimizationResponse(context) },
     { id: "structural_improvements", mode: "strategy_advisor", terms: ["melhorias estruturais", "structural improvements", "template logic", "recommend fixing template logic"], builder: (context) => buildStructuralRecommendationsResponse(context) },
-    { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
+    { id: "prompt", mode: "prompt_engineer", terms: ["gere um prompt", "generate a prompt", "crie um prompt", "gere prompts para correcao", "gere prompts para correção", "generate prompts for correction"], builder: (context, rawQuery) => buildPromptResponse(context, rawQuery) },
     { id: "memory", mode: "audit_analyst", terms: ["abra a memoria", "open memory", "aprendizados validados"], builder: (context, rawQuery) => buildMemoryResponse(context, rawQuery) },
     { id: "latest_run", mode: "operator", terms: ["ultima run", "latest run", "open last run", "abrir ultima run"], builder: (context) => buildLatestRunResponse(context) },
     { id: "priorities", mode: "strategy_advisor", terms: ["me diga o que devo fazer primeiro", "what should i do first", "prioritize"], builder: (context) => buildPrioritiesResponse(context) },
-    { id: "audit", mode: "operator", terms: ["audite", "run audit", "audit "], builder: (context, rawQuery) => buildAuditSiteResponse(context, rawQuery) },
+    { id: "audit", mode: "operator", terms: ["audite", "run audit", "audit ", "rode auditoria", "roda auditoria", "rodar auditoria", "run a auditoria"], builder: (context, rawQuery) => buildAuditSiteResponse(context, rawQuery) },
+    { id: "analyze_seo_fix", mode: "operator", terms: ["analise seo e diga o que corrigir", "analyze seo and say what to fix", "analise o site", "analise este site", "analyze this site", "analise o seo", "analyze seo"], builder: (context, rawQuery) => buildAnalyzeSeoAndFixResponse(context, rawQuery) },
     { id: "logs", mode: "audit_analyst", terms: ["log", "logs"], builder: (context) => buildLogsResponse(context) },
   ];
 
@@ -403,7 +404,7 @@
 
   function getIntentCategory(intentId) {
     if (["greeting", "thanks"].includes(intentId)) return "social";
-    if (["audit", "manual_override", "healing_revalidate", "latest_run"].includes(intentId)) return "action";
+    if (["audit", "analyze_seo_fix", "manual_override", "healing_revalidate", "latest_run"].includes(intentId)) return "action";
     if (["guide", "memory_guide"].includes(intentId)) return "guide";
     if (["issue_explain", "memory", "logs", "failed", "validated", "unresolved_critical"].includes(intentId)) return "explanation";
     if (["seo", "impact", "worsening", "predictive_risk", "trend", "systemic_patterns", "compare"].includes(intentId)) return "analysis";
@@ -920,6 +921,20 @@
       body.push(copy.noReport);
     }
 
+    const actionCards = buildActionCards(result.actions, meta.languageKey);
+    const defaultChipIds = ["switch-findings", "prepare-healing", "generate-prompt"];
+    const hasReportContext = !!result.hasReportContext;
+    if (hasReportContext && actionCards.length < 4) {
+      const existingIds = new Set(actionCards.map((a) => a.id));
+      defaultChipIds.forEach((id) => {
+        if (!existingIds.has(id)) {
+          const label = id === "switch-findings" ? "Open findings" : id === "prepare-healing" ? "Prepare healing" : "Generate prompt";
+          actionCards.push({ id, label, description: getLocalizedActionDescription(id, meta.languageKey), payload: {} });
+          existingIds.add(id);
+        }
+      });
+    }
+
     return {
       ...result,
       toneKey: meta.toneKey,
@@ -928,14 +943,16 @@
       assistantBody: body,
       assistantFollowUp: copy.followUp,
       promptCard: buildPromptCard(result, meta.languageKey),
-      actionCards: buildActionCards(result.actions, meta.languageKey),
+      actionCards,
     };
   }
 
   function wrapModeResult(modeKey, intentId, result, meta = {}) {
     const mode = MODE_REGISTRY[modeKey] || MODE_REGISTRY.strategy_advisor;
+    const hasReportContext = !!meta.context?.report;
     const wrapped = {
       ...result,
+      hasReportContext,
       modeKey: mode.key,
       modeName: mode.name,
       modeDescription: mode.description,
@@ -1728,6 +1745,77 @@
     };
   }
 
+  const OPERATOR_PLAN_STEPS = {
+    pt: [
+      { id: "1", label: "Iniciar auditoria" },
+      { id: "2", label: "Coletar resultados" },
+      { id: "3", label: "Priorizar problemas" },
+      { id: "4", label: "Explicar ao usuário" },
+    ],
+    es: [
+      { id: "1", label: "Iniciar auditoría" },
+      { id: "2", label: "Recolectar resultados" },
+      { id: "3", label: "Priorizar problemas" },
+      { id: "4", label: "Explicar al usuario" },
+    ],
+    en: [
+      { id: "1", label: "Start audit" },
+      { id: "2", label: "Collect results" },
+      { id: "3", label: "Prioritize issues" },
+      { id: "4", label: "Explain to user" },
+    ],
+    ca: [
+      { id: "1", label: "Iniciar auditoria" },
+      { id: "2", label: "Recollir resultats" },
+      { id: "3", label: "Prioritzar problemes" },
+      { id: "4", label: "Explicar a l'usuari" },
+    ],
+  };
+
+  function buildAnalyzeSeoAndFixResponse(context, rawQuery) {
+    const languageKey = getLanguageKey(context);
+    const steps = OPERATOR_PLAN_STEPS[languageKey] || OPERATOR_PLAN_STEPS.en;
+    const report = context.report;
+    const copy = getHumanCopy(languageKey);
+    const planLabel = { pt: "Plano", es: "Plan", en: "Plan", ca: "Pla" }[languageKey] || "Plan";
+    if (!report) {
+      return {
+        title: planLabel,
+        summary: copy.noReport,
+        plan: steps,
+        analysis: [
+          "1. " + steps[0].label,
+          "2. " + steps[1].label,
+          "3. " + steps[2].label,
+          "4. " + steps[3].label,
+        ],
+        actions: [
+          { id: "run-audit", label: "Run audit now" },
+          { id: "switch-overview", label: "Open overview" },
+        ],
+      };
+    }
+    const totalIssues = report.summary?.totalIssues ?? 0;
+    const seoScore = report.summary?.seoScore ?? 0;
+    const criticalCount = (context.criticalIssues || []).length;
+    return {
+      title: planLabel,
+      summary: `${report.meta?.baseUrl || "Current run"} · ${totalIssues} issue(s) · SEO ${seoScore}. ${criticalCount ? `${criticalCount} critical.` : ""}`,
+      plan: steps,
+      analysis: [
+        "1. " + steps[0].label,
+        "2. " + steps[1].label,
+        "3. " + steps[2].label,
+        "4. " + steps[3].label,
+      ],
+      actions: [
+        { id: "switch-findings", label: "Open findings" },
+        { id: "prepare-healing", label: "Prepare healing" },
+        { id: "generate-prompt", label: "Generate prompt" },
+      ],
+    };
+  }
+
   function buildLatestRunResponse(context) {
     const report = context.report;
     if (!report) {
@@ -1826,9 +1914,11 @@
       ? intentDefinition.builder(modeContext, rawQuery)
       : buildPrioritiesResponse(modeContext);
     return wrapModeResult(modeKey, intentDefinition?.id || "priorities", result, {
+      context: appContext,
       languageKey: getLanguageKey(appContext),
       toneKey: detectTone(rawQuery, intentDefinition?.id || "priorities", conversationState?.lastToneKey || "friendly"),
       intentCategory: getIntentCategory(intentDefinition?.id || "priorities"),
+      intentId: intentDefinition?.id || "priorities",
     });
   }
 

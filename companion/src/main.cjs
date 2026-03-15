@@ -1,4 +1,4 @@
-﻿const fsSync = require("node:fs");
+const fsSync = require("node:fs");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
@@ -2455,6 +2455,7 @@ function getStatePayload() {
   return {
     serviceName: "SitePulse Studio",
     version: app.getVersion(),
+    packaged: app.isPackaged,
     qaRuntimeDir,
     reportsDir,
     launchOnLogin,

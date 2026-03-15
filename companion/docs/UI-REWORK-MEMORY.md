@@ -70,6 +70,21 @@ Contexto para retomar o rework sem quebrar o código.
 - [x] Auto-título a partir da primeira mensagem do utilizador
 - [x] Migração da conversa legada (single key) para o novo modelo multi-conversa
 
+## Verificação dos prompts (conforme enviados)
+
+Conferência em código (renderer.html / renderer.js / renderer.css):
+
+| Prompt | Descrição | Estado | Evidência no código |
+|--------|-----------|--------|---------------------|
+| **1** | App Shell profissional | ✅ Cumprido | `.app-sidebar`, `#shellGrid`, `data-view`, `right-context-panel`, top toolbar |
+| **2A** | Overview + Findings + Compare | ✅ Cumprido | `.mission-control-board`, `.findings-split-layout`, `#findingsInspectorPanel`, `.compare-split-workspace` |
+| **3** | AI Workspace + chat humanizado | ✅ Cumprido | `#assistantResponse.assistant-chat-thread`, bubbles user/assistant, quick tools + action cards |
+| **4** | AI Autonomous Operator Mode | ✅ Cumprido | `#assistantOperatorStatus`, `.assistant-operator-status`, refs em stateEl e renderer.js |
+| **2B** | Memory + Healing + Prompts + Reports + Settings | ✅ Cumprido | `.memory-workspace-panel`, `.healing-queue-panel`, `.prompt-workspace`, `.reports-workspace`, `.settings-workspace` |
+| **5** | AI Memory & Conversation Persistence | ✅ Cumprido | `.assistant-conversation-history`, `#assistantNewChat`, `#assistantConversationList`, `createNewConversation`, `selectConversation`, storage list/messages/currentId |
+
+**Conclusão:** Todos os 6 prompts da suíte foram implementados e estão presentes no código atual.
+
 ## Próximo passo
 
-Suite concluída. Validar build (sync:runtime) e testes manuais; commit/push a cargo do usuário.
+Suite concluída. Validar build (sync:runtime; fechar o app se der "Acesso negado" em pack:dir) e testes manuais; commit/push a cargo do usuário. Ver `BUILD-OUTPUT-RECOVERY.md` para recuperar o build.

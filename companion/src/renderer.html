@@ -41,7 +41,7 @@
 
       <main id="appBody" class="app-body">
         <div id="mainGrid" class="main-grid">
-        <aside class="app-sidebar">
+        <aside class="app-sidebar" aria-label="App navigation">
           <div class="sidebar-section">
             <p class="sidebar-label">Core</p>
             <button class="sidebar-item active" data-view="overview" type="button" title="Target and run control">Overview</button>
@@ -70,7 +70,7 @@
           </div>
         </aside>
 
-        <section class="workspace-shell">
+        <section id="workspaceShell" class="workspace-shell" data-view="overview">
           <section class="workbench-bar">
             <div class="top-toolbar">
               <div class="menu-strip">
@@ -90,7 +90,7 @@
 
           <div id="menuFlyout" class="menu-flyout hidden"></div>
 
-          <header class="panel workspace-header workspace-header-compact">
+          <header id="workspaceHeader" class="panel workspace-header workspace-header-compact workspace-header-overview">
             <div class="workspace-copy">
               <p class="eyebrow" id="workspaceEyebrow">operational control</p>
               <h2 id="workspaceTitle">Overview</h2>
@@ -108,7 +108,7 @@
               <span class="system-state-cell"><span class="system-state-k">Optimization</span><span id="systemStateOptimization" class="system-state-v">0</span></span>
               <span class="system-state-cell"><span class="system-state-k">Trajectory</span><span id="systemStateTrajectory" class="system-state-v">—</span></span>
             </div>
-            <div class="workspace-summary">
+            <div id="workspaceSummary" class="workspace-summary" data-visible-in="overview">
               <div class="workspace-summary-item">
                 <span class="info-label">Mission brief</span>
                 <div id="missionBrief" class="brief-copy">
@@ -117,7 +117,10 @@
               </div>
               <div class="workspace-summary-item workspace-summary-item-compact">
                 <span class="info-label">Run status</span>
-                <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
+                <div class="run-status-row">
+                  <div class="headline-status" id="headlineStatus">Ready to run a new audit.</div>
+                  <button id="runAuditOverview" class="op-btn-run-cta" type="button" title="Run native audit (Ctrl+Enter)">Run</button>
+                </div>
               </div>
               <div class="workspace-summary-item workspace-summary-item-compact hidden" id="baselineIndicatorWrap">
                 <span class="info-label">Baseline</span>
@@ -150,7 +153,9 @@
                     <button id="nextActionGeneratePrompt" type="button" class="op-btn-secondary" data-next-action="generate-prompt">Generate prompt</button>
                   </div>
                 </div>
-                <div class="op-actions">
+                <div class="op-actions-wrap">
+                  <span class="op-actions-label">Action panel</span>
+                  <div class="op-actions" id="opActionsGrid">
                   <button id="doNext" class="primary" type="button" title="Execute the next recommended action (open Findings or Prepare healing)">Do next</button>
                   <button id="runAudit" class="primary" type="button">Run native audit</button>
                   <button id="runCmd" class="secondary" type="button">Open CMD flow</button>
@@ -163,6 +168,7 @@
                   <button id="openLatestEvidence" type="button">Open evidence</button>
                   <button id="openReports" type="button">Report vault</button>
                   <button id="copyBridgeUrl" type="button">Copy bridge URL</button>
+                  </div>
                 </div>
                 <div class="op-surface op-surface-split">
                   <div class="op-panel op-profile-panel">
@@ -1349,8 +1355,9 @@
         </section>
         </div>
 
-        <aside id="assistantWorkspace" class="ai-inspector-panel ai-workspace-dock assistant-workspace hidden" aria-label="AI Workspace">
-          <div class="assistant-workspace-layout">
+<aside id="assistantWorkspace" class="ai-inspector-panel ai-workspace-dock assistant-workspace hidden" aria-label="AI Workspace">
+            <div id="assistantDockResizeHandle" class="ai-workspace-dock-resize-handle hidden" aria-hidden="true" role="separator" title="Drag to resize"></div>
+            <div class="assistant-workspace-layout">
             <nav class="assistant-conversation-history" aria-label="Conversation history">
               <div class="assistant-history-head">
                 <button id="assistantNewChat" class="primary" type="button">New</button>
@@ -1366,8 +1373,10 @@
                 <h3 class="ai-workspace-title">AI Workspace</h3>
                 <div class="ai-workspace-head-actions">
                   <span id="assistantModePill" class="ai-workspace-pill">Mode: auto</span>
+                  <button id="assistantFocus" class="ai-workspace-btn" type="button" title="Full AI workspace">Focus</button>
                   <button id="assistantExpand" class="ai-workspace-btn" type="button">Expand</button>
-                  <button id="dismissAssistant" class="ai-workspace-btn" type="button">Collapse</button>
+                  <button id="dismissAssistant" class="ai-workspace-btn" type="button" title="Hide AI panel">Hide</button>
+                  <button id="assistantBackToDock" class="ai-workspace-btn primary hidden" type="button" title="Back to dock">Back to dock</button>
                 </div>
               </header>
               <div id="assistantContextPills" class="ai-workspace-context-pills" role="status">
@@ -1612,6 +1621,6 @@
     <script src="./quality-control-engine.js"></script>
     <script src="./adaptive-language-service.js"></script>
     <script src="./assistant-service.js"></script>
-    <script src="./renderer.js"></script>
+    <script type="module" src="./renderer.js"></script>
   </body>
 </html>

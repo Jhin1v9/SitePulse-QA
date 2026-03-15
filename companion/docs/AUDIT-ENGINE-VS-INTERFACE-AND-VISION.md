@@ -32,6 +32,45 @@ Objetivo desta evolução:
 - transformar **inteligência em ação imediata**  
 - dar ao utilizador a sensação de **operar um sistema integrado**  
 
+### 1.1 Mudança de produto: Dashboard → Software de operação
+
+O produto muda de:
+
+- **Dashboard com IA** — informação e gráficos, com assistente ao lado.
+
+Para:
+
+- **Software de operação com IA** — motor forte exposto como **superfície de ação**: cada insight conduz a um comando executável.
+
+O motor já existe e é forte. O que falta é:
+
+- **ACTION SURFACE**  
+  Ou seja: **INTELLIGENCE → ACTION**.
+
+Toda superfície de interface deve responder: *o que posso fazer agora com esta informação?* Estado e insight sem ação próxima são incompletos. A prioridade da evolução da UI é fechar o circuito **Intelligence → Action** em cada bloco (system state, next action, priority queue, run history, assistant suggestions).
+
+### 1.2 Arquitetura de layout (estrutura fixa)
+
+O layout base do programa **não** é `sidebar | main | AI sidebar`. É:
+
+```
+┌───────────────────────────────────────────────┐
+│ Top bar                                       │
+├──────────┬────────────────────────────────────┤
+│ Sidebar  │ Workspace (header + body por vista) │
+│          │                                    │
+├──────────┴────────────────────────────────────┤
+│ AI Workspace (dock inferior, largura total)   │
+└───────────────────────────────────────────────┘
+```
+
+- **AI em baixo, nunca em sidebar direita.** O chat precisa largura total (800–1200px) para parecer operador do sistema, não plugin. Implementação: `app-body` em 2 linhas quando o inspector está aberto; segunda linha = `#assistantWorkspace.ai-workspace-dock`.
+- **Bloco Mission brief / Run status** (hero) aparece **apenas em Overview**. Nas outras vistas cada workspace tem layout próprio (Findings = filtros + tabela; SEO = score + signals; etc.). Classe `workspace-header-overview` no header e `.workspace-summary` escondido quando não Overview.
+- **Classe por vista** em `#workspaceShell`: `workspace-view-overview`, `workspace-view-findings`, etc., para CSS e futuros layouts específicos.
+- **Densidade de ferramenta:** padding e gaps reduzidos (main-grid, workspace-header, workspace-body, op-panel, system-state-strip) para sensação de software técnico (Linear, Datadog), não dashboard web.
+
+**Não** reintroduzir AI como terceira coluna. **Não** mostrar hero em todas as páginas.
+
 ---
 
 ## 2. Modelo de informação da UI
@@ -270,8 +309,9 @@ O motor do SitePulse já possui as capacidades necessárias para um sistema de a
 - tornar o sistema **compreensível como um todo**  
 - reduzir a **fricção** entre insight e ação  
 - transformar **inteligência em operação**  
+- expor uma **Action Surface** clara: **INTELLIGENCE → ACTION** em cada superfície.
 
-Após a implementação destas mudanças, o SitePulse Studio deve ser percebido não como um conjunto de ferramentas isoladas, mas como **um sistema integrado de inteligência técnica para websites**.
+Após a implementação destas mudanças, o SitePulse Studio deve ser percebido não como um dashboard com IA, mas como **software de operação com IA** — um sistema integrado de inteligência técnica onde cada bloco de informação oferece ação imediata (Open issue, Prepare healing, Run audit, Set baseline, etc.).
 
 ---
 

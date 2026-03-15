@@ -468,6 +468,11 @@ try {
   await page.goto(rendererUrl);
   await page.waitForSelector(".studio-shell");
   await page.waitForSelector('[data-view-panel="overview"].active');
+  const assistantOpen = await page.evaluate(() => document.getElementById("assistantWorkspace") && !document.getElementById("assistantWorkspace").classList.contains("hidden"));
+  if (assistantOpen) {
+    await page.getByRole("button", { name: "AI Inspector" }).click();
+    await page.waitForTimeout(80);
+  }
 
   const readNavigationState = async () =>
     await page.evaluate(() => {
