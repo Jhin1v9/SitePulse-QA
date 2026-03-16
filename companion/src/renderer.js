@@ -9250,6 +9250,8 @@ function refreshStateElRefs() {
     "openAssistant", "openCommandPalette", "doNext", "quickAuditButton", "deepAuditButton",
     "engineOfflineGoSettings", "runCmd", "exportCurrentReport", "openLatestEvidence",
     "startBridge", "stopBridge", "openReports", "openReportsSecondary", "copyBridgeUrl", "copyBridgeUrlSecondary",
+    "nextActionOpenIssue", "nextActionPrepareHealing", "nextActionGeneratePrompt",
+    "winMinimize", "winMaximize", "winClose",
     "menuFlyout", "workspaceShell", "workspaceHeader", "targetUrl", "findingsSearch",
   ];
   criticalIds.forEach((id) => {
