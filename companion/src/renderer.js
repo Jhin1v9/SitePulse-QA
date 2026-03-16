@@ -2,6 +2,13 @@ import { inferIntent } from "./ai/intent/intentEngine.js";
 import { buildContextSnapshot } from "./ai/context/contextEngine.js";
 import { buildEvidenceResult } from "./ai/evidence/evidenceEngine.js";
 import { buildPatternMemory } from "./ai/memory/memoryEngine.js";
+import { buildLearningSnapshot } from "./ai/learning/learningEngine.js";
+import { buildPredictiveState } from "./ai/predictive/predictiveEngine.js";
+import { buildDecisionPlan } from "./ai/decision/decisionEngine.js";
+import { buildInvestigationPlan } from "./ai/investigation/investigationPlanner.js";
+import { checkAutonomy } from "./ai/autonomy/autonomyGovernance.js";
+import { canExecute } from "./ai/supervisor/executionSupervisor.js";
+import { executeActionStep } from "./ai/action/actionEngine.js";
 
 const STORAGE_KEYS = {
   lastReport: "sitepulse-studio:last-report-v1",
@@ -53,8 +60,8 @@ const CONVERSATION_MESSAGE_LIMIT = 100;
 const VIEW_META = {
   overview: {
     eyebrow: "operational control",
-    title: "Overview",
-    description: "Target, execution profile and run control. System state and next action.",
+    title: "Control Center",
+    description: "System state, priority queue and next action. Mission status, run history, Do next.",
   },
   preview: {
     eyebrow: "preview",
@@ -468,6 +475,9 @@ const stateEl = {
   winMinimize: document.getElementById("winMinimize"),
   winMaximize: document.getElementById("winMaximize"),
   winClose: document.getElementById("winClose"),
+  bridgeMissingBanner: document.getElementById("bridgeMissingBanner"),
+  engineOfflineBanner: document.getElementById("engineOfflineBanner"),
+  engineOfflineGoSettings: document.getElementById("engineOfflineGoSettings"),
   onboardingOverlay: document.getElementById("onboardingOverlay"),
   dismissOnboarding: document.getElementById("dismissOnboarding"),
   startTourAudit: document.getElementById("startTourAudit"),
@@ -513,6 +523,7 @@ const stateEl = {
   assistantConsoleRisk: document.getElementById("assistantConsoleRisk"),
   assistantConsolePriority: document.getElementById("assistantConsolePriority"),
   assistantConsoleNextActions: document.getElementById("assistantConsoleNextActions"),
+  assistantApplyAction: document.getElementById("assistantApplyAction"),
   assistantPillRun: document.getElementById("assistantPillRun"),
   assistantPillWorkspace: document.getElementById("assistantPillWorkspace"),
   assistantPillFocus: document.getElementById("assistantPillFocus"),
@@ -596,6 +607,11 @@ const uiState = {
   assistantLanguageState: null,
   assistantIntentSnapshot: null,
   assistantContextSnapshot: null,
+  assistantDecisionPlan: null,
+  lastExecutedStepIntent: null,
+  lastAuditRunAt: 0,
+  assistantThinkingPhaseIndex: 0,
+  assistantThinkingRotationInterval: null,
   learningMemorySnapshot: null,
   learningMemoryRefreshInFlight: false,
   selfHealingSnapshot: null,
@@ -1041,7 +1057,9 @@ function persistBaseline(snapshot) {
 }
 
 function loadOnboardingState() {
-  return readStorage(STORAGE_KEYS.onboarding, false) === true;
+  const stored = readStorage(STORAGE_KEYS.onboarding, null);
+  if (stored === null) return true;
+  return stored === true;
 }
 
 function persistOnboardingState(value) {
@@ -1094,6 +1112,41 @@ function loadConversationList() {
 
 function saveConversationList(list) {
   writeStorage(STORAGE_KEYS.assistantConversationList, list.slice(-CONVERSATION_LIST_LIMIT));
+}
+
+function deleteConversationMessages(conversationId) {
+  const store = readStorage(STORAGE_KEYS.assistantConversationMessages, {});
+  if (!store || typeof store !== "object") return;
+  const next = { ...store };
+  delete next[conversationId];
+  writeStorage(STORAGE_KEYS.assistantConversationMessages, next);
+}
+
+function deleteConversation(conversationId) {
+  if (!conversationId) return;
+  const list = uiState.conversationList.filter((c) => c.id !== conversationId);
+  const wasCurrent = uiState.currentConversationId === conversationId;
+  saveConversationList(list);
+  deleteConversationMessages(conversationId);
+  uiState.conversationList = loadConversationList();
+  if (wasCurrent) {
+    const nextId = list.length > 0 ? list[list.length - 1].id : null;
+    if (nextId) {
+      uiState.currentConversationId = nextId;
+      uiState.assistantConversation = loadConversationMessages(nextId);
+      saveCurrentConversationId(nextId);
+    } else {
+      const id = `conv-${Date.now()}`;
+      const now = new Date().toISOString();
+      saveConversationList([{ id, title: "New chat", createdAt: now, updatedAt: now, pinned: false }]);
+      saveCurrentConversationId(id);
+      uiState.currentConversationId = id;
+      uiState.assistantConversation = [];
+    }
+    uiState.conversationList = loadConversationList();
+  }
+  renderConversationList();
+  renderAssistantState();
 }
 
 function loadConversationMessages(conversationId) {
@@ -1510,6 +1563,13 @@ const ASSISTANT_PROGRESS_MESSAGES = {
   "switch-compare": { pt: "Abrindo compare...", es: "Abriendo compare...", en: "Opening compare...", ca: "Obrint compare..." },
 };
 
+const ASSISTANT_THINKING_MESSAGES = {
+  pt: ["Pensando…", "Analisando…", "Consultando evidências…", "Verificando padrões…", "Preparando resposta…"],
+  es: ["Pensando…", "Analizando…", "Consultando evidencias…", "Verificando patrones…", "Preparando respuesta…"],
+  en: ["Thinking…", "Analyzing…", "Checking evidence…", "Verifying patterns…", "Preparing response…"],
+  ca: ["Pensant…", "Analitzant…", "Consultant evidències…", "Verificant patrons…", "Preparant resposta…"],
+};
+
 function getAssistantProgressMessage(actionId) {
   const lang = getAssistantLanguage();
   const map = ASSISTANT_PROGRESS_MESSAGES[String(actionId || "")];
@@ -1546,7 +1606,32 @@ function createAssistantThinkingEntry() {
   };
 }
 
+function stopThinkingRotation() {
+  if (uiState.assistantThinkingRotationInterval != null) {
+    clearInterval(uiState.assistantThinkingRotationInterval);
+    uiState.assistantThinkingRotationInterval = null;
+  }
+  uiState.assistantThinkingPhaseIndex = 0;
+}
+
+function startThinkingRotation() {
+  stopThinkingRotation();
+  const messages = ASSISTANT_THINKING_MESSAGES[getAssistantLanguage()] || ASSISTANT_THINKING_MESSAGES.en;
+  if (messages.length === 0) return;
+  uiState.assistantThinkingRotationInterval = setInterval(() => {
+    if (!uiState.assistantConversation.some((e) => e.isThinking)) {
+      stopThinkingRotation();
+      return;
+    }
+    uiState.assistantThinkingPhaseIndex = (uiState.assistantThinkingPhaseIndex + 1) % messages.length;
+    renderAssistantConversation();
+    const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+    if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }, 1600);
+}
+
 function removeAssistantThinkingEntry() {
+  stopThinkingRotation();
   uiState.assistantConversation = uiState.assistantConversation.filter((e) => !e.isThinking);
   persistAssistantConversation();
 }
@@ -1610,10 +1695,23 @@ function renderConversationList() {
     const active = c.id === uiState.currentConversationId ? " active" : "";
     const title = escapeHtml(c.title || "New chat");
     const meta = c.updatedAt ? new Date(c.updatedAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
-    return `<button type="button" class="assistant-conversation-item${active}" data-conversation-id="${escapeHtml(c.id)}" role="listitem"><span class="conversation-title">${title}</span>${meta ? `<span class="conversation-meta">${escapeHtml(meta)}</span>` : ""}</button>`;
+    return `<div class="assistant-conversation-item-wrap" data-conversation-id="${escapeHtml(c.id)}">
+      <button type="button" class="assistant-conversation-item${active}" role="listitem"><span class="conversation-title">${title}</span>${meta ? `<span class="conversation-meta">${escapeHtml(meta)}</span>` : ""}</button>
+      <button type="button" class="assistant-conversation-item-delete" aria-label="Delete conversation" title="Delete conversation">×</button>
+    </div>`;
   }).join("");
-  stateEl.assistantConversationList.querySelectorAll(".assistant-conversation-item").forEach((el) => {
-    el.addEventListener("click", () => selectConversation(el.getAttribute("data-conversation-id")));
+  stateEl.assistantConversationList.querySelectorAll(".assistant-conversation-item-wrap").forEach((wrap) => {
+    const id = wrap.getAttribute("data-conversation-id");
+    const btn = wrap.querySelector(".assistant-conversation-item");
+    const delBtn = wrap.querySelector(".assistant-conversation-item-delete");
+    if (btn) btn.addEventListener("click", () => selectConversation(id));
+    if (delBtn) {
+      delBtn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteConversation(id);
+      });
+    }
   });
 }
 
@@ -1641,7 +1739,8 @@ function renderAssistantConversation() {
       `;
     }
     if (entry.isThinking) {
-      const thinkingText = localizePromptLine(languageKey, { pt: "Analisando…", es: "Analizando…", en: "Thinking…", ca: "Pensant…" });
+      const messages = ASSISTANT_THINKING_MESSAGES[languageKey] || ASSISTANT_THINKING_MESSAGES.en;
+      const thinkingText = messages.length ? messages[uiState.assistantThinkingPhaseIndex % messages.length] : "Thinking…";
       return `
         <article class="assistant-message assistant-message-assistant assistant-message-thinking" aria-live="polite">
           <div class="assistant-message-bubble assistant-thinking-bubble">
@@ -2022,7 +2121,7 @@ function renderAssistantMemoryHealingSummaries(report, intelligenceSnapshot) {
   const memValidated = memory?.summary?.validated ?? 0;
   const memFailed = memory?.summary?.failed ?? 0;
   const healEligible = healing?.summary?.eligible ?? 0;
-  const healReady = healing?.summary?.ready ?? 0;
+  const healReady = healing?.summary?.promptReady ?? 0;
   const memoryText = report
     ? t(
         `${memEntries} entradas · ${memValidated} validadas · ${memFailed} falhas`,
@@ -2089,6 +2188,7 @@ function toggleCommandPalette(forceOpen = null) {
 }
 
 function toggleAssistant(forceOpen = null) {
+  appendLog("[studio] AI / Assistant button triggered.");
   const nextOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
   if (nextOpen) {
     setAiWorkspaceMode(uiState.lastNonFocusMode);
@@ -2207,7 +2307,20 @@ function openEvidencePreview(item) {
   stateEl.evidenceLightbox.classList.remove("hidden");
 }
 
+function ensureCompanion() {
+  const ok = typeof window.sitePulseCompanion === "object" && window.sitePulseCompanion !== null;
+  if (stateEl.bridgeMissingBanner) {
+    stateEl.bridgeMissingBanner.classList.toggle("hidden", ok);
+  }
+  if (ok) return true;
+  const msg = "App bridge not ready. Restart SitePulse Studio and try again.";
+  appendLog(`[studio] ${msg}`);
+  if (typeof showToast === "function") showToast(msg, "bad");
+  return false;
+}
+
 async function syncAuthoritativeState() {
+  if (!ensureCompanion()) return null;
   try {
     const payload = await window.sitePulseCompanion.getState();
     renderCompanionState(payload);
@@ -2822,14 +2935,17 @@ function renderEngineSummaryStrip(report) {
   const qcWarnings = Array.isArray(snap.qualityControl?.topWarnings) ? snap.qualityControl.topWarnings.length : 0;
   const baselineSet = !!(uiState.baseline && uiState.baseline.report);
   const segments = [];
-  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="findings">Issues ${issues}</button>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="settings">Memory ${memory}</button>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="prompts">Healing ${healingReady} ready</button>`);
-  if (predictiveN > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">Predictive ${predictiveN}</button>`);
-  if (optCount > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">Optimization ${optCount}</button>`);
-  if (qcWarnings > 0) segments.push(`<button type="button" class="engine-strip-link" data-strip-view="overview">QC ${qcWarnings}</button>`);
-  segments.push(`<span class="engine-strip-text">Trajectory ${trajectory}</span>`);
-  segments.push(`<button type="button" class="engine-strip-link" data-strip-view="compare">${baselineSet ? "Baseline set" : "Baseline none"}</button>`);
+  const issuesClass = issues > 0 ? " engine-strip-issues-bad" : "";
+  segments.push(`<button type="button" class="engine-strip-link engine-strip-issues${issuesClass}" data-strip-view="findings">Issues ${issues}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link engine-strip-memory" data-strip-view="settings">Memory ${memory}</button>`);
+  segments.push(`<button type="button" class="engine-strip-link engine-strip-healing" data-strip-view="prompts">Healing ${healingReady} ready</button>`);
+  if (predictiveN > 0) segments.push(`<button type="button" class="engine-strip-link engine-strip-predictive engine-strip-predictive-warn" data-strip-view="overview">Predictive ${predictiveN}</button>`);
+  if (optCount > 0) segments.push(`<button type="button" class="engine-strip-link engine-strip-optimization" data-strip-view="overview" data-strip-scroll="optimization">Optimization ${optCount}</button>`);
+  if (qcWarnings > 0) segments.push(`<button type="button" class="engine-strip-link engine-strip-qc engine-strip-qc-warn" data-strip-view="overview" data-strip-scroll="qualityControl">QC ${qcWarnings}</button>`);
+  const trajectoryClass = trajectory === "improving" ? " engine-strip-trajectory-ok" : trajectory === "degrading" ? " engine-strip-trajectory-bad" : "";
+  segments.push(`<span class="engine-strip-text engine-strip-trajectory${trajectoryClass}">Trajectory ${trajectory}</span>`);
+  const baselineClass = baselineSet ? " engine-strip-baseline-ok" : "";
+  segments.push(`<button type="button" class="engine-strip-link engine-strip-baseline${baselineClass}" data-strip-view="compare">${baselineSet ? "Baseline set" : "Baseline none"}</button>`);
   el.classList.remove("hidden");
   el.innerHTML = segments.join(" · ");
 }
@@ -2888,7 +3004,7 @@ function renderCompactRunHistory() {
   const el = stateEl.compactRunHistory;
   const wrap = stateEl.compactRunHistoryWrap;
   if (!el) return;
-  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 6) : [];
+  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 8) : [];
   if (!history.length) {
     if (wrap) wrap.classList.add("hidden");
     el.innerHTML = "";
@@ -2898,20 +3014,24 @@ function renderCompactRunHistory() {
   el.innerHTML = history.map((item, index) => {
     const prev = history[index + 1];
     let purpose = "—";
-    if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
+    if (index === 0 && !prev) purpose = "latest";
+    else if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
       if (item.issueCount < prev.issueCount) purpose = "↓ better";
       else if (item.issueCount > prev.issueCount) purpose = "↑ worse";
       else purpose = "→ stable";
     }
-    const baseUrlShort = (item.baseUrl || "").length > 24 ? (item.baseUrl || "").slice(0, 21) + "…" : (item.baseUrl || "");
+    const baseUrlShort = (item.baseUrl || "").length > 20 ? (item.baseUrl || "").slice(0, 17) + "…" : (item.baseUrl || "");
     const isBaseline = uiState.baseline?.stamp === item.stamp;
+    const isLastStable = index === 0 && purpose === "→ stable";
     return `
       <div class="compact-run-row">
         <span class="compact-run-meta">${escapeHtml(formatLocalDate(item.stamp))} · ${escapeHtml(String(item.issueCount || 0))} issues</span>
+        ${baseUrlShort ? `<span class="compact-run-url" title="${escapeHtml(item.baseUrl || "")}">${escapeHtml(baseUrlShort)}</span>` : ""}
         <span class="compact-run-purpose">${escapeHtml(purpose)}</span>
         ${isBaseline ? '<span class="pill ok baseline-tag">baseline</span>' : ""}
-        <button type="button" class="engine-strip-link" data-history-index="${index}" data-history-action="load">Load</button>
-        <button type="button" class="engine-strip-link" data-history-index="${index}" data-history-action="baseline">Baseline</button>
+        ${isLastStable ? '<span class="pill">last stable</span>' : ""}
+        <button type="button" class="op-btn-secondary compact-run-action" data-history-index="${index}" data-history-action="load">Load</button>
+        <button type="button" class="op-btn-secondary compact-run-action" data-history-index="${index}" data-history-action="baseline">Baseline</button>
       </div>
     `;
   }).join("");
@@ -2931,13 +3051,16 @@ function renderWorkspaceHeader(viewName) {
     stateEl.workspaceShell.className = stateEl.workspaceShell.className.replace(/\bworkspace-view-\S+/g, "").trim();
     stateEl.workspaceShell.classList.add("workspace-view-" + viewName);
   }
-  if (stateEl.baselineIndicator) {
-    const baseline = uiState.baseline && uiState.baseline.report ? uiState.baseline : null;
-    if (stateEl.baselineIndicatorWrap) stateEl.baselineIndicatorWrap.classList.toggle("hidden", !baseline);
-    stateEl.baselineIndicator.textContent = baseline ? `Baseline: ${formatLocalDate(baseline.stamp)}` : "None";
-  }
+  renderBaselineIndicator();
   renderCompactRunHistory();
   renderEngineSummaryStrip(getVisibleReport());
+}
+
+function renderBaselineIndicator() {
+  if (!stateEl.baselineIndicator) return;
+  const baseline = uiState.baseline && uiState.baseline.report ? uiState.baseline : null;
+  if (stateEl.baselineIndicatorWrap) stateEl.baselineIndicatorWrap.classList.toggle("hidden", !baseline);
+  stateEl.baselineIndicator.textContent = baseline ? `Baseline: ${formatLocalDate(baseline.stamp)}` : "None";
 }
 
 function getMenuItems(menuName) {
@@ -3254,7 +3377,7 @@ function revealOnboarding() {
 }
 
 function renderLogs() {
-  stateEl.logOutput.textContent = uiState.logs.join("\n");
+  if (stateEl.logOutput) stateEl.logOutput.textContent = uiState.logs.join("\n");
 }
 
 function appendLog(line) {
@@ -5111,51 +5234,72 @@ function renderMissionBrief() {
   const preparedTargetUrl = getPreparedTargetUrl();
   const reportAlignedWithPreparedTarget = isPreparedTargetAlignedWithReport(visibleReport);
   const evidenceCount = visibleReport ? collectReportEvidence(visibleReport).length : 0;
+  const baselineSet = !!(uiState.baseline && uiState.baseline.report);
+  const desktopSnap = visibleReport ? buildDesktopIntelligenceSnapshot(visibleReport) : null;
+  const healingN = desktopSnap?.selfHealing?.summary?.promptReady ?? 0;
+  const healingReady = healingN > 0;
+
+  function setMissionStatus(shortLine, longTooltip) {
+    if (!stateEl.missionBrief) return;
+    stateEl.missionBrief.textContent = shortLine;
+    if (longTooltip) stateEl.missionBrief.setAttribute("title", longTooltip);
+    else stateEl.missionBrief.removeAttribute("title");
+  }
 
   if (!bridgeRunning) {
-    stateEl.missionBrief.textContent = "The local engine is offline. Start the engine before trusting the board.";
+    setMissionStatus("Engine offline. Start the engine before running audits.", "The local engine is offline. Start the engine before trusting the board.");
     return;
   }
 
   if (audit.running === true) {
-    if (visibleReport) {
-      stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. The live snapshot currently shows ${visibleReport.summary.totalIssues} issue(s), ${visibleReport.summary.routesChecked} route(s), SEO ${visibleReport.summary.seoScore} and ${evidenceCount} evidence file(s).`;
-      return;
-    }
-    stateEl.missionBrief.textContent = `Audit running on ${audit.baseUrl || "the selected target"}. Follow the live log while the engine produces evidence.`;
+    setMissionStatus("Run in progress.", visibleReport
+      ? `Audit running. Live snapshot: ${visibleReport.summary.totalIssues} issue(s), ${visibleReport.summary.routesChecked} route(s), SEO ${visibleReport.summary.seoScore}, ${evidenceCount} evidence file(s).`
+      : "Follow the live log while the engine produces evidence.");
     return;
   }
 
   if (!visibleReport) {
-    if (preparedTargetUrl) {
-      stateEl.missionBrief.textContent = `Target armed: ${preparedTargetUrl}. Run the first audit to generate findings, SEO diagnostics and evidence for this site.`;
-      return;
-    }
-    stateEl.missionBrief.textContent = "SitePulse Studio is ready. Define a target and start the first audit.";
+    setMissionStatus("No report loaded.", preparedTargetUrl ? `Target: ${preparedTargetUrl}. Run the first audit.` : "Define a target and start the first audit.");
+    return;
+  }
+
+  const n = visibleReport.summary?.totalIssues ?? 0;
+  const p0 = visibleReport.summary?.priorityP0 ?? 0;
+  const p1 = visibleReport.summary?.priorityP1 ?? 0;
+
+  if (baselineSet && healingN > 0) {
+    setMissionStatus(`Report loaded — ${n} issues, P0 ${p0} P1 ${p1}. Baseline set — compare available. ${healingN} healing attempt(s) ready.`, null);
+    return;
+  }
+  if (baselineSet) {
+    setMissionStatus(`Report loaded — ${n} issues, P0 ${p0} P1 ${p1}. Baseline set — compare available.`, null);
+    return;
+  }
+  if (healingN > 0) {
+    setMissionStatus(`Report loaded — ${n} issues, P0 ${p0} P1 ${p1}. ${healingN} healing attempt(s) ready.`, null);
     return;
   }
 
   if (!reportAlignedWithPreparedTarget && preparedTargetUrl) {
-    stateEl.missionBrief.textContent = `Prepared target: ${preparedTargetUrl}. The board still shows the last completed run for ${visibleReport.meta.baseUrl}. Run the engine again to refresh findings, SEO and evidence for the new site.`;
+    setMissionStatus(`Report from another target. Prepared: ${preparedTargetUrl}. Run again to refresh.`, null);
     return;
   }
 
-  if (visibleReport.meta.mobileSweep?.profiles?.length) {
-    const worstProfile = [...visibleReport.meta.mobileSweep.profiles].sort((left, right) => right.totalIssues - left.totalIssues)[0];
-    stateEl.missionBrief.textContent = worstProfile
-      ? `Mobile family sweep loaded for ${visibleReport.meta.baseUrl}. ${visibleReport.summary.mobileProfilesAnalyzed} profile(s) completed. Highest pressure is ${worstProfile.label} (${worstProfile.viewport}) with ${worstProfile.totalIssues} issue(s).`
-      : `Mobile family sweep loaded for ${visibleReport.meta.baseUrl}.`;
+  if (visibleReport.meta?.mobileSweep?.profiles?.length) {
+    const worstProfile = [...visibleReport.meta.mobileSweep.profiles].sort((left, right) => (right.totalIssues || 0) - (left.totalIssues || 0))[0];
+    setMissionStatus(worstProfile
+      ? `Mobile sweep — ${visibleReport.meta.baseUrl}. Worst: ${worstProfile?.label} (${worstProfile?.totalIssues} issues).`
+      : `Mobile sweep loaded — ${visibleReport.meta.baseUrl}.`, null);
     return;
   }
 
-  const topIssue = visibleReport.issues[0];
+  const topIssue = visibleReport.issues?.[0];
   if (!topIssue) {
-    stateEl.missionBrief.textContent = `The latest run finished clean on ${visibleReport.meta.baseUrl}. Treat it as the regression baseline and run again after each structural change.`;
+    setMissionStatus(`Report loaded — ${n} issues, P0 ${p0} P1 ${p1}. Latest run clean — use as baseline.`, null);
     return;
   }
 
-  const route = topIssue.route === "/" ? "home route" : topIssue.route;
-  stateEl.missionBrief.textContent = `Primary pressure point: ${topIssue.group} on ${route}${topIssue.action ? ` via "${topIssue.action}"` : ""}. ${evidenceCount > 0 ? `There are ${evidenceCount} captured evidence file(s) attached to the run.` : "No screenshot proof was attached to this run."} Resolve the highest-impact failures before the next validation pass.`;
+  setMissionStatus(`Report loaded — ${n} issues, P0 ${p0} P1 ${p1}. Top pressure: ${topIssue.group}.`, null);
 }
 
 function renderMetrics(report) {
@@ -5382,8 +5526,15 @@ function renderExecutiveSummary(report) {
   stateEl.executiveSummaryTopOpportunities.innerHTML = (executive.topOpportunities || []).length
     ? executive.topOpportunities.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
     : "<li>No fast opportunity is attached to this run yet.</li>";
-  stateEl.executiveSummaryActionOrder.innerHTML = (executive.recommendedActionOrder || []).length
-    ? executive.recommendedActionOrder.slice(0, 4).map((item) => `<li><button type="button" class="action-link open-findings-search" data-findings-search="${escapeHtml(String(item))}">${escapeHtml(item)}</button></li>`).join("")
+  const actionOrder = (executive.recommendedActionOrder || []).slice(0, 4);
+  stateEl.executiveSummaryActionOrder.innerHTML = actionOrder.length
+    ? actionOrder.map((code) => {
+        const issue = (report.issues || []).find((i) => String(i.code || "").toUpperCase() === String(code || "").toUpperCase());
+        const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+        const canPrepare = healing && ["eligible_for_healing", "assist_only"].includes(String(healing.eligibility || ""));
+        const safeCode = escapeHtml(String(code));
+        return `<li><button type="button" class="action-link open-findings-search" data-findings-search="${safeCode}">Open issue</button>${canPrepare ? ` <button type="button" class="action-link" data-issue-action="prepare-healing" data-issue-code="${safeCode}">Prepare healing</button>` : ""} <span class="op-muted">${safeCode}</span></li>`;
+      }).join("")
     : "<li>No action order is available yet.</li>";
   const patterns = [...(report.intelligence?.patterns || []), ...intelligence.recurringIssues.slice(0, 2).map((item) => ({
     label: `${item.issue.code} recurring in ${item.recurringCount} run(s).`,
@@ -5484,25 +5635,38 @@ function renderQualityVisuals(report) {
     : "No ranked issue queue is available for the current run.";
   if (stateEl.priorityQueueTableBody) {
     stateEl.priorityQueueTableBody.innerHTML = priorityQueue.length
-      ? priorityQueue.map((item, index) => {
+      ? priorityQueue.map((item) => {
           const impact = Number(toNumber(item.impactScore, 0)).toFixed(2);
           const confidence = item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : (item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a");
           const code = escapeHtml(String(item.issueCode || ""));
           const route = escapeHtml(String(item.route || "/"));
           const action = escapeHtml(String(item.action || ""));
+          const issue = (report.issues || []).find((i) =>
+            String(i.code || "").toUpperCase() === String(item.issueCode || "").toUpperCase()
+            && String(i.route || "/").trim() === String(item.route || "/").trim()
+            && String(i.action || "").trim() === String(item.action || "").trim()) || (report.issues || []).find((i) => String(i.code || "").toUpperCase() === String(item.issueCode || "").toUpperCase());
+          const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+          const canPrepare = healing && ["eligible_for_healing", "assist_only"].includes(String(healing.eligibility || ""));
+          const prepareBtn = canPrepare ? ` <button type="button" class="op-btn-secondary op-table-action" data-issue-action="prepare-healing" data-issue-code="${code}" data-issue-route="${route}" data-issue-action-name="${action}">Prepare healing</button>` : "";
           return `<tr data-findings-search="${code}" data-priority-route="${route}" data-priority-action="${action}">
             <td><button type="button" class="op-table-link open-findings-search" data-findings-search="${code}">${code}</button></td>
             <td>${impact}</td>
             <td>${escapeHtml(confidence)}</td>
-            <td><button type="button" class="op-btn-secondary op-table-action open-findings-search" data-findings-search="${code}">Open issue</button></td>
+            <td><button type="button" class="op-btn-secondary op-table-action open-findings-search" data-findings-search="${code}">Open issue</button>${prepareBtn}</td>
           </tr>`;
         }).join("")
       : '<tr><td colspan="4" class="op-table-empty">No ranked issue queue loaded yet.</td></tr>';
   }
   if (stateEl.priorityViewList) {
     stateEl.priorityViewList.innerHTML = priorityQueue.length
-      ? priorityQueue.map((item, index) => `
-          <article class="explorer-item explorer-item-clickable" data-findings-search="${escapeHtml(String(item.issueCode || ""))}">
+      ? priorityQueue.map((item, index) => {
+          const issue = (report.issues || []).find((i) => String(i.code || "").toUpperCase() === String(item.issueCode || "").toUpperCase()) || null;
+          const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
+          const canPrepare = healing && ["eligible_for_healing", "assist_only"].includes(String(healing.eligibility || ""));
+          const code = escapeHtml(String(item.issueCode || ""));
+          const prepareBtn = canPrepare ? ` <button type="button" class="op-btn-secondary small" data-issue-action="prepare-healing" data-issue-code="${code}" data-issue-route="${escapeHtml(String(item.route || "/"))}" data-issue-action-name="${escapeHtml(String(item.action || ""))}">Prepare healing</button>` : "";
+          return `
+          <article class="explorer-item explorer-item-clickable" data-findings-search="${code}">
             <div class="split-head" style="align-items:flex-start; gap:12px;">
               <div>
                 <div class="nav-title">${escapeHtml(`${index + 1}. ${item.issueCode}`)}</div>
@@ -5513,34 +5677,40 @@ function renderQualityVisuals(report) {
             <div class="history-copy" style="margin-top:8px;">
               ${escapeHtml(`impact ${Number(toNumber(item.impactScore, 0)).toFixed(2)} | predictive ${item.predictiveRisk ? `${item.predictiveRisk.level} ${Number(toNumber(item.predictiveRisk.confidence, 0)).toFixed(2)}` : "n/a"} | healing ${item.healingConfidence ? `${item.healingConfidence.label || "n/a"} ${item.healingConfidence.score}` : "n/a"}`)}
             </div>
+            <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;"><button type="button" class="op-btn-secondary small open-findings-search" data-findings-search="${code}">Open issue</button>${prepareBtn}</div>
           </article>
-      `).join("")
+      `;
+        }).join("")
     : '<article class="empty-state">No ranked issue queue is loaded yet.</article>';
   }
 }
 
 function renderRunHistoryTable() {
   if (!stateEl.runHistoryTableBody) return;
-  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 10) : [];
+  const history = Array.isArray(uiState.history) ? uiState.history.slice(0, 8) : [];
   if (!history.length) {
-    stateEl.runHistoryTableBody.innerHTML = '<tr><td colspan="4" class="op-table-empty">No run history yet.</td></tr>';
+    stateEl.runHistoryTableBody.innerHTML = '<tr><td colspan="5" class="op-table-empty">No run history yet.</td></tr>';
     return;
   }
   stateEl.runHistoryTableBody.innerHTML = history.map((item, index) => {
     const prev = history[index + 1];
     let trend = "—";
-    if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
+    if (index === 0 && !prev) trend = "latest";
+    else if (prev && Number.isFinite(item.issueCount) && Number.isFinite(prev.issueCount)) {
       if (item.issueCount < prev.issueCount) trend = "↓ better";
       else if (item.issueCount > prev.issueCount) trend = "↑ worse";
       else trend = "→ stable";
     }
     const stamp = escapeHtml(formatLocalDate(item.stamp));
     const issues = escapeHtml(String(item.issueCount || 0));
+    const baseUrlShort = (item.baseUrl || "").length > 28 ? (item.baseUrl || "").slice(0, 25) + "…" : (item.baseUrl || "");
     const isBaseline = uiState.baseline?.stamp === item.stamp;
+    const isLastStable = index === 0 && trend === "→ stable";
     return `<tr>
       <td>${stamp}</td>
       <td>${issues}</td>
-      <td>${escapeHtml(trend)}${isBaseline ? ' <span class="pill ok">baseline</span>' : ""}</td>
+      <td><span class="op-muted" title="${escapeHtml(item.baseUrl || "")}">${escapeHtml(baseUrlShort)}</span></td>
+      <td>${escapeHtml(trend)}${isBaseline ? ' <span class="pill ok">baseline</span>' : ""}${isLastStable ? ' <span class="pill">last stable</span>' : ""}</td>
       <td>
         <button type="button" class="op-btn-secondary op-table-action" data-history-index="${index}" data-history-action="load">Load</button>
         <button type="button" class="op-btn-secondary op-table-action" data-history-index="${index}" data-history-action="baseline">Baseline</button>
@@ -5564,10 +5734,13 @@ function renderOptimizationSummary(report) {
 
   stateEl.optimizationHeadline.textContent = `${summary.seoOpportunities || 0} SEO opportunity cluster(s) | ${summary.uxImprovements || 0} UX improvement cluster(s) | ${summary.performanceGains || 0} performance gain cluster(s)`;
   stateEl.optimizationTopImprovements.innerHTML = topImprovements.length
-    ? topImprovements.map((item) => `<li>${escapeHtml(`${item.title} | score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)} | confidence ${Number(toNumber(item.confidence, 0)).toFixed(2)} | ${item.issueCount} issue(s) across ${item.routesAffected} route(s)`)}</li>`).join("")
+    ? topImprovements.map((item) => {
+        const label = `${item.title} | score ${Number(toNumber(item.compositeScore, 0)).toFixed(2)} | ${item.issueCount} issue(s)`;
+        return `<li class="op-drill-row"><span>${escapeHtml(label)}</span> <button type="button" class="engine-strip-link op-drill-btn" data-strip-view="findings">Open Findings</button></li>`;
+      }).join("")
     : "<li>No structural improvement list is available yet.</li>";
   stateEl.optimizationClusters.innerHTML = clusters.length
-    ? clusters.slice(0, 5).map((cluster) => `<li>${escapeHtml(`${cluster.title}: ${cluster.recommendation}`)}</li>`).join("")
+    ? clusters.slice(0, 5).map((cluster) => `<li class="op-drill-row"><span>${escapeHtml(`${cluster.title}: ${cluster.recommendation}`)}</span> <button type="button" class="engine-strip-link op-drill-btn" data-strip-view="findings">Open Findings</button></li>`).join("")
     : "<li>No issue cluster is available yet.</li>";
 }
 
@@ -5588,7 +5761,7 @@ function renderQualityControlSummary(report) {
   stateEl.qualityControlInconsistencies.textContent = String(summary.inconsistentIssues || 0);
   stateEl.qualityControlWarnings.textContent = String(summary.validationWarnings || 0);
   stateEl.qualityControlWarningsList.innerHTML = Array.isArray(qualityControl.topWarnings) && qualityControl.topWarnings.length
-    ? qualityControl.topWarnings.slice(0, 6).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
+    ? qualityControl.topWarnings.slice(0, 6).map((item) => `<li class="op-drill-row"><span>${escapeHtml(item)}</span> <button type="button" class="engine-strip-link op-drill-btn" data-strip-view="findings">Open Findings</button></li>`).join("")
     : "<li>No quality-control warning is available yet.</li>";
 }
 
@@ -6995,6 +7168,19 @@ function ensureAssistantService() {
     getContext: () => {
       const report = getVisibleReport();
       const intelligenceSnapshot = buildDesktopIntelligenceSnapshot(report);
+      const contextSnapshot = uiState.assistantContextSnapshot || buildAssistantContextSnapshot();
+      const evidenceSnapshot = buildEvidenceResult({ logs: uiState.logs, report });
+      const patternMemory = buildPatternMemory(uiState.history, { maxRuns: 20 });
+      const learningSnapshot = buildLearningSnapshot(patternMemory.frequencyByCode, report, { maxIssues: 50 });
+      const predictiveState = buildPredictiveState(patternMemory.runSnapshots, { maxPoints: 15 });
+      const intentSnapshot = uiState.assistantIntentSnapshot;
+      const investigationPlan = intentSnapshot
+        ? buildInvestigationPlan(intentSnapshot, evidenceSnapshot)
+        : { steps: [], summary: "", timestamps: { capturedAt: new Date().toISOString() } };
+      const decisionPlan = intentSnapshot
+        ? buildDecisionPlan(intentSnapshot, contextSnapshot, evidenceSnapshot, patternMemory)
+        : { diagnosis: "", reasoning: "", steps: [] };
+      uiState.assistantDecisionPlan = decisionPlan;
       return {
         activeView: uiState.activeView,
         report,
@@ -7009,9 +7195,13 @@ function ensureAssistantService() {
         assistantLanguage: getAssistantLanguageState(),
         logs: [...uiState.logs],
         intentSnapshot: uiState.assistantIntentSnapshot,
-        contextSnapshot: uiState.assistantContextSnapshot || buildAssistantContextSnapshot(),
-        evidenceSnapshot: buildEvidenceResult({ logs: uiState.logs, report }),
-        patternMemory: buildPatternMemory(uiState.history, { maxRuns: 20 }),
+        contextSnapshot,
+        evidenceSnapshot,
+        patternMemory,
+        learningSnapshot,
+        predictiveState,
+        investigationPlan,
+        decisionPlan,
         rawQuery: uiState.assistantQuery,
         compareDigest: buildCompareDigest(report),
         runHistory: uiState.history.slice(0, 8).map((entry) => ({
@@ -7095,6 +7285,7 @@ function renderAssistantState() {
         });
       }
     }
+    if (stateEl.assistantApplyAction) stateEl.assistantApplyAction.classList.add("hidden");
     if (stateEl.assistantModeSummary) stateEl.assistantModeSummary.textContent = uiText.modeSummaryDefault;
     renderAssistantConversation();
     renderAssistantCards(null);
@@ -7130,6 +7321,10 @@ function renderAssistantState() {
   if (stateEl.assistantModeSummary) stateEl.assistantModeSummary.textContent = localizedMode.description
     || result.modeDescription
     || uiText.modeSummaryDefault;
+  const plan = uiState.assistantDecisionPlan;
+  const intentForApply = uiState.assistantIntentSnapshot;
+  const canApply = intentForApply && intentForApply.confidence >= 0.7 && plan && plan.steps && plan.steps.length > 0;
+  if (stateEl.assistantApplyAction) stateEl.assistantApplyAction.classList.toggle("hidden", !canApply);
   renderAssistantConversation();
   renderAssistantCards(result);
 }
@@ -7161,7 +7356,7 @@ async function executeAssistantAction(action) {
     renderIssues(getVisibleReport());
     return;
   }
-  if (action.id === "open-issue") {
+  if (action.id === "open-issue" || action.id === "open-findings") {
     openFindingsWithSearch(payload.issueCode || payload.query || "");
     return;
   }
@@ -7233,6 +7428,7 @@ async function runAssistantQuery(rawQuery) {
     renderAssistantState();
     return;
   }
+  if (stateEl.assistantInput) stateEl.assistantInput.value = "";
 
   // Intent Engine: transform imperfect input into a structured intent snapshot.
   uiState.assistantIntentSnapshot = inferIntent(uiState.assistantQuery);
@@ -7246,6 +7442,7 @@ async function runAssistantQuery(rawQuery) {
   appendAssistantConversationEntry(createAssistantUserEntry(uiState.assistantQuery));
   appendAssistantConversationEntry(createAssistantThinkingEntry());
   renderAssistantConversation();
+  startThinkingRotation();
   const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
   if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
 
@@ -7264,36 +7461,118 @@ async function runAssistantQuery(rawQuery) {
     await new Promise((resolve) => setTimeout(resolve, thinkingMinMs + 100 - elapsed));
   }
   revealAssistantResponseStreaming(resultEntry);
+
+  const stepResult = executeAssistantSuggestedStep();
+  if (stepResult.executed) {
+    showToast("Action applied.", "ok");
+    renderAssistantState();
+  } else if (stepResult.reason) {
+    showToast(stepResult.reason, "warn");
+  }
+}
+
+function getAssistantStepRunner() {
+  return {
+    openFindings: (payload) => openFindingsWithSearch((payload && payload.issueCode) || (payload && payload.query) || ""),
+    runAudit: (payload) => handleAuditRun((payload && payload.depth === "deep") ? "deep" : null),
+    doNext: () => executeDoNext(),
+    showLogs: () => switchView("operations"),
+    openEvidence: () => { switchView("reports"); openLatestEvidence(); },
+    loadReport: (payload) => {
+      const runId = payload && payload.runId ? String(payload.runId) : "";
+      const snapshot = (uiState.history || []).find((h) => (h.runId || h.id) === runId);
+      if (snapshot && snapshot.report) {
+        renderAllReportState(snapshot.report);
+        switchView("reports");
+      }
+    },
+    generateFixPrompt: (payload) => {
+      const issueCode = payload && payload.issueCode ? String(payload.issueCode) : "";
+      if (issueCode) {
+        const request = buildAssistantPromptRequest(issueCode);
+        if (stateEl.assistantInput) stateEl.assistantInput.value = request;
+        toggleAssistant(true);
+      }
+    },
+    showScreenshot: () => { switchView("reports"); openLatestEvidence(); },
+    switchView: (view) => switchView(view),
+  };
+}
+
+/**
+ * Execute the first suggested assistant step (if allowed by autonomy and supervisor).
+ * @returns {{ executed: boolean, reason?: string }}
+ */
+function executeAssistantSuggestedStep() {
+  const plan = uiState.assistantDecisionPlan;
+  const intent = uiState.assistantIntentSnapshot;
+  if (!intent || intent.confidence < 0.7 || !plan || !plan.steps || plan.steps.length === 0) {
+    return { executed: false, reason: "No suggested action or confidence too low." };
+  }
+  const step = plan.steps[0];
+  const governance = checkAutonomy(step, "assisted");
+  if (governance.verdict !== "allowed") {
+    return { executed: false, reason: governance.reason || "Action requires confirmation or is not allowed." };
+  }
+  const supervisorResult = canExecute(step, {
+    lastExecutedStepIntent: uiState.lastExecutedStepIntent || undefined,
+    lastAuditRunAt: uiState.lastAuditRunAt || 0,
+  });
+  if (!supervisorResult.allowed) {
+    return { executed: false, reason: supervisorResult.reason || "Execution blocked by supervisor." };
+  }
+  const runner = getAssistantStepRunner();
+  executeActionStep(step, runner);
+  uiState.lastExecutedStepIntent = step.intent;
+  if (step.intent === "audit_run") uiState.lastAuditRunAt = Date.now();
+  return { executed: true };
 }
 
 function revealAssistantResponseStreaming(resultEntry) {
   if (!resultEntry || !stateEl.assistantResponse) return;
-  const fullText = Array.isArray(resultEntry.body) ? resultEntry.body.join("\n") : "";
-  if (!fullText.length) return;
-  const lastBubble = stateEl.assistantResponse.querySelector(".assistant-message-assistant:last-child .assistant-message-body");
+  const lead = String(resultEntry.lead || "").trim();
+  const planLines = Array.isArray(resultEntry.plan) ? resultEntry.plan.map((s) => String(s.label || "").trim()) : [];
+  const bodyLines = Array.isArray(resultEntry.body) ? resultEntry.body.map((s) => String(s || "").trim()) : [];
+  const followUp = String(resultEntry.followUp || "").trim();
+  const lastBubble = stateEl.assistantResponse.querySelector(".assistant-message-assistant:last-child .assistant-message-bubble");
   if (!lastBubble) return;
-  const paragraphs = lastBubble.querySelectorAll("p");
-  paragraphs.forEach((p) => {
-    p.textContent = "";
-    p.classList.add("assistant-streaming");
-  });
-  let index = 0;
+  const strongEl = lastBubble.querySelector("strong");
+  const planOl = lastBubble.querySelector("ol.assistant-message-plan");
+  const bodyDiv = lastBubble.querySelector(".assistant-message-body");
+  const followUpDiv = lastBubble.querySelector(".assistant-message-followup");
+  const liEls = planOl ? Array.from(planOl.querySelectorAll("li")) : [];
+  const pEls = bodyDiv ? Array.from(bodyDiv.querySelectorAll("p")) : [];
+  const segments = [];
+  const targets = [];
+  if (lead.length > 0 && strongEl) { segments.push(lead); targets.push(strongEl); }
+  planLines.forEach((line, i) => { if (liEls[i]) { segments.push(line); targets.push(liEls[i]); } });
+  bodyLines.forEach((line, i) => { if (pEls[i]) { segments.push(line); targets.push(pEls[i]); } });
+  if (followUp.length > 0 && followUpDiv) { segments.push(followUp); targets.push(followUpDiv); }
+  if (!segments.length || segments.length !== targets.length) return;
+  targets.forEach((el) => { el.textContent = ""; });
+  let segmentIndex = 0;
+  let charIndex = 0;
   const chunkSize = 4;
   const interval = 22;
   const streamId = `stream-${Date.now()}`;
   uiState.assistantStreamId = streamId;
   function tick() {
     if (uiState.assistantStreamId !== streamId) return;
-    if (index >= fullText.length) {
-      paragraphs.forEach((p) => p.classList.remove("assistant-streaming"));
+    if (segmentIndex >= segments.length) {
+      targets.forEach((el) => el.classList.remove("assistant-streaming"));
       return;
     }
-    const next = Math.min(index + chunkSize, fullText.length);
-    const chunk = fullText.slice(index, next);
-    index = next;
-    if (paragraphs.length > 0) {
-      const firstP = paragraphs[0];
-      firstP.textContent = (firstP.textContent || "") + chunk;
+    const segment = segments[segmentIndex];
+    const target = targets[segmentIndex];
+    if (charIndex < segment.length) {
+      const next = Math.min(charIndex + chunkSize, segment.length);
+      target.textContent += segment.slice(charIndex, next);
+      charIndex = next;
+      target.classList.add("assistant-streaming");
+    } else {
+      target.classList.remove("assistant-streaming");
+      segmentIndex += 1;
+      charIndex = 0;
     }
     const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
     if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
@@ -7679,6 +7958,7 @@ function renderCompanionState(payload) {
   const bridgeRunning = payload?.bridge?.running === true;
   stateEl.bridgeStatus.textContent = bridgeRunning ? `${payload.bridge.host}:${payload.bridge.port}` : "offline";
   setChip(stateEl.bridgeChip, bridgeRunning ? "engine online" : "engine offline", bridgeRunning ? "ok" : "bad");
+  if (stateEl.engineOfflineBanner) stateEl.engineOfflineBanner.classList.toggle("hidden", bridgeRunning);
   setChip(stateEl.buildChip, `studio ${payload?.version || "1.0.0"}`, "ok");
   renderGoogleSeoSource(payload?.seoSource || {});
   renderUpdateState(payload?.update || null);
@@ -7832,6 +8112,12 @@ async function installUpdate() {
 }
 
 async function handleAuditRun(forceDepth = null) {
+  appendLog("[studio] Run audit button triggered.");
+  if (!ensureCompanion()) return;
+  if (uiState.companionState?.bridge?.running !== true) {
+    showToast("Engine offline. Start the engine in Settings to run audits.", "bad");
+    return;
+  }
   if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
     showToast("An audit is already in progress.", "warn");
     return;
@@ -7892,6 +8178,11 @@ async function handleAuditRun(forceDepth = null) {
     }
     showToast(report.summary.totalIssues > 0 ? "Audit finished with findings." : "Audit finished clean.", report.summary.totalIssues > 0 ? "warn" : "ok");
     switchView(report.summary.totalIssues > 0 ? "findings" : "reports");
+  } catch (err) {
+    const msg = err?.message || String(err);
+    appendLog(`[studio] audit run error: ${msg}`);
+    stateEl.headlineStatus.textContent = msg;
+    showToast(msg.length > 60 ? "Audit failed. See status bar and log." : msg, "bad");
   } finally {
     uiState.auditRequestInFlight = false;
     renderAuditState(uiState.companionState?.audit || {});
@@ -7899,6 +8190,7 @@ async function handleAuditRun(forceDepth = null) {
 }
 
 async function openCmdWindow() {
+  if (!ensureCompanion()) return;
   if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
     showToast("An audit is already in progress.", "warn");
     return;
@@ -7946,12 +8238,14 @@ async function openCmdWindow() {
 }
 
 async function openReportsVault() {
+  if (!ensureCompanion()) return;
   const result = await window.sitePulseCompanion.openReports();
   appendLog(result.ok ? "[studio] report vault opened." : `[studio] could not open report vault: ${result.error || "unknown"}`);
   showToast(result.ok ? "Report vault opened." : "Could not open the report vault.", result.ok ? "ok" : "bad");
 }
 
 async function copyBridgeUrl() {
+  if (!ensureCompanion()) return;
   const result = await window.sitePulseCompanion.copyBridgeUrl();
   appendLog(result.ok ? "[studio] bridge URL copied." : `[studio] could not copy bridge URL: ${result.error || "unknown"}`);
   showToast(result.ok ? "Bridge URL copied." : "Could not copy bridge URL.", result.ok ? "ok" : "bad");
@@ -7994,6 +8288,8 @@ function togglePreviewFollowMode() {
 }
 
 async function loadReportFromFile() {
+  appendLog("[studio] Load report button triggered.");
+  if (!ensureCompanion()) return;
   const result = await window.sitePulseCompanion.pickReportFile();
   if (!result?.ok || !result?.report) {
     if (result?.error !== "file_pick_cancelled") {
@@ -8033,6 +8329,7 @@ async function exportCurrentReport() {
 }
 
 async function openLatestEvidence() {
+  if (!ensureCompanion()) return;
   const currentEvidence = collectReportEvidence(getVisibleReport());
   if (currentEvidence.length) {
     switchView("reports");
@@ -8096,6 +8393,7 @@ async function startEngine() {
 }
 
 async function stopEngine() {
+  if (!ensureCompanion()) return;
   const result = await window.sitePulseCompanion.stopBridge();
   appendLog(result.ok ? "[studio] engine stopped." : `[studio] engine stop failed: ${result.detail || result.error || "unknown"}`);
   showToast(result.ok ? "Engine stopped." : "Engine failed to stop.", result.ok ? "warn" : "bad");
@@ -8109,6 +8407,7 @@ function pinCurrentReportAsBaseline() {
 
   const snapshot = createReportSnapshot(createCompactStoredReport(uiState.report, { issueLimit: 120, actionLimit: 80, routeLimit: 60 }));
   persistBaseline(snapshot);
+  renderBaselineIndicator();
   renderHistory();
   renderComparison(getVisibleReport());
   appendLog(`[studio] baseline pinned from ${snapshot.baseUrl} at ${snapshot.stamp}`);
@@ -8117,6 +8416,7 @@ function pinCurrentReportAsBaseline() {
 
 function clearBaseline() {
   persistBaseline(null);
+  renderBaselineIndicator();
   renderHistory();
   renderComparison(getVisibleReport());
   appendLog("[studio] comparison baseline cleared.");
@@ -8141,12 +8441,14 @@ function applyPresetFirstAudit() {
 
 function bindNavigation() {
   document.body.addEventListener("click", (e) => {
-    const target = e.target && e.target.closest ? e.target.closest("[data-view]") : null;
-    if (target && target.getAttribute("data-view") && !target.disabled) {
-      e.preventDefault();
-      e.stopPropagation();
-      switchView(target.getAttribute("data-view") || "overview");
-    }
+    const clicked = e.target && e.target.nodeType === Node.ELEMENT_NODE ? e.target : (e.target && e.target.parentElement);
+    if (!clicked || typeof clicked.closest !== "function") return;
+    if (!clicked.closest(".app-sidebar")) return;
+    const target = clicked.closest("button[data-view]");
+    if (!target || target.disabled || !target.getAttribute("data-view")) return;
+    e.preventDefault();
+    e.stopPropagation();
+    switchView(target.getAttribute("data-view") || "overview");
   }, true);
 }
 
@@ -8213,6 +8515,15 @@ function bindSelectionEvents() {
     if (!view) return;
     e.preventDefault();
     switchView(view);
+    const scrollId = btn.dataset.stripScroll;
+    if (scrollId && view === "overview") {
+      requestAnimationFrame(() => {
+        const panel = document.getElementById(scrollId + "Panel");
+        if (panel && typeof panel.scrollIntoView === "function") {
+          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
+      });
+    }
   });
   if (stateEl.findingsRouteFilter) {
     stateEl.findingsRouteFilter.addEventListener("change", () => {
@@ -8295,6 +8606,7 @@ function bindPersistenceEvents() {
 
 function bindButtons() {
   const on = (el, ev, fn) => { if (el) el.addEventListener(ev, fn); };
+  on(stateEl.engineOfflineGoSettings, "click", () => switchView("settings"));
   if (stateEl.doNext) on(stateEl.doNext, "click", () => executeDoNext());
   if (stateEl.nextActionOpenIssue) on(stateEl.nextActionOpenIssue, "click", () => {
     const lead = uiState.nextActionLead;
@@ -8433,6 +8745,17 @@ function bindButtons() {
   on(stateEl.assistantExpand, "click", () => toggleAssistantExpanded());
   if (stateEl.assistantFocus) {
     on(stateEl.assistantFocus, "click", () => setAiWorkspaceMode(AI_WORKSPACE_MODE_FOCUS));
+  }
+  if (stateEl.assistantApplyAction) {
+    on(stateEl.assistantApplyAction, "click", () => {
+      const stepResult = executeAssistantSuggestedStep();
+      if (stepResult.executed) {
+        showToast("Action applied.", "ok");
+        renderAssistantState();
+      } else if (stepResult.reason) {
+        showToast(stepResult.reason, "warn");
+      }
+    });
   }
   if (stateEl.assistantBackToDock) {
     on(stateEl.assistantBackToDock, "click", () => setAiWorkspaceMode(uiState.lastNonFocusMode));
@@ -8594,6 +8917,7 @@ function bindButtons() {
     const action = button.dataset.historyAction || "load";
     if (action === "baseline") {
       persistBaseline(snapshot);
+      renderBaselineIndicator();
       renderHistory();
       renderRunHistoryTable();
       renderComparison(getVisibleReport());
@@ -8610,7 +8934,27 @@ function bindButtons() {
   if (stateEl.historyList) stateEl.historyList.addEventListener("click", handleHistoryAction);
   if (stateEl.compactRunHistory) stateEl.compactRunHistory.addEventListener("click", handleHistoryAction);
   if (stateEl.runHistoryTableBody) stateEl.runHistoryTableBody.addEventListener("click", handleHistoryAction);
+  document.addEventListener("click", async (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) return;
+    const issueActionButton = target.closest("[data-issue-action]");
+    if (issueActionButton instanceof HTMLElement) {
+      const inIssues = stateEl.issuesList && stateEl.issuesList.contains(issueActionButton);
+      const inGallery = stateEl.evidenceGallery && stateEl.evidenceGallery.contains(issueActionButton);
+      const inContact = stateEl.routeContactSheet && stateEl.routeContactSheet.contains(issueActionButton);
+      if (inIssues || inGallery || inContact) return;
+      const issueCode = issueActionButton.dataset.issueCode || "";
+      const issueAction = issueActionButton.dataset.issueAction || "";
+      const route = issueActionButton.dataset.issueRoute || "/";
+      const actionName = issueActionButton.dataset.issueActionName || "";
+      if (issueAction === "prepare-healing") {
+        const issue = findVisibleIssue(issueCode, route, actionName);
+        if (issue) await requestHealingPreparation(issue);
+      }
+    }
+  });
   [stateEl.issuesList, stateEl.evidenceGallery, stateEl.routeContactSheet].forEach((container) => {
+    if (!container) return;
     container.addEventListener("click", async (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) return;
@@ -8721,6 +9065,25 @@ function bindButtons() {
       await requestHealingRevalidation(issue);
     }
   });
+}
+
+function verifyCriticalButtons() {
+  const critical = [
+    { id: "runAudit", el: stateEl.runAudit },
+    { id: "runAuditTopbar", el: stateEl.runAuditTopbar },
+    { id: "runAuditOverview", el: stateEl.runAuditOverview },
+    { id: "loadReportFile", el: stateEl.loadReportFile },
+    { id: "loadReportTopbar", el: stateEl.loadReportTopbar },
+    { id: "openAssistant", el: stateEl.openAssistant },
+    { id: "openCommandPalette", el: stateEl.openCommandPalette },
+    { id: "doNext", el: stateEl.doNext },
+    { id: "quickAuditButton", el: stateEl.quickAuditButton },
+    { id: "deepAuditButton", el: stateEl.deepAuditButton },
+  ];
+  const missing = critical.filter(({ el }) => !el).map(({ id }) => id);
+  if (missing.length) {
+    appendLog(`[studio] critical buttons missing (IDs not in DOM): ${missing.join(", ")}. Check renderer.html has these ids.`);
+  }
 }
 
 function bindKeyboardShortcuts() {
@@ -8853,6 +9216,9 @@ function bindKeyboardShortcuts() {
 }
 
 function bindRuntimeEvents() {
+  if (typeof window.sitePulseCompanion !== "object" || window.sitePulseCompanion === null) {
+    return;
+  }
   window.sitePulseCompanion.onLog((line) => {
     appendLog(line);
   });
@@ -8878,17 +9244,39 @@ function bindRuntimeEvents() {
   });
 }
 
+function refreshStateElRefs() {
+  const criticalIds = [
+    "runAudit", "runAuditTopbar", "runAuditOverview", "loadReportFile", "loadReportTopbar",
+    "openAssistant", "openCommandPalette", "doNext", "quickAuditButton", "deepAuditButton",
+    "engineOfflineGoSettings", "runCmd", "exportCurrentReport", "openLatestEvidence",
+    "startBridge", "stopBridge", "openReports", "openReportsSecondary", "copyBridgeUrl", "copyBridgeUrlSecondary",
+    "menuFlyout", "workspaceShell", "workspaceHeader", "targetUrl", "findingsSearch",
+  ];
+  criticalIds.forEach((id) => {
+    const el = document.getElementById(id);
+    if (el && Object.prototype.hasOwnProperty.call(stateEl, id)) stateEl[id] = el;
+  });
+  const logOutputEl = document.getElementById("logOutput");
+  if (logOutputEl) stateEl.logOutput = logOutputEl;
+}
+
 async function bootstrap() {
-  bindNavigation();
   document.body.classList.add("studio-ready");
+  refreshStateElRefs();
+  ensureCompanion();
+  bindNavigation();
+  bindSelectionEvents();
+  bindPersistenceEvents();
+  bindButtons();
+  verifyCriticalButtons();
+  bindKeyboardShortcuts();
+  bindRuntimeEvents();
+
   restoreProfile();
   renderStaticSelections();
   renderOnboarding();
   bindPreviewSurface();
 
-  // Start the workspace in a neutral state. Historical reports remain
-  // available via Runs / Reports / Compare, but we do not preload the last
-  // report into the visible UI to keep the session fresh.
   renderAllReportState(null);
   renderHistory();
   renderLogs();
@@ -8896,24 +9284,27 @@ async function bootstrap() {
   renderPreviewWorkspace();
   switchView("overview");
 
-  bindSelectionEvents();
-  bindPersistenceEvents();
-  bindButtons();
-  bindKeyboardShortcuts();
-  bindRuntimeEvents();
-
-  const [payload, windowState] = await Promise.all([
-    window.sitePulseCompanion.getState(),
-    window.sitePulseCompanion.getWindowState(),
-  ]);
-
-  renderCompanionState(payload);
-  stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
-  await refreshOperationalMemorySnapshot();
-  loadAssistantWorkspaceUIPrefs();
-  renderAssistantState();
-  renderAssistantWorkspaceLayout();
-  queuePreviewSync("bootstrap");
+  if (!ensureCompanion()) {
+    showToast("App bridge not ready. Restart SitePulse Studio.", "bad");
+    appendLog("[studio] bootstrap: sitePulseCompanion unavailable; some actions will show a message when used.");
+    return;
+  }
+  try {
+    const [payload, windowState] = await Promise.all([
+      window.sitePulseCompanion.getState(),
+      window.sitePulseCompanion.getWindowState(),
+    ]);
+    renderCompanionState(payload);
+    stateEl.winMaximize.textContent = windowState?.maximized ? String.fromCharCode(10064) : String.fromCharCode(9633);
+    await refreshOperationalMemorySnapshot();
+    loadAssistantWorkspaceUIPrefs();
+    renderAssistantState();
+    renderAssistantWorkspaceLayout();
+    queuePreviewSync("bootstrap");
+  } catch (err) {
+    appendLog(`[studio] bootstrap state sync failed: ${err?.message || err}`);
+    showToast("Could not load app state. Buttons may not work until you restart.", "bad");
+  }
 }
 
 function onDomReady(fn) {
@@ -8924,9 +9315,21 @@ function onDomReady(fn) {
   }
 }
 
+window.addEventListener("error", (event) => {
+  const msg = event?.message || event?.error?.message || String(event);
+  appendLog(`[studio] error: ${msg}`);
+  if (typeof showToast === "function") showToast("An error occurred. Check the log.", "bad");
+});
+window.addEventListener("unhandledrejection", (event) => {
+  const msg = event?.reason?.message || String(event?.reason || event);
+  appendLog(`[studio] unhandled rejection: ${msg}`);
+  if (typeof showToast === "function") showToast("An error occurred. Check the log.", "bad");
+});
+
 onDomReady(() => {
   bootstrap().catch((error) => {
     appendLog(`[studio] bootstrap failed: ${error?.message || error}`);
+    if (typeof showToast === "function") showToast("Startup failed. Check the log.", "bad");
     if (typeof console !== "undefined" && console.error) console.error("[studio] bootstrap", error);
   });
 });

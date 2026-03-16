@@ -12,7 +12,10 @@
     "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "test:ui": "node scripts/ui-contract.mjs",
+    "test:buttons": "npm run sync:runtime && node scripts/run-electron.mjs . --button-test",
+    "check": "npm run smoke && npm run test:ui",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
+    "pack:dir:no-sign": "node scripts/pack-dir-no-sign.mjs",
     "build": "npm run pack:dir",
     "build:run": "node scripts/build-and-run.mjs",
     "build:win:staging": "npm run sync:runtime && electron-builder --win nsis-web zip --config.directories.output=dist-staging",
@@ -62,6 +65,7 @@
       "main": "src/main.cjs"
     },
     "asarUnpack": [
+      "src/preload.cjs",
       "runtime-source/**",
       "node_modules/playwright/**",
       "node_modules/playwright-core/**",

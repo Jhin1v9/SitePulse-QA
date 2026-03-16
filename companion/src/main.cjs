@@ -2557,6 +2557,14 @@ function normalizeWindowBounds(win, recenter = false) {
   win.setBounds({ x, y, width, height });
 }
 
+function getPreloadPath() {
+  if (app.isPackaged) {
+    const unpacked = path.join(process.resourcesPath, "app.asar.unpacked", "src", "preload.cjs");
+    if (fsSync.existsSync(unpacked)) return unpacked;
+  }
+  return path.join(__dirname, "preload.cjs");
+}
+
 function createWindow() {
   const primaryWorkArea = screen.getPrimaryDisplay().workArea;
   const initialSizing = computeWindowSizing(primaryWorkArea);
@@ -2575,7 +2583,7 @@ function createWindow() {
     show: false,
     title: "SitePulse Studio",
     webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
+      preload: getPreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
       webviewTag: true,
@@ -3039,6 +3047,34 @@ app.whenReady().then(async () => {
   writeBootstrapTrace("main window created");
   pushLog("[desktop] janela principal criada");
   await loadDesktopShell();
+
+  const isButtonTest = process.argv.includes("--button-test");
+  if (isButtonTest) {
+    await new Promise((r) => setTimeout(r, 4500));
+    try {
+      const result = await mainWindow.webContents.executeJavaScript(`
+        (function() {
+          try {
+            var b = document.getElementById('runAuditTopbar');
+            if (!b) return { ok: false, err: 'runAuditTopbar not found' };
+            b.click();
+            return { ok: true };
+          } catch (e) {
+            return { ok: false, err: (e && e.message) || String(e) };
+          }
+        })();
+      `);
+      if (result && result.ok) {
+        process.stdout.write("BUTTON_TEST_OK\n");
+      } else {
+        process.stdout.write("BUTTON_TEST_FAIL " + (result && result.err || "unknown") + "\n");
+      }
+    } catch (e) {
+      process.stdout.write("BUTTON_TEST_FAIL " + (e && e.message) + "\n");
+    }
+    app.quit();
+    return;
+  }
 
   try {
     await ensureQaRuntime();
