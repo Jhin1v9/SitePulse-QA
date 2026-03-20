@@ -175,7 +175,10 @@ const mockAuditResponse = {
   },
 };
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  args: ["--disable-web-security", "--allow-file-access-from-files"],
+});
 const page = await browser.newPage({ viewport: { width: 1280, height: 760 } });
 page.on("pageerror", (error) => {
   process.stderr.write(`PAGEERROR ${error?.stack || error?.message || error}\n`);
@@ -578,11 +581,22 @@ try {
     fail("workspace body did not move after scroll");
   }
 
+  await page.evaluate(() => {
+    const input = document.getElementById("targetUrl");
+    if (input) {
+      input.value = "https://example.com";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+  });
+  await page.waitForTimeout(200);
+
   await page.getByRole("button", { name: "Run deep audit" }).click();
   await page.waitForFunction(() => Number(document.getElementById("issuesMetric")?.textContent?.trim() || "0") >= 1);
   await page.waitForFunction(() => document.querySelectorAll("#timelineList .timeline-entry").length >= 1);
   await page.waitForFunction(() => document.querySelectorAll("#stageBoard .stage-card").length >= 4);
   await page.waitForFunction(() => Number(document.getElementById("issuesMetric")?.textContent?.trim() || "0") >= 1);
+  await page.locator('.app-sidebar button[data-view="findings"]').click({ force: true });
   await page.waitForSelector('[data-view-panel="findings"].active');
   await page.waitForFunction(() => document.getElementById("auditProgressPercent")?.textContent?.trim() === "100%");
 

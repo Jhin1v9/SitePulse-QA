@@ -523,6 +523,25 @@ select {
   min-height: 0;
 }
 
+/* React AI workspace integration (SitePulseScreen mount only within #assistantWorkspace) */
+#assistantWorkspaceReactRoot {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#assistantWorkspace.assistant-workspace-react-active .assistant-workspace-layout,
+#assistantWorkspace.assistant-workspace-react-active #assistantDockResizeHandle {
+  display: none !important;
+}
+
+#assistantWorkspace.assistant-workspace-react-active #assistantWorkspaceReactRoot {
+  display: block;
+}
+
 .assistant-conversation-history {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
@@ -4009,4 +4028,1024 @@ button.xl {
     max-height: calc(100vh - 28px);
     padding: 16px;
   }
+}
+
+/* ===============================
+   Surgical visual replacement layer
+   =============================== */
+body {
+  background: #0b0d12 !important;
+  color: #f0f4f8;
+}
+
+.studio-shell {
+  background: transparent;
+}
+
+.topbar {
+  height: 72px;
+  min-height: 72px;
+  padding: 0 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 19, 26, 0.8);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+.topbar-status,
+.topbar-context {
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.topbar-status-value {
+  color: #f0f4f8;
+}
+
+.topbar-action-btn,
+.topbar-window-btn {
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  color: #8b95a5;
+}
+
+.topbar-action-btn:hover,
+.topbar-window-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f0f4f8;
+}
+
+.topbar-action-btn#runAuditTopbar {
+  border-color: rgba(91, 140, 255, 0.3);
+  background: rgba(91, 140, 255, 0.12);
+  color: #bfdbfe;
+  box-shadow: 0 0 20px rgba(91, 140, 255, 0.15);
+}
+
+.main-grid {
+  grid-template-columns: 256px minmax(0, 1fr);
+  gap: 0;
+  padding: 0;
+  background: transparent;
+}
+
+.app-sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 19, 26, 0.8);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  padding: 12px;
+}
+
+.sidebar-item {
+  border: 1px solid transparent;
+  border-left: 1px solid transparent;
+  border-radius: 16px;
+  min-height: 40px;
+  color: #8b95a5;
+  padding: 0 12px;
+}
+
+.sidebar-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-item.active {
+  color: #f0f4f8;
+  border-color: rgba(91, 140, 255, 0.3);
+  background: linear-gradient(90deg, rgba(91, 140, 255, 0.16), rgba(91, 140, 255, 0.03));
+  box-shadow: 0 0 20px rgba(91, 140, 255, 0.1);
+}
+
+.workspace-shell {
+  background: transparent;
+  padding: 0 0 120px;
+}
+
+.workbench-bar,
+.menu-flyout {
+  display: none !important;
+}
+
+.workspace-header {
+  margin: 16px 20px 0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.01));
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.18);
+}
+
+.workspace-body {
+  padding: 14px 20px 120px;
+}
+
+.panel,
+.op-panel,
+.prompt-box,
+.headline-status,
+.brief-copy,
+.issue-card,
+.history-item,
+.explorer-item,
+.timeline-entry,
+.stage-card,
+.info-card,
+.setting-card {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(19, 24, 33, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.hero-collapsed {
+  transform: translateY(-24px);
+  opacity: 0;
+  pointer-events: none;
+  max-height: 0;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
+/* ——— Architect HUD · sticky context (modern CSS: @property, conic-mesh, layers) ——— */
+@property --arch-rotate {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes arch-aurora-rotate {
+  to {
+    --arch-rotate: 360deg;
+  }
+}
+
+@keyframes arch-scan-move {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 24px;
+  }
+}
+
+@keyframes arch-live-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.25);
+  }
+}
+
+@keyframes arch-glyph-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(91, 140, 255, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(91, 140, 255, 0);
+  }
+}
+
+#stickyContextBar {
+  margin: 10px 20px 0;
+  border-radius: 22px;
+  transform: translateY(-12px);
+  opacity: 0;
+  pointer-events: none;
+  position: relative;
+  container-type: inline-size;
+  container-name: arch-sticky;
+}
+
+#stickyContextBar.sticky-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* Motor-driven edge lighting state (no simulated telemetry). */
+#stickyContextBar {
+  --sticky-glow-color: rgba(91, 140, 255, 0.22);
+}
+#stickyContextBar[data-cognitive-state="monitoring"] {
+  --sticky-glow-color: rgba(91, 140, 255, 0.22);
+}
+#stickyContextBar[data-cognitive-state="alert"] {
+  --sticky-glow-color: rgba(239, 68, 68, 0.22);
+}
+#stickyContextBar[data-cognitive-state="healing"] {
+  --sticky-glow-color: rgba(168, 85, 247, 0.22);
+}
+#stickyContextBar::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 22px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 250ms ease;
+  background: radial-gradient(ellipse at top, var(--sticky-glow-color), transparent 70%);
+  filter: blur(10px);
+  z-index: -1;
+}
+#stickyContextBar.sticky-visible::after {
+  opacity: 1;
+}
+
+#stickyContextBar .arch-sticky-surface {
+  isolation: isolate;
+  background: linear-gradient(
+    165deg,
+    rgba(12, 16, 22, 0.94) 0%,
+    rgba(18, 24, 34, 0.92) 38%,
+    rgba(14, 18, 26, 0.96) 100%
+  );
+  backdrop-filter: blur(24px) saturate(185%);
+  -webkit-backdrop-filter: blur(24px) saturate(185%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.35) inset,
+    0 20px 50px rgba(0, 0, 0, 0.42),
+    0 0 80px rgba(91, 140, 255, 0.06);
+}
+
+#stickyContextBar .arch-sticky-aurora {
+  background: conic-gradient(
+    from var(--arch-rotate),
+    transparent 0deg,
+    rgba(91, 140, 255, 0.11) 55deg,
+    rgba(168, 85, 247, 0.09) 125deg,
+    rgba(34, 211, 238, 0.08) 200deg,
+    transparent 280deg,
+    rgba(91, 140, 255, 0.07) 340deg,
+    transparent 360deg
+  );
+  animation: arch-aurora-rotate 14s linear infinite;
+  mix-blend-mode: screen;
+}
+
+#stickyContextBar .arch-sticky-gridmesh {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(91, 140, 255, 0.12), transparent 70%);
+  background-size: 24px 24px, 24px 24px, 100% 100%;
+  mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+}
+
+#stickyContextBar .arch-sticky-noise {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+#stickyContextBar .arch-sticky-scan {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 3px,
+    rgba(91, 140, 255, 0.03) 3px,
+    rgba(91, 140, 255, 0.03) 4px
+  );
+  background-size: 100% 24px;
+  animation: arch-scan-move 7s linear infinite;
+  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%);
+}
+
+#stickyContextBar .arch-sticky-corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+  border-color: rgba(91, 140, 255, 0.35);
+  opacity: 0.85;
+}
+
+#stickyContextBar .arch-sticky-corner--tl {
+  top: 10px;
+  left: 10px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+  border-radius: 3px 0 0 0;
+}
+
+#stickyContextBar .arch-sticky-corner--tr {
+  top: 10px;
+  right: 10px;
+  border-top: 2px solid;
+  border-right: 2px solid;
+  border-radius: 0 3px 0 0;
+}
+
+#stickyContextBar .arch-sticky-corner--bl {
+  bottom: 10px;
+  left: 10px;
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+  border-radius: 0 0 0 3px;
+}
+
+#stickyContextBar .arch-sticky-corner--br {
+  bottom: 10px;
+  right: 10px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-radius: 0 0 3px 0;
+}
+
+#stickyContextBar .arch-sticky-pip {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #7dd3fc, #0ea5e9 40%, #0369a1);
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.75);
+}
+
+#stickyContextBar .arch-sticky-live {
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+  color: #86efac;
+  animation: arch-live-pulse 2.4s ease-in-out infinite;
+}
+
+#stickyContextBar .arch-sticky-zone--beta {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding-left: clamp(10px, 2.5vw, 18px);
+  margin-left: 0;
+}
+
+@container arch-sticky (min-width: 640px) {
+  #stickyContextBar .arch-sticky-zone--beta {
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    padding-left: 18px;
+    margin-left: 4px;
+  }
+}
+
+#stickyContextBar .arch-sticky-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.32rem 0.65rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.06), rgba(0, 0, 0, 0.12));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 6px 16px rgba(0, 0, 0, 0.18);
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+#stickyContextBar .arch-sticky-chip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+#stickyContextBar .arch-sticky-chip--neutral {
+  color: rgba(226, 232, 240, 0.92);
+  border-color: rgba(148, 163, 184, 0.22);
+}
+
+#stickyContextBar .arch-sticky-chip--risk {
+  color: #fecaca;
+  border-color: rgba(239, 68, 68, 0.45);
+  background: linear-gradient(155deg, rgba(239, 68, 68, 0.2), rgba(0, 0, 0, 0.2));
+  box-shadow:
+    0 0 20px rgba(239, 68, 68, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+#stickyContextBar .arch-sticky-chip--warn {
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.4);
+  background: linear-gradient(155deg, rgba(245, 158, 11, 0.16), rgba(0, 0, 0, 0.18));
+  box-shadow: 0 0 18px rgba(245, 158, 11, 0.1);
+}
+
+#stickyContextBar .arch-sticky-chip--muted {
+  color: rgba(203, 213, 225, 0.82);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+#stickyContextBar .arch-sticky-zone--patterns {
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  padding-left: clamp(10px, 2.5vw, 18px);
+  margin-left: 0;
+}
+
+@container arch-sticky (min-width: 640px) {
+  #stickyContextBar .arch-sticky-zone--patterns {
+    padding-left: 18px;
+    margin-left: 4px;
+  }
+}
+
+#stickyContextBar .arch-sticky-rail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  border-radius: 14px;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(226, 232, 240, 0.85);
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.2s ease;
+}
+
+#stickyContextBar .arch-sticky-rail-btn:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+#stickyContextBar .arch-sticky-rail-btn.active {
+  background: rgba(91, 140, 255, 0.12);
+  border-color: rgba(91, 140, 255, 0.45);
+  color: #93bbfc;
+  box-shadow: 0 0 24px rgba(91, 140, 255, 0.12);
+}
+
+#stickyContextBar .arch-sticky-rail-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.95;
+}
+
+#stickyContextBar .arch-sticky-rail-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+#stickyContextBar .arch-sticky-rail-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+#stickyContextBar .arch-sticky-rail-badge {
+  min-width: 1.1rem;
+  height: 1rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+  color: rgba(226, 232, 240, 0.92);
+}
+
+#stickyContextBar .arch-sticky-rail-badge--healing {
+  border-color: rgba(168, 85, 247, 0.35);
+  background: rgba(168, 85, 247, 0.12);
+  color: #d8b4fe;
+}
+
+#stickyContextBar .arch-sticky-rail-badge--delta {
+  border-color: rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fcd34d;
+}
+
+#stickyContextBar .arch-sticky-rail-badge--alert {
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.12);
+  color: #fca5a5;
+}
+
+/* Pulsos só quando o motor sinaliza cura */
+#stickyContextBar .arch-sticky-rail-btn[data-pulse="healing"] {
+  animation: sitepulse-sticky-chip-blink 2.8s ease-in-out infinite;
+  border-color: rgba(168, 85, 247, 0.55);
+}
+
+#stickyContextBar .arch-sticky-chip--ok {
+  color: #bbf7d0;
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(155deg, rgba(34, 197, 94, 0.12), rgba(0, 0, 0, 0.15));
+}
+
+#stickyContextBar .arch-sticky-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border-radius: 14px;
+  padding: 0.55rem 0.9rem;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    background 0.16s ease,
+    border-color 0.16s ease,
+    box-shadow 0.2s ease;
+}
+
+#stickyContextBar .arch-sticky-btn--ghost {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(226, 232, 240, 0.88);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+#stickyContextBar .arch-sticky-btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #f8fafc;
+}
+
+#stickyContextBar .arch-sticky-btn--focus {
+  position: relative;
+  border: 1px solid rgba(91, 140, 255, 0.45);
+  background: linear-gradient(165deg, rgba(91, 140, 255, 0.22), rgba(59, 130, 246, 0.08));
+  color: #bfdbfe;
+  box-shadow:
+    0 0 24px rgba(91, 140, 255, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.08) inset;
+}
+
+#stickyContextBar .arch-sticky-btn--focus:hover {
+  transform: scale(1.02);
+  border-color: rgba(125, 211, 252, 0.55);
+}
+
+#stickyContextBar .arch-sticky-focus-glyph {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 30% 30%, #dbeafe, #3b82f6);
+  animation: arch-glyph-pulse 2s ease-out infinite;
+}
+
+/* Hero-replacement mode: larger chroma + elevated frame */
+#stickyContextBar.sticky-as-hero.sticky-visible {
+  margin: 0 20px 18px;
+  padding: 0.35rem 0.25rem 0.5rem;
+}
+
+#stickyContextBar.sticky-as-hero.sticky-visible .arch-sticky-surface {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 28px 64px rgba(0, 0, 0, 0.5),
+    0 0 100px rgba(91, 140, 255, 0.12),
+    0 0 1px rgba(91, 140, 255, 0.35);
+}
+
+#stickyContextBar.sticky-as-hero.sticky-visible .arch-sticky-aurora {
+  opacity: 0.95;
+  animation-duration: 11s;
+}
+
+#stickyContextBar.sticky-as-hero.sticky-visible .arch-sticky-corner {
+  width: 22px;
+  height: 22px;
+  border-color: rgba(125, 211, 252, 0.45);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #stickyContextBar .arch-sticky-aurora,
+  #stickyContextBar .arch-sticky-scan,
+  #stickyContextBar .arch-sticky-live,
+  #stickyContextBar .arch-sticky-focus-glyph,
+  #stickyContextBar .arch-sticky-surface,
+  #stickyContextBar .arch-sticky-zone--alpha {
+    animation: none;
+  }
+
+  #stickyContextBar .arch-sticky-aurora {
+    opacity: 0.5;
+  }
+}
+
+/* ========= Living UI · ritmo = pulse-slow 3s + glow-pulse 2s (renderer.html) ========= */
+@keyframes sitepulse-live-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes sitepulse-live-breathe-micro {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.88;
+    transform: scale(0.985);
+  }
+}
+
+/* Sticky HUD — “piscada” visível (ritmo próximo aos cards 3s / chip 2.8s) */
+@keyframes sitepulse-sticky-surface-alive {
+  0%,
+  100% {
+    filter: brightness(1) saturate(1);
+  }
+  50% {
+    filter: brightness(1.08) saturate(1.12);
+  }
+}
+
+@keyframes sitepulse-sticky-chip-blink {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1);
+  }
+  50% {
+    opacity: 0.78;
+    transform: scale(0.94);
+    filter: brightness(1.2);
+  }
+}
+
+@keyframes sitepulse-sticky-zone-pulse {
+  0%,
+  100% {
+    border-left-color: rgba(34, 211, 238, 0.45);
+  }
+  50% {
+    border-left-color: rgba(34, 211, 238, 0.95);
+  }
+}
+
+@keyframes sitepulse-live-glow-blue {
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(91, 140, 255, 0.15),
+      0 0 0 1px rgba(91, 140, 255, 0.08);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(91, 140, 255, 0.28),
+      0 0 60px rgba(91, 140, 255, 0.12),
+      0 0 0 1px rgba(147, 197, 253, 0.22);
+  }
+}
+
+@keyframes sitepulse-live-glow-purple {
+  0%,
+  100% {
+    box-shadow:
+      0 0 16px rgba(168, 85, 247, 0.16),
+      0 0 26px rgba(91, 140, 255, 0.1);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(168, 85, 247, 0.32),
+      0 0 52px rgba(91, 140, 255, 0.14);
+  }
+}
+
+@keyframes sitepulse-hero-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes sitepulse-metric-halo-red {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(239, 68, 68, 0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(239, 68, 68, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+@keyframes sitepulse-metric-halo-amber {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(245, 158, 11, 0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(245, 158, 11, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+@keyframes sitepulse-metric-halo-purple {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(168, 85, 247, 0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 32px rgba(168, 85, 247, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+}
+
+@keyframes sitepulse-metric-halo-neutral {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(255, 255, 255, 0),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+  50% {
+    box-shadow:
+      0 0 28px rgba(148, 163, 184, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #workspaceHeader .live-hero-panel {
+    position: relative;
+  }
+
+  #workspaceHeader .live-hero-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+    background: linear-gradient(
+      100deg,
+      transparent 0%,
+      rgba(91, 140, 255, 0.09) 42%,
+      rgba(34, 211, 238, 0.06) 50%,
+      rgba(91, 140, 255, 0.09) 58%,
+      transparent 100%
+    );
+    background-size: 220% 100%;
+    animation: sitepulse-hero-shimmer 4.8s ease-in-out infinite;
+    opacity: 0.55;
+  }
+
+  #workspaceHeader .live-hero-panel > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl:nth-child(1) {
+    animation: sitepulse-metric-halo-red 3s ease-in-out infinite;
+  }
+
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl:nth-child(2) {
+    animation: sitepulse-metric-halo-amber 3s ease-in-out infinite;
+    animation-delay: 0.25s;
+  }
+
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl:nth-child(3) {
+    animation: sitepulse-metric-halo-purple 3s ease-in-out infinite;
+    animation-delay: 0.5s;
+  }
+
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl:nth-child(4) {
+    animation: sitepulse-metric-halo-neutral 3s ease-in-out infinite;
+    animation-delay: 0.75s;
+  }
+
+  .sitepulse-live-cta {
+    animation:
+      sitepulse-live-glow-blue 2s ease-in-out infinite,
+      sitepulse-live-breathe 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .sitepulse-live-ai {
+    animation:
+      sitepulse-live-glow-purple 2.2s ease-in-out infinite,
+      sitepulse-live-breathe-micro 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  #topbarOpenFindings,
+  #topbarCompare,
+  #collapseHeroBtn,
+  #expandOverviewBtn,
+  #aiAgentDetachBtn,
+  #newChatBtn,
+  #sidebarSettings,
+  #dockWhyScoreDown,
+  #dockShowSeoIssues,
+  #dockGenerateFixPlan {
+    animation: sitepulse-live-breathe-micro 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  aside button[data-view] {
+    animation: sitepulse-live-breathe-micro 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  aside button[data-view="overview"] {
+    animation-delay: 0s;
+  }
+  aside button[data-view="findings"] {
+    animation-delay: 0.12s;
+  }
+  aside button[data-view="seo"] {
+    animation-delay: 0.24s;
+  }
+  aside button[data-view="compare"] {
+    animation-delay: 0.36s;
+  }
+  aside button[data-view="settings"] {
+    animation-delay: 0.48s;
+  }
+
+  button[id^="pattern"]:not(.sitepulse-live-cta) {
+    animation: sitepulse-live-breathe-micro 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  #stickyContextBar .arch-sticky-surface {
+    animation: sitepulse-sticky-surface-alive 3.4s ease-in-out infinite;
+  }
+
+  #stickyContextBar.sticky-as-hero .arch-sticky-surface {
+    animation-duration: 2.8s;
+  }
+
+  #stickyContextBar .arch-sticky-zone--alpha {
+    animation: sitepulse-sticky-zone-pulse 2.6s ease-in-out infinite;
+  }
+
+  #stickyContextBar .arch-sticky-chip {
+    animation: sitepulse-sticky-chip-blink 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  #stickyContextBar .arch-sticky-chip:nth-child(1) {
+    animation-delay: 0s;
+  }
+  #stickyContextBar .arch-sticky-chip:nth-child(2) {
+    animation-delay: 0.1s;
+  }
+  #stickyContextBar .arch-sticky-chip:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+  #stickyContextBar .arch-sticky-chip:nth-child(4) {
+    animation-delay: 0.3s;
+  }
+  #stickyContextBar .arch-sticky-chip:nth-child(5) {
+    animation-delay: 0.4s;
+  }
+
+  #stickyContextBar .arch-sticky-btn--ghost {
+    animation: sitepulse-sticky-chip-blink 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  #stickyContextBar .arch-sticky-btn--focus {
+    animation:
+      sitepulse-live-glow-blue 2s ease-in-out infinite,
+      sitepulse-sticky-chip-blink 2.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  .sitepulse-live-cta:hover,
+  .sitepulse-live-ai:hover,
+  #topbarOpenFindings:hover,
+  #topbarCompare:hover,
+  #collapseHeroBtn:hover,
+  #expandOverviewBtn:hover,
+  #aiAgentDetachBtn:hover,
+  #newChatBtn:hover,
+  #sidebarSettings:hover,
+  #dockWhyScoreDown:hover,
+  #dockShowSeoIssues:hover,
+  #dockGenerateFixPlan:hover,
+  aside button[data-view]:hover,
+  button[id^="pattern"]:hover,
+  #stickyContextBar .arch-sticky-btn:hover,
+  #stickyContextBar .arch-sticky-chip:hover {
+    animation-play-state: paused;
+  }
+
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl:hover {
+    animation-play-state: paused;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #workspaceHeader .live-hero-panel::before,
+  .sitepulse-live-cta,
+  .sitepulse-live-ai,
+  #topbarOpenFindings,
+  #topbarCompare,
+  #collapseHeroBtn,
+  #expandOverviewBtn,
+  #aiAgentDetachBtn,
+  #newChatBtn,
+  #sidebarSettings,
+  #dockWhyScoreDown,
+  #dockShowSeoIssues,
+  #dockGenerateFixPlan,
+  aside button[data-view],
+  button[id^="pattern"],
+  #stickyContextBar .arch-sticky-chip,
+  #stickyContextBar .arch-sticky-btn--ghost,
+  #stickyContextBar .arch-sticky-btn--focus,
+  #stickyContextBar .arch-sticky-surface,
+  #stickyContextBar .arch-sticky-zone--alpha,
+  #workspaceHeader .grid.grid-cols-2.gap-3 > .rounded-2xl {
+    animation: none !important;
+  }
+}
+
+.app-body.ai-workspace-focus + #commandDock {
+  left: 0;
+}
+
+.app-body.ai-workspace-focus + #commandDock #dockOpenFindings,
+.app-body.ai-workspace-focus + #commandDock #dockCompare {
+  display: none;
+}
+
+.ai-inspector-panel.ai-workspace-dock {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(15, 19, 26, 0.8);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+/* Executive system summary lists (motor-driven) */
+#executiveSummaryTopOpportunities,
+#executiveSummaryPatterns,
+#executiveSummaryActionOrder {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#executiveSummaryTopOpportunities li,
+#executiveSummaryPatterns li,
+#executiveSummaryActionOrder li {
+  position: relative;
+  padding-left: 0.75rem;
+  line-height: 1.45;
+}
+
+#executiveSummaryTopOpportunities li::before,
+#executiveSummaryPatterns li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#executiveSummaryActionOrder li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: rgba(245, 158, 11, 0.55);
 }

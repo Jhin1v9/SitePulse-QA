@@ -218,6 +218,7 @@ const stateEl = {
   deepAuditButton: document.getElementById("deepAuditButton"),
   appBody: document.getElementById("appBody"),
   mainGrid: document.getElementById("mainGrid"),
+  operatorBelowSticky: document.getElementById("operatorBelowSticky"),
   targetUrl: document.getElementById("targetUrl"),
   previewLocation: document.getElementById("previewLocation"),
   previewStatus: document.getElementById("previewStatus"),
@@ -555,6 +556,8 @@ const stateEl = {
   applyFastMode: document.getElementById("applyFastMode"),
   toastStack: document.getElementById("toastStack"),
 };
+
+let patternRailController = null;
 
 const uiState = {
   companionState: null,
@@ -1292,6 +1295,9 @@ function setAiWorkspaceMode(mode) {
         stateEl.assistantInput.focus();
       }
     }, 0);
+  } else {
+    const assistantEl = document.getElementById("assistantWorkspace");
+    if (assistantEl) assistantEl.classList.remove("assistant-workspace-react-active");
   }
 }
 
@@ -1880,6 +1886,8 @@ function renderAssistantWorkspaceLayout() {
   const isOpen = mode !== AI_WORKSPACE_MODE_HIDDEN;
   const isExpanded = mode === AI_WORKSPACE_MODE_EXPANDED;
   const isFocus = mode === AI_WORKSPACE_MODE_FOCUS;
+  const stickyContextBar = document.getElementById("stickyContextBar");
+  const expandOverviewBtn = document.getElementById("expandOverviewBtn");
 
   if (stateEl.appBody) {
     stateEl.appBody.classList.toggle("ai-inspector-open", isOpen && !isFocus);
@@ -1887,7 +1895,9 @@ function renderAssistantWorkspaceLayout() {
     stateEl.appBody.classList.toggle("ai-workspace-focus", isFocus);
     stateEl.appBody.style.setProperty("--ai-dock-height-vh", String(uiState.aiDockHeightVh));
   }
-  if (stateEl.mainGrid) {
+  if (stateEl.operatorBelowSticky) {
+    stateEl.operatorBelowSticky.classList.toggle("hidden", isFocus);
+  } else if (stateEl.mainGrid) {
     stateEl.mainGrid.classList.toggle("hidden", isFocus);
   }
   if (stateEl.assistantWorkspace) {
@@ -1915,6 +1925,22 @@ function renderAssistantWorkspaceLayout() {
   }
   if (stateEl.assistantDockResizeHandle) {
     stateEl.assistantDockResizeHandle.classList.toggle("hidden", !isExpanded || isFocus);
+  }
+  if (stickyContextBar) {
+    /* Mantém a sticky como superfície viva no fluxo (sem position: fixed/sticky). */
+    stickyContextBar.classList.add("sticky-visible");
+    stickyContextBar.classList.remove("hidden");
+    stickyContextBar.classList.toggle("sticky-as-hero", isFocus);
+  }
+  const stickyEnterFocusAi = document.getElementById("stickyEnterFocusAi");
+  if (stickyEnterFocusAi) {
+    stickyEnterFocusAi.classList.toggle("hidden", isFocus);
+  }
+  if (stateEl.workspaceHeader) {
+    stateEl.workspaceHeader.classList.toggle("hero-collapsed", isFocus);
+  }
+  if (expandOverviewBtn) {
+    expandOverviewBtn.classList.toggle("hidden", !isFocus);
   }
   switchAssistantView(uiState.assistantView);
 }
@@ -2187,17 +2213,63 @@ function toggleCommandPalette(forceOpen = null) {
   renderCommandPalette();
 }
 
+function ensureKimiReactStylesLoaded() {
+  if (window.__sitepulseKimiReactStylesLoaded) return;
+  window.__sitepulseKimiReactStylesLoaded = true;
+
+  // Load Kimi tailwind only when AI workspace is opened.
+  if (document.getElementById("kimi-tailwind-link")) return;
+  const link = document.createElement("link");
+  link.id = "kimi-tailwind-link";
+  link.rel = "stylesheet";
+  link.href = "./kimi-tailwind.css";
+  document.head.appendChild(link);
+}
+
+function ensureKimiReactBundleLoaded() {
+  if (window.__sitepulseKimiReactBundleLoaded) return;
+  window.__sitepulseKimiReactBundleLoaded = true;
+
+  // React operator UI (SitePulseScreen) is loaded lazily.
+  if (document.querySelector('script[src="./kimi-react.bundle.js"]')) return;
+  ensureKimiReactStylesLoaded();
+  const script = document.createElement("script");
+  script.src = "./kimi-react.bundle.js";
+  script.async = true;
+  document.body.appendChild(script);
+}
+
+function enableAssistantReactWorkspace() {
+  const assistantEl = document.getElementById("assistantWorkspace");
+  if (assistantEl) assistantEl.classList.add("assistant-workspace-react-active");
+  ensureKimiReactBundleLoaded();
+}
+
+/** Full-screen AI focus: collapses overview hero, shows sticky as command strip, expands AI workspace. */
+function enterAiFocusMode() {
+  setAiWorkspaceMode(AI_WORKSPACE_MODE_FOCUS);
+  enableAssistantReactWorkspace();
+  hideMenuFlyout();
+  if (uiState.commandPaletteOpen) toggleCommandPalette(false);
+  renderAssistantState();
+}
+
+/** Leave focus but keep AI open as an expanded bottom dock (overview + hero visible). */
+function enterAiDetachedExpandedMode() {
+  setAiWorkspaceMode(AI_WORKSPACE_MODE_EXPANDED);
+  enableAssistantReactWorkspace();
+  renderAssistantState();
+}
+
 function toggleAssistant(forceOpen = null) {
   appendLog("[studio] AI / Assistant button triggered.");
-  const nextOpen = forceOpen === null ? !uiState.assistantOpen : forceOpen === true;
+  const nextOpen = forceOpen === null ? uiState.aiWorkspaceMode !== AI_WORKSPACE_MODE_FOCUS : forceOpen === true;
   if (nextOpen) {
-    setAiWorkspaceMode(uiState.lastNonFocusMode);
-    hideMenuFlyout();
-    if (uiState.commandPaletteOpen) toggleCommandPalette(false);
+    enterAiFocusMode();
   } else {
     setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
+    renderAssistantState();
   }
-  renderAssistantState();
 }
 
 function toggleAssistantExpanded(forceExpanded = null) {
@@ -3162,6 +3234,8 @@ function switchView(viewName) {
   if (workspaceBody instanceof HTMLElement) {
     workspaceBody.scrollTop = 0;
   }
+
+  ensurePatternRailController()?.syncActiveFromView(nextView);
   if (nextView === "preview") {
     queuePreviewSync("view_switch");
   }
@@ -5483,24 +5557,32 @@ function renderSteps(report) {
   stateEl.stepsList.innerHTML = steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
 }
 
+function setElText(el, text) {
+  if (el) el.textContent = text;
+}
+
+function setElHtml(el, html) {
+  if (el) el.innerHTML = html;
+}
+
 function renderExecutiveSummary(report) {
   if (!report) {
-    stateEl.executiveSummaryHeadline.textContent = "Run an audit to generate impact scoring, priority and trend intelligence.";
-    stateEl.executivePriorityP0.textContent = "P0 0";
-    stateEl.executivePriorityP1.textContent = "P1 0";
-    stateEl.executivePriorityP2.textContent = "P2 0";
-    stateEl.executiveQualityScore.textContent = "Quality 0";
-    stateEl.executiveQualityTrajectory.textContent = "Trajectory = stable";
-    stateEl.executiveTrendSeo.textContent = "SEO = stable";
-    stateEl.executiveTrendRuntime.textContent = "Runtime = stable";
-    stateEl.executiveTrendUx.textContent = "UX = stable";
-    stateEl.executivePredictiveHighRisk.textContent = "High risk 0";
-    stateEl.executivePredictiveRecurring.textContent = "Patterns 0";
-    stateEl.executiveSummaryTopRisks.innerHTML = "<li>No impact summary loaded yet.</li>";
-    stateEl.executiveSummaryTopOpportunities.innerHTML = "<li>No opportunity snapshot loaded yet.</li>";
-    stateEl.executiveSummaryActionOrder.innerHTML = "<li>Run an audit to generate action order.</li>";
-    stateEl.executiveSummaryPatterns.innerHTML = "<li>No recurring pattern is loaded yet.</li>";
-    stateEl.executiveSummaryPredictiveAlerts.innerHTML = "<li>No predictive alert is available yet.</li>";
+    setElText(stateEl.executiveSummaryHeadline, "Run an audit to generate impact scoring, priority and trend intelligence.");
+    setElText(stateEl.executivePriorityP0, "P0 0");
+    setElText(stateEl.executivePriorityP1, "P1 0");
+    setElText(stateEl.executivePriorityP2, "P2 0");
+    setElText(stateEl.executiveQualityScore, "Quality 0");
+    setElText(stateEl.executiveQualityTrajectory, "Trajectory = stable");
+    setElText(stateEl.executiveTrendSeo, "SEO = stable");
+    setElText(stateEl.executiveTrendRuntime, "Runtime = stable");
+    setElText(stateEl.executiveTrendUx, "UX = stable");
+    setElText(stateEl.executivePredictiveHighRisk, "High risk 0");
+    setElText(stateEl.executivePredictiveRecurring, "Patterns 0");
+    setElHtml(stateEl.executiveSummaryTopRisks, "<li>No impact summary loaded yet.</li>");
+    setElHtml(stateEl.executiveSummaryTopOpportunities, "<li>No opportunity snapshot loaded yet.</li>");
+    setElHtml(stateEl.executiveSummaryActionOrder, "<li>Run an audit to generate action order.</li>");
+    setElHtml(stateEl.executiveSummaryPatterns, "<li>No recurring pattern is loaded yet.</li>");
+    setElHtml(stateEl.executiveSummaryPredictiveAlerts, "<li>No predictive alert is available yet.</li>");
     return;
   }
 
@@ -5509,25 +5591,25 @@ function renderExecutiveSummary(report) {
   const predictive = intelligenceSnapshot.predictive;
   const autonomous = intelligenceSnapshot.autonomous;
   const executive = report.intelligence?.executiveSummary || {};
-  stateEl.executiveSummaryHeadline.textContent = executive.headline || "Impact scoring is available for the current run.";
-  stateEl.executivePriorityP0.textContent = `P0 ${report.summary.priorityP0 || 0}`;
-  stateEl.executivePriorityP1.textContent = `P1 ${report.summary.priorityP1 || 0}`;
-  stateEl.executivePriorityP2.textContent = `P2 ${report.summary.priorityP2 || 0}`;
-  stateEl.executiveQualityScore.textContent = `Quality ${autonomous.qualityScore.total || 0}`;
-  stateEl.executiveQualityTrajectory.textContent = `Trajectory ${formatIssueTrend(autonomous.qualityTrajectory.direction)}`;
-  stateEl.executiveTrendSeo.textContent = intelligence.trendSummary.seo.text;
-  stateEl.executiveTrendRuntime.textContent = intelligence.trendSummary.runtime.text;
-  stateEl.executiveTrendUx.textContent = intelligence.trendSummary.ux.text;
-  stateEl.executivePredictiveHighRisk.textContent = `High risk ${predictive.summary.highRiskAlerts || 0}`;
-  stateEl.executivePredictiveRecurring.textContent = `Patterns ${predictive.summary.recurringPatterns || 0}`;
-  stateEl.executiveSummaryTopRisks.innerHTML = (executive.topRisks || []).length
+  setElText(stateEl.executiveSummaryHeadline, executive.headline || "Impact scoring is available for the current run.");
+  setElText(stateEl.executivePriorityP0, `P0 ${report.summary.priorityP0 || 0}`);
+  setElText(stateEl.executivePriorityP1, `P1 ${report.summary.priorityP1 || 0}`);
+  setElText(stateEl.executivePriorityP2, `P2 ${report.summary.priorityP2 || 0}`);
+  setElText(stateEl.executiveQualityScore, `Quality ${autonomous.qualityScore.total || 0}`);
+  setElText(stateEl.executiveQualityTrajectory, `Trajectory ${formatIssueTrend(autonomous.qualityTrajectory.direction)}`);
+  setElText(stateEl.executiveTrendSeo, intelligence.trendSummary.seo.text);
+  setElText(stateEl.executiveTrendRuntime, intelligence.trendSummary.runtime.text);
+  setElText(stateEl.executiveTrendUx, intelligence.trendSummary.ux.text);
+  setElText(stateEl.executivePredictiveHighRisk, `High risk ${predictive.summary.highRiskAlerts || 0}`);
+  setElText(stateEl.executivePredictiveRecurring, `Patterns ${predictive.summary.recurringPatterns || 0}`);
+  setElHtml(stateEl.executiveSummaryTopRisks, (executive.topRisks || []).length
     ? executive.topRisks.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-    : "<li>No top risk summary was attached to this run.</li>";
-  stateEl.executiveSummaryTopOpportunities.innerHTML = (executive.topOpportunities || []).length
+    : "<li>No top risk summary was attached to this run.</li>");
+  setElHtml(stateEl.executiveSummaryTopOpportunities, (executive.topOpportunities || []).length
     ? executive.topOpportunities.slice(0, 4).map((item) => `<li>${escapeHtml(item)}</li>`).join("")
-    : "<li>No fast opportunity is attached to this run yet.</li>";
+    : "<li>No fast opportunity is attached to this run yet.</li>");
   const actionOrder = (executive.recommendedActionOrder || []).slice(0, 4);
-  stateEl.executiveSummaryActionOrder.innerHTML = actionOrder.length
+  setElHtml(stateEl.executiveSummaryActionOrder, actionOrder.length
     ? actionOrder.map((code) => {
         const issue = (report.issues || []).find((i) => String(i.code || "").toUpperCase() === String(code || "").toUpperCase());
         const healing = issue?.selfHealing && typeof issue.selfHealing === "object" ? issue.selfHealing : null;
@@ -5535,18 +5617,237 @@ function renderExecutiveSummary(report) {
         const safeCode = escapeHtml(String(code));
         return `<li><button type="button" class="action-link open-findings-search" data-findings-search="${safeCode}">Open issue</button>${canPrepare ? ` <button type="button" class="action-link" data-issue-action="prepare-healing" data-issue-code="${safeCode}">Prepare healing</button>` : ""} <span class="op-muted">${safeCode}</span></li>`;
       }).join("")
-    : "<li>No action order is available yet.</li>";
+    : "<li>No action order is available yet.</li>");
   const patterns = [...(report.intelligence?.patterns || []), ...intelligence.recurringIssues.slice(0, 2).map((item) => ({
     label: `${item.issue.code} recurring in ${item.recurringCount} run(s).`,
   })), ...predictive.systemicPatterns.slice(0, 2).map((item) => ({
     label: item.label,
   }))].slice(0, 4);
-  stateEl.executiveSummaryPatterns.innerHTML = patterns.length
+  setElHtml(stateEl.executiveSummaryPatterns, patterns.length
     ? patterns.map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
-    : "<li>No recurring pattern is loaded yet.</li>";
-  stateEl.executiveSummaryPredictiveAlerts.innerHTML = predictive.alerts.length
+    : "<li>No recurring pattern is loaded yet.</li>");
+  setElHtml(stateEl.executiveSummaryPredictiveAlerts, predictive.alerts.length
     ? predictive.alerts.slice(0, 4).map((item) => `<li>${escapeHtml(item.label || "")}</li>`).join("")
-    : "<li>No predictive alert is available yet.</li>";
+    : "<li>No predictive alert is available yet.</li>");
+}
+
+function shellBindTextAll(selector, text) {
+  const t = String(text ?? "");
+  document.querySelectorAll(selector).forEach((node) => {
+    node.textContent = t;
+  });
+}
+
+function shellRunLabel(report) {
+  if (!report) return "—";
+  const fromMeta = report.meta && report.meta.runLabel ? String(report.meta.runLabel).trim() : "";
+  if (fromMeta) return fromMeta;
+  const ix = (uiState.history || []).findIndex((h) => h && h.stamp === report.meta.generatedAt);
+  if (ix >= 0) return `#${ix + 1}`;
+  const n = (uiState.history || []).length;
+  return n ? `#${n}` : "—";
+}
+
+class PatternRailController {
+  constructor() {
+    this.btnPriority = document.getElementById("railPriority");
+    this.btnIssues = document.getElementById("railIssues");
+    this.btnEvidence = document.getElementById("railEvidence");
+    this.btnPlan = document.getElementById("railPlan");
+    this.btnCompare = document.getElementById("railCompare");
+
+    this.activeKey = "priority";
+    this.bindHandlers();
+    this.syncActiveFromView(uiState.activeView);
+  }
+
+  bindHandlers() {
+    this.btnPriority?.addEventListener("click", () => this.goTo("priority"));
+    this.btnIssues?.addEventListener("click", () => this.goTo("issues"));
+    this.btnEvidence?.addEventListener("click", () => this.goTo("evidence"));
+    this.btnPlan?.addEventListener("click", () => this.goTo("plan"));
+    this.btnCompare?.addEventListener("click", () => this.goTo("compare"));
+  }
+
+  goTo(key) {
+    // Quando estiver em Focus AI, o painel operador fica invisível;
+    // então a ação deve sair do focus para permitir navegação.
+    if (uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_FOCUS) {
+      setAiWorkspaceMode(uiState.lastNonFocusMode || AI_WORKSPACE_MODE_DOCKED);
+    }
+
+    if (key === "priority") {
+      switchView("overview");
+      this.setActive("priority");
+      return;
+    }
+    if (key === "issues") {
+      switchView("findings");
+      this.setActive("issues");
+      return;
+    }
+    if (key === "evidence") {
+      switchView("reports");
+      this.setActive("evidence");
+      openLatestEvidence();
+      return;
+    }
+    if (key === "plan") {
+      switchView("prompts");
+      this.setActive("plan");
+      return;
+    }
+    if (key === "compare") {
+      switchView("compare");
+      this.setActive("compare");
+    }
+  }
+
+  setActive(key) {
+    const set = (btn, isActive) => {
+      if (!btn) return;
+      btn.classList.toggle("active", !!isActive);
+    };
+    set(this.btnPriority, key === "priority");
+    set(this.btnIssues, key === "issues");
+    set(this.btnEvidence, key === "evidence");
+    set(this.btnPlan, key === "plan");
+    set(this.btnCompare, key === "compare");
+    this.activeKey = key;
+    window.dispatchEvent(new CustomEvent("cognitive-pattern-change", { detail: { pattern: key, timestamp: Date.now() } }));
+  }
+
+  syncActiveFromView(viewName) {
+    if (viewName === "findings") return this.setActive("issues");
+    if (viewName === "reports") return this.setActive("evidence");
+    if (viewName === "prompts") return this.setActive("plan");
+    if (viewName === "compare") return this.setActive("compare");
+    // default:
+    return this.setActive("priority");
+  }
+}
+
+function ensurePatternRailController() {
+  if (patternRailController) return patternRailController;
+  const any = document.getElementById("railPriority") || document.getElementById("railIssues");
+  if (!any) return null;
+  patternRailController = new PatternRailController();
+  return patternRailController;
+}
+
+/** Marketing / operator shell: mirrors motor outputs into visible [data-shell] nodes (IDs stay unique). */
+function syncOperatorShell(report) {
+  const preparedTargetUrl = getPreparedTargetUrl();
+  const baseUrl = report ? (getReportBaseUrl(report) || report.meta.baseUrl || "") : "";
+  const targetLine = preparedTargetUrl || baseUrl || "—";
+
+  shellBindTextAll('[data-shell="target"]', targetLine);
+
+  const snap = report ? buildDesktopIntelligenceSnapshot(report) : null;
+  const q = snap ? Number(snap.dataIntelligence?.QUALITY_STATE?.overallScore ?? snap.autonomous?.qualityScore?.total ?? 0) : 0;
+  const qSafe = Number.isFinite(q) ? Math.max(0, Math.round(q)) : 0;
+  shellBindTextAll('[data-shell="qualityScore"]', String(qSafe));
+  shellBindTextAll('[data-shell="qualityChip"]', `overallScore ${qSafe}`);
+
+  const p0 = report ? Number(report.summary.priorityP0 || 0) : 0;
+  const p1 = report ? Number(report.summary.priorityP1 || 0) : 0;
+  const pSum = p0 + p1;
+  shellBindTextAll('[data-shell="p0p1"]', String(pSum));
+  shellBindTextAll('[data-shell="p0p1Count"]', String(pSum));
+  shellBindTextAll('[data-shell="p0p1Chip"]', `P0/P1: ${pSum}`);
+  shellBindTextAll('[data-shell="impactSubline"]', `P0 ${p0} · P1 ${p1}`);
+
+  shellBindTextAll('[data-shell="runBadge"]', shellRunLabel(report));
+
+  const evidenceCount = report ? collectReportEvidence(report).length : 0;
+  shellBindTextAll('[data-shell="evidenceCount"]', String(evidenceCount));
+
+  const healN = snap ? Number(snap.selfHealing?.summary?.promptReady ?? 0) : 0;
+  shellBindTextAll('[data-shell="healingPending"]', `promptReady ${healN}`);
+  shellBindTextAll('[data-shell="healingReadyCount"]', String(healN));
+  shellBindTextAll('[data-shell="healingCount"]', String(healN));
+
+  {
+    const railPlan = document.getElementById("railPlan");
+    if (railPlan) {
+      if (healN > 0) railPlan.setAttribute("data-pulse", "healing");
+      else railPlan.removeAttribute("data-pulse");
+    }
+  }
+
+  const memoryN = snap ? Number(snap.learningMemory?.summary?.entries ?? 0) : 0;
+  shellBindTextAll('[data-shell="memoryEntries"]', String(memoryN));
+
+  const pSumPred = snap?.predictive?.summary || {};
+  const predRisk = Number(pSumPred.highRiskAlerts ?? 0);
+  const predMed = Number(pSumPred.mediumRiskAlerts ?? 0);
+  const predPat = Number(pSumPred.recurringPatterns ?? 0);
+  const predDeg = Number(pSumPred.degradingIssues ?? 0);
+  const predImp = Number(pSumPred.improvingIssues ?? 0);
+  shellBindTextAll(
+    '[data-shell="predictiveChip"]',
+    `highRiskAlerts ${predRisk} · mediumRiskAlerts ${predMed} · recurringPatterns ${predPat}`,
+  );
+  shellBindTextAll('[data-shell="predictiveHero"]', String(Number.isFinite(predRisk) ? predRisk : 0));
+  shellBindTextAll(
+    '[data-shell="predictiveSubline"]',
+    `degradingIssues ${predDeg} · improvingIssues ${predImp} · recurringPatterns ${predPat}`,
+  );
+
+  const modeLabel = uiState.mode === "mobile" && uiState.mobileSweep === "family" ? "mobile family" : uiState.mode;
+  shellBindTextAll('[data-shell="modeChip"]', `Mode: ${modeLabel}`);
+
+  const bridgeRunning = uiState.companionState?.bridge?.running === true;
+  shellBindTextAll("[data-shell=\"engineChip\"]", bridgeRunning ? "engine ready" : "engine offline");
+
+  if (stateEl.executiveQualityTrajectory) {
+    shellBindTextAll('[data-shell="qualityTrajectory"]', stateEl.executiveQualityTrajectory.textContent || "quality");
+  }
+
+  const bar = document.querySelector('[data-shell="qualityBar"]');
+  if (bar && bar instanceof HTMLElement) {
+    bar.style.width = `${Math.min(100, Math.max(0, qSafe))}%`;
+  }
+
+  /* Comparativo: mesmo contrato que buildCompareDigest (compareReports + getReferenceSnapshot). */
+  const refSnap = report ? getReferenceSnapshot(report) : null;
+  const comparison = report && refSnap?.snapshot?.report ? compareReports(report, refSnap.snapshot.report) : null;
+  shellBindTextAll('[data-shell="stickyRef"]', refSnap?.label && report ? String(refSnap.label) : "—");
+  shellBindTextAll(
+    '[data-shell="compareDeltaBadge"]',
+    comparison ? signedDelta(comparison.issueDelta) : "—",
+  );
+  // Edge lighting state driven by motor outputs (no simulated values).
+  {
+    const sticky = document.getElementById("stickyContextBar");
+    if (sticky) {
+      let cognitiveState = "monitoring";
+      if (healN > 0) cognitiveState = "healing";
+      else if (
+        predRisk > 0
+        || pSum > 0
+        || comparison?.criticalRegressions?.length > 0
+        || (Number.isFinite(comparison?.issueDelta) && comparison.issueDelta > 0)
+      ) cognitiveState = "alert";
+      sticky.setAttribute("data-cognitive-state", cognitiveState);
+    }
+  }
+  if (comparison) {
+    shellBindTextAll('[data-shell="stickyDeltaIssues"]', `Issue delta ${signedDelta(comparison.issueDelta)}`);
+    shellBindTextAll('[data-shell="stickyDeltaSeo"]', `SEO delta ${signedDelta(comparison.seoDelta)}`);
+    shellBindTextAll('[data-shell="stickyDeltaRisk"]', `Risk delta ${signedDelta(comparison.riskDelta)}`);
+    shellBindTextAll(
+      '[data-shell="stickyCompareRoutesActions"]',
+      `Route delta ${signedDelta(comparison.routeDelta)} · Action delta ${signedDelta(comparison.actionDelta)}`,
+    );
+  } else {
+    shellBindTextAll('[data-shell="stickyDeltaIssues"]', "—");
+    shellBindTextAll('[data-shell="stickyDeltaSeo"]', "—");
+    shellBindTextAll('[data-shell="stickyDeltaRisk"]', "—");
+    shellBindTextAll('[data-shell="stickyCompareRoutesActions"]', "—");
+  }
+
+  ensurePatternRailController()?.syncActiveFromView(uiState.activeView);
 }
 
 function renderQualityVisuals(report) {
@@ -6491,6 +6792,7 @@ function renderReportSummary(report, options = {}) {
     stateEl.reportsHeadline.textContent = preparedTargetUrl
       ? `Prepared target ${preparedTargetUrl} | run an audit to generate a replayable evidence trail.`
       : "Each run leaves a replayable evidence trail.";
+    syncOperatorShell(null);
     return;
   }
 
@@ -6512,13 +6814,16 @@ function renderReportSummary(report, options = {}) {
   if (options.transient === true) {
     const lead = audit.running === true ? "Live snapshot" : "Partial snapshot";
     stateEl.reportsHeadline.textContent = `${lead} | ${report.summary.totalIssues} issue(s) so far | ${report.summary.routesChecked} route(s) | SEO ${report.summary.seoScore} | evidence ${evidenceCount}`;
+    syncOperatorShell(report);
     return;
   }
   if (!reportAlignedWithPreparedTarget && preparedTargetUrl) {
     stateEl.reportsHeadline.textContent = `Prepared target ${preparedTargetUrl} | loaded snapshot belongs to ${reportBaseUrl} | last run ${formatLocalDate(report.meta.generatedAt)} | evidence ${evidenceCount}`;
+    syncOperatorShell(report);
     return;
   }
   stateEl.reportsHeadline.textContent = `${uiState.history.length} stored snapshot${uiState.history.length === 1 ? "" : "s"} | last run ${formatLocalDate(report.meta.generatedAt)} | evidence ${evidenceCount}`;
+  syncOperatorShell(report);
 }
 
 function renderHistory() {
@@ -7938,6 +8243,8 @@ function clearLiveReportState() {
   renderPromptWorkspace(fallbackReport);
   renderEvidenceGallery(fallbackReport);
   renderRouteContactSheet(fallbackReport);
+  renderExecutiveSummary(fallbackReport);
+  renderQualityVisuals(fallbackReport);
   renderReportSummary(fallbackReport);
   renderComparison(fallbackReport);
   renderLearningMemory(fallbackReport);
@@ -8744,7 +9051,19 @@ function bindButtons() {
   on(stateEl.dismissAssistant, "click", () => toggleAssistant(false));
   on(stateEl.assistantExpand, "click", () => toggleAssistantExpanded());
   if (stateEl.assistantFocus) {
-    on(stateEl.assistantFocus, "click", () => setAiWorkspaceMode(AI_WORKSPACE_MODE_FOCUS));
+    on(stateEl.assistantFocus, "click", () => enterAiFocusMode());
+  }
+  const stickyEnterFocusAi = document.getElementById("stickyEnterFocusAi");
+  if (stickyEnterFocusAi) {
+    on(stickyEnterFocusAi, "click", () => enterAiFocusMode());
+  }
+  const aiAgentFullscreenBtn = document.getElementById("aiAgentFullscreenBtn");
+  if (aiAgentFullscreenBtn) {
+    on(aiAgentFullscreenBtn, "click", () => enterAiFocusMode());
+  }
+  const aiAgentDetachBtn = document.getElementById("aiAgentDetachBtn");
+  if (aiAgentDetachBtn) {
+    on(aiAgentDetachBtn, "click", () => enterAiDetachedExpandedMode());
   }
   if (stateEl.assistantApplyAction) {
     on(stateEl.assistantApplyAction, "click", () => {
@@ -8759,6 +9078,22 @@ function bindButtons() {
   }
   if (stateEl.assistantBackToDock) {
     on(stateEl.assistantBackToDock, "click", () => setAiWorkspaceMode(uiState.lastNonFocusMode));
+  }
+  const expandOverviewBtn = document.getElementById("expandOverviewBtn");
+  if (expandOverviewBtn) {
+    on(expandOverviewBtn, "click", () => setAiWorkspaceMode(uiState.lastNonFocusMode));
+  }
+  const dockRunAudit = document.getElementById("dockRunAudit");
+  if (dockRunAudit) {
+    on(dockRunAudit, "click", () => handleAuditRun());
+  }
+  const dockOpenFindings = document.getElementById("dockOpenFindings");
+  if (dockOpenFindings) {
+    on(dockOpenFindings, "click", () => switchView("findings"));
+  }
+  const dockCompare = document.getElementById("dockCompare");
+  if (dockCompare) {
+    on(dockCompare, "click", () => switchView("compare"));
   }
   bindAssistantDockResize();
   if (stateEl.assistantNewChat) {
@@ -9264,6 +9599,7 @@ function refreshStateElRefs() {
 
 async function bootstrap() {
   document.body.classList.add("studio-ready");
+  window.__SITEPULSE_RENDERER_BOOT = true;
   refreshStateElRefs();
   ensureCompanion();
   bindNavigation();
@@ -9289,6 +9625,8 @@ async function bootstrap() {
   if (!ensureCompanion()) {
     showToast("App bridge not ready. Restart SitePulse Studio.", "bad");
     appendLog("[studio] bootstrap: sitePulseCompanion unavailable; some actions will show a message when used.");
+    loadAssistantWorkspaceUIPrefs();
+    renderAssistantWorkspaceLayout();
     return;
   }
   try {
