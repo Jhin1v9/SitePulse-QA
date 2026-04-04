@@ -1,0 +1,1630 @@
+{
+  "meta": {
+    "project": "sitepulse-default-desktop-audit",
+    "startedAt": "2026-03-11T10:20:30.725Z",
+    "finishedAt": "2026-03-11T10:20:33.535Z",
+    "baseUrl": "https://www.openai.com",
+    "serverCommand": "npm run dev -- --hostname 127.0.0.1 --port 3110",
+    "serverCwd": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa",
+    "headed": false,
+    "viewport": "1536x864",
+    "viewportLabel": "1536x864",
+    "resumedFromCheckpoint": false,
+    "paused": false,
+    "maxRunMs": 180000,
+    "checkpointFile": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai\\reports\\checkpoint.json",
+    "configPath": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai.json",
+    "replayCommand": "node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+    "auditScope": "full"
+  },
+  "progress": {
+    "nextRouteIndex": 1,
+    "nextLabelIndex": 0,
+    "totalRoutes": 1,
+    "segments": 1
+  },
+  "routeSweep": [
+    {
+      "route": "/",
+      "loadOk": true,
+      "buttonsDiscovered": 0,
+      "buttonsClicked": 0
+    }
+  ],
+  "actionSweep": [],
+  "seo": {
+    "overallScore": 16,
+    "pagesAnalyzed": 1,
+    "categoryScore": {
+      "technical": 68,
+      "content": 48,
+      "accessibility": 100
+    },
+    "issues": [
+      {
+        "code": "SEO_H1_MISSING",
+        "severity": "high",
+        "category": "content",
+        "detail": "Nenhum H1 encontrado na pagina.",
+        "recommendation": "Inclua 1 H1 claro descrevendo o tema principal da pagina.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_META_DESCRIPTION_MISSING",
+        "severity": "high",
+        "category": "content",
+        "detail": "Meta description ausente.",
+        "recommendation": "Adicione meta description unica com proposta clara da pagina.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_VIEWPORT_MISSING",
+        "severity": "high",
+        "category": "technical",
+        "detail": "Meta viewport ausente.",
+        "recommendation": "Adicione meta viewport para boa experiencia mobile.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_CONTENT_THIN",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Conteudo textual curto (0 palavras).",
+        "recommendation": "Adicione conteudo util e especifico sobre servico/local para SEO local.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_LANG_MISSING",
+        "severity": "medium",
+        "category": "technical",
+        "detail": "Atributo lang ausente em <html>.",
+        "recommendation": "Defina lang no HTML para melhorar indexacao e acessibilidade.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_OPEN_GRAPH_INCOMPLETE",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Open Graph incompleto (faltando og:title, og:description, og:image ou og:type).",
+        "recommendation": "Complete as metas Open Graph para melhorar compartilhamento e CTR.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_TITLE_LENGTH",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Title com 16 caracteres (ideal: 30-65).",
+        "recommendation": "Ajuste o tamanho do title para melhorar leitura no Google.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_CANONICAL_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Link canonical ausente.",
+        "recommendation": "Defina canonical para evitar duplicidade de URL.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_INTERNAL_LINKS_LOW",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Poucos links internos (0).",
+        "recommendation": "Aumente links internos para melhorar rastreio e distribuicao de autoridade.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_META_ROBOTS_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Meta robots ausente.",
+        "recommendation": "Defina meta robots explicita para controle de indexacao.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_STRUCTURED_DATA_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Nenhum JSON-LD encontrado.",
+        "recommendation": "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_TWITTER_CARD_MISSING",
+        "severity": "low",
+        "category": "content",
+        "detail": "Twitter Card ausente.",
+        "recommendation": "Adicione meta twitter:card e metadados sociais complementares.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      }
+    ],
+    "topRecommendations": [
+      "Inclua 1 H1 claro descrevendo o tema principal da pagina.",
+      "Adicione meta description unica com proposta clara da pagina.",
+      "Adicione meta viewport para boa experiencia mobile.",
+      "Adicione conteudo util e especifico sobre servico/local para SEO local.",
+      "Defina lang no HTML para melhorar indexacao e acessibilidade.",
+      "Complete as metas Open Graph para melhorar compartilhamento e CTR.",
+      "Ajuste o tamanho do title para melhorar leitura no Google.",
+      "Defina canonical para evitar duplicidade de URL."
+    ],
+    "checklist": [
+      {
+        "id": "title",
+        "label": "Title unico e com tamanho ideal (30-65)",
+        "why": "E o texto principal que aparece no Google.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_TITLE_LENGTH"
+        ],
+        "recommendation": "Defina um title unico por pagina com foco na intencao do usuario."
+      },
+      {
+        "id": "meta_description",
+        "label": "Meta description clara (70-170)",
+        "why": "Ajuda a pessoa entender a pagina antes de clicar.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_META_DESCRIPTION_MISSING"
+        ],
+        "recommendation": "Crie descricao objetiva com beneficio real e chamada para acao."
+      },
+      {
+        "id": "heading_h1",
+        "label": "Estrutura de headings com 1 H1",
+        "why": "Organiza o tema principal da pagina para Google e usuarios.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_H1_MISSING"
+        ],
+        "recommendation": "Mantenha apenas um H1 claro e use H2/H3 para secoes."
+      },
+      {
+        "id": "lang_viewport",
+        "label": "HTML com lang e viewport mobile",
+        "why": "Melhora indexacao correta por idioma e experiencia em celular.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_LANG_MISSING",
+          "SEO_VIEWPORT_MISSING"
+        ],
+        "recommendation": "Adicione lang em <html> e meta viewport no <head>."
+      },
+      {
+        "id": "canonical",
+        "label": "Canonical definido",
+        "why": "Evita conteudo duplicado em URLs diferentes.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_CANONICAL_MISSING"
+        ],
+        "recommendation": "Defina <link rel=\"canonical\"> para cada pagina indexavel."
+      },
+      {
+        "id": "indexing",
+        "label": "Pagina indexavel (sem noindex indevido)",
+        "why": "Sem isso o Google pode ignorar paginas importantes.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Remova noindex das paginas que precisam ranquear."
+      },
+      {
+        "id": "images_alt",
+        "label": "Imagens com alt descritivo",
+        "why": "Ajuda SEO de imagem e acessibilidade.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Preencha alt nas imagens relevantes com descricao real."
+      },
+      {
+        "id": "structured_data",
+        "label": "Schema JSON-LD (LocalBusiness/Service/FAQ)",
+        "why": "Aumenta chance de rich results no Google.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_STRUCTURED_DATA_MISSING"
+        ],
+        "recommendation": "Adicione dados estruturados validos por pagina."
+      },
+      {
+        "id": "content_depth",
+        "label": "Conteudo util e suficiente",
+        "why": "Paginas rasas tendem a ranquear pior.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_CONTENT_THIN"
+        ],
+        "recommendation": "Adicione conteudo especifico, provas, FAQs e diferenciais."
+      },
+      {
+        "id": "internal_links",
+        "label": "Links internos entre paginas",
+        "why": "Ajuda rastreamento e distribuicao de autoridade.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_INTERNAL_LINKS_LOW"
+        ],
+        "recommendation": "Inclua links para servicos, contato, cidade e paginas correlatas."
+      },
+      {
+        "id": "social_meta",
+        "label": "Meta social (Open Graph + Twitter Card)",
+        "why": "Melhora compartilhamento e CTR em redes sociais.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_OPEN_GRAPH_INCOMPLETE",
+          "SEO_TWITTER_CARD_MISSING"
+        ],
+        "recommendation": "Complete og:title, og:description, og:image, og:type e twitter:card."
+      },
+      {
+        "id": "meta_robots",
+        "label": "Meta robots presente e coerente",
+        "why": "Define como bots devem indexar/seguir links.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_META_ROBOTS_MISSING"
+        ],
+        "recommendation": "Defina meta robots adequada para cada tipo de pagina."
+      }
+    ],
+    "fixPrompt": "Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.\nSite auditado: https://www.openai.com\nScore SEO atual: 16/100.\nObjetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.\n\nChecklist SEO pendente (explicacao para leigos + acao):\n1. Title unico e com tamanho ideal (30-65) | por que importa: E o texto principal que aparece no Google. | o que fazer: Defina um title unico por pagina com foco na intencao do usuario.\n2. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.\n3. Estrutura de headings com 1 H1 | por que importa: Organiza o tema principal da pagina para Google e usuarios. | o que fazer: Mantenha apenas um H1 claro e use H2/H3 para secoes.\n4. HTML com lang e viewport mobile | por que importa: Melhora indexacao correta por idioma e experiencia em celular. | o que fazer: Adicione lang em <html> e meta viewport no <head>.\n5. Canonical definido | por que importa: Evita conteudo duplicado em URLs diferentes. | o que fazer: Defina <link rel=\"canonical\"> para cada pagina indexavel.\n6. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.\n7. Conteudo util e suficiente | por que importa: Paginas rasas tendem a ranquear pior. | o que fazer: Adicione conteudo especifico, provas, FAQs e diferenciais.\n8. Links internos entre paginas | por que importa: Ajuda rastreamento e distribuicao de autoridade. | o que fazer: Inclua links para servicos, contato, cidade e paginas correlatas.\n9. Meta social (Open Graph + Twitter Card) | por que importa: Melhora compartilhamento e CTR em redes sociais. | o que fazer: Complete og:title, og:description, og:image, og:type e twitter:card.\n10. Meta robots presente e coerente | por que importa: Define como bots devem indexar/seguir links. | o que fazer: Defina meta robots adequada para cada tipo de pagina.\n\nIssues SEO detectadas:\n1. [SEO_H1_MISSING] (high) Nenhum H1 encontrado na pagina. | recomendacao: Inclua 1 H1 claro descrevendo o tema principal da pagina.\n2. [SEO_META_DESCRIPTION_MISSING] (high) Meta description ausente. | recomendacao: Adicione meta description unica com proposta clara da pagina.\n3. [SEO_VIEWPORT_MISSING] (high) Meta viewport ausente. | recomendacao: Adicione meta viewport para boa experiencia mobile.\n4. [SEO_CONTENT_THIN] (medium) Conteudo textual curto (0 palavras). | recomendacao: Adicione conteudo util e especifico sobre servico/local para SEO local.\n5. [SEO_LANG_MISSING] (medium) Atributo lang ausente em <html>. | recomendacao: Defina lang no HTML para melhorar indexacao e acessibilidade.\n6. [SEO_OPEN_GRAPH_INCOMPLETE] (medium) Open Graph incompleto (faltando og:title, og:description, og:image ou og:type). | recomendacao: Complete as metas Open Graph para melhorar compartilhamento e CTR.\n7. [SEO_TITLE_LENGTH] (medium) Title com 16 caracteres (ideal: 30-65). | recomendacao: Ajuste o tamanho do title para melhorar leitura no Google.\n8. [SEO_CANONICAL_MISSING] (low) Link canonical ausente. | recomendacao: Defina canonical para evitar duplicidade de URL.\n9. [SEO_INTERNAL_LINKS_LOW] (low) Poucos links internos (0). | recomendacao: Aumente links internos para melhorar rastreio e distribuicao de autoridade.\n10. [SEO_META_ROBOTS_MISSING] (low) Meta robots ausente. | recomendacao: Defina meta robots explicita para controle de indexacao.\n11. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.\n12. [SEO_TWITTER_CARD_MISSING] (low) Twitter Card ausente. | recomendacao: Adicione meta twitter:card e metadados sociais complementares.\n\nEntrega obrigatoria:\n- listar arquivos alterados e motivo de cada alteracao\n- mostrar antes/depois dos metadados principais\n- validar novamente e comprovar melhoria de score",
+    "pages": [
+      {
+        "route": "/",
+        "url": "https://openai.com/",
+        "title": "Just a moment...",
+        "titleLength": 16,
+        "metaDescription": "",
+        "metaDescriptionLength": 0,
+        "h1Count": 0,
+        "canonicalUrl": "",
+        "lang": "",
+        "hasMetaRobots": false,
+        "robotsNoindex": false,
+        "ogComplete": false,
+        "hasTwitterCard": false,
+        "hasViewport": false,
+        "imagesTotal": 0,
+        "imagesMissingAlt": 0,
+        "hasStructuredData": false,
+        "structuredDataCount": 0,
+        "internalLinks": 0,
+        "wordCount": 0,
+        "score": 16,
+        "categoryScore": {
+          "technical": 68,
+          "content": 48,
+          "accessibility": 100
+        },
+        "checks": [
+          {
+            "code": "SEO_TITLE_LENGTH",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 6,
+            "detail": "Title com 16 caracteres (ideal: 30-65).",
+            "recommendation": "Ajuste o tamanho do title para melhorar leitura no Google."
+          },
+          {
+            "code": "SEO_META_DESCRIPTION_MISSING",
+            "status": "fail",
+            "severity": "high",
+            "category": "content",
+            "weight": 16,
+            "detail": "Meta description ausente.",
+            "recommendation": "Adicione meta description unica com proposta clara da pagina."
+          },
+          {
+            "code": "SEO_H1_MISSING",
+            "status": "fail",
+            "severity": "high",
+            "category": "content",
+            "weight": 14,
+            "detail": "Nenhum H1 encontrado na pagina.",
+            "recommendation": "Inclua 1 H1 claro descrevendo o tema principal da pagina."
+          },
+          {
+            "code": "SEO_LANG_MISSING",
+            "status": "warn",
+            "severity": "medium",
+            "category": "technical",
+            "weight": 7,
+            "detail": "Atributo lang ausente em <html>.",
+            "recommendation": "Defina lang no HTML para melhorar indexacao e acessibilidade."
+          },
+          {
+            "code": "SEO_VIEWPORT_MISSING",
+            "status": "fail",
+            "severity": "high",
+            "category": "technical",
+            "weight": 10,
+            "detail": "Meta viewport ausente.",
+            "recommendation": "Adicione meta viewport para boa experiencia mobile."
+          },
+          {
+            "code": "SEO_CANONICAL_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Link canonical ausente.",
+            "recommendation": "Defina canonical para evitar duplicidade de URL."
+          },
+          {
+            "code": "SEO_META_ROBOTS_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 3,
+            "detail": "Meta robots ausente.",
+            "recommendation": "Defina meta robots explicita para controle de indexacao."
+          },
+          {
+            "code": "SEO_STRUCTURED_DATA_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Nenhum JSON-LD encontrado.",
+            "recommendation": "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results."
+          },
+          {
+            "code": "SEO_OPEN_GRAPH_INCOMPLETE",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 6,
+            "detail": "Open Graph incompleto (faltando og:title, og:description, og:image ou og:type).",
+            "recommendation": "Complete as metas Open Graph para melhorar compartilhamento e CTR."
+          },
+          {
+            "code": "SEO_TWITTER_CARD_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "content",
+            "weight": 3,
+            "detail": "Twitter Card ausente.",
+            "recommendation": "Adicione meta twitter:card e metadados sociais complementares."
+          },
+          {
+            "code": "SEO_CONTENT_THIN",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 7,
+            "detail": "Conteudo textual curto (0 palavras).",
+            "recommendation": "Adicione conteudo util e especifico sobre servico/local para SEO local."
+          },
+          {
+            "code": "SEO_INTERNAL_LINKS_LOW",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Poucos links internos (0).",
+            "recommendation": "Aumente links internos para melhorar rastreio e distribuicao de autoridade."
+          }
+        ]
+      }
+    ]
+  },
+  "issues": [
+    {
+      "id": "162263c11b34",
+      "code": "HTTP_4XX",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "403 GET https://openai.com/",
+      "url": "https://openai.com/",
+      "timestamp": "2026-03-11T10:20:32.073Z",
+      "diagnosis": {
+        "category": "http",
+        "subtype": "forbidden_permission",
+        "confidence": "high",
+        "title": "HTTP 403 Forbidden",
+        "httpStatus": 403,
+        "method": "GET",
+        "requestUrl": "https://openai.com/",
+        "requestPath": "/",
+        "failureText": "",
+        "probableCauses": [
+          "Usuario sem permissao para a acao.",
+          "RBAC/ACL bloqueando o endpoint.",
+          "Protecao CSRF/origin recusando a chamada."
+        ],
+        "technicalChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin."
+        ],
+        "recommendedActions": [
+          "Ajustar regra de permissao ou fluxo de autorizacao.",
+          "Mostrar mensagem de acesso negado orientando proximo passo."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+      },
+      "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+      "evidence": [],
+      "assistantHint": {
+        "priority": "P1",
+        "firstChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin.",
+          "Validar payload enviado e schema esperado no endpoint.",
+          "Revisar autenticacao/autorizacao e headers.",
+          "Checar rota e metodo HTTP corretos."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+          "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+          "rg -n \"zod|schema|safeParse|parse\\(\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 403 GET https://openai.com/\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: HTTP 403 Forbidden (forbidden_permission)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin."
+    },
+    {
+      "id": "85f4bfb322ef",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "https://openai.com/",
+      "timestamp": "2026-03-11T10:20:32.079Z",
+      "diagnosis": {
+        "category": "console_http",
+        "subtype": "console_http_403",
+        "confidence": "high",
+        "title": "Console reportou recurso com HTTP 403",
+        "httpStatus": 403,
+        "method": "GET",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "",
+        "probableCauses": [
+          "Usuario sem permissao para a acao.",
+          "RBAC/ACL bloqueando o endpoint.",
+          "Protecao CSRF/origin recusando a chamada."
+        ],
+        "technicalChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin."
+        ],
+        "recommendedActions": [
+          "Ajustar regra de permissao ou fluxo de autorizacao.",
+          "Mostrar mensagem de acesso negado orientando proximo passo."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+      },
+      "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+      "evidence": [],
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 403 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: Console reportou recurso com HTTP 403 (console_http_403)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin."
+    },
+    {
+      "id": "0bfecbcd3892",
+      "code": "HTTP_4XX",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+      "url": "https://openai.com/",
+      "timestamp": "2026-03-11T10:20:32.189Z",
+      "diagnosis": {
+        "category": "http",
+        "subtype": "endpoint_not_found",
+        "confidence": "high",
+        "title": "HTTP 404 Not Found",
+        "httpStatus": 404,
+        "method": "GET",
+        "requestUrl": "https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+        "requestPath": "/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js",
+        "failureText": "",
+        "probableCauses": [
+          "Endpoint incorreto no frontend.",
+          "Base URL/env aponta para ambiente errado.",
+          "Reescrita/proxy nao encaminha a rota."
+        ],
+        "technicalChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy."
+        ],
+        "recommendedActions": [
+          "Centralizar construcao de endpoint para evitar typo.",
+          "Adicionar teste de contrato para rotas criticas."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+      },
+      "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+      "evidence": [],
+      "assistantHint": {
+        "priority": "P1",
+        "firstChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy.",
+          "Validar payload enviado e schema esperado no endpoint.",
+          "Revisar autenticacao/autorizacao e headers.",
+          "Checar rota e metodo HTTP corretos."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+          "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+          "rg -n \"zod|schema|safeParse|parse\\(\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: HTTP 404 Not Found (endpoint_not_found)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy."
+    },
+    {
+      "id": "3d3ace6d2a92",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Failed to load resource: the server responded with a status of 404 ()",
+      "url": "https://openai.com/",
+      "timestamp": "2026-03-11T10:20:32.190Z",
+      "diagnosis": {
+        "category": "console_http",
+        "subtype": "console_http_404",
+        "confidence": "high",
+        "title": "Console reportou recurso com HTTP 404",
+        "httpStatus": 404,
+        "method": "GET",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "",
+        "probableCauses": [
+          "Endpoint incorreto no frontend.",
+          "Base URL/env aponta para ambiente errado.",
+          "Reescrita/proxy nao encaminha a rota."
+        ],
+        "technicalChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy."
+        ],
+        "recommendedActions": [
+          "Centralizar construcao de endpoint para evitar typo.",
+          "Adicionar teste de contrato para rotas criticas."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+      },
+      "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+      "evidence": [],
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 404 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: Console reportou recurso com HTTP 404 (console_http_404)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy."
+    },
+    {
+      "id": "fc3d2577cbb7",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+      "url": "https://openai.com/",
+      "timestamp": "2026-03-11T10:20:32.190Z",
+      "diagnosis": {
+        "category": "console",
+        "subtype": "runtime_unknown",
+        "confidence": "medium",
+        "title": "Erro no console do navegador",
+        "httpStatus": null,
+        "method": "",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+        "probableCauses": [
+          "Erro de runtime/console sem assinatura especifica.",
+          "Excecao nao tratada em render ou evento.",
+          "Dados inesperados sem validacao defensiva."
+        ],
+        "technicalChecks": [
+          "Usar stack trace para chegar no arquivo/linha.",
+          "Adicionar guard clauses no trecho que falha.",
+          "Reexecutar fluxo e confirmar ausencia do erro."
+        ],
+        "recommendedActions": [
+          "Aprimorar tratamento de erro no frontend.",
+          "Criar teste de regressao para o fluxo quebrado."
+        ],
+        "commandHints": [
+          "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib"
+        ],
+        "likelyAreas": [
+          "src/components/**",
+          "src/app/**",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.",
+        "laymanExplanation": "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+        "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo."
+      },
+      "technicalExplanation": "Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.",
+      "laymanExplanation": "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+      "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.",
+      "evidence": [],
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Usar stack trace para chegar no arquivo/linha.",
+          "Adicionar guard clauses no trecho que falha.",
+          "Reexecutar fluxo e confirmar ausencia do erro.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/components/**",
+          "src/app/**",
+          "src/lib/**"
+        ]
+      },
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.\nExplicacao tecnica: Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.\nResolucao recomendada: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.\nClassificacao inteligente: Erro no console do navegador (runtime_unknown)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Erro de runtime/console sem assinatura especifica.\n- Excecao nao tratada em render ou evento.\n- Dados inesperados sem validacao defensiva.\n\nChecks tecnicos sugeridos:\n- Usar stack trace para chegar no arquivo/linha.\n- Adicionar guard clauses no trecho que falha.\n- Reexecutar fluxo e confirmar ausencia do erro."
+    }
+  ],
+  "issueLog": [
+    {
+      "timestamp": "2026-03-11T10:20:32.073Z",
+      "code": "HTTP_4XX",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "403 GET https://openai.com/",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 403 GET https://openai.com/\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: HTTP 403 Forbidden (forbidden_permission)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin.",
+      "assistantHint": {
+        "priority": "P1",
+        "firstChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin.",
+          "Validar payload enviado e schema esperado no endpoint.",
+          "Revisar autenticacao/autorizacao e headers.",
+          "Checar rota e metodo HTTP corretos."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+          "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+          "rg -n \"zod|schema|safeParse|parse\\(\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "diagnosis": {
+        "category": "http",
+        "subtype": "forbidden_permission",
+        "confidence": "high",
+        "title": "HTTP 403 Forbidden",
+        "httpStatus": 403,
+        "method": "GET",
+        "requestUrl": "https://openai.com/",
+        "requestPath": "/",
+        "failureText": "",
+        "probableCauses": [
+          "Usuario sem permissao para a acao.",
+          "RBAC/ACL bloqueando o endpoint.",
+          "Protecao CSRF/origin recusando a chamada."
+        ],
+        "technicalChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin."
+        ],
+        "recommendedActions": [
+          "Ajustar regra de permissao ou fluxo de autorizacao.",
+          "Mostrar mensagem de acesso negado orientando proximo passo."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+      },
+      "evidence": []
+    },
+    {
+      "timestamp": "2026-03-11T10:20:32.079Z",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Failed to load resource: the server responded with a status of 403 ()",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 403 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: Console reportou recurso com HTTP 403 (console_http_403)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin.",
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "diagnosis": {
+        "category": "console_http",
+        "subtype": "console_http_403",
+        "confidence": "high",
+        "title": "Console reportou recurso com HTTP 403",
+        "httpStatus": 403,
+        "method": "GET",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "",
+        "probableCauses": [
+          "Usuario sem permissao para a acao.",
+          "RBAC/ACL bloqueando o endpoint.",
+          "Protecao CSRF/origin recusando a chamada."
+        ],
+        "technicalChecks": [
+          "Conferir claims/permissoes do usuario.",
+          "Comparar regra de autorizacao com o caso de uso.",
+          "Validar controles CSRF e origin."
+        ],
+        "recommendedActions": [
+          "Ajustar regra de permissao ou fluxo de autorizacao.",
+          "Mostrar mensagem de acesso negado orientando proximo passo."
+        ],
+        "commandHints": [
+          "rg -n \"role|permission|acl|rbac\" src",
+          "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+      },
+      "evidence": []
+    },
+    {
+      "timestamp": "2026-03-11T10:20:32.189Z",
+      "code": "HTTP_4XX",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: HTTP 404 Not Found (endpoint_not_found)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy.",
+      "assistantHint": {
+        "priority": "P1",
+        "firstChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy.",
+          "Validar payload enviado e schema esperado no endpoint.",
+          "Revisar autenticacao/autorizacao e headers.",
+          "Checar rota e metodo HTTP corretos."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+          "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+          "rg -n \"zod|schema|safeParse|parse\\(\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "diagnosis": {
+        "category": "http",
+        "subtype": "endpoint_not_found",
+        "confidence": "high",
+        "title": "HTTP 404 Not Found",
+        "httpStatus": 404,
+        "method": "GET",
+        "requestUrl": "https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+        "requestPath": "/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js",
+        "failureText": "",
+        "probableCauses": [
+          "Endpoint incorreto no frontend.",
+          "Base URL/env aponta para ambiente errado.",
+          "Reescrita/proxy nao encaminha a rota."
+        ],
+        "technicalChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy."
+        ],
+        "recommendedActions": [
+          "Centralizar construcao de endpoint para evitar typo.",
+          "Adicionar teste de contrato para rotas criticas."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+      },
+      "evidence": []
+    },
+    {
+      "timestamp": "2026-03-11T10:20:32.190Z",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Failed to load resource: the server responded with a status of 404 ()",
+      "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+      "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 404 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: Console reportou recurso com HTTP 404 (console_http_404)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy.",
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**",
+          "src/components/**"
+        ]
+      },
+      "diagnosis": {
+        "category": "console_http",
+        "subtype": "console_http_404",
+        "confidence": "high",
+        "title": "Console reportou recurso com HTTP 404",
+        "httpStatus": 404,
+        "method": "GET",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "",
+        "probableCauses": [
+          "Endpoint incorreto no frontend.",
+          "Base URL/env aponta para ambiente errado.",
+          "Reescrita/proxy nao encaminha a rota."
+        ],
+        "technicalChecks": [
+          "Comparar URL do fetch com rotas realmente expostas.",
+          "Validar variaveis de ambiente de API.",
+          "Revisar rewrites/proxy."
+        ],
+        "recommendedActions": [
+          "Centralizar construcao de endpoint para evitar typo.",
+          "Adicionar teste de contrato para rotas criticas."
+        ],
+        "commandHints": [
+          "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+          "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+        ],
+        "likelyAreas": [
+          "src/app/api/**/route.ts",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+        "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+      },
+      "evidence": []
+    },
+    {
+      "timestamp": "2026-03-11T10:20:32.190Z",
+      "code": "CONSOLE_ERROR",
+      "severity": "low",
+      "route": "/",
+      "action": "route_load",
+      "viewportLabel": "1536x864",
+      "viewport": "1536x864",
+      "detail": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+      "laymanExplanation": "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+      "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.",
+      "recommendedPrompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.\nExplicacao tecnica: Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.\nResolucao recomendada: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.\nClassificacao inteligente: Erro no console do navegador (runtime_unknown)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Erro de runtime/console sem assinatura especifica.\n- Excecao nao tratada em render ou evento.\n- Dados inesperados sem validacao defensiva.\n\nChecks tecnicos sugeridos:\n- Usar stack trace para chegar no arquivo/linha.\n- Adicionar guard clauses no trecho que falha.\n- Reexecutar fluxo e confirmar ausencia do erro.",
+      "assistantHint": {
+        "priority": "P2",
+        "firstChecks": [
+          "Usar stack trace para chegar no arquivo/linha.",
+          "Adicionar guard clauses no trecho que falha.",
+          "Reexecutar fluxo e confirmar ausencia do erro.",
+          "Classificar erro: warning ruido vs falha funcional real.",
+          "Eliminar erros silenciosos repetitivos.",
+          "Confirmar que nao existe regressao apos ajuste."
+        ],
+        "commandHints": [
+          "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib",
+          "rg -n \"console\\.error|console\\.warn\" src",
+          "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+        ],
+        "likelyAreas": [
+          "src/components/**",
+          "src/app/**",
+          "src/lib/**"
+        ]
+      },
+      "diagnosis": {
+        "category": "console",
+        "subtype": "runtime_unknown",
+        "confidence": "medium",
+        "title": "Erro no console do navegador",
+        "httpStatus": null,
+        "method": "",
+        "requestUrl": "",
+        "requestPath": "",
+        "failureText": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+        "probableCauses": [
+          "Erro de runtime/console sem assinatura especifica.",
+          "Excecao nao tratada em render ou evento.",
+          "Dados inesperados sem validacao defensiva."
+        ],
+        "technicalChecks": [
+          "Usar stack trace para chegar no arquivo/linha.",
+          "Adicionar guard clauses no trecho que falha.",
+          "Reexecutar fluxo e confirmar ausencia do erro."
+        ],
+        "recommendedActions": [
+          "Aprimorar tratamento de erro no frontend.",
+          "Criar teste de regressao para o fluxo quebrado."
+        ],
+        "commandHints": [
+          "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib"
+        ],
+        "likelyAreas": [
+          "src/components/**",
+          "src/app/**",
+          "src/lib/**"
+        ],
+        "technicalExplanation": "Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.",
+        "laymanExplanation": "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+        "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo."
+      },
+      "evidence": []
+    }
+  ],
+  "promptPack": {
+    "masterPrompt": "Atue como engenheiro de software senior e corrija todas as issues listadas abaixo com foco em causa raiz.\n\nNao aplique correcoes cosmeticas. Garanta comportamento funcional correto em desktop e mobile.\n\nExigencias minimas: sem botao sem efeito, sem callback solto, sem erro fetch sem feedback, sem 4xx/5xx inesperado no fluxo principal e sem ordem de secoes quebrada.\n\nWorkflow obrigatorio: reproduzir, identificar causa raiz, corrigir com menor impacto, validar novamente via auditor.\n\nEntregue ao final: codigo corrigido, resumo da causa raiz por categoria e evidencias de revalidacao.\n\nCorrija as rotas/API com erro HTTP durante interacoes de UI.\nMantenha fluxo idempotente, mensagens de erro claras e status consistente na tela.\nOcorrencias:\n- / -> 403 GET https://openai.com/\n- / -> 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\n\nResolva erros de runtime/rede do frontend.\nGaranta try/catch, fallback de estado e tratamento de respostas invalidas.\nOcorrencias:\n- / -> CONSOLE_ERROR: Failed to load resource: the server responded with a status of 403 ()\n- / -> CONSOLE_ERROR: Failed to load resource: the server responded with a status of 404 ()\n- / -> CONSOLE_ERROR: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.\n\nUse a classificacao inteligente para atacar causa raiz de fetch/network/http/runtime.\nPara cada item: confirmar causa, aplicar fix robusto e validar com replay da auditoria.\nDiagnosticos capturados:\n- / -> route_load | HTTP 403 Forbidden [forbidden_permission] | 403 GET https://openai.com/\n- / -> route_load | Console reportou recurso com HTTP 403 [console_http_403] | Failed to load resource: the server responded with a status of 403 ()\n- / -> route_load | HTTP 404 Not Found [endpoint_not_found] | 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\n- / -> route_load | Console reportou recurso com HTTP 404 [console_http_404] | Failed to load resource: the server responded with a status of 404 ()\n- / -> route_load | Erro no console do navegador [runtime_unknown] | Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+    "prompts": [
+      "Corrija as rotas/API com erro HTTP durante interacoes de UI.\nMantenha fluxo idempotente, mensagens de erro claras e status consistente na tela.\nOcorrencias:\n- / -> 403 GET https://openai.com/\n- / -> 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+      "Resolva erros de runtime/rede do frontend.\nGaranta try/catch, fallback de estado e tratamento de respostas invalidas.\nOcorrencias:\n- / -> CONSOLE_ERROR: Failed to load resource: the server responded with a status of 403 ()\n- / -> CONSOLE_ERROR: Failed to load resource: the server responded with a status of 404 ()\n- / -> CONSOLE_ERROR: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+      "Use a classificacao inteligente para atacar causa raiz de fetch/network/http/runtime.\nPara cada item: confirmar causa, aplicar fix robusto e validar com replay da auditoria.\nDiagnosticos capturados:\n- / -> route_load | HTTP 403 Forbidden [forbidden_permission] | 403 GET https://openai.com/\n- / -> route_load | Console reportou recurso com HTTP 403 [console_http_403] | Failed to load resource: the server responded with a status of 403 ()\n- / -> route_load | HTTP 404 Not Found [endpoint_not_found] | 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\n- / -> route_load | Console reportou recurso com HTTP 404 [console_http_404] | Failed to load resource: the server responded with a status of 404 ()\n- / -> route_load | Erro no console do navegador [runtime_unknown] | Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled."
+    ],
+    "issuePrompts": [
+      {
+        "id": "162263c11b34",
+        "code": "HTTP_4XX",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "prompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 403 GET https://openai.com/\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: HTTP 403 Forbidden (forbidden_permission)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin."
+      },
+      {
+        "id": "85f4bfb322ef",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "prompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 403 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.\nClassificacao inteligente: Console reportou recurso com HTTP 403 (console_http_403)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Usuario sem permissao para a acao.\n- RBAC/ACL bloqueando o endpoint.\n- Protecao CSRF/origin recusando a chamada.\n\nChecks tecnicos sugeridos:\n- Conferir claims/permissoes do usuario.\n- Comparar regra de autorizacao com o caso de uso.\n- Validar controles CSRF e origin."
+      },
+      {
+        "id": "0bfecbcd3892",
+        "code": "HTTP_4XX",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "prompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [HTTP_4XX] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: HTTP 404 Not Found (endpoint_not_found)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy."
+      },
+      {
+        "id": "3d3ace6d2a92",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "prompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Failed to load resource: the server responded with a status of 404 ()\nExplicacao tecnica: Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.\nResolucao recomendada: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.\nClassificacao inteligente: Console reportou recurso com HTTP 404 (console_http_404)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Endpoint incorreto no frontend.\n- Base URL/env aponta para ambiente errado.\n- Reescrita/proxy nao encaminha a rota.\n\nChecks tecnicos sugeridos:\n- Comparar URL do fetch com rotas realmente expostas.\n- Validar variaveis de ambiente de API.\n- Revisar rewrites/proxy."
+      },
+      {
+        "id": "fc3d2577cbb7",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "prompt": "Atue como engenheiro de software senior focado em causa raiz.\nCorrija a issue abaixo de forma definitiva, sem gambiarras e sem regressao.\n\nIssue: [CONSOLE_ERROR] (low)\nRota: /\nAcao: route_load\nURL: https://openai.com/\nDetalhe observado: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.\nExplicacao tecnica: Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.\nResolucao recomendada: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.\nClassificacao inteligente: Erro no console do navegador (runtime_unknown)\n\nRequisitos obrigatorios:\n1. Reproduzir o problema localmente antes da mudanca.\n2. Identificar causa raiz real no codigo (nao apenas sintoma).\n3. Implementar correcao robusta e minima.\n4. Preservar UX, acessibilidade e comportamento mobile/desktop.\n5. Revalidar com auditoria automatizada apos o fix.\n\nEntregue:\n- mudancas de codigo\n- resumo da causa raiz\n- como validar que foi resolvido\n\nCausas provaveis detectadas:\n- Erro de runtime/console sem assinatura especifica.\n- Excecao nao tratada em render ou evento.\n- Dados inesperados sem validacao defensiva.\n\nChecks tecnicos sugeridos:\n- Usar stack trace para chegar no arquivo/linha.\n- Adicionar guard clauses no trecho que falha.\n- Reexecutar fluxo e confirmar ausencia do erro."
+      }
+    ]
+  },
+  "assistantGuide": {
+    "status": "issues_found",
+    "issueCount": 5,
+    "routePriority": [
+      {
+        "route": "/",
+        "totalIssues": 5,
+        "high": 0,
+        "medium": 0,
+        "low": 5
+      }
+    ],
+    "immediateSteps": [
+      "Corrigir primeiro erros high (runtime/5xx/ordem visual).",
+      "Depois tratar medium (clicks falhos/rede/secoes ausentes).",
+      "Finalizar com low e ruido de console.",
+      "Atacar checklist SEO pendente antes da revalidacao final.",
+      "Reexecutar auditoria completa e confirmar totalIssues=0."
+    ],
+    "replayCommand": "node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+    "quickStartPrompt": "Atue como engenheiro de software senior com foco em execucao rapida e causa raiz.\nTotal de issues: 5.\nOrdem de ataque: high -> medium -> low.\nNao aceitar fix cosmetico: cada problema precisa de evidencia de resolucao.\n\nTop issues para iniciar:\n1. [CONSOLE_ERROR] (low) / -> route_load | Failed to load resource: the server responded with a status of 403 ()\n2. [CONSOLE_ERROR] (low) / -> route_load | Failed to load resource: the server responded with a status of 404 ()\n3. [CONSOLE_ERROR] (low) / -> route_load | Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.\n4. [HTTP_4XX] (low) / -> route_load | 403 GET https://openai.com/\n5. [HTTP_4XX] (low) / -> route_load | 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000\n\nSEO (obrigatorio):\nAtue como especialista SEO senior com foco em causa raiz e impacto real no ranking.\nSite auditado: https://www.openai.com\nScore SEO atual: 16/100.\nObjetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.\n\nChecklist SEO pendente (explicacao para leigos + acao):\n1. Title unico e com tamanho ideal (30-65) | por que importa: E o texto principal que aparece no Google. | o que fazer: Defina um title unico por pagina com foco na intencao do usuario.\n2. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.\n3. Estrutura de headings com 1 H1 | por que importa: Organiza o tema principal da pagina para Google e usuarios. | o que fazer: Mantenha apenas um H1 claro e use H2/H3 para secoes.\n4. HTML com lang e viewport mobile | por que importa: Melhora indexacao correta por idioma e experiencia em celular. | o que fazer: Adicione lang em <html> e meta viewport no <head>.\n5. Canonical definido | por que importa: Evita conteudo duplicado em URLs diferentes. | o que fazer: Defina <link rel=\"canonical\"> para cada pagina indexavel.\n6. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.\n7. Conteudo util e suficiente | por que importa: Paginas rasas tendem a ranquear pior. | o que fazer: Adicione conteudo especifico, provas, FAQs e diferenciais.\n8. Links internos entre paginas | por que importa: Ajuda rastreamento e distribuicao de autoridade. | o que fazer: Inclua links para servicos, contato, cidade e paginas correlatas.\n9. Meta social (Open Graph + Twitter Card) | por que importa: Melhora compartilhamento e CTR em redes sociais. | o que fazer: Complete og:title, og:description, og:image, og:type e twitter:card.\n10. Meta robots presente e coerente | por que importa: Define como bots devem indexar/seguir links. | o que fazer: Defina meta robots adequada para cada tipo de pagina.\n\nIssues SEO detectadas:\n1. [SEO_H1_MISSING] (high) Nenhum H1 encontrado na pagina. | recomendacao: Inclua 1 H1 claro descrevendo o tema principal da pagina.\n2. [SEO_META_DESCRIPTION_MISSING] (high) Meta description ausente. | recomendacao: Adicione meta description unica com proposta clara da pagina.\n3. [SEO_VIEWPORT_MISSING] (high) Meta viewport ausente. | recomendacao: Adicione meta viewport para boa experiencia mobile.\n4. [SEO_CONTENT_THIN] (medium) Conteudo textual curto (0 palavras). | recomendacao: Adicione conteudo util e especifico sobre servico/local para SEO local.\n5. [SEO_LANG_MISSING] (medium) Atributo lang ausente em <html>. | recomendacao: Defina lang no HTML para melhorar indexacao e acessibilidade.\n6. [SEO_OPEN_GRAPH_INCOMPLETE] (medium) Open Graph incompleto (faltando og:title, og:description, og:image ou og:type). | recomendacao: Complete as metas Open Graph para melhorar compartilhamento e CTR.\n7. [SEO_TITLE_LENGTH] (medium) Title com 16 caracteres (ideal: 30-65). | recomendacao: Ajuste o tamanho do title para melhorar leitura no Google.\n8. [SEO_CANONICAL_MISSING] (low) Link canonical ausente. | recomendacao: Defina canonical para evitar duplicidade de URL.\n9. [SEO_INTERNAL_LINKS_LOW] (low) Poucos links internos (0). | recomendacao: Aumente links internos para melhorar rastreio e distribuicao de autoridade.\n10. [SEO_META_ROBOTS_MISSING] (low) Meta robots ausente. | recomendacao: Defina meta robots explicita para controle de indexacao.\n11. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.\n12. [SEO_TWITTER_CARD_MISSING] (low) Twitter Card ausente. | recomendacao: Adicione meta twitter:card e metadados sociais complementares.\n\nEntrega obrigatoria:\n- listar arquivos alterados e motivo de cada alteracao\n- mostrar antes/depois dos metadados principais\n- validar novamente e comprovar melhoria de score\n\nComando de revalidacao: node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+    "topIssues": [
+      {
+        "id": "85f4bfb322ef",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "detail": "Failed to load resource: the server responded with a status of 403 ()",
+        "diagnosis": {
+          "category": "console_http",
+          "subtype": "console_http_403",
+          "confidence": "high",
+          "title": "Console reportou recurso com HTTP 403",
+          "httpStatus": 403,
+          "method": "GET",
+          "requestUrl": "",
+          "requestPath": "",
+          "failureText": "",
+          "probableCauses": [
+            "Usuario sem permissao para a acao.",
+            "RBAC/ACL bloqueando o endpoint.",
+            "Protecao CSRF/origin recusando a chamada."
+          ],
+          "technicalChecks": [
+            "Conferir claims/permissoes do usuario.",
+            "Comparar regra de autorizacao com o caso de uso.",
+            "Validar controles CSRF e origin."
+          ],
+          "recommendedActions": [
+            "Ajustar regra de permissao ou fluxo de autorizacao.",
+            "Mostrar mensagem de acesso negado orientando proximo passo."
+          ],
+          "commandHints": [
+            "rg -n \"role|permission|acl|rbac\" src",
+            "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**"
+          ],
+          "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+          "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+          "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+        },
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+        "assistantHint": {
+          "priority": "P2",
+          "firstChecks": [
+            "Conferir claims/permissoes do usuario.",
+            "Comparar regra de autorizacao com o caso de uso.",
+            "Validar controles CSRF e origin.",
+            "Classificar erro: warning ruido vs falha funcional real.",
+            "Eliminar erros silenciosos repetitivos.",
+            "Confirmar que nao existe regressao apos ajuste."
+          ],
+          "commandHints": [
+            "rg -n \"role|permission|acl|rbac\" src",
+            "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+            "rg -n \"console\\.error|console\\.warn\" src",
+            "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**",
+            "src/components/**"
+          ]
+        }
+      },
+      {
+        "id": "3d3ace6d2a92",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "detail": "Failed to load resource: the server responded with a status of 404 ()",
+        "diagnosis": {
+          "category": "console_http",
+          "subtype": "console_http_404",
+          "confidence": "high",
+          "title": "Console reportou recurso com HTTP 404",
+          "httpStatus": 404,
+          "method": "GET",
+          "requestUrl": "",
+          "requestPath": "",
+          "failureText": "",
+          "probableCauses": [
+            "Endpoint incorreto no frontend.",
+            "Base URL/env aponta para ambiente errado.",
+            "Reescrita/proxy nao encaminha a rota."
+          ],
+          "technicalChecks": [
+            "Comparar URL do fetch com rotas realmente expostas.",
+            "Validar variaveis de ambiente de API.",
+            "Revisar rewrites/proxy."
+          ],
+          "recommendedActions": [
+            "Centralizar construcao de endpoint para evitar typo.",
+            "Adicionar teste de contrato para rotas criticas."
+          ],
+          "commandHints": [
+            "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+            "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**"
+          ],
+          "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+          "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+          "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+        },
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+        "assistantHint": {
+          "priority": "P2",
+          "firstChecks": [
+            "Comparar URL do fetch com rotas realmente expostas.",
+            "Validar variaveis de ambiente de API.",
+            "Revisar rewrites/proxy.",
+            "Classificar erro: warning ruido vs falha funcional real.",
+            "Eliminar erros silenciosos repetitivos.",
+            "Confirmar que nao existe regressao apos ajuste."
+          ],
+          "commandHints": [
+            "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+            "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+            "rg -n \"console\\.error|console\\.warn\" src",
+            "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**",
+            "src/components/**"
+          ]
+        }
+      },
+      {
+        "id": "fc3d2577cbb7",
+        "code": "CONSOLE_ERROR",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "detail": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+        "diagnosis": {
+          "category": "console",
+          "subtype": "runtime_unknown",
+          "confidence": "medium",
+          "title": "Erro no console do navegador",
+          "httpStatus": null,
+          "method": "",
+          "requestUrl": "",
+          "requestPath": "",
+          "failureText": "Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.",
+          "probableCauses": [
+            "Erro de runtime/console sem assinatura especifica.",
+            "Excecao nao tratada em render ou evento.",
+            "Dados inesperados sem validacao defensiva."
+          ],
+          "technicalChecks": [
+            "Usar stack trace para chegar no arquivo/linha.",
+            "Adicionar guard clauses no trecho que falha.",
+            "Reexecutar fluxo e confirmar ausencia do erro."
+          ],
+          "recommendedActions": [
+            "Aprimorar tratamento de erro no frontend.",
+            "Criar teste de regressao para o fluxo quebrado."
+          ],
+          "commandHints": [
+            "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib"
+          ],
+          "likelyAreas": [
+            "src/components/**",
+            "src/app/**",
+            "src/lib/**"
+          ],
+          "technicalExplanation": "Erro de JavaScript/console detectado durante interacao. Pode quebrar renderizacao, eventos ou fluxo de dados.",
+          "laymanExplanation": "Uma falha interna no codigo da pagina interrompeu parte do funcionamento esperado.",
+          "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo."
+        },
+        "recommendedResolution": "Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.",
+        "assistantHint": {
+          "priority": "P2",
+          "firstChecks": [
+            "Usar stack trace para chegar no arquivo/linha.",
+            "Adicionar guard clauses no trecho que falha.",
+            "Reexecutar fluxo e confirmar ausencia do erro.",
+            "Classificar erro: warning ruido vs falha funcional real.",
+            "Eliminar erros silenciosos repetitivos.",
+            "Confirmar que nao existe regressao apos ajuste."
+          ],
+          "commandHints": [
+            "rg -n \"console.error|throw new Error|try\\s*\\{|catch\\s*\\(\" src/components src/app src/lib",
+            "rg -n \"console\\.error|console\\.warn\" src",
+            "rg -n \"catch\\s*\\(.*\\)\\s*\\{\\s*\\}\" src"
+          ],
+          "likelyAreas": [
+            "src/components/**",
+            "src/app/**",
+            "src/lib/**"
+          ]
+        }
+      },
+      {
+        "id": "162263c11b34",
+        "code": "HTTP_4XX",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "detail": "403 GET https://openai.com/",
+        "diagnosis": {
+          "category": "http",
+          "subtype": "forbidden_permission",
+          "confidence": "high",
+          "title": "HTTP 403 Forbidden",
+          "httpStatus": 403,
+          "method": "GET",
+          "requestUrl": "https://openai.com/",
+          "requestPath": "/",
+          "failureText": "",
+          "probableCauses": [
+            "Usuario sem permissao para a acao.",
+            "RBAC/ACL bloqueando o endpoint.",
+            "Protecao CSRF/origin recusando a chamada."
+          ],
+          "technicalChecks": [
+            "Conferir claims/permissoes do usuario.",
+            "Comparar regra de autorizacao com o caso de uso.",
+            "Validar controles CSRF e origin."
+          ],
+          "recommendedActions": [
+            "Ajustar regra de permissao ou fluxo de autorizacao.",
+            "Mostrar mensagem de acesso negado orientando proximo passo."
+          ],
+          "commandHints": [
+            "rg -n \"role|permission|acl|rbac\" src",
+            "rg -n \"csrf|origin|sameSite\" src/app/api src/lib"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**"
+          ],
+          "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+          "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+          "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo."
+        },
+        "recommendedResolution": "Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.",
+        "assistantHint": {
+          "priority": "P1",
+          "firstChecks": [
+            "Conferir claims/permissoes do usuario.",
+            "Comparar regra de autorizacao com o caso de uso.",
+            "Validar controles CSRF e origin.",
+            "Validar payload enviado e schema esperado no endpoint.",
+            "Revisar autenticacao/autorizacao e headers.",
+            "Checar rota e metodo HTTP corretos."
+          ],
+          "commandHints": [
+            "rg -n \"role|permission|acl|rbac\" src",
+            "rg -n \"csrf|origin|sameSite\" src/app/api src/lib",
+            "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+            "rg -n \"zod|schema|safeParse|parse\\(\" src"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**",
+            "src/components/**"
+          ]
+        }
+      },
+      {
+        "id": "0bfecbcd3892",
+        "code": "HTTP_4XX",
+        "severity": "low",
+        "route": "/",
+        "action": "route_load",
+        "detail": "404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+        "diagnosis": {
+          "category": "http",
+          "subtype": "endpoint_not_found",
+          "confidence": "high",
+          "title": "HTTP 404 Not Found",
+          "httpStatus": 404,
+          "method": "GET",
+          "requestUrl": "https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000",
+          "requestPath": "/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js",
+          "failureText": "",
+          "probableCauses": [
+            "Endpoint incorreto no frontend.",
+            "Base URL/env aponta para ambiente errado.",
+            "Reescrita/proxy nao encaminha a rota."
+          ],
+          "technicalChecks": [
+            "Comparar URL do fetch com rotas realmente expostas.",
+            "Validar variaveis de ambiente de API.",
+            "Revisar rewrites/proxy."
+          ],
+          "recommendedActions": [
+            "Centralizar construcao de endpoint para evitar typo.",
+            "Adicionar teste de contrato para rotas criticas."
+          ],
+          "commandHints": [
+            "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+            "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**"
+          ],
+          "technicalExplanation": "Erro HTTP 4xx retornado pela API, ligado a payload/permissao/endpoint incorreto.",
+          "laymanExplanation": "A requisicao foi rejeitada por dados/permissao/rota incorreta.",
+          "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas."
+        },
+        "recommendedResolution": "Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.",
+        "assistantHint": {
+          "priority": "P1",
+          "firstChecks": [
+            "Comparar URL do fetch com rotas realmente expostas.",
+            "Validar variaveis de ambiente de API.",
+            "Revisar rewrites/proxy.",
+            "Validar payload enviado e schema esperado no endpoint.",
+            "Revisar autenticacao/autorizacao e headers.",
+            "Checar rota e metodo HTTP corretos."
+          ],
+          "commandHints": [
+            "rg -n \"baseUrl|API_URL|NEXT_PUBLIC|/api/\" src",
+            "rg -n \"export async function GET|POST|PUT|PATCH|DELETE\" src/app/api",
+            "rg -n \"fetch\\(|axios|/api/|POST|PATCH|PUT|DELETE\" src",
+            "rg -n \"zod|schema|safeParse|parse\\(\" src"
+          ],
+          "likelyAreas": [
+            "src/app/api/**/route.ts",
+            "src/lib/**",
+            "src/components/**"
+          ]
+        }
+      }
+    ]
+  },
+  "summary": {
+    "auditScope": "full",
+    "routesChecked": 1,
+    "routeLoadFailures": 0,
+    "buttonsChecked": 0,
+    "actionsMapped": 0,
+    "actionsWithEffect": 0,
+    "actionsNoEffectDetected": 0,
+    "actionsFailed": 0,
+    "actionsAnalysisOnly": 0,
+    "buttonsNoEffect": 0,
+    "http4xx": 2,
+    "http5xx": 0,
+    "netRequestFailed": 0,
+    "jsRuntimeErrors": 0,
+    "consoleErrors": 3,
+    "visualSectionOrderInvalid": 0,
+    "visualSectionMissing": 0,
+    "visualLayoutOverflow": 0,
+    "visualLayerOverlap": 0,
+    "visualAlignmentDrift": 0,
+    "visualTightSpacing": 0,
+    "visualGapInconsistency": 0,
+    "visualEdgeHugging": 0,
+    "visualWidthInconsistency": 0,
+    "visualBoundaryCollision": 0,
+    "visualFoldPressure": 0,
+    "visualHierarchyCollapse": 0,
+    "visualClusterCollision": 0,
+    "visualQualityIssues": 0,
+    "seoScore": 16,
+    "seoPagesAnalyzed": 1,
+    "seoCriticalIssues": 3,
+    "seoTotalIssues": 12,
+    "totalIssues": 5
+  }
+}

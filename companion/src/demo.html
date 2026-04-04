@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SitePulse Studio v3.0 - Design System Demo</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    /* Importar tokens inline para demonstração */
+    @import './styles/tokens.css';
+    @import './styles/animations.css';
+    @import './styles/components.css';
+    @import './styles/index.css';
+  </style>
+</head>
+<body>
+  <div class="sp-min-h-screen sp-p-8">
+    <!-- Header -->
+    <header class="sp-mb-8">
+      <h1 class="sp-heading-1 sp-text-gradient">
+        🧠 SitePulse Studio v3.0
+      </h1>
+      <p class="sp-body-large sp-mt-2">
+        O Oráculo Cibernético - Design System Supremo
+      </p>
+    </header>
+
+    <!-- Grid de Cards dos 10 Motores -->
+    <h2 class="sp-heading-4 sp-mb-6">Os 10 Motores de IA</h2>
+    <div class="sp-grid sp-grid-auto" style="margin-bottom: 48px;">
+      
+      <!-- Intent Engine -->
+      <div class="sp-card" style="--stagger-index: 0;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-intent);">🎯 Intent Engine</h3>
+          <span class="sp-badge sp-badge-online">ONLINE</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Compreensão de intenções com NLP avançado</p>
+          <div class="sp-flex sp-gap-2 sp-mb-4">
+            <span class="sp-badge" style="background: rgba(236, 72, 153, 0.15); color: #F9A8D4;">94% Confiança</span>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-primary sp-btn-sm">Analisar</button>
+          <button class="sp-btn sp-btn-ghost sp-btn-sm">Config</button>
+        </div>
+      </div>
+
+      <!-- Context Engine -->
+      <div class="sp-card" style="--stagger-index: 1; animation-delay: 100ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-context);">🔍 Context Engine</h3>
+          <span class="sp-badge sp-badge-busy sp-badge-pulse">MONITORANDO</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Consciência situacional do ambiente</p>
+          <div class="sp-mb-4">
+            <div style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: #94A3B8;">
+              <span>🖥️ nginx</span>
+              <span>⚛️ React</span>
+              <span>🗄️ PostgreSQL</span>
+            </div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Atualizar</button>
+        </div>
+      </div>
+
+      <!-- Evidence Engine -->
+      <div class="sp-card" style="--stagger-index: 2; animation-delay: 200ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-evidence);">📋 Evidence Engine</h3>
+          <span class="sp-badge sp-badge-online">ONLINE</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Coleta e análise de evidências</p>
+          <div class="sp-flex sp-gap-2 sp-mb-4">
+            <span class="sp-badge" style="background: rgba(6, 182, 212, 0.15); color: #67E8F9;">12 Evidências</span>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Coletar</button>
+        </div>
+      </div>
+
+      <!-- Memory Engine -->
+      <div class="sp-card" style="--stagger-index: 3; animation-delay: 300ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-memory);">🧠 Memory Engine</h3>
+          <span class="sp-badge sp-badge-online">ONLINE</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Aprendizado com experiências</p>
+          <div class="sp-mb-4">
+            <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Padrões reconhecidos</div>
+            <div style="font-size: 20px; font-weight: 600; color: #FCD34D;">42</div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Ver Padrões</button>
+        </div>
+      </div>
+
+      <!-- Learning Engine -->
+      <div class="sp-card" style="--stagger-index: 4; animation-delay: 400ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-learning);">📈 Learning Engine</h3>
+          <span class="sp-badge sp-badge-busy">OTIMIZANDO</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Melhoria contínua dos modelos</p>
+          <div class="sp-mb-4">
+            <div style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #10B981, #34D399); width: 78%; height: 100%; border-radius: 4px; animation: shimmer 2s infinite;"></div>
+            </div>
+            <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">Treinamento: 78%</div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Pausar</button>
+        </div>
+      </div>
+
+      <!-- Decision Engine -->
+      <div class="sp-card" style="--stagger-index: 5; animation-delay: 500ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-decision);">⚖️ Decision Engine</h3>
+          <span class="sp-badge sp-badge-online">ONLINE</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Tomada de decisões ótimas</p>
+          <div class="sp-mb-4">
+            <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Decisões hoje</div>
+            <div style="font-size: 20px; font-weight: 600; color: #A5B4FC;">156</div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Análises</button>
+        </div>
+      </div>
+
+      <!-- Action Engine -->
+      <div class="sp-card" style="--stagger-index: 6; animation-delay: 600ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-action);">⚡ Action Engine</h3>
+          <span class="sp-badge sp-badge-busy">EXECUTANDO</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Execução segura de ações</p>
+          <div class="sp-mb-4">
+            <div style="background: rgba(255,255,255,0.05); height: 8px; border-radius: 4px; overflow: hidden;">
+              <div style="background: linear-gradient(90deg, #EF4444, #FCA5A5); width: 67%; height: 100%; border-radius: 4px;"></div>
+            </div>
+            <div style="font-size: 12px; color: #94A3B8; margin-top: 4px;">deploy-patch-001: 67%</div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-danger sp-btn-sm">Cancelar</button>
+          <button class="sp-btn sp-btn-ghost sp-btn-sm">Logs</button>
+        </div>
+      </div>
+
+      <!-- Predictive Engine -->
+      <div class="sp-card" style="--stagger-index: 7; animation-delay: 700ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-predictive);">🔮 Predictive Engine</h3>
+          <span class="sp-badge sp-badge-online">ONLINE</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Previsão de problemas futuros</p>
+          <div class="sp-flex sp-gap-2 sp-mb-4">
+            <span class="sp-badge sp-badge-critical">2 Anomalias</span>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Ver Previsões</button>
+        </div>
+      </div>
+
+      <!-- Autonomous QA -->
+      <div class="sp-card" style="--stagger-index: 8; animation-delay: 800ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-autonomous);">🤖 Autonomous QA</h3>
+          <span class="sp-badge sp-badge-online">AUTÔNOMO</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Automação de testes 24/7</p>
+          <div class="sp-mb-4">
+            <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">Cobertura de testes</div>
+            <div style="font-size: 20px; font-weight: 600; color: #5EEAD4;">87.3%</div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-secondary sp-btn-sm">Ver Testes</button>
+        </div>
+      </div>
+
+      <!-- CyberSenior Security -->
+      <div class="sp-card" style="--stagger-index: 9; animation-delay: 900ms;">
+        <div class="sp-card-header">
+          <h3 class="sp-card-title" style="color: var(--sp-security);">🔒 CyberSenior</h3>
+          <span class="sp-badge sp-badge-online">PROTEGENDO</span>
+        </div>
+        <div class="sp-card-content">
+          <p class="sp-body-small sp-mb-4">Segurança ofensiva e defensiva</p>
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+            <div style="text-align: center;">
+              <div style="width: 60px; height: 60px; border-radius: 50%; background: conic-gradient(var(--sp-security) 72%, rgba(255,255,255,0.1) 0); display: flex; align-items: center; justify-content: center; position: relative;">
+                <div style="width: 50px; height: 50px; border-radius: 50%; background: var(--sp-bg-secondary); display: flex; align-items: center; justify-content: center;">
+                  <span style="font-size: 14px; font-weight: 700;">72</span>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #94A3B8; margin-top: 4px;">SCORE</div>
+            </div>
+            <div style="flex: 1;">
+              <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                <span class="sp-badge sp-badge-critical">2</span>
+                <span class="sp-badge sp-badge-medium">5</span>
+                <span class="sp-badge sp-badge-low">8</span>
+              </div>
+              <div style="font-size: 12px; color: #94A3B8;">Vulnerabilidades</div>
+            </div>
+          </div>
+        </div>
+        <div class="sp-card-footer">
+          <button class="sp-btn sp-btn-primary sp-btn-sm">Iniciar Scan</button>
+          <button class="sp-btn sp-btn-ghost sp-btn-sm">Relatório</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Seção de Botões -->
+    <section style="margin-bottom: 48px;">
+      <h2 class="sp-heading-4 sp-mb-6">Variações de Botões</h2>
+      <div class="sp-flex sp-gap-4 sp-flex-wrap" style="margin-bottom: 24px;">
+        <button class="sp-btn sp-btn-primary">Primário</button>
+        <button class="sp-btn sp-btn-secondary">Secundário</button>
+        <button class="sp-btn sp-btn-ghost">Ghost</button>
+        <button class="sp-btn sp-btn-outline">Outline</button>
+        <button class="sp-btn sp-btn-danger">Perigoso</button>
+        <button class="sp-btn sp-btn-success">Sucesso</button>
+      </div>
+      <div class="sp-flex sp-gap-4 sp-flex-wrap">
+        <button class="sp-btn sp-btn-primary sp-btn-xs">Extra Small</button>
+        <button class="sp-btn sp-btn-primary sp-btn-sm">Small</button>
+        <button class="sp-btn sp-btn-primary">Medium</button>
+        <button class="sp-btn sp-btn-primary sp-btn-lg">Large</button>
+        <button class="sp-btn sp-btn-primary sp-btn-xl">Extra Large</button>
+        <button class="sp-btn sp-btn-primary sp-btn-loading">Loading</button>
+      </div>
+    </section>
+
+    <!-- Seção de Badges -->
+    <section style="margin-bottom: 48px;">
+      <h2 class="sp-heading-4 sp-mb-6">Badges de Severidade</h2>
+      <div class="sp-flex sp-gap-3 sp-flex-wrap" style="margin-bottom: 24px;">
+        <span class="sp-badge sp-badge-critical">CRÍTICO</span>
+        <span class="sp-badge sp-badge-high">ALTO</span>
+        <span class="sp-badge sp-badge-medium">MÉDIO</span>
+        <span class="sp-badge sp-badge-low">BAIXO</span>
+        <span class="sp-badge sp-badge-info">INFO</span>
+      </div>
+      <h3 class="sp-heading-6 sp-mb-4">Status</h3>
+      <div class="sp-flex sp-gap-3 sp-flex-wrap" style="margin-bottom: 24px;">
+        <span class="sp-badge sp-badge-online">ONLINE</span>
+        <span class="sp-badge sp-badge-offline">OFFLINE</span>
+        <span class="sp-badge sp-badge-busy sp-badge-pulse">BUSY</span>
+        <span class="sp-badge sp-badge-error">ERROR</span>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="text-align: center; padding: 48px 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 48px;">
+      <p class="sp-body-small" style="color: #64748B;">
+        SitePulse Studio v3.0 - O Oráculo Cibernético
+      </p>
+      <p class="sp-body-small" style="color: #475569; margin-top: 8px;">
+        Design System Supremo • 10 Motores de IA
+      </p>
+    </footer>
+
+  </div>
+
+  <script>
+    // Animação de entrada dos cards
+    document.addEventListener('DOMContentLoaded', () => {
+      const cards = document.querySelectorAll('.sp-card');
+      cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        setTimeout(() => {
+          card.style.transition = 'opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)';
+          card.style.opacity = '1';
+          card.style.transform = 'translateY(0)';
+        }, index * 100);
+      });
+    });
+  </script>
+</body>
+</html>

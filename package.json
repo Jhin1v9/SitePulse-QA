@@ -1,46 +1,27 @@
 {
-  "name": "sitepulse-standalone",
-  "version": "1.0.0",
+  "name": "sitepulse-qa",
   "private": true,
+  "version": "1.0.0",
+  "type": "module",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "qa:bootstrap": "npm --prefix qa install --omit=dev && npm --prefix qa exec playwright install chromium",
-    "postinstall": "node scripts/postinstall.cjs",
-    "desktop:dev": "npm --prefix companion run dev",
-    "desktop:smoke": "npm --prefix companion run smoke",
-    "desktop:test:ui": "npm --prefix companion run test:ui",
-    "desktop:build:win": "npm --prefix companion run build:win",
-    "desktop:build:win:staging": "npm --prefix companion run build:win:staging",
-    "desktop:build:update:metadata": "npm --prefix companion run build:update:metadata",
-    "companion:install": "npm --prefix companion install",
-    "companion:dev": "npm --prefix companion run dev",
-    "companion:smoke": "npm --prefix companion run smoke",
-    "companion:build:win": "npm --prefix companion run build:win",
-    "qa:install": "npm --prefix qa install",
-    "audit:cmd": "npm --prefix qa run audit:cmd",
-    "audit:cmd:mobile": "npm --prefix qa run audit:cmd:mobile",
-    "audit:wizard": "npm --prefix qa run audit:hub",
-    "audit:wizard:mobile": "npm --prefix qa run audit:hub:mobile",
-    "audit:bridge": "npm --prefix qa run audit:bridge"
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "framer-motion": "^11.11.17",
-    "next": "14.2.5",
-    "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "gsap": "^3.12.2",
+    "lucide-react": "^0.383.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@types/node": "22.10.1",
-    "@types/react": "18.3.12",
-    "@types/react-dom": "18.3.1",
-    "autoprefixer": "10.4.20",
-    "eslint": "8.57.1",
-    "eslint-config-next": "14.2.5",
-    "postcss": "8.4.49",
-    "tailwindcss": "3.4.14",
-    "typescript": "5.7.2"
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.4"
   }
 }

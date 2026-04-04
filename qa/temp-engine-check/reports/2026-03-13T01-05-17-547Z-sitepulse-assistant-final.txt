@@ -1,0 +1,159 @@
+SITEPULSE ASSISTANT BRIEF
+========================
+Projeto: sitepulse-default-desktop-audit
+Base URL: https://site-pulse-qa.vercel.app/es
+Status: issues_found
+Total issues: 15
+
+PASSOS IMEDIATOS
+- Corrigir primeiro erros high (runtime/5xx/ordem visual).
+- Depois tratar medium (clicks falhos/rede/secoes ausentes).
+- Finalizar com low e ruido de console.
+- Atacar checklist SEO pendente antes da revalidacao final.
+- Reexecutar auditoria completa e confirmar totalIssues=0.
+
+ROTAS PRIORITARIAS
+- /faq: total=4 high=0 medium=1 low=3
+- /downloads: total=4 high=0 medium=1 low=3
+- /demo: total=3 high=0 medium=1 low=2
+- /contact: total=3 high=0 medium=1 low=2
+- /pricing: total=1 high=0 medium=0 low=1
+
+TOP ISSUES
+- [VISUAL_CLUSTER_COLLISION] (medium) /demo -> visual_quality:cluster_collision
+  detalhe: Detectada colisao entre clusters laterais em 1 par(es) de blocos. | article.panel.min-w-0 x article.panel.min-w-0 (gap=16px, overlap=1)
+  diagnostico: VISUAL_CLUSTER_COLLISION [generic]
+  resolucao: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  solucao_possivel: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  prioridade: P1
+  checks: Medir o gap horizontal real entre cards/blocos na mesma linha. | Ajustar grid/flex gap e min-width para impedir colunas grudadas ou espremidas. | Validar a composicao nos viewports mobile e desktop sem permitir clusters se tocando.
+  comandos: rg -n "grid-template-columns|gap:|column-gap|flex-wrap|justify-content|min-width|max-width|grid-cols|gap-x-" src || rg -n "card|panel|tile|cluster|grid|columns|stack" src/components src/styles
+- [VISUAL_CLUSTER_COLLISION] (medium) /faq -> visual_quality:cluster_collision
+  detalhe: Detectada colisao entre clusters laterais em 2 par(es) de blocos. | article#docs.panel.min-w-0 x article#security.panel.min-w-0 (gap=16px, overlap=1) ; article#security.panel.min-w-0 x article#privacy.panel.min-w-0 (gap=16px, overlap=1)
+  diagnostico: VISUAL_CLUSTER_COLLISION [generic]
+  resolucao: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  solucao_possivel: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  prioridade: P1
+  checks: Medir o gap horizontal real entre cards/blocos na mesma linha. | Ajustar grid/flex gap e min-width para impedir colunas grudadas ou espremidas. | Validar a composicao nos viewports mobile e desktop sem permitir clusters se tocando.
+  comandos: rg -n "grid-template-columns|gap:|column-gap|flex-wrap|justify-content|min-width|max-width|grid-cols|gap-x-" src || rg -n "card|panel|tile|cluster|grid|columns|stack" src/components src/styles
+- [VISUAL_CLUSTER_COLLISION] (medium) /contact -> visual_quality:cluster_collision
+  detalhe: Detectada colisao entre clusters laterais em 1 par(es) de blocos. | article.panel.min-w-0 x article.panel.min-w-0 (gap=16px, overlap=1)
+  diagnostico: VISUAL_CLUSTER_COLLISION [generic]
+  resolucao: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  solucao_possivel: Revisar gutters horizontais, grid-template, gaps e min-width dos cards para manter separacao clara entre blocos da mesma linha.
+  prioridade: P1
+  checks: Medir o gap horizontal real entre cards/blocos na mesma linha. | Ajustar grid/flex gap e min-width para impedir colunas grudadas ou espremidas. | Validar a composicao nos viewports mobile e desktop sem permitir clusters se tocando.
+  comandos: rg -n "grid-template-columns|gap:|column-gap|flex-wrap|justify-content|min-width|max-width|grid-cols|gap-x-" src || rg -n "card|panel|tile|cluster|grid|columns|stack" src/components src/styles
+- [VISUAL_TIGHT_SPACING] (medium) /downloads -> visual_quality:tight_spacing
+  detalhe: Espacamento apertado em 2 transicao(oes) na rota /downloads (viewport 1536x864). | 1. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 2. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=miolo da pagina). | Leitura humana: os blocos quase se grudam, o olho nao encontra respiracao e a pagina parece comprimida.
+  diagnostico: VISUAL_TIGHT_SPACING [generic]
+  resolucao: Aumentar espacamento vertical entre secoes/cards principais, revisar margins e garantir uma hierarquia visual com respiracao consistente.
+  solucao_possivel: Aumentar espacamento vertical entre secoes/cards principais, revisar margins e garantir uma hierarquia visual com respiracao consistente.
+  prioridade: P1
+  checks: Medir gaps verticais entre blocos consecutivos da composicao principal. | Revisar margins/paddings de cards, seções e wrappers que ficaram visualmente colados. | Garantir respiro suficiente antes de CTA, FAQ, listas e grids longos.
+  comandos: rg -n "gap:|row-gap|margin-top|margin-bottom|padding-top|padding-bottom|-mt-|-mb-|space-y-" src || rg -n "section|card|panel|stack|wrapper|content" src/components src/styles
+- [BTN_NO_EFFECT] (low) /demo -> Ver demo
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /demo -> Demo
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /downloads -> Descargar
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /downloads -> Instaladores
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /pricing -> Precios
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /faq -> FAQ
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [BTN_NO_EFFECT] (low) /contact -> Contacto
+  detalhe: Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+  diagnostico: BTN_NO_EFFECT [generic]
+  resolucao: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  solucao_possivel: Garantir feedback de sucesso/erro, navegacao, abertura de modal, mudanca de estado visual ou rolagem para secao alvo.
+  prioridade: P1
+  checks: Checar se o clique altera URL, estado, modal, scroll ou request. | Garantir feedback visual e tratamento de sucesso/erro. | Confirmar que callbacks nao estao vazios ou condicionados indevidamente.
+  comandos: rg -n "onClick|scrollToSection|router\.push|setState|set[A-Z]" src/components src/lib || rg -n "TODO|placeholder|noop|return;" src/components src/app
+- [VISUAL_GAP_INCONSISTENCY] (low) /faq -> visual_quality:gap_inconsistency
+  detalhe: Detectada inconsistencia de espacamento em 1 transicao(oes) visuais. | section.space-y-3 -> section (gap=32px, baseline=266px, drift=234px, too_tight)
+  diagnostico: VISUAL_GAP_INCONSISTENCY [generic]
+  resolucao: Padronizar a escala de espacamento entre secoes equivalentes e remover gaps isolados que deixam a composicao irregular.
+  solucao_possivel: Padronizar a escala de espacamento entre secoes equivalentes e remover gaps isolados que deixam a composicao irregular.
+  prioridade: P2
+  checks: Comparar a escala de espacamento entre blocos equivalentes na mesma pagina. | Unificar tokens/gutters de spacing entre secoes irmas. | Remover overrides isolados que aumentam ou reduzem gaps sem criterio.
+  comandos: rg -n "gap:|row-gap|margin-top|margin-bottom|padding-top|padding-bottom|space-y-|space-x-" src || rg -n "token|spacing|gutter|container|max-width|section" src/components src/styles
+
+PROMPT RAPIDO
+-------------
+Atue como engenheiro de software senior com foco em execucao rapida e causa raiz.
+Total de issues: 15.
+Ordem de ataque: high -> medium -> low.
+Nao aceitar fix cosmetico: cada problema precisa de evidencia de resolucao.
+
+Top issues para iniciar:
+1. [VISUAL_CLUSTER_COLLISION] (medium) /demo -> visual_quality:cluster_collision | Detectada colisao entre clusters laterais em 1 par(es) de blocos. | article.panel.min-w-0 x article.panel.min-w-0 (gap=16px, overlap=1)
+2. [VISUAL_CLUSTER_COLLISION] (medium) /faq -> visual_quality:cluster_collision | Detectada colisao entre clusters laterais em 2 par(es) de blocos. | article#docs.panel.min-w-0 x article#security.panel.min-w-0 (gap=16px, overlap=1) ; article#security.panel.min-w-0 x article#privacy.panel.min-w-0 (gap=16px, overlap=1)
+3. [VISUAL_CLUSTER_COLLISION] (medium) /contact -> visual_quality:cluster_collision | Detectada colisao entre clusters laterais em 1 par(es) de blocos. | article.panel.min-w-0 x article.panel.min-w-0 (gap=16px, overlap=1)
+4. [VISUAL_TIGHT_SPACING] (medium) /downloads -> visual_quality:tight_spacing | Espacamento apertado em 2 transicao(oes) na rota /downloads (viewport 1536x864). | 1. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 2. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=miolo da pagina). | Leitura humana: os blocos quase se grudam, o olho nao encontra respiracao e a pagina parece comprimida.
+5. [BTN_NO_EFFECT] (low) /demo -> Ver demo | Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+6. [BTN_NO_EFFECT] (low) /demo -> Demo | Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+7. [BTN_NO_EFFECT] (low) /downloads -> Descargar | Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+8. [BTN_NO_EFFECT] (low) /downloads -> Instaladores | Clique sem efeito observavel (URL, DOM, request, dialog, scroll).
+
+SEO (obrigatorio):
+Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.
+Site auditado: https://site-pulse-qa.vercel.app/es
+Score SEO atual: 93/100.
+Objetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.
+
+Checklist SEO pendente (explicacao para leigos + acao):
+1. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.
+2. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.
+
+Issues SEO detectadas:
+1. [SEO_META_DESCRIPTION_LENGTH] (medium) Meta description com 56 caracteres (ideal: 70-170). | recomendacao: Ajuste o tamanho da meta description para evitar corte no resultado de busca.
+2. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.
+
+Entrega obrigatoria:
+- listar arquivos alterados e motivo de cada alteracao
+- mostrar antes/depois dos metadados principais
+- validar novamente e comprovar melhoria de score
+
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+
+REVALIDACAO
+- node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-es-full.json" --fresh --live-log --human-log --scope "full" --no-server

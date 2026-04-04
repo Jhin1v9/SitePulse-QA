@@ -1,0 +1,440 @@
+{
+  "meta": {
+    "project": "sitepulse-default-desktop-audit",
+    "startedAt": "2026-03-11T10:17:23.773Z",
+    "finishedAt": "2026-03-11T10:17:26.285Z",
+    "baseUrl": "https://example.com",
+    "serverCommand": "npm run dev -- --hostname 127.0.0.1 --port 3110",
+    "serverCwd": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa",
+    "headed": false,
+    "viewport": "1536x864",
+    "viewportLabel": "1536x864",
+    "resumedFromCheckpoint": false,
+    "paused": false,
+    "maxRunMs": 180000,
+    "checkpointFile": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example\\reports\\checkpoint.json",
+    "configPath": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example.json",
+    "replayCommand": "node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+    "auditScope": "full"
+  },
+  "progress": {
+    "nextRouteIndex": 1,
+    "nextLabelIndex": 0,
+    "totalRoutes": 1,
+    "segments": 1
+  },
+  "routeSweep": [
+    {
+      "route": "/",
+      "loadOk": true,
+      "buttonsDiscovered": 0,
+      "buttonsClicked": 0
+    }
+  ],
+  "actionSweep": [],
+  "seo": {
+    "overallScore": 47,
+    "pagesAnalyzed": 1,
+    "categoryScore": {
+      "technical": 85,
+      "content": 62,
+      "accessibility": 100
+    },
+    "issues": [
+      {
+        "code": "SEO_META_DESCRIPTION_MISSING",
+        "severity": "high",
+        "category": "content",
+        "detail": "Meta description ausente.",
+        "recommendation": "Adicione meta description unica com proposta clara da pagina.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_CONTENT_THIN",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Conteudo textual curto (19 palavras).",
+        "recommendation": "Adicione conteudo util e especifico sobre servico/local para SEO local.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_OPEN_GRAPH_INCOMPLETE",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Open Graph incompleto (faltando og:title, og:description, og:image ou og:type).",
+        "recommendation": "Complete as metas Open Graph para melhorar compartilhamento e CTR.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_TITLE_LENGTH",
+        "severity": "medium",
+        "category": "content",
+        "detail": "Title com 14 caracteres (ideal: 30-65).",
+        "recommendation": "Ajuste o tamanho do title para melhorar leitura no Google.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_CANONICAL_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Link canonical ausente.",
+        "recommendation": "Defina canonical para evitar duplicidade de URL.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_INTERNAL_LINKS_LOW",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Poucos links internos (0).",
+        "recommendation": "Aumente links internos para melhorar rastreio e distribuicao de autoridade.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_META_ROBOTS_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Meta robots ausente.",
+        "recommendation": "Defina meta robots explicita para controle de indexacao.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_STRUCTURED_DATA_MISSING",
+        "severity": "low",
+        "category": "technical",
+        "detail": "Nenhum JSON-LD encontrado.",
+        "recommendation": "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      },
+      {
+        "code": "SEO_TWITTER_CARD_MISSING",
+        "severity": "low",
+        "category": "content",
+        "detail": "Twitter Card ausente.",
+        "recommendation": "Adicione meta twitter:card e metadados sociais complementares.",
+        "count": 1,
+        "affectedRoutes": [
+          "/"
+        ]
+      }
+    ],
+    "topRecommendations": [
+      "Adicione meta description unica com proposta clara da pagina.",
+      "Adicione conteudo util e especifico sobre servico/local para SEO local.",
+      "Complete as metas Open Graph para melhorar compartilhamento e CTR.",
+      "Ajuste o tamanho do title para melhorar leitura no Google.",
+      "Defina canonical para evitar duplicidade de URL.",
+      "Aumente links internos para melhorar rastreio e distribuicao de autoridade.",
+      "Defina meta robots explicita para controle de indexacao.",
+      "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results."
+    ],
+    "checklist": [
+      {
+        "id": "title",
+        "label": "Title unico e com tamanho ideal (30-65)",
+        "why": "E o texto principal que aparece no Google.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_TITLE_LENGTH"
+        ],
+        "recommendation": "Defina um title unico por pagina com foco na intencao do usuario."
+      },
+      {
+        "id": "meta_description",
+        "label": "Meta description clara (70-170)",
+        "why": "Ajuda a pessoa entender a pagina antes de clicar.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_META_DESCRIPTION_MISSING"
+        ],
+        "recommendation": "Crie descricao objetiva com beneficio real e chamada para acao."
+      },
+      {
+        "id": "heading_h1",
+        "label": "Estrutura de headings com 1 H1",
+        "why": "Organiza o tema principal da pagina para Google e usuarios.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Mantenha apenas um H1 claro e use H2/H3 para secoes."
+      },
+      {
+        "id": "lang_viewport",
+        "label": "HTML com lang e viewport mobile",
+        "why": "Melhora indexacao correta por idioma e experiencia em celular.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Adicione lang em <html> e meta viewport no <head>."
+      },
+      {
+        "id": "canonical",
+        "label": "Canonical definido",
+        "why": "Evita conteudo duplicado em URLs diferentes.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_CANONICAL_MISSING"
+        ],
+        "recommendation": "Defina <link rel=\"canonical\"> para cada pagina indexavel."
+      },
+      {
+        "id": "indexing",
+        "label": "Pagina indexavel (sem noindex indevido)",
+        "why": "Sem isso o Google pode ignorar paginas importantes.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Remova noindex das paginas que precisam ranquear."
+      },
+      {
+        "id": "images_alt",
+        "label": "Imagens com alt descritivo",
+        "why": "Ajuda SEO de imagem e acessibilidade.",
+        "status": "ok",
+        "missingCodes": [],
+        "recommendation": "Preencha alt nas imagens relevantes com descricao real."
+      },
+      {
+        "id": "structured_data",
+        "label": "Schema JSON-LD (LocalBusiness/Service/FAQ)",
+        "why": "Aumenta chance de rich results no Google.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_STRUCTURED_DATA_MISSING"
+        ],
+        "recommendation": "Adicione dados estruturados validos por pagina."
+      },
+      {
+        "id": "content_depth",
+        "label": "Conteudo util e suficiente",
+        "why": "Paginas rasas tendem a ranquear pior.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_CONTENT_THIN"
+        ],
+        "recommendation": "Adicione conteudo especifico, provas, FAQs e diferenciais."
+      },
+      {
+        "id": "internal_links",
+        "label": "Links internos entre paginas",
+        "why": "Ajuda rastreamento e distribuicao de autoridade.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_INTERNAL_LINKS_LOW"
+        ],
+        "recommendation": "Inclua links para servicos, contato, cidade e paginas correlatas."
+      },
+      {
+        "id": "social_meta",
+        "label": "Meta social (Open Graph + Twitter Card)",
+        "why": "Melhora compartilhamento e CTR em redes sociais.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_OPEN_GRAPH_INCOMPLETE",
+          "SEO_TWITTER_CARD_MISSING"
+        ],
+        "recommendation": "Complete og:title, og:description, og:image, og:type e twitter:card."
+      },
+      {
+        "id": "meta_robots",
+        "label": "Meta robots presente e coerente",
+        "why": "Define como bots devem indexar/seguir links.",
+        "status": "missing",
+        "missingCodes": [
+          "SEO_META_ROBOTS_MISSING"
+        ],
+        "recommendation": "Defina meta robots adequada para cada tipo de pagina."
+      }
+    ],
+    "fixPrompt": "Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.\nSite auditado: https://example.com\nScore SEO atual: 47/100.\nObjetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.\n\nChecklist SEO pendente (explicacao para leigos + acao):\n1. Title unico e com tamanho ideal (30-65) | por que importa: E o texto principal que aparece no Google. | o que fazer: Defina um title unico por pagina com foco na intencao do usuario.\n2. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.\n3. Canonical definido | por que importa: Evita conteudo duplicado em URLs diferentes. | o que fazer: Defina <link rel=\"canonical\"> para cada pagina indexavel.\n4. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.\n5. Conteudo util e suficiente | por que importa: Paginas rasas tendem a ranquear pior. | o que fazer: Adicione conteudo especifico, provas, FAQs e diferenciais.\n6. Links internos entre paginas | por que importa: Ajuda rastreamento e distribuicao de autoridade. | o que fazer: Inclua links para servicos, contato, cidade e paginas correlatas.\n7. Meta social (Open Graph + Twitter Card) | por que importa: Melhora compartilhamento e CTR em redes sociais. | o que fazer: Complete og:title, og:description, og:image, og:type e twitter:card.\n8. Meta robots presente e coerente | por que importa: Define como bots devem indexar/seguir links. | o que fazer: Defina meta robots adequada para cada tipo de pagina.\n\nIssues SEO detectadas:\n1. [SEO_META_DESCRIPTION_MISSING] (high) Meta description ausente. | recomendacao: Adicione meta description unica com proposta clara da pagina.\n2. [SEO_CONTENT_THIN] (medium) Conteudo textual curto (19 palavras). | recomendacao: Adicione conteudo util e especifico sobre servico/local para SEO local.\n3. [SEO_OPEN_GRAPH_INCOMPLETE] (medium) Open Graph incompleto (faltando og:title, og:description, og:image ou og:type). | recomendacao: Complete as metas Open Graph para melhorar compartilhamento e CTR.\n4. [SEO_TITLE_LENGTH] (medium) Title com 14 caracteres (ideal: 30-65). | recomendacao: Ajuste o tamanho do title para melhorar leitura no Google.\n5. [SEO_CANONICAL_MISSING] (low) Link canonical ausente. | recomendacao: Defina canonical para evitar duplicidade de URL.\n6. [SEO_INTERNAL_LINKS_LOW] (low) Poucos links internos (0). | recomendacao: Aumente links internos para melhorar rastreio e distribuicao de autoridade.\n7. [SEO_META_ROBOTS_MISSING] (low) Meta robots ausente. | recomendacao: Defina meta robots explicita para controle de indexacao.\n8. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.\n9. [SEO_TWITTER_CARD_MISSING] (low) Twitter Card ausente. | recomendacao: Adicione meta twitter:card e metadados sociais complementares.\n\nEntrega obrigatoria:\n- listar arquivos alterados e motivo de cada alteracao\n- mostrar antes/depois dos metadados principais\n- validar novamente e comprovar melhoria de score",
+    "pages": [
+      {
+        "route": "/",
+        "url": "https://example.com/",
+        "title": "Example Domain",
+        "titleLength": 14,
+        "metaDescription": "",
+        "metaDescriptionLength": 0,
+        "h1Count": 1,
+        "canonicalUrl": "",
+        "lang": "en",
+        "hasMetaRobots": false,
+        "robotsNoindex": false,
+        "ogComplete": false,
+        "hasTwitterCard": false,
+        "hasViewport": true,
+        "imagesTotal": 0,
+        "imagesMissingAlt": 0,
+        "hasStructuredData": false,
+        "structuredDataCount": 0,
+        "internalLinks": 0,
+        "wordCount": 19,
+        "score": 47,
+        "categoryScore": {
+          "technical": 85,
+          "content": 62,
+          "accessibility": 100
+        },
+        "checks": [
+          {
+            "code": "SEO_TITLE_LENGTH",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 6,
+            "detail": "Title com 14 caracteres (ideal: 30-65).",
+            "recommendation": "Ajuste o tamanho do title para melhorar leitura no Google."
+          },
+          {
+            "code": "SEO_META_DESCRIPTION_MISSING",
+            "status": "fail",
+            "severity": "high",
+            "category": "content",
+            "weight": 16,
+            "detail": "Meta description ausente.",
+            "recommendation": "Adicione meta description unica com proposta clara da pagina."
+          },
+          {
+            "code": "SEO_CANONICAL_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Link canonical ausente.",
+            "recommendation": "Defina canonical para evitar duplicidade de URL."
+          },
+          {
+            "code": "SEO_META_ROBOTS_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 3,
+            "detail": "Meta robots ausente.",
+            "recommendation": "Defina meta robots explicita para controle de indexacao."
+          },
+          {
+            "code": "SEO_STRUCTURED_DATA_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Nenhum JSON-LD encontrado.",
+            "recommendation": "Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results."
+          },
+          {
+            "code": "SEO_OPEN_GRAPH_INCOMPLETE",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 6,
+            "detail": "Open Graph incompleto (faltando og:title, og:description, og:image ou og:type).",
+            "recommendation": "Complete as metas Open Graph para melhorar compartilhamento e CTR."
+          },
+          {
+            "code": "SEO_TWITTER_CARD_MISSING",
+            "status": "warn",
+            "severity": "low",
+            "category": "content",
+            "weight": 3,
+            "detail": "Twitter Card ausente.",
+            "recommendation": "Adicione meta twitter:card e metadados sociais complementares."
+          },
+          {
+            "code": "SEO_CONTENT_THIN",
+            "status": "warn",
+            "severity": "medium",
+            "category": "content",
+            "weight": 7,
+            "detail": "Conteudo textual curto (19 palavras).",
+            "recommendation": "Adicione conteudo util e especifico sobre servico/local para SEO local."
+          },
+          {
+            "code": "SEO_INTERNAL_LINKS_LOW",
+            "status": "warn",
+            "severity": "low",
+            "category": "technical",
+            "weight": 4,
+            "detail": "Poucos links internos (0).",
+            "recommendation": "Aumente links internos para melhorar rastreio e distribuicao de autoridade."
+          }
+        ]
+      }
+    ]
+  },
+  "issues": [],
+  "issueLog": [],
+  "promptPack": {
+    "masterPrompt": "Atue como engenheiro de software senior e corrija todas as issues listadas abaixo com foco em causa raiz.\n\nNao aplique correcoes cosmeticas. Garanta comportamento funcional correto em desktop e mobile.\n\nExigencias minimas: sem botao sem efeito, sem callback solto, sem erro fetch sem feedback, sem 4xx/5xx inesperado no fluxo principal e sem ordem de secoes quebrada.\n\nWorkflow obrigatorio: reproduzir, identificar causa raiz, corrigir com menor impacto, validar novamente via auditor.\n\nEntregue ao final: codigo corrigido, resumo da causa raiz por categoria e evidencias de revalidacao.",
+    "prompts": [],
+    "issuePrompts": []
+  },
+  "assistantGuide": {
+    "status": "clean",
+    "issueCount": 0,
+    "routePriority": [],
+    "immediateSteps": [
+      "Sem issues: manter baseline e monitorar regressao.",
+      "Rodar novamente com: node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+      "Se houver mudanca grande de layout, atualizar sectionOrderRules."
+    ],
+    "replayCommand": "node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example.json\" --fresh --live-log --human-log --scope \"full\" --no-server",
+    "quickStartPrompt": "Atue como engenheiro de software senior.\nNao ha issues abertas nesta auditoria.\nObjetivo: prevenir regressao.\nComando de revalidacao: node src/index.mjs --config \"C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\example.json\" --fresh --live-log --human-log --scope \"full\" --no-server\nVerifique mudancas recentes e rode a auditoria novamente apos qualquer ajuste estrutural.",
+    "topIssues": []
+  },
+  "summary": {
+    "auditScope": "full",
+    "routesChecked": 1,
+    "routeLoadFailures": 0,
+    "buttonsChecked": 0,
+    "actionsMapped": 0,
+    "actionsWithEffect": 0,
+    "actionsNoEffectDetected": 0,
+    "actionsFailed": 0,
+    "actionsAnalysisOnly": 0,
+    "buttonsNoEffect": 0,
+    "http4xx": 0,
+    "http5xx": 0,
+    "netRequestFailed": 0,
+    "jsRuntimeErrors": 0,
+    "consoleErrors": 0,
+    "visualSectionOrderInvalid": 0,
+    "visualSectionMissing": 0,
+    "visualLayoutOverflow": 0,
+    "visualLayerOverlap": 0,
+    "visualAlignmentDrift": 0,
+    "visualTightSpacing": 0,
+    "visualGapInconsistency": 0,
+    "visualEdgeHugging": 0,
+    "visualWidthInconsistency": 0,
+    "visualBoundaryCollision": 0,
+    "visualFoldPressure": 0,
+    "visualHierarchyCollapse": 0,
+    "visualClusterCollision": 0,
+    "visualQualityIssues": 0,
+    "seoScore": 47,
+    "seoPagesAnalyzed": 1,
+    "seoCriticalIssues": 1,
+    "seoTotalIssues": 9,
+    "totalIssues": 0
+  }
+}

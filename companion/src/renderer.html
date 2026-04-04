@@ -654,10 +654,257 @@
           max-width: min(100%, 27.5rem);
         }
       }
+
+      .workspace-page-shell {
+        position: relative;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top right, rgba(91,140,255,0.12), transparent 32%),
+          radial-gradient(circle at bottom left, rgba(168,85,247,0.08), transparent 28%),
+          linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+      }
+
+      .workspace-page-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: linear-gradient(
+          90deg,
+          rgba(255,255,255,0.03),
+          transparent 22%,
+          transparent 78%,
+          rgba(255,255,255,0.03)
+        );
+        opacity: 0.7;
+      }
+
+      .workspace-hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.3fr) minmax(20rem, 0.7fr);
+        gap: 1.25rem;
+      }
+
+      .workspace-section-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+      }
+
+      .workspace-card {
+        border: 1px solid rgba(255,255,255,0.06);
+        background: linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+        border-radius: 1.35rem;
+        padding: 1rem;
+        min-width: 0;
+        box-shadow: 0 18px 36px rgba(0,0,0,0.16);
+      }
+
+      .workspace-kicker {
+        font-size: 10px;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #7f8ca1;
+      }
+
+      .workspace-big-number {
+        font-size: clamp(2rem, 1.6rem + 1vw, 2.8rem);
+        line-height: 1;
+        letter-spacing: -0.05em;
+        color: #f0f4f8;
+        font-weight: 600;
+      }
+
+      .workspace-pill-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+      }
+
+      .workspace-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.45rem 0.75rem;
+        border-radius: 0.85rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+        color: #cfd8e3;
+        font-size: 12px;
+      }
+
+      .workspace-list {
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .workspace-list-item {
+        display: flex;
+        gap: 0.8rem;
+        align-items: flex-start;
+        border: 1px solid rgba(255,255,255,0.06);
+        background: rgba(255,255,255,0.025);
+        border-radius: 1rem;
+        padding: 0.9rem;
+      }
+
+      .workspace-list-index {
+        width: 1.8rem;
+        height: 1.8rem;
+        border-radius: 0.8rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 auto;
+        font-size: 11px;
+        color: #dbe6ff;
+        background: rgba(91,140,255,0.14);
+        border: 1px solid rgba(91,140,255,0.18);
+      }
+
+      .workspace-seg-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .workspace-seg-tab {
+        padding: 0.55rem 0.8rem;
+        border-radius: 0.9rem;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.02);
+        color: #c0cad7;
+        font-size: 12px;
+      }
+
+      .workspace-seg-tab.is-active {
+        border-color: rgba(91,140,255,0.3);
+        background: rgba(91,140,255,0.12);
+        color: #eff5ff;
+        box-shadow: 0 0 0 1px rgba(91,140,255,0.08) inset;
+      }
+
+      @media (max-width: 1080px) {
+        .workspace-hero-grid,
+        .workspace-section-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+
+      /* ── Sidebar width CSS variable (tracks actual width) ── */
+      :root {
+        --sidebar-w: clamp(15.5rem, 15rem + 0.8vw, 17.5rem);
+      }
+      #commandDock { left: var(--sidebar-w) !important; }
+      @media (min-width: 1024px) {
+        #commandDock { left: var(--sidebar-w) !important; }
+      }
+      /* ── SIDEBAR PREMIUM v2 ─────────────────────────────────── */
+      .app-sidebar { width: clamp(15.5rem, 15rem + 0.8vw, 17.5rem) !important; }
+      .ws-nav-btn {
+        position: relative; display: flex; width: 100%;
+        align-items: center; gap: 10px; border-radius: 18px;
+        border: 1px solid transparent; padding: 9px 10px;
+        text-align: left; overflow: hidden; cursor: pointer;
+        background: transparent;
+        transition: background 130ms ease, border-color 130ms ease, box-shadow 130ms ease;
+      }
+      .ws-nav-btn::before {
+        content: ""; position: absolute; inset: 0;
+        background: linear-gradient(90deg, var(--ws-glow, transparent), transparent 60%);
+        opacity: 0; transition: opacity 130ms ease; pointer-events: none;
+      }
+      .ws-nav-btn:hover::before { opacity: 1; }
+      .ws-nav-btn:hover { background: rgba(255,255,255,0.025); border-color: rgba(255,255,255,0.05); }
+      .ws-nav-btn.ws-active {
+        border-color: var(--ws-border, rgba(91,140,255,0.22));
+        background: var(--ws-bg, rgba(91,140,255,0.08));
+        box-shadow: var(--ws-shadow, none);
+      }
+      .ws-nav-btn.ws-active::before { opacity: 1; }
+      .ws-nav-btn.ws-active .ws-icon {
+        border-color: var(--ws-icon-border, rgba(91,140,255,0.22));
+        background: var(--ws-icon-bg, rgba(91,140,255,0.12));
+        color: var(--ws-color, #5B8CFF);
+        box-shadow: var(--ws-icon-glow, none);
+      }
+      .ws-nav-btn.ws-active .ws-label { color: #F0F4F8; }
+      .ws-icon {
+        display: flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.05);
+        background: rgba(255,255,255,0.02); color: #5A6578;
+        flex-shrink: 0; transition: all 130ms ease;
+      }
+      .ws-nav-btn:hover .ws-icon { border-color: rgba(255,255,255,0.08); color: #8B95A5; }
+      .ws-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+      .ws-text { min-width: 0; flex: 1; }
+      .ws-label {
+        display: flex; align-items: center; justify-content: space-between; gap: 6px;
+        font-size: 13px; font-weight: 500; color: #8B95A5;
+        transition: color 130ms ease; white-space: nowrap;
+      }
+      .ws-nav-btn:hover .ws-label { color: #D0D8E4; }
+      .ws-sublabel {
+        margin-top: 2px; font-size: 11px; color: #4A5568;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        transition: color 130ms ease;
+      }
+      .ws-nav-btn:hover .ws-sublabel, .ws-nav-btn.ws-active .ws-sublabel { color: #5A6578; }
+      .ws-live-badge {
+        display: inline-flex; align-items: center; gap: 4px;
+        border-radius: 999px; border: 1px solid rgba(91,140,255,0.22);
+        background: rgba(91,140,255,0.1); padding: 1px 7px;
+        font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+        color: #93b8ff; flex-shrink: 0;
+      }
+      .ws-live-dot { position: relative; display: inline-flex; width: 6px; height: 6px; }
+      .ws-live-dot::before {
+        content: ""; position: absolute; inset: -2px; border-radius: 50%;
+        background: #5B8CFF; opacity: 0; animation: ws-ping 1.6s ease-out infinite;
+      }
+      .ws-live-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: #5B8CFF; }
+      @keyframes ws-ping { 0% { transform:scale(1); opacity:.5; } 100% { transform:scale(2.4); opacity:0; } }
+      .ws-count {
+        font-size: 11px; font-family: "SF Mono","JetBrains Mono",monospace;
+        color: #5A6578; transition: color 130ms ease; flex-shrink: 0;
+      }
+      .ws-nav-btn:hover .ws-count { color: #8B95A5; }
+      .ws-nav-btn.ws-active .ws-count { color: var(--ws-color, #5B8CFF); }
+      .ws-section-label { padding: 0 8px; margin-bottom: 6px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #3D4758; }
+      .ws-section-sep { margin-top: 20px; }
+      #sidebarOperator { --ws-color:#5B8CFF; --ws-glow:rgba(91,140,255,0.08); --ws-border:rgba(91,140,255,0.22); --ws-bg:rgba(91,140,255,0.07); --ws-shadow:0 0 18px rgba(91,140,255,0.08); --ws-icon-border:rgba(91,140,255,0.22); --ws-icon-bg:rgba(91,140,255,0.12); --ws-icon-glow:0 0 10px rgba(91,140,255,0.22); }
+      #sidebarFindings { --ws-color:#f87171; --ws-glow:rgba(239,68,68,0.07); --ws-border:rgba(239,68,68,0.2); --ws-bg:rgba(239,68,68,0.06); --ws-icon-border:rgba(239,68,68,0.2); --ws-icon-bg:rgba(239,68,68,0.1); --ws-icon-glow:0 0 10px rgba(239,68,68,0.18); }
+      #sidebarSeo { --ws-color:#34d399; --ws-glow:rgba(16,185,129,0.07); --ws-border:rgba(16,185,129,0.2); --ws-bg:rgba(16,185,129,0.06); --ws-icon-border:rgba(16,185,129,0.2); --ws-icon-bg:rgba(16,185,129,0.1); --ws-icon-glow:0 0 10px rgba(16,185,129,0.18); }
+      #sidebarCompare { --ws-color:#a78bfa; --ws-glow:rgba(168,85,247,0.07); --ws-border:rgba(168,85,247,0.2); --ws-bg:rgba(168,85,247,0.06); --ws-icon-border:rgba(168,85,247,0.2); --ws-icon-bg:rgba(168,85,247,0.1); --ws-icon-glow:0 0 10px rgba(168,85,247,0.18); }
+      #sidebarMemory { --ws-color:#38bdf8; --ws-glow:rgba(14,165,233,0.07); --ws-border:rgba(14,165,233,0.2); --ws-bg:rgba(14,165,233,0.06); --ws-icon-border:rgba(14,165,233,0.2); --ws-icon-bg:rgba(14,165,233,0.1); --ws-icon-glow:0 0 10px rgba(14,165,233,0.18); }
+      #sidebarHealing { --ws-color:#86efac; --ws-glow:rgba(52,211,153,0.07); --ws-border:rgba(52,211,153,0.2); --ws-bg:rgba(52,211,153,0.06); --ws-icon-border:rgba(52,211,153,0.2); --ws-icon-bg:rgba(52,211,153,0.1); --ws-icon-glow:0 0 10px rgba(52,211,153,0.18); }
+      #sidebarReports { --ws-color:#f9a8d4; --ws-glow:rgba(244,114,182,0.07); --ws-border:rgba(244,114,182,0.2); --ws-bg:rgba(244,114,182,0.06); --ws-icon-border:rgba(244,114,182,0.2); --ws-icon-bg:rgba(244,114,182,0.1); --ws-icon-glow:0 0 10px rgba(244,114,182,0.18); }
+      #sidebarSettings { --ws-color:#94a3b8; --ws-glow:rgba(148,163,184,0.06); --ws-border:rgba(148,163,184,0.18); --ws-bg:rgba(148,163,184,0.05); --ws-icon-border:rgba(148,163,184,0.18); --ws-icon-bg:rgba(148,163,184,0.08); }
+      /* ── COMMAND DOCK PREMIUM ──────────────────────────────── */
+      .workspace-command-grid {
+        display: grid; grid-template-columns: 210px 1fr 130px 88px;
+        gap: 10px; align-items: center;
+      }
+      @media (max-width: 900px) {
+        .workspace-command-grid { grid-template-columns: 1fr 88px; }
+        .workspace-command-grid > *:first-child, .workspace-command-grid > *:nth-child(3) { display: none; }
+      }
+      .sp-run-btn {
+        height: 58px; border-radius: 18px;
+        border: 1px solid rgba(52,211,153,0.3); background: rgba(52,211,153,0.1);
+        color: #6ee7b7; font-size: 12px; font-weight: 500;
+        display: flex; align-items: center; justify-content: center; gap: 6px;
+        cursor: pointer; transition: all 130ms ease; white-space: nowrap; font-family: inherit;
+      }
+      .sp-run-btn:hover { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.45); transform: translateY(-1px); box-shadow: 0 0 20px rgba(52,211,153,0.12); }
+      .sp-run-btn svg { width: 14px; height: 14px; fill: #6ee7b7; flex-shrink: 0; }
     </style>
   <base target="_blank">
 </head>
   <body class="bg-page text-text-primary antialiased overflow-hidden">
+    <div id="toastStack" class="toast-stack" aria-live="polite" aria-label="Notifications"></div>
     
     <!-- Ambient Background Effects -->
     <div class="ambient-glow left-[10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-accent-blue/20 animate-float" style="animation-delay: 0s;"></div>
@@ -666,28 +913,19 @@
 
     <div class="relative flex h-screen w-full overflow-hidden">
       
-      <!-- SIDEBAR: Sistema de Navegação Arquitetural -->
-      <aside class="relative z-20 flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06] glass-shell">
-        
-        <!-- Header: Identidade do Sistema -->
+      <!-- SIDEBAR: Premium v2 — 8 workspaces -->
+      <aside class="app-sidebar relative z-20 flex h-full shrink-0 flex-col border-r border-white/[0.06] glass-shell">
+
         <div class="border-b border-white/[0.06] px-4 pb-4 pt-4">
-          <div class="sidebar-header-row flex items-start justify-between gap-3" style="
-    display: flex;
-    order: 1;
-    flex-direction: row-reverse;
-    gap: 0;
-">
+          <div class="sidebar-header-row flex items-start justify-between gap-0" style="flex-direction:row-reverse">
             <button id="newChatBtn" class="ml-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.02] text-text-tertiary transition-all hover:border-white/[0.10] hover:bg-white/[0.04] hover:text-text-primary hover:shadow-soft">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 5v14M5 12h14"></path>
-              </svg>
-            </button><div class="flex items-start gap-3">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <div class="flex items-start gap-3">
               <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-transparent shadow-soft hover:shadow-glow-blue transition-all duration-500 cursor-pointer group">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="h-4 w-4 text-white group-hover:text-accent-blue transition-colors">
                   <path d="M4 12h6M14 6h6M14 18h6M4 6h4M4 18h2" stroke-linecap="round"/>
-                  <circle cx="11" cy="12" r="2.5"/>
-                  <circle cx="10" cy="6" r="2"/>
-                  <circle cx="8" cy="18" r="2"/>
+                  <circle cx="11" cy="12" r="2.5"/><circle cx="10" cy="6" r="2"/><circle cx="8" cy="18" r="2"/>
                 </svg>
               </div>
               <div class="sidebar-brand-wrap pt-0.5">
@@ -695,10 +933,7 @@
                 <p class="sidebar-brand-subtitle mt-0.5 text-[11px] text-text-tertiary tracking-[0.02em]">Intelligence Operating System</p>
               </div>
             </div>
-            
           </div>
-
-          <!-- Context Card: Estado do Sistema -->
           <div class="loaded-context-card mt-5 rounded-[20px] border border-white/[0.06] glass-panel shadow-soft hover-premium cursor-pointer group">
             <div class="flex items-start gap-3">
               <div class="loaded-context-main">
@@ -713,16 +948,12 @@
                 </div>
               </div>
             </div>
-            
-            <!-- Métricas em Tempo Real -->
             <div class="context-metrics mt-5 grid grid-cols-3 gap-2">
               <div class="rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 transition-all hover:bg-white/[0.04] group/metric cursor-pointer">
                 <p class="metric-label text-[9px] uppercase tracking-[0.12em] text-text-tertiary">Score</p>
                 <div class="flex items-end gap-1 mt-0.5">
                   <p id="qualityDashboardOverall" class="metric-value text-[16px] font-semibold text-amber-400 leading-none">0</p>
-                  <svg class="h-3 w-3 text-amber-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 5v14M19 12l-7 7-7-7"/>
-                  </svg>
+                  <svg class="h-3 w-3 text-amber-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
                 </div>
               </div>
               <div class="rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 transition-all hover:bg-white/[0.04] group/metric cursor-pointer">
@@ -737,151 +968,108 @@
           </div>
         </div>
 
-        <!-- Workspaces: Centros de Comando -->
         <div class="flex-1 overflow-y-auto px-2.5 py-4">
-          <p class="mb-2 px-2 text-[11px] uppercase tracking-[0.1em] text-text-tertiary nowrap">Workspaces</p>
-          <div class="space-y-1.5">
-            
-            <!-- Operator: Ativo -->
-            <button id="sidebarOperator" data-view="overview" class="operator-active group relative flex w-full items-center gap-3 rounded-[20px] border border-accent-blue/20 bg-gradient-to-r from-accent-blue/10 to-transparent px-3 py-2.5 text-left transition-all hover:shadow-glow-blue overflow-hidden">
-              <div class="absolute inset-0 bg-gradient-to-r from-accent-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <span class="relative flex h-8 w-8 items-center justify-center rounded-2xl border border-accent-blue/20 bg-accent-blue/10 text-accent-blue shadow-[0_0_10px_rgba(91,140,255,0.2)]">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-                  <circle cx="12" cy="12" r="3"/>
-                  <circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/>
-                </svg>
-              </span>
-              <div class="relative min-w-0 flex-1">
-                <div class="operator-title-row flex items-center justify-between gap-2">
-                  <span class="text-[13px] font-medium text-text-primary">Operator</span>
-                  <span class="operator-badge relative rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-blue-200">
-                    <span class="relative flex h-1.5 w-1.5 mr-1 inline-block align-middle">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-blue opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-blue"></span>
-                    </span>
-                    <span id="auditChip" data-status="idle">audit idle</span>
-                  </span>
-                </div>
-                <p class="operator-subtitle mt-0.5 truncate text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">AI workspace and command execution</p>
+          <p class="ws-section-label">Workspaces</p>
+          <div class="space-y-1">
+            <button id="sidebarOperator" data-view="overview" class="ws-nav-btn ws-active">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Operator<span class="ws-live-badge"><span class="ws-live-dot"></span><span id="auditChip" data-status="idle">idle</span></span></div>
+                <p class="ws-sublabel">AI workspace · command execution</p>
               </div>
             </button>
-
-            <!-- Findings -->
-            <button id="sidebarFindings" data-view="findings" class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
-              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-                  <path d="M4 6h16M4 12h16M4 18h10"/>
-                </svg>
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">Findings</span>
-                    <span id="issuesMetric" class="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">0</span>
-                </div>
-                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Priority queue and issue detail</p>
+            <button id="sidebarFindings" data-view="findings" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Findings<span class="ws-count" id="findingsCountBadge">0</span></div>
+                <p class="ws-sublabel">Issue board · severity · triage</p>
               </div>
             </button>
-
-            <!-- SEO -->
-            <button id="sidebarSeo" data-view="seo" class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
-              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-                  <path d="M7 17L17 7M17 7H7M17 7V17"/>
-                </svg>
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">SEO</span>
-                  <span id="seoMetric" class="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">0</span>
-                </div>
-                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Visibility, metadata, indexing</p>
+            <button id="sidebarSeo" data-view="seo" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.35-4.35"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">SEO<span class="ws-count" id="seoMetric">0</span></div>
+                <p class="ws-sublabel">Visibility · metadata · indexing</p>
               </div>
             </button>
-
-            <!-- Compare -->
-            <button id="sidebarCompare" data-view="compare" class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
-              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
-                  <path d="M12 3v18M3 12h18"/>
-                </svg>
-              </span>
-              <div class="min-w-0 flex-1">
-                <div class="flex items-center justify-between gap-2">
-                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">Compare</span>
-                  <span class="text-[11px] text-text-tertiary font-mono group-hover:text-text-secondary transition-colors">Δ</span>
-                </div>
-                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Regression and baseline diff</p>
+            <button id="sidebarCompare" data-view="compare" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Compare<span class="ws-count">Δ</span></div>
+                <p class="ws-sublabel">Delta · regressions · baseline</p>
               </div>
             </button>
           </div>
 
-          <!-- Engines: Sistema Nervoso Visível -->
-          <p class="mb-2 mt-6 px-2 text-[11px] uppercase tracking-[0.1em] text-text-tertiary nowrap">Engines</p>
+          <p class="ws-section-label ws-section-sep">Intelligence</p>
+          <div class="space-y-1">
+            <button id="sidebarMemory" data-view="memory" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Memory<span class="ws-count" id="systemStateMemorySidebar">0</span></div>
+                <p class="ws-sublabel">Learned patterns · recall</p>
+              </div>
+            </button>
+            <button id="sidebarHealing" data-view="healing" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Healing<span class="ws-count" id="systemStateHealingReadySidebar">0</span></div>
+                <p class="ws-sublabel">Remediation · replay · correction</p>
+              </div>
+            </button>
+            <button id="sidebarReports" data-view="reports" class="ws-nav-btn">
+              <span class="ws-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span>
+              <div class="ws-text">
+                <div class="ws-label">Reports<span class="ws-count" id="reportsCountBadge">—</span></div>
+                <p class="ws-sublabel">Evidence · exports · archive</p>
+              </div>
+            </button>
+          </div>
+
+          <p class="ws-section-label ws-section-sep">Engines</p>
           <div class="engine-flow-layout">
             <div class="min-w-0 flex-1 space-y-1 text-[12px]">
-            
-            <!-- Data Intelligence: Live -->
-            <div class="engine-row group flex min-w-0 items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-live">
-              <span class="flex-1 min-w-0 whitespace-nowrap text-text-secondary group-hover:text-text-primary transition-colors">Data Intelligence</span>
-              <span class="engine-status shrink-0 whitespace-nowrap flex items-center gap-1.5 text-green-300 text-[11px]">
-                <span class="relative flex h-2 w-2">
-                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400 shadow-[0_0_6px_rgba(34,197,94,0.8)]"></span>
+              <div class="engine-row group flex min-w-0 items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-live">
+                <span class="flex-1 min-w-0 whitespace-nowrap text-text-secondary group-hover:text-text-primary transition-colors">Data Intelligence</span>
+                <span class="engine-status shrink-0 whitespace-nowrap flex items-center gap-1.5 text-green-300 text-[11px]">
+                  <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-green-400 shadow-[0_0_6px_rgba(34,197,94,0.8)]"></span></span>
+                  <span class="font-medium">live</span>
                 </span>
-                <span class="font-medium">live</span>
-              </span>
+              </div>
+              <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-watching">
+                <span class="text-text-secondary group-hover:text-text-primary transition-colors">Predictive</span>
+                <span class="engine-status flex items-center gap-1.5 text-amber-200 text-[11px] animate-scan">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <span class="font-medium">watching</span>
+                </span>
+              </div>
+              <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
+                <span class="text-text-secondary group-hover:text-text-primary transition-colors">Healing</span>
+                <span class="engine-status flex items-center gap-1.5 text-text-tertiary text-[11px]">
+                  <span class="h-2 w-2 rounded-full bg-accent-purple shadow-[0_0_6px_rgba(168,85,247,0.5)] animate-pulse-slow"></span>
+                  <span class="font-medium"><span id="systemStateHealingReady">0</span> pending</span>
+                </span>
+              </div>
+              <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
+                <span class="text-text-secondary group-hover:text-text-primary transition-colors">Memory</span>
+                <span class="engine-status flex items-center gap-1.5 text-green-300 text-[11px]">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  <span class="font-medium"><span id="systemStateMemory">0</span> patterns</span>
+                </span>
+              </div>
             </div>
-
-            <!-- Predictive: Watching -->
-            <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-watching">
-              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Predictive</span>
-              <span class="engine-status flex items-center gap-1.5 text-amber-200 text-[11px] animate-scan">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-                  <circle cx="12" cy="12" r="3"/>
-                </svg>
-                <span class="font-medium">watching</span>
-              </span>
-            </div>
-
-            <!-- Healing: Pending -->
-            <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
-              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Healing</span>
-              <span class="engine-status flex items-center gap-1.5 text-text-tertiary text-[11px]">
-                <span class="h-2 w-2 rounded-full bg-accent-purple shadow-[0_0_6px_rgba(168,85,247,0.5)] animate-pulse-slow"></span>
-                <span class="font-medium"><span id="systemStateHealingReady">0</span> pending</span>
-              </span>
-            </div>
-
-            <!-- Memory: Strong -->
-            <div class="engine-row group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
-              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Memory</span>
-              <span class="engine-status flex items-center gap-1.5 text-green-300 text-[11px]">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
-                </svg>
-                <span class="font-medium"><span id="systemStateMemory">0</span> patterns</span>
-              </span>
-            </div>
-            </div>
-            <div class="engine-flow-track" aria-hidden="true">
-              <div class="engine-flow-beam"></div>
-            </div>
+            <div class="engine-flow-track" aria-hidden="true"><div class="engine-flow-beam"></div></div>
           </div>
         </div>
 
-        <!-- System Status -->
         <div class="border-t border-white/[0.06] p-3">
           <div class="rounded-[20px] border border-white/[0.06] glass-panel p-3 shadow-soft hover-premium cursor-pointer">
             <p class="text-[11px] uppercase tracking-[0.1em] text-text-tertiary nowrap">System Status</p>
             <p class="mt-1 text-[12px] text-text-primary leading-5">Operator online · memory attached</p>
             <div class="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
-              <button id="sidebarSettings" data-view="settings" class="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[12px] text-text-secondary transition-all hover:border-white/[0.10] hover:bg-white/[0.03] hover:text-text-primary">
-                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-                </svg>
-                Settings
+              <button id="sidebarSettings" data-view="settings" class="ws-nav-btn" style="width:auto;padding:6px 10px;border-radius:12px;--ws-color:#94a3b8;--ws-glow:rgba(148,163,184,0.06);--ws-border:rgba(148,163,184,0.18);--ws-bg:rgba(148,163,184,0.05);--ws-icon-border:rgba(148,163,184,0.18);--ws-icon-bg:rgba(148,163,184,0.08)">
+                <span class="ws-icon" style="width:26px;height:26px;border-radius:8px"><svg viewBox="0 0 24 24" style="width:13px;height:13px"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+                <span class="ws-label" style="font-size:12px">Settings</span>
               </button>
               <div class="h-8 w-8 rounded-full border border-white/[0.08] bg-gradient-to-br from-accent-blue/30 to-accent-purple/30 shadow-[0_0_10px_rgba(91,140,255,0.3)]"></div>
             </div>
@@ -1266,6 +1454,34 @@
                       </div>
                     </div>
 
+                    <!-- Hidden shells for CDM readers (no visual impact) -->
+                    <div class="hidden">
+                      <span data-shell="p0Count">0</span>
+                      <span data-shell="p1Count">0</span>
+                      <span data-shell="p2Count">0</span>
+                      <span data-shell="predictiveHighRiskAlerts">0</span>
+                      <span data-shell="predictiveMediumRiskAlerts">0</span>
+                      <span data-shell="predictiveRecurringPatterns">0</span>
+                      <span data-shell="predictiveDegradingIssues">0</span>
+                      <span data-shell="predictiveImprovingIssues">0</span>
+                      <span data-shell="healingEligibleCount">0</span>
+                      <!-- Root Cause: diagnosis shells (motor -> DOM) -->
+                      <span data-shell="focusIssueCode">—</span>
+                      <span data-shell="focusIssueRoute">—</span>
+                      <span data-shell="focusIssueAction">—</span>
+                      <span data-shell="focusIssueSeverity">—</span>
+                      <span data-shell="focusIssueDiagnosisTitle">—</span>
+                      <span data-shell="focusIssueLaymanExplanation">—</span>
+                      <span data-shell="focusIssueTechnicalExplanation">—</span>
+                      <span data-shell="focusIssueProbableCauses">—</span>
+                      <span data-shell="focusIssueTechnicalChecks">—</span>
+                      <span data-shell="focusIssueRecommendedActions">—</span>
+                      <span data-shell="focusIssueCommandHints">—</span>
+                      <span data-shell="focusIssueLikelyAreas">—</span>
+                      <span data-shell="focusIssueRecommendedResolution">—</span>
+                      <span data-shell="focusIssueEvidenceCount">0</span>
+                    </div>
+
                     <!-- Zone β: signal bus -->
                     <div class="arch-sticky-zone arch-sticky-zone--beta min-w-0 flex-1">
                       <div class="mb-2 flex flex-wrap items-center gap-1.5 border-b border-white/[0.05] pb-2">
@@ -1320,6 +1536,19 @@
               não é o painel de chat/cards real.
               Painel IA de verdade: <aside id="assistantWorkspace"> (dock / focus), montado pelo renderer.js + React.
             -->
+            <section id="workspace-host" class="hidden px-10 py-6">
+              <div class="mx-auto max-w-[1420px]">
+                <div
+                  id="workspaceSurface"
+                  class="relative overflow-hidden rounded-[28px] border border-white/[0.07] glass-panel shadow-surface"
+                  data-workspace-shell="alive"
+                >
+                  <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(91,140,255,0.14),transparent_34%),radial-gradient(circle_at_top_right,rgba(168,85,247,0.12),transparent_32%),linear-gradient(180deg,rgba(255,255,255,0.02),transparent_28%)]"></div>
+                  <div class="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent"></div>
+                  <div id="workspaceSurfaceInner" class="relative z-[1]"></div>
+                </div>
+              </div>
+            </section>
             <div id="operatorBelowSticky">
             <!-- ADAPTIVE RESPONSE FRAME: mock de entregas (ainda é área Operator, não o dock IA) -->
             <section id="mainGrid" class="px-10 py-6">
@@ -1532,11 +1761,16 @@
                           <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 normal-case tracking-normal text-[10px]">scrollable focus region</span>
                         </div>
                         <p class="text-[15px] leading-8 text-text-primary">
-                          When the user asks for SEO priorities, the workspace should answer with a 
-                          structured intelligence brief, top opportunities, relevant P0/P1 items, 
-                          memory-backed cautions, and a next-step action package. When the user asks 
-                          for screenshots, the workspace should shift into an evidence package format 
-                          with visual references, labels, context notes and recommended follow-up actions.
+                          <span class="text-text-tertiary">Focus:</span>
+                          <span data-shell="focusIssueDiagnosisTitle">—</span>
+                          <span class="text-text-tertiary">·</span>
+                          <span data-shell="focusIssueRoute">—</span>
+                          <br />
+                          <span class="text-text-tertiary">Why:</span>
+                          <span data-shell="focusIssueLaymanExplanation">—</span>
+                          <br />
+                          <span class="text-text-tertiary">Next:</span>
+                          <span data-shell="focusIssueRecommendedActions">—</span>
                         </p>
                       </div>
                     </div>
@@ -1557,10 +1791,23 @@
                             </div>
                             <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Screenshot Package Pattern</p>
                           </div>
-                          <p class="text-[14px] text-text-primary leading-relaxed">Preview area, annotated evidence, issue impact, route, confidence and next action.</p>
+                          <p class="text-[14px] text-text-primary leading-relaxed">
+                            Evidence for focus issue:
+                            <span data-shell="focusIssueEvidenceCount">0</span>
+                            <span class="text-text-tertiary">/</span>
+                            <span data-shell="evidenceCount">0</span>
+                            <span class="text-text-tertiary">·</span>
+                            Route: <span data-shell="focusIssueRoute">—</span>
+                            <span class="text-text-tertiary">·</span>
+                            Confidence: <span data-shell="qualityScore">0</span>%
+                          </p>
                           <div class="mt-4 flex gap-2">
-                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06]"></div>
-                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06]"></div>
+                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-end p-3">
+                              <span class="text-[10px] text-text-tertiary font-mono" data-shell="focusIssueSeverity">—</span>
+                            </div>
+                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-end p-3">
+                              <span class="text-[10px] text-text-tertiary font-mono" data-shell="focusIssueAction">—</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1581,14 +1828,20 @@
                             </div>
                             <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Fix Plan Pattern</p>
                           </div>
-                          <p class="text-[14px] text-text-primary leading-relaxed">Action sequence, safe prompt, memory-backed warnings, revalidation checklist and healing eligibility.</p>
+                          <p class="text-[14px] text-text-primary leading-relaxed">
+                            Healing eligible: <span data-shell="healingEligibleCount">0</span>
+                            <span class="text-text-tertiary">·</span>
+                            Prompt-ready: <span data-shell="healingReadyCount">0</span>
+                            <span class="text-text-tertiary">·</span>
+                            Route: <span data-shell="focusIssueRoute">—</span>
+                          </p>
                           <div class="mt-4 flex items-center gap-2">
                             <div class="flex items-center gap-1.5 text-[11px] text-green-400">
                               <span class="h-1.5 w-1.5 rounded-full bg-green-400"></span>
-                              <span>Step 1/4</span>
+                              <span data-shell="fixPlanStepLabel">Step —/4</span>
                             </div>
                             <div class="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
-                              <div class="h-full w-1/4 rounded-full bg-green-400"></div>
+                              <div class="h-full rounded-full bg-green-400" data-fixplan-step-bar style="width: 25%;"></div>
                             </div>
                           </div>
                         </div>
@@ -1611,7 +1864,7 @@
                             </div>
                             <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Open memory</span>
                           </div>
-                          <p class="text-[13px] text-text-primary leading-relaxed">Show validated resolutions for SEO metadata issues</p>
+                          <p class="text-[13px] text-text-primary leading-relaxed" data-shell="operatorMemorySubtitle">—</p>
                           <div class="mt-3 flex items-center justify-between">
                             <span class="text-[10px] text-text-tertiary font-mono">⌘M</span>
                             <svg class="h-4 w-4 text-text-tertiary group-hover:text-accent-blue transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1629,14 +1882,14 @@
                             </div>
                             <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Prepare healing</span>
                           </div>
-                          <p class="text-[13px] text-text-primary leading-relaxed">Prompt-assisted path for LCP blockers with revalidation step</p>
+                          <p class="text-[13px] text-text-primary leading-relaxed" data-shell="operatorHealSubtitle">—</p>
                           <div class="mt-3">
                             <span class="inline-flex items-center gap-1 text-[10px] text-accent-purple">
                               <span class="relative flex h-1.5 w-1.5">
                                 <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75"></span>
                                 <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-purple"></span>
                               </span>
-                              Ready
+                              <span data-shell="operatorHealState">—</span>
                             </span>
                           </div>
                         </div>
@@ -1652,10 +1905,10 @@
                             </div>
                             <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Compare run</span>
                           </div>
-                          <p class="text-[13px] text-text-primary leading-relaxed">Show what worsened versus the previous comparable run</p>
+                          <p class="text-[13px] text-text-primary leading-relaxed" data-shell="operatorCompareSubtitle">—</p>
                           <div class="mt-3">
                             <span class="inline-flex items-center gap-1 rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300 font-mono">
-                              Δ 12 changes
+                              <span data-shell="operatorCompareDelta">—</span>
                             </span>
                           </div>
                         </div>
@@ -1667,7 +1920,7 @@
             </section>
 
             <!-- INTELLIGENCE QUEUE: Fila Operacional -->
-            <section class="px-10 py-6">
+            <section class="px-10 py-6" id="oreIntelligenceQueue">
               <div class="max-w-[1420px] mx-auto">
                 <div class="rounded-[24px] border border-white/[0.06] glass-panel shadow-soft overflow-hidden">
                   
@@ -1691,34 +1944,32 @@
                   <div class="divide-y divide-white/[0.06]">
                     
                     <!-- Issue Row: Critical -->
-                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] issue-critical relative">
+                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] issue-critical relative" data-ore-queue-row="0">
                       <div class="grid grid-cols-[auto,1fr,auto] gap-4 items-start">
                         
                         <!-- Priority Indicator -->
                         <div class="mt-1">
                           <div class="h-6 w-6 rounded-full border border-red-400/30 bg-red-400/10 flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.2)]">
-                            <div class="h-2.5 w-2.5 rounded-full bg-red-400 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]"></div>
+                            <div class="h-2.5 w-2.5 rounded-full bg-red-400 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]" data-queue-dot-0></div>
                           </div>
                         </div>
 
                         <!-- Content -->
                         <div class="min-w-0">
                           <div class="flex flex-wrap items-center gap-2.5 mb-2" data-chip-row>
-                            <p class="text-[15px] font-medium text-text-primary group-hover:text-red-300 transition-colors truncate">
-                              Missing meta description on /pricing
-                            </p>
-                            <span class="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-red-200 shadow-[0_0_8px_rgba(239,68,68,0.15)]">P0</span>
-                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200">degrading</span>
-                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200">validated memory</span>
-                            <span class="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-blue-200">assist-only healing</span>
+                            <p class="text-[15px] font-medium text-text-primary group-hover:text-red-300 transition-colors truncate" data-shell="queue0Title">—</p>
+                            <span class="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-red-200 shadow-[0_0_8px_rgba(239,68,68,0.15)]" data-shell="queue0Band">P0</span>
+                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200" data-shell="queue0Trajectory">stable</span>
+                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200" data-shell="queue0Memory">—</span>
+                            <span class="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-blue-200" data-shell="queue0Healing">—</span>
                           </div>
 
                           <div class="flex flex-wrap items-center gap-2.5 text-[13px]" data-chip-row>
                             <code class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-text-tertiary group-hover:border-accent-blue/20 group-hover:text-accent-blue transition-colors">
-                              /pricing
+                              <span data-shell="queue0Route">—</span>
                             </code>
-                            <span class="text-text-tertiary">CTR and trust loss on indexed commercial page</span>
-                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">impact: 92</span>
+                            <span class="text-text-tertiary" data-shell="queue0Subtitle">—</span>
+                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary" data-shell="queue0Impact">—</span>
                           </div>
                         </div>
 
@@ -1732,23 +1983,23 @@
                     </button>
 
                     <!-- Additional Issue Rows would follow same pattern -->
-                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] relative">
+                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] relative" data-ore-queue-row="1">
                       <div class="grid grid-cols-[auto,1fr,auto] gap-4 items-start">
                         <div class="mt-1">
                           <div class="h-6 w-6 rounded-full border border-amber-400/30 bg-amber-400/10 flex items-center justify-center">
-                            <div class="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]"></div>
+                            <div class="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]" data-queue-dot-1></div>
                           </div>
                         </div>
                         <div class="min-w-0">
                           <div class="flex flex-wrap items-center gap-2.5 mb-2" data-chip-row>
-                            <p class="text-[15px] font-medium text-text-primary truncate">LCP blocker on /products</p>
-                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200">P1</span>
-                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200">healing ready</span>
+                            <p class="text-[15px] font-medium text-text-primary truncate" data-shell="queue1Title">—</p>
+                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200" data-shell="queue1Band">P1</span>
+                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200" data-shell="queue1Healing">—</span>
                           </div>
                           <div class="flex flex-wrap items-center gap-2.5 text-[13px]" data-chip-row>
-                            <code class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-text-tertiary">/products</code>
-                            <span class="text-text-tertiary">Performance degradation affecting conversions</span>
-                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">impact: 78</span>
+                            <code class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-text-tertiary"><span data-shell="queue1Route">—</span></code>
+                            <span class="text-text-tertiary" data-shell="queue1Subtitle">—</span>
+                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary" data-shell="queue1Impact">—</span>
                           </div>
                         </div>
                         <div class="mt-1 text-text-tertiary group-hover:text-text-primary transition-all group-hover:translate-x-1">
@@ -1770,7 +2021,7 @@
         </main>
 
         <!-- COMMAND DOCK: Interface de Controle -->
-        <div id="commandDock" class="fixed bottom-0 left-64 right-0 border-t border-white/[0.06] glass-shell px-10 py-5 backdrop-blur-xl z-30">
+        <div id="commandDock" class="fixed bottom-0 right-0" style="left:var(--sidebar-w,15.5rem)" border-t border-white/[0.06] glass-shell px-10 py-5 backdrop-blur-xl z-30">
           <div class="max-w-[1420px] mx-auto space-y-4">
             
             <!-- Quick Actions -->
@@ -1792,34 +2043,46 @@
               </div>
             </div>
 
-            <!-- Input Area -->
-            <div class="rounded-[24px] border border-white/[0.08] glass-panel p-4 shadow-soft">
-              <div class="grid grid-cols-[1fr,88px] gap-4 items-center">
+            <!-- Input Area — Premium Command Grid -->
+            <div class="rounded-[24px] border border-white/[0.08] glass-panel p-3 shadow-soft">
+              <div class="workspace-command-grid">
+                <!-- URL Field -->
                 <div class="relative">
-                  <div class="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
-                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                  </div>
+                  <input id="commandTargetUrl" type="url" placeholder="https://example.com"
+                    class="w-full bg-page/88 border border-white/[0.06] rounded-[18px] pl-10 pr-4 py-4 text-[13px] text-text-primary placeholder:text-text-tertiary outline-none input-glow transition-all"/>
+                </div>
+                <!-- AI Chat Input -->
+                <div class="relative">
+                  <div class="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-tertiary pointer-events-none">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>
                     </svg>
                   </div>
-                  <input 
-                    id="assistantInput"
-                    type="text" 
-                    placeholder="Ask about your audit, SEO, performance, memory, healing, compare, or request operator actions..."
-                    class="w-full bg-page/88 border border-white/[0.06] rounded-[20px] pl-12 pr-16 py-4 text-[15px] text-text-primary placeholder:text-text-tertiary outline-none input-glow transition-all"
-                  />
+                  <input id="assistantInput" type="text"
+                    placeholder="Ask AI, explain an issue, or: run audit https://..."
+                    class="w-full bg-page/88 border border-white/[0.06] rounded-[18px] pl-10 pr-16 py-4 text-[14px] text-text-primary placeholder:text-text-tertiary outline-none input-glow transition-all"/>
                   <div class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1">
-                    <kbd class="h-7 inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 text-[11px] text-text-tertiary font-mono">
-                      ⌘K
-                    </kbd>
+                    <kbd class="h-7 inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 text-[11px] text-text-tertiary font-mono">⌘K</kbd>
                   </div>
                 </div>
-
-                <button id="assistantAsk" class="sitepulse-live-cta h-[58px] rounded-[20px] border border-accent-blue/30 bg-accent-blue/10 text-accent-blue shadow-glow-blue transition-all hover:bg-accent-blue/15 hover:border-accent-blue/40 hover:scale-105 flex items-center justify-center gap-2 group">
+                <!-- Run Audit -->
+                <button id="commandRunAudit" type="button" class="sp-run-btn">
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                  Run audit
+                </button>
+                <!-- Ask AI -->
+                <button id="assistantAsk" class="sitepulse-live-cta h-[58px] rounded-[18px] border border-accent-blue/30 bg-accent-blue/10 text-accent-blue shadow-glow-blue transition-all hover:bg-accent-blue/15 hover:border-accent-blue/40 hover:scale-105 flex items-center justify-center gap-2 group">
                   <svg class="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="22" y1="2" x2="11" y2="13"/>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                   </svg>
-                  <span class="text-[13px] font-medium nowrap">Executar analise</span>
+                  <span class="text-[13px] font-medium nowrap">Ask AI</span>
                 </button>
               </div>
 
@@ -1848,6 +2111,122 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ══ EVIDENCE LIGHTBOX (PRINTSCREEN / openEvidencePreview) ══════════════
+         This overlay is required by renderer.js → openEvidencePreview().
+         Without it, the function crashes silently and only works once.
+         Fixed: now always present in DOM, hidden by default.
+    ════════════════════════════════════════════════════════════════════════ -->
+    <div id="evidenceLightbox" class="hidden" style="
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,0.88);
+      display:flex; align-items:center; justify-content:center;
+      backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+    ">
+      <div style="
+        position:relative; width:min(96vw,1280px); max-height:92vh;
+        background:#0f131a; border:1px solid rgba(255,255,255,0.08);
+        border-radius:20px; overflow:hidden; display:flex; flex-direction:column;
+        box-shadow:0 32px 80px rgba(0,0,0,0.6);
+      ">
+        <!-- Header -->
+        <div style="
+          display:flex; align-items:center; justify-content:space-between;
+          gap:12px; padding:14px 18px;
+          border-bottom:1px solid rgba(255,255,255,0.06);
+          background:rgba(255,255,255,0.02);
+          flex-shrink:0;
+        ">
+          <div style="min-width:0">
+            <p id="evidenceLightboxTitle" style="
+              font-size:14px; font-weight:500; color:#f0f4f8;
+              white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            ">Evidence preview</p>
+            <p id="evidenceLightboxMeta" style="
+              font-size:11px; color:#5a6578; margin-top:2px;
+              font-family:'SF Mono','JetBrains Mono',monospace;
+            ">No evidence selected.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-shrink:0">
+            <span style="
+              font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+              color:#3d4758; padding:3px 8px;
+              border:1px solid rgba(255,255,255,0.06); border-radius:6px;
+            ">ESC to close</span>
+            <button id="dismissEvidenceLightbox" type="button" style="
+              display:flex; align-items:center; justify-content:center;
+              width:32px; height:32px; border-radius:10px;
+              border:1px solid rgba(255,255,255,0.06);
+              background:rgba(255,255,255,0.03);
+              color:#8b95a5; cursor:pointer; font-size:18px; line-height:1;
+              transition:all 120ms;
+            " onmouseover="this.style.background='rgba(239,68,68,0.12)';this.style.color='#f87171'"
+               onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.color='#8b95a5'"
+            >×</button>
+          </div>
+        </div>
+
+        <!-- Body: image(s) -->
+        <div style="flex:1; overflow:auto; display:flex; gap:0; min-height:0">
+          <!-- Current evidence -->
+          <div style="flex:1; display:flex; flex-direction:column; min-width:0">
+            <div style="
+              padding:8px 18px 6px;
+              font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+              color:#3d4758; border-bottom:1px solid rgba(255,255,255,0.04);
+            ">Current run</div>
+            <div style="flex:1; overflow:auto; padding:16px; display:flex; align-items:center; justify-content:center">
+              <img id="evidenceLightboxImage" alt="Evidence preview" style="
+                max-width:100%; max-height:72vh; border-radius:10px;
+                border:1px solid rgba(255,255,255,0.06);
+                box-shadow:0 8px 32px rgba(0,0,0,0.4);
+                object-fit:contain;
+              " />
+            </div>
+          </div>
+
+          <!-- Reference / baseline comparison (hidden until baseline loaded) -->
+          <div id="evidenceReferenceStage" class="hidden" style="
+            flex:1; border-left:1px solid rgba(255,255,255,0.06);
+            display:flex; flex-direction:column; min-width:0;
+          ">
+            <div style="
+              padding:8px 18px 6px;
+              font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+              color:#3d4758; border-bottom:1px solid rgba(255,255,255,0.04);
+            ">Baseline reference</div>
+            <div style="flex:1; overflow:auto; padding:16px; display:flex; align-items:center; justify-content:center">
+              <img id="evidenceReferenceImage" alt="Reference evidence" style="
+                max-width:100%; max-height:72vh; border-radius:10px;
+                border:1px solid rgba(255,255,255,0.06);
+                box-shadow:0 8px 32px rgba(0,0,0,0.4);
+                object-fit:contain;
+              " />
+            </div>
+            <p id="evidenceReferenceMeta" style="
+              padding:8px 18px; font-size:11px;
+              color:#5a6578; font-family:'SF Mono','JetBrains Mono',monospace;
+              border-top:1px solid rgba(255,255,255,0.04);
+            ">No matching baseline evidence.</p>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="
+          padding:10px 18px;
+          border-top:1px solid rgba(255,255,255,0.06);
+          background:rgba(255,255,255,0.02);
+          flex-shrink:0;
+        ">
+          <p id="evidenceLightboxDetail" style="font-size:12px; color:#8b95a5; line-height:1.6">
+            Open a screenshot from the evidence room or issue board to inspect it here.
+          </p>
+          <p id="evidenceCompareState" style="font-size:11px; color:#5a6578; margin-top:4px">
+            Load a screenshot with a matching baseline to compare visual changes here.
+          </p>
+        </div>
       </div>
     </div>
     <aside id="assistantWorkspace" class="ai-inspector-panel ai-workspace-dock assistant-workspace hidden" aria-label="AI Workspace"></aside>
@@ -1941,7 +2320,7 @@
           return el;
         }
         function ensureDataSelectors() {
-          const views = ["overview", "preview", "operations", "findings", "seo", "prompts", "compare", "reports", "settings"];
+          const views = ["overview", "preview", "operations", "findings", "seo", "prompts", "compare", "memory", "healing", "reports", "settings"];
           views.forEach((view) => {
             if (!document.querySelector('[data-view="' + view + '"]')) {
               const b = document.createElement("button");
@@ -2038,6 +2417,819 @@
         });
       })();
     </script>
+    <script>
+      (function wirePremiumDock() {
+        window.addEventListener("DOMContentLoaded", function() {
+          var cmdUrl = document.getElementById("commandTargetUrl");
+          var cmdRun = document.getElementById("commandRunAudit");
+          var targetUrl = document.getElementById("targetUrl");
+          var runBtnTopbar = document.getElementById("runAuditTopbar");
+
+          function syncUrlToRuntime() {
+            var val = cmdUrl ? (cmdUrl.value || "").trim() : "";
+            if (val && targetUrl) targetUrl.value = val;
+          }
+          function syncRuntimeToUrl() {
+            var val = targetUrl ? (targetUrl.value || "").trim() : "";
+            if (val && cmdUrl) cmdUrl.value = val;
+          }
+
+          if (cmdUrl) {
+            cmdUrl.addEventListener("input", syncUrlToRuntime);
+            cmdUrl.addEventListener("change", syncUrlToRuntime);
+            cmdUrl.addEventListener("keydown", function(e) {
+              if (e.key === "Enter") { e.preventDefault(); syncUrlToRuntime(); if (cmdRun) cmdRun.click(); }
+            });
+          }
+          if (targetUrl) {
+            targetUrl.addEventListener("change", syncRuntimeToUrl);
+            targetUrl.addEventListener("input", syncRuntimeToUrl);
+          }
+          if (cmdRun) {
+            cmdRun.addEventListener("click", function() {
+              syncUrlToRuntime();
+              if (runBtnTopbar) runBtnTopbar.click();
+            });
+          }
+
+          // ws-active sync
+          document.querySelectorAll("[data-view]").forEach(function(btn) {
+            if (!btn.classList.contains("ws-nav-btn")) return;
+            btn.addEventListener("click", function() {
+              var view = btn.dataset.view;
+              document.querySelectorAll(".ws-nav-btn[data-view]").forEach(function(b) {
+                b.classList.toggle("ws-active", b.dataset.view === view);
+              });
+            });
+          });
+
+          // Sync memory/healing counters
+          function syncCounters() {
+            var memEl = document.getElementById("systemStateMemory");
+            var memSide = document.getElementById("systemStateMemorySidebar");
+            if (memEl && memSide) memSide.textContent = memEl.textContent;
+            var healEl = document.getElementById("systemStateHealingReady");
+            var healSide = document.getElementById("systemStateHealingReadySidebar");
+            if (healEl && healSide) healSide.textContent = healEl.textContent;
+          }
+          setInterval(syncCounters, 1200);
+          syncCounters();
+        });
+      })();
+    </script>
     <script type="module" src="./renderer.js"></script>
-  </body>
+
+    <script>
+    // ── FIX: Action cards + switch-memory/healing + PRINTSCREEN ──────────
+    (function fixActionCardsAndPrintscreen() {
+      function waitReady(cb, n) {
+        if (typeof uiState !== "undefined" && typeof executeAssistantAction === "function") { cb(); return; }
+        if ((n||0) < 80) setTimeout(() => waitReady(cb, (n||0)+1), 200);
+      }
+
+      waitReady(function() {
+
+        // ── A. Patch executeAssistantAction to handle switch-memory/healing
+        //       and to guard against undefined actionCards[index]
+        const _origExec = window.executeAssistantAction;
+        window.executeAssistantAction = async function patchedExecuteAssistantAction(action) {
+          if (!action || typeof action !== "object") return;
+
+          // Guard: if action came from stale data, rebuild from DOM index
+          if (action._domIndex !== undefined && !action.id) {
+            const cards = uiState?.assistantResult?.actionCards;
+            if (Array.isArray(cards) && cards[action._domIndex]) {
+              action = cards[action._domIndex];
+            } else {
+              console.warn("[fix] action card index out of bounds:", action._domIndex);
+              return;
+            }
+          }
+
+          // Handle new views not in original executeAssistantAction
+          const switchMap = {
+            "switch-memory":  "memory",
+            "switch-healing": "healing",
+            "switch-reports": "reports",
+            "open-memory":    "memory",
+            "open-healing":   "healing",
+          };
+          if (switchMap[action.id]) {
+            if (typeof switchView === "function") switchView(switchMap[action.id]);
+            return;
+          }
+
+          // Show screenshot/evidence (PRINTSCREEN intent)
+          if (action.id === "show-screenshot" || action.id === "open-evidence" || action.id === "showScreenshot") {
+            if (typeof switchView === "function") switchView("reports");
+            if (typeof openLatestEvidence === "function") setTimeout(openLatestEvidence, 80);
+            return;
+          }
+
+          // Fall through to original
+          if (typeof _origExec === "function") return _origExec.call(this, action);
+        };
+
+        // ── B. Patch the action cards click listener to guard index access
+        //       Re-bind the assistantActions container with safe index read
+        const actionsContainer = document.getElementById("assistantActions");
+        if (actionsContainer) {
+          // Clone to remove old listener (renderer.js bound one via on())
+          // We use capture phase to intercept before the original
+          actionsContainer.addEventListener("click", async function safeCardClick(event) {
+            const button = event.target instanceof Element
+              ? event.target.closest("[data-assistant-index]") : null;
+            if (!button) return;
+
+            event.stopImmediatePropagation(); // prevent double-fire with original
+            event.preventDefault();
+
+            const index = Number(button.dataset.assistantIndex);
+            const cards = uiState?.assistantResult?.actionCards;
+
+            if (!Array.isArray(cards) || !cards[index]) {
+              // Fallback: read action id from DOM data attribute
+              const domId = button.dataset.actionId || button.querySelector("[data-action-id]")?.dataset?.actionId;
+              if (domId) {
+                await executeAssistantAction({ id: domId, payload: {} });
+              } else {
+                console.warn("[fix] actionCards[" + index + "] is undefined — no fallback id");
+              }
+              return;
+            }
+
+            await executeAssistantAction(cards[index]);
+          }, true); // capture=true so it fires first
+        }
+
+        // ── C. PRINTSCREEN: intercept "printscreen" / "screenshot" text in chat
+        //       When the user types "printscreen" or "screenshot" as a standalone
+        //       word, open the evidence lightbox directly.
+        const _origRunQuery = window.runAssistantQuery;
+        window.runAssistantQuery = async function patchedRunAssistantQuery(rawQuery) {
+          const q = String(rawQuery || "").trim().toLowerCase();
+          if (q === "printscreen" || q === "screenshot" || q === "evidencia" || q === "evidência" || q === "abrir screenshot" || q === "ver screenshot") {
+            // Open evidence lightbox directly
+            const lightbox = document.getElementById("evidenceLightbox");
+            if (lightbox) {
+              if (typeof openLatestEvidence === "function") {
+                await openLatestEvidence();
+              } else {
+                lightbox.classList.remove("hidden");
+              }
+            }
+            // Clear input
+            const inp = document.getElementById("assistantInput");
+            if (inp) inp.value = "";
+            return;
+          }
+          if (typeof _origRunQuery === "function") return _origRunQuery.call(this, rawQuery);
+        };
+
+        // ── D. ESC closes lightbox
+        document.addEventListener("keydown", function(e) {
+          if (e.key === "Escape") {
+            const lb = document.getElementById("evidenceLightbox");
+            if (lb && !lb.classList.contains("hidden")) {
+              if (typeof closeEvidencePreview === "function") closeEvidencePreview();
+              else lb.classList.add("hidden");
+            }
+          }
+        });
+
+        // ── E. Add switch-memory/healing to command palette fallback
+        const _origGetItems = window.getCommandPaletteItems;
+        if (typeof _origGetItems === "function") {
+          window.getCommandPaletteItems = function patchedGetCommandPaletteItems() {
+            const items = _origGetItems();
+            const extra = [
+              { id: "switch-memory",  label: "Go to memory",  hint: "", description: "Open the learning memory workspace.", action: () => switchView("memory") },
+              { id: "switch-healing", label: "Go to healing", hint: "", description: "Open the healing and remediation workspace.", action: () => switchView("healing") },
+              { id: "open-printscreen", label: "Open evidence viewer (Printscreen)", hint: "", description: "Open the evidence/screenshot lightbox.", action: () => openLatestEvidence() },
+            ];
+            // Only add if not already present
+            const ids = new Set(items.map(i => i.id));
+            return [...items, ...extra.filter(e => !ids.has(e.id))];
+          };
+        }
+
+        if (typeof appendLog === "function") appendLog("[fix] action cards, printscreen, switch-memory/healing patched.");
+      });
+    })();
+    </script>
+
+    <script src="./ore.js"></script>
+
+    <script>
+    // ── FIX 5: MutationObserver stamps data-action-id onto action cards ──
+    (function stampActionCardIds() {
+      function observe() {
+        const container = document.getElementById("assistantActions");
+        if (!container) { setTimeout(observe, 500); return; }
+
+        function stamp() {
+          container.querySelectorAll("[data-assistant-index]:not([data-action-id-stamped])").forEach(function(btn) {
+            const idx = Number(btn.dataset.assistantIndex);
+            const cards = (typeof uiState !== "undefined") ? uiState?.assistantResult?.actionCards : null;
+            if (Array.isArray(cards) && cards[idx]) {
+              btn.dataset.actionId = String(cards[idx].id || "");
+            }
+            btn.dataset.actionIdStamped = "1";
+          });
+        }
+
+        const obs = new MutationObserver(stamp);
+        obs.observe(container, { childList: true, subtree: true });
+        stamp();
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", observe);
+      else observe();
+    })();
+    </script>
+
+
+<script id="sitepulse-live-workspace-engine">
+/**
+ * SitePulse Live Workspace Engine v3
+ * Conecta todos os dados do motor ao workspace em tempo real.
+ * Instala-se depois do renderer.js (module) inicializar.
+ */
+(function installLiveEngine() {
+  // ── Aguarda renderer.js inicializar ──────────────────────
+  function waitForRenderer(cb, attempt) {
+    if (typeof uiState !== "undefined" && typeof buildDesktopIntelligenceSnapshot === "function") {
+      cb(); return;
+    }
+    if ((attempt || 0) < 60) setTimeout(() => waitForRenderer(cb, (attempt||0)+1), 300);
+  }
+
+  waitForRenderer(function() {
+
+    // ── 1. Templates completos p/ todos os workspaces ─────
+    const WS_TEMPLATES = {
+      overview: function(d) { return {
+        badge: "Operator command room", color: "#60a5fa",
+        eyebrow: "Operator workspace", title: "Living command system",
+        desc: "Runtime posture, signal pressure, memory and next action lanes in one operator room.",
+        tabs: ["Mission","Signals","Memory","Action"],
+        metrics: [
+          { label:"Quality",      value: d.quality,      detail: d.totalIssues+" active findings",     id:"ws-q-quality" },
+          { label:"Routes",       value: d.routes,       detail: d.actions+" mapped actions",          id:"ws-q-routes" },
+          { label:"Memory",       value: d.memory,       detail: d.healing+" healing candidates",      id:"ws-q-memory" },
+          { label:"Trajectory",   value: d.trajectory,   detail: "SEO "+d.seoTrend+" · Runtime "+d.runtimeTrend, id:"ws-q-trajectory" },
+        ],
+        leftTitle: "Priority pressure",
+        leftItems: d.topIssues,
+        rightItems: [
+          { t:"Target",            v: d.baseUrl || "No target loaded",                  id:"ws-p-target" },
+          { t:"Execution profile", v: "Mode "+d.mode+" · scope "+d.scope+" · depth "+d.depth, id:"ws-p-profile" },
+          { t:"Signals",           v: "SEO "+d.seoTrend+" · Runtime "+d.runtimeTrend+" · UX "+d.uxTrend, id:"ws-p-signals" },
+          { t:"Memory pulse",      v: d.memory+" linked entries · "+d.healing+" healing-ready", id:"ws-p-memory" },
+        ],
+      }; },
+      findings: function(d) { return {
+        badge: "Pressure board", color: "#f87171",
+        eyebrow: "Findings workspace", title: "Issue command board",
+        desc: "Triage groups, visual pressure, route pressure and memory-backed action lanes.",
+        tabs: ["Queue","Critical","Visual","Routes"],
+        metrics: [
+          { label:"Total issues",   value: d.totalIssues, detail: "Critical "+d.critical+" · High "+d.high,     id:"ws-q-total" },
+          { label:"High risk",      value: d.riskHigh,    detail: d.recurring+" recurring patterns",             id:"ws-q-risk" },
+          { label:"Routes affected",value: d.routes,      detail: d.actions+" action surfaces involved",         id:"ws-q-ra" },
+          { label:"Healing ready",  value: d.healing,     detail: d.memory+" memory entries linked",             id:"ws-q-hr" },
+        ],
+        leftTitle: "Priority queue",
+        leftItems: d.topIssues,
+        rightItems: [
+          { t:"Critical first",    v: d.critical+" critical items demand immediate attention",           id:"ws-p-crit" },
+          { t:"High risk",         v: d.riskHigh+" high-risk alerts with predictive pressure",           id:"ws-p-hrisk" },
+          { t:"Recurring patterns",v: d.recurring+" structural patterns with repeat evidence",            id:"ws-p-rec" },
+          { t:"Action path",       v: d.healing+" candidates ready for healing and replay",              id:"ws-p-act" },
+        ],
+      }; },
+      seo: function(d) { return {
+        badge: "Visibility lab", color: "#34d399",
+        eyebrow: "SEO workspace", title: "Search visibility laboratory",
+        desc: "Technical integrity, indexing posture, metadata quality and structural opportunity.",
+        tabs: ["Executive","Technical","Metadata","Opportunity"],
+        metrics: [
+          { label:"SEO score",     value: d.seo,          detail: "Trend "+d.seoTrend,                          id:"ws-q-seo" },
+          { label:"SEO critical",  value: d.seoCritical,  detail: "Critical search failures",                   id:"ws-q-seoc" },
+          { label:"Risk alerts",   value: d.riskHigh,     detail: d.recurring+" recurring visibility patterns",  id:"ws-q-searisk" },
+          { label:"Routes",        value: d.routes,       detail: "Pages analyzed for visibility",               id:"ws-q-searoutes" },
+        ],
+        leftTitle: "SEO pressure",
+        leftItems: d.seoIssues,
+        rightItems: [
+          { t:"Score",             v: d.seo+" ("+d.seoTrend+")",                                         id:"ws-p-seoscore" },
+          { t:"Indexability",      v: "Canonical, robots, crawl, language signals",                      id:"ws-p-idx" },
+          { t:"Metadata",          v: "Titles, descriptions, OG and semantic structure",                  id:"ws-p-meta" },
+          { t:"Structural",        v: d.optCount+" structural optimization opportunities",                id:"ws-p-struct" },
+        ],
+      }; },
+      compare: function(d) { return {
+        badge: "Delta intelligence room", color: "#a78bfa",
+        eyebrow: "Compare workspace", title: "Delta and regression intelligence",
+        desc: "What is new, resolved, regressed or surviving across runs.",
+        tabs: ["Delta","Regressions","Resolved","Persistent"],
+        metrics: [
+          { label:"New issues",    value: d.newIssues,       detail: "Introduced or newly surfaced",             id:"ws-q-new" },
+          { label:"Resolved",      value: d.resolvedIssues,  detail: "Pressure removed from previous state",     id:"ws-q-res" },
+          { label:"Regressions",   value: d.regressions,     detail: "Signals worsened or returned",             id:"ws-q-reg" },
+          { label:"Persistent",    value: d.persistent,      detail: "Problems surviving the cycle",             id:"ws-q-per" },
+        ],
+        leftTitle: "Delta signals",
+        leftItems: [
+          { title:"New: "+d.newIssues,       detail:"Newly introduced or surfaced issues" },
+          { title:"Resolved: "+d.resolvedIssues, detail:"Items cleared from the latest run" },
+          { title:"Regressions: "+d.regressions, detail:"Signals worsened or came back" },
+          { title:"Persistent: "+d.persistent,   detail:"Problems alive across runs" },
+        ],
+        rightItems: [
+          { t:"Baseline",  v: d.baseline ? "Pinned — comparison armed" : "No baseline pinned yet", id:"ws-p-bl" },
+          { t:"Context",   v: "Target, mode and scope must be coherent",                           id:"ws-p-ctx" },
+          { t:"Priority",  v: "Regression beats vanity metrics",                                   id:"ws-p-pri" },
+          { t:"Action",    v: "Feed regressions back into findings and healing",                   id:"ws-p-dact" },
+        ],
+      }; },
+      memory: function(d) { return {
+        badge: "Learning memory chamber", color: "#38bdf8",
+        eyebrow: "Memory workspace", title: "Learning memory graph",
+        desc: "Repeated failures, successful remediations and learned patterns become reusable operator knowledge.",
+        tabs: ["Entries","Validated","Patterns","Recall"],
+        metrics: [
+          { label:"Entries",       value: d.memory,          detail: d.validatedMemory+" validated",              id:"ws-q-ment" },
+          { label:"Recurring",     value: d.recurring,       detail: "Patterns with repeat signal pressure",      id:"ws-q-mrec" },
+          { label:"Linked healing",value: d.healing,         detail: "Correction candidates informed by memory",  id:"ws-q-mlh" },
+          { label:"Trajectory",    value: d.trajectory,      detail: "Memory influences future decisions",        id:"ws-q-mtrj" },
+        ],
+        leftTitle: "Memory recall",
+        leftItems: [
+          { title:"Validated",     detail: d.validatedMemory+" entries cleared for reuse" },
+          { title:"Patterns",      detail: d.recurring+" recurring pressure signals" },
+          { title:"Operational",   detail: "Memory helps operator act faster" },
+        ],
+        rightItems: [
+          { t:"Entries",           v: d.memory+" total · "+d.validatedMemory+" validated",     id:"ws-p-ment" },
+          { t:"Healing link",      v: d.healing+" correction candidates informed by memory",    id:"ws-p-mlk" },
+          { t:"Signal recurrence", v: d.recurring+" patterns with strong reuse potential",     id:"ws-p-mrec" },
+          { t:"Promotion",         v: "Only validated signals graduate to durable memory",     id:"ws-p-mpro" },
+        ],
+      }; },
+      healing: function(d) { return {
+        badge: "Remediation engine", color: "#86efac",
+        eyebrow: "Healing workspace", title: "Correction and replay engine",
+        desc: "Candidate fixes, readiness, failed attempts, validation state and replay discipline.",
+        tabs: ["Ready","Pending","Failed","Replay"],
+        metrics: [
+          { label:"Ready",         value: d.healing,        detail: "Candidates prepared for correction",        id:"ws-q-hready" },
+          { label:"Failed",        value: d.failedHealing,  detail: "Attempts needing explicit review",          id:"ws-q-hfail" },
+          { label:"Memory-linked", value: d.memory,         detail: "Learnings supporting remediation",          id:"ws-q-hmem" },
+          { label:"Risk pressure", value: d.riskHigh,       detail: d.recurring+" recurring patterns",           id:"ws-q-hrisk" },
+        ],
+        leftTitle: "Healing queue",
+        leftItems: [
+          { title:"Ready: "+d.healing,         detail:"Candidates for remediation or replay" },
+          { title:"Failed: "+d.failedHealing,  detail:"Attempts needing evidence-backed review" },
+          { title:"Replay required",           detail:"No result is trustworthy until rerun confirms" },
+        ],
+        rightItems: [
+          { t:"Ready state",       v: d.healing+" items waiting for guided remediation",          id:"ws-p-hready" },
+          { t:"Failed state",      v: d.failedHealing+" items require human review",               id:"ws-p-hfail" },
+          { t:"Doctrine",          v: "Healing assists correction — never claims it fixed reality", id:"ws-p-hdoc" },
+          { t:"Validation",        v: "Rerun discipline decides whether healing becomes truth",     id:"ws-p-hval" },
+        ],
+      }; },
+      reports: function(d) { return {
+        badge: "Evidence and archive room", color: "#f9a8d4",
+        eyebrow: "Reports workspace", title: "Evidence, export and archive",
+        desc: "Audit outputs, compare exports, archived snapshots and client-facing proof.",
+        tabs: ["Evidence","Archive","Export","History"],
+        metrics: [
+          { label:"Snapshots",     value: d.historyCount,   detail: "Historical outputs available",              id:"ws-q-rsnap" },
+          { label:"Issues",        value: d.totalIssues,    detail: "Visible evidence from live findings",       id:"ws-q-riss" },
+          { label:"Compare",       value: d.newIssues+d.resolvedIssues, detail:"Delta-ready export posture",    id:"ws-q-rcmp" },
+          { label:"Memory links",  value: d.memory,         detail: "Reports support traceability",             id:"ws-q-rmem" },
+        ],
+        leftTitle: "Report assets",
+        leftItems: [
+          { title:"Current export", detail:"Transform visible state into a reportable evidence surface" },
+          { title:"Delta package",  detail:"Before/after compare output for regression review" },
+          { title:"Archive",        detail:"Older snapshots when searchable and explainable" },
+        ],
+        rightItems: [
+          { t:"Last run",          v: d.lastRunDate || "No run recorded yet",                    id:"ws-p-rlast" },
+          { t:"Total snapshots",   v: d.historyCount+" stored in run history",                   id:"ws-p-rsnap" },
+          { t:"Evidence posture",  v: "Proof over promise — issues, context, impact",            id:"ws-p-rev" },
+          { t:"Archive",           v: "Preserves decision context, not just files",              id:"ws-p-rarc" },
+        ],
+      }; },
+      settings: function(d) { return {
+        badge: "Runtime control room", color: "#94a3b8",
+        eyebrow: "Settings workspace", title: "Runtime and governance control",
+        desc: "Audit behavior, baseline policy, memory posture, healing rules and operational constraints.",
+        tabs: ["Runtime","Policy","Baseline","Control"],
+        metrics: [
+          { label:"Audit mode",    value: d.mode,            detail: "Scope "+d.scope+" · depth "+d.depth,       id:"ws-q-smode" },
+          { label:"Memory",        value: d.memory,          detail: d.validatedMemory+" validated learnings",    id:"ws-q-smem" },
+          { label:"Healing",       value: d.healing,         detail: d.failedHealing+" failed attempts",         id:"ws-q-sheal" },
+          { label:"Baseline",      value: d.baseline?"Pinned":"Open", detail: d.baseline?"Armed":"No baseline",  id:"ws-q-sbl" },
+        ],
+        leftTitle: "Control surfaces",
+        leftItems: [
+          { title:"Runtime",       detail:"Target mode, scope, headed behavior and replay discipline" },
+          { title:"Baseline",      detail:"How comparisons are created, pinned and trusted" },
+          { title:"Healing rules", detail:"Never claim success until evidence confirms the rerun" },
+        ],
+        rightItems: [
+          { t:"Mode",              v: d.mode+" · scope "+d.scope+" · depth "+d.depth,            id:"ws-p-smode" },
+          { t:"Traceability",      v: "Every memory promotion points back to evidence",           id:"ws-p-strace" },
+          { t:"No fake closure",   v: "Do not mark fixed until replay confirms the outcome",      id:"ws-p-snfc" },
+          { t:"Baseline state",    v: d.baseline ? "Pinned — comparison armed" : "Not pinned",   id:"ws-p-sblst" },
+        ],
+      }; },
+    };
+
+    // ── 2. Extract all live data from motor ───────────────
+    function extractData() {
+      const report = (typeof getVisibleReport === "function") ? getVisibleReport() : null;
+      const summary = report?.summary || {};
+      const snap = (report && typeof buildDesktopIntelligenceSnapshot === "function")
+        ? buildDesktopIntelligenceSnapshot(report) : null;
+      const di = snap?.dataIntelligence || {};
+      const rs = di.RISK_STATE || {};
+      const qs = di.QUALITY_STATE || {};
+      const ts = di.TREND_STATE || {};
+      const issues = Array.isArray(report?.issues) ? report.issues : [];
+
+      const byCode = (codes) => issues.filter(i => codes.includes(String(i?.code||"").toUpperCase())).length;
+      const bySev  = (sev)   => issues.filter(i => String(i?.severity||"").toLowerCase() === sev).length;
+
+      const compare = (typeof buildCompareSnapshot === "function" && report)
+        ? buildCompareSnapshot(report, typeof uiState !== "undefined" ? uiState.baseline : null) : null;
+
+      const topIssues = issues.slice().sort((a,b) => {
+        const r={critical:5,high:4,medium:3,low:2,info:1};
+        return (r[String(b?.severity||"").toLowerCase()]||0)-(r[String(a?.severity||"").toLowerCase()]||0);
+      }).slice(0,8).map((issue,i) => ({
+        title: String(issue?.code||issue?.issueCode||`Issue ${i+1}`),
+        detail: String(issue?.severity||"unknown")+" · "+(issue?.route||issue?.page||"—"),
+      }));
+
+      const seoIssues = issues.filter(i => {
+        const c = String(i?.code||"");
+        return /seo|canon|meta|hreflang|schema|robots|lang/i.test(c);
+      }).slice(0,8).map((issue,i) => ({
+        title: String(issue?.code||`SEO issue ${i+1}`),
+        detail: String(issue?.severity||"unknown")+" · "+(issue?.route||"—"),
+      }));
+
+      const hist = (typeof uiState !== "undefined" && Array.isArray(uiState.history)) ? uiState.history : [];
+      const lastRun = hist[0] ? (typeof formatLocalDate === "function" ? formatLocalDate(hist[0].stamp) : hist[0].stamp||"") : "";
+
+      return {
+        report, summary,
+        quality:        Math.round(Number(qs.overallScore ?? snap?.autonomous?.qualityScore?.total ?? summary.overallScore ?? 0)),
+        totalIssues:    Number(summary.totalIssues || 0),
+        routes:         Number(summary.routesChecked || 0),
+        actions:        Number(summary.actionsMapped || summary.buttonsChecked || 0),
+        seo:            Number(summary.seoScore || 0),
+        seoCritical:    Number(summary.seoCriticalIssues || 0),
+        memory:         Number(snap?.learningMemory?.summary?.entries ?? snap?.learningMemory?.totalEntries ?? 0),
+        validatedMemory:Number(snap?.learningMemory?.validatedCount ?? 0),
+        healing:        Number(snap?.selfHealing?.summary?.promptReady ?? snap?.selfHealing?.summary?.readyCount ?? 0),
+        failedHealing:  Number(snap?.selfHealing?.summary?.failedCount ?? 0),
+        riskHigh:       Number(snap?.predictive?.summary?.highRiskAlerts ?? rs.highRiskCount ?? 0),
+        recurring:      Number(snap?.predictive?.summary?.recurringPatterns ?? rs.recurringPatterns ?? 0),
+        optCount:       Array.isArray(snap?.optimization?.topImprovements) ? snap.optimization.topImprovements.length : 0,
+        newIssues:      Number(compare?.newIssues?.length || 0),
+        resolvedIssues: Number(compare?.resolvedIssues?.length || 0),
+        regressions:    Number(compare?.regressions?.length || 0),
+        persistent:     Number(compare?.persistentIssues?.length || 0),
+        trajectory:     qs.trajectory || ts.trajectory || summary.trajectory || "stable",
+        seoTrend:       ts.seoTrend || snap?.continuous?.trends?.seo || "stable",
+        runtimeTrend:   ts.runtimeTrend || snap?.continuous?.trends?.runtime || "stable",
+        uxTrend:        ts.uxTrend || snap?.continuous?.trends?.ux || "stable",
+        mode:           (typeof uiState!=="undefined" ? uiState.mode : "") || report?.meta?.auditMode || "desktop",
+        scope:          (typeof uiState!=="undefined" ? uiState.scope : "") || "experience",
+        depth:          (typeof uiState!=="undefined" ? uiState.depth : "") || "signal",
+        baseline:       (typeof uiState!=="undefined" && uiState.baseline?.report) ? uiState.baseline : null,
+        baseUrl:        (typeof getReportBaseUrl==="function" && report ? getReportBaseUrl(report) : null) || report?.meta?.baseUrl || (typeof uiState!=="undefined" ? uiState.preview?.requestedUrl : "") || "",
+        topIssues, seoIssues,
+        critical:       bySev("critical"),
+        high:           bySev("high"),
+        medium:         bySev("medium"),
+        low:            bySev("low"),
+        historyCount:   hist.length,
+        lastRunDate:    lastRun,
+        isRunning:      (typeof uiState!=="undefined") ? (uiState.companionState?.audit?.running === true || uiState.auditRequestInFlight === true) : false,
+      };
+    }
+
+    // ── 3. Build workspace HTML ───────────────────────────
+    function esc(s) {
+      return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+    }
+
+    function buildMetricCard(m, isRunning) {
+      const animClass = isRunning ? ' style="animation:ws-tick 0.4s ease"' : '';
+      return `<div class="workspace-card" data-ws-metric="${esc(m.id||"")}">
+        <p class="workspace-kicker">${esc(m.label)}</p>
+        <p class="mt-3 workspace-big-number" data-ws-val="${esc(m.id||"")}"${animClass}>${esc(String(m.value))}</p>
+        <p class="mt-2 text-[12px] text-text-tertiary" data-ws-detail="${esc(m.id||"")}">${esc(m.detail)}</p>
+      </div>`;
+    }
+
+    function buildRightCard(items) {
+      const rows = items.map(item => `
+        <div class="workspace-list-item">
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-text-primary">${esc(item.t)}</p>
+            <p class="mt-1 text-[12px] leading-6 text-text-tertiary" data-ws-posture="${esc(item.id||"")}">${esc(item.v)}</p>
+          </div>
+        </div>`).join("");
+      return `<section class="workspace-card"><p class="workspace-kicker">Live posture</p><div class="workspace-list mt-4">${rows}</div></section>`;
+    }
+
+    function buildIssueList(title, items, emptyText) {
+      const rows = items.length ? items.map((item,i) => `
+        <div class="workspace-list-item">
+          <span class="workspace-list-index">${i+1}</span>
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-text-primary">${esc(item.title||item.label||"")}</p>
+            ${item.detail ? `<p class="mt-1 text-[12px] leading-6 text-text-tertiary">${esc(item.detail)}</p>` : ""}
+          </div>
+        </div>`).join("")
+        : `<div class="workspace-list-item"><p class="text-[13px] text-text-tertiary">${esc(emptyText)}</p></div>`;
+      return `<section class="workspace-card"><p class="workspace-kicker">Group</p><h3 class="mt-1 text-[16px] font-medium text-text-primary">${esc(title)}</h3><div class="workspace-list mt-4" data-ws-list="${esc(title)}">${rows}</div></section>`;
+    }
+
+    function buildLivePulse(d) {
+      const color = d.isRunning ? "#34d399" : "#5A6578";
+      const label = d.isRunning ? "auditing · "+d.routes+" routes · "+d.totalIssues+" issues" : "live workspace";
+      return `<div class="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+        <span class="relative inline-flex h-2.5 w-2.5">
+          ${d.isRunning ? '<span class="absolute inset-0 rounded-full animate-ping" style="background:'+color+';opacity:0.5"></span>' : ""}
+          <span class="relative rounded-full h-2.5 w-2.5" style="background:'+color+'"></span>
+        </span>
+        <span id="ws-pulse-label">${esc(label)}</span>
+      </div>`.replace("'background:'+color+'","background:"+color);
+    }
+
+    function buildSeverityPills(d) {
+      const pills = [
+        ["critical",d.critical],["high",d.high],["medium",d.medium],["low",d.low]
+      ];
+      return pills.map(([s,n]) => `<span class="workspace-pill" data-ws-pill="${esc(s)}">${esc(s)} ${n}</span>`).join("");
+    }
+
+    function buildTabsHtml(tabs) {
+      return tabs.map((t,i) => `<span class="workspace-seg-tab ${i===0?"is-active":""}">${esc(t)}</span>`).join("");
+    }
+
+    function buildWorkspaceHTML(viewName, d) {
+      const tmplFn = WS_TEMPLATES[viewName] || WS_TEMPLATES.overview;
+      const t = tmplFn(d);
+      const metricsHtml = t.metrics.map(m => buildMetricCard(m, d.isRunning)).join("");
+      const tabsHtml = buildTabsHtml(t.tabs||[]);
+      const pillsHtml = buildSeverityPills(d);
+      const livePulse = buildLivePulse(d);
+      const rightCard = buildRightCard(t.rightItems||[]);
+
+      // Theme gradient per workspace
+      const themes = {
+        overview: "rgba(59,130,246,0.16),rgba(96,165,250,0.1)",
+        findings: "rgba(239,68,68,0.16),rgba(245,158,11,0.1)",
+        seo: "rgba(16,185,129,0.16),rgba(34,211,238,0.1)",
+        compare: "rgba(168,85,247,0.16),rgba(99,102,241,0.1)",
+        memory: "rgba(14,165,233,0.15),rgba(16,185,129,0.1)",
+        healing: "rgba(168,85,247,0.14),rgba(52,211,153,0.12)",
+        reports: "rgba(59,130,246,0.13),rgba(244,114,182,0.08)",
+        settings: "rgba(148,163,184,0.12),rgba(59,130,246,0.08)",
+      };
+      const grad = themes[viewName] || themes.overview;
+
+      return `<div class="workspace-page-shell p-6 md:p-8" style="background:radial-gradient(circle at top left,${grad},transparent 28%),radial-gradient(circle at top right,${grad.split(",")[1]},transparent 26%)" data-ws-view="${esc(viewName)}">
+        <div class="workspace-hero-grid">
+          <section class="workspace-card">
+            <p class="workspace-kicker">${esc(t.eyebrow)}</p>
+            <div class="mt-2">${livePulse}</div>
+            <h2 class="mt-4 text-[30px] font-semibold tracking-[-0.04em] text-text-primary">${esc(t.title)}</h2>
+            <p class="mt-3 max-w-3xl text-[14px] leading-7 text-text-secondary">${esc(t.desc)}</p>
+            <div class="workspace-pill-row mt-4" data-ws-pills>${pillsHtml}</div>
+            <div class="workspace-seg-tabs mt-4">${tabsHtml}</div>
+          </section>
+          ${rightCard}
+        </div>
+        <section class="workspace-section-grid mt-4" data-ws-metrics>${metricsHtml}</section>
+        <section class="workspace-section-grid mt-4">
+          ${buildIssueList(t.leftTitle||"Priority", t.leftItems||[], "No data yet — run an audit.")}
+          ${buildIssueList("Active context", (t.rightItems||[]).map(r=>({title:r.t,detail:r.v})), "No context loaded yet.")}
+        </section>
+      </div>`;
+    }
+
+    // ── 4. Render surface ─────────────────────────────────
+    function getActiveView() {
+      return (typeof uiState!=="undefined" ? uiState.activeView : null) || "overview";
+    }
+
+    function doRenderWorkspace(forceView) {
+      const surface = document.getElementById("workspaceSurfaceInner");
+      if (!surface) return;
+      const host = document.getElementById("workspace-host");
+      if (host && host.classList.contains("hidden")) return;
+      const view = forceView || getActiveView();
+      if (!WS_TEMPLATES[view]) return;
+      try {
+        const d = extractData();
+        surface.innerHTML = buildWorkspaceHTML(view, d);
+        bindWorkspaceActions(surface);
+      } catch(e) { console.error("[live-engine] render error:", e); }
+    }
+
+    // ── 5. Patch motor hooks ──────────────────────────────
+    function patchFn(name, after) {
+      const orig = window[name];
+      window[name] = function() {
+        const r = typeof orig === "function" ? orig.apply(this, arguments) : undefined;
+        try { after.apply(this, arguments); } catch(e) {}
+        return r;
+      };
+    }
+
+    // Every live report tick → re-render workspace
+    patchFn("renderLiveReportState", function() { doRenderWorkspace(); });
+    // Final report → full re-render
+    patchFn("renderAllReportState", function() {
+      setTimeout(() => doRenderWorkspace(), 50);
+    });
+    // System state strip → sync sidebar badges
+    patchFn("renderSystemStateStrip", function(report) {
+      syncSidebarBadges(report);
+    });
+    // syncOperatorShell → sync dock URL
+    patchFn("syncOperatorShell", function() {
+      syncDockUrl();
+    });
+    // switchView → re-render with correct view
+    patchFn("switchView", function(viewName) {
+      setTimeout(() => doRenderWorkspace(viewName), 20);
+    });
+
+    // ── 6. Sidebar badge sync ─────────────────────────────
+    function syncSidebarBadges(report) {
+      const memEl = document.getElementById("systemStateMemory");
+      const healEl = document.getElementById("systemStateHealingReady");
+      const t = (el) => el ? el.textContent : "0";
+      setTxt("systemStateMemorySidebar", t(memEl));
+      setTxt("systemStateHealingReadySidebar", t(healEl));
+      if (report) {
+        setTxt("findingsCountBadge", String(report?.summary?.totalIssues||0));
+        setTxt("seoMetric", String(report?.summary?.seoScore||0));
+        const snap = typeof buildDesktopIntelligenceSnapshot==="function" ? buildDesktopIntelligenceSnapshot(report) : null;
+        const q = snap?.dataIntelligence?.QUALITY_STATE?.overallScore ?? snap?.autonomous?.qualityScore?.total ?? 0;
+        setTxt("qualityDashboardOverall", String(Math.round(Number(q)||0)));
+      }
+    }
+    function setTxt(id, val) {
+      const el = document.getElementById(id);
+      if (el && el.textContent !== val) el.textContent = val;
+    }
+
+    // ── 7. Dock URL sync ──────────────────────────────────
+    function syncDockUrl() {
+      const cmdUrl = document.getElementById("commandTargetUrl");
+      const targetUrl = document.getElementById("targetUrl");
+      if (cmdUrl && targetUrl && document.activeElement !== cmdUrl) {
+        const val = targetUrl.value || "";
+        if (val && cmdUrl.value !== val) cmdUrl.value = val;
+      }
+    }
+
+    // ── 8. Action bindings ────────────────────────────────
+    function bindWorkspaceActions(surface) {
+      surface.addEventListener("click", function(e) {
+        const btn = e.target.closest("[data-workspace-action]");
+        if (!btn) return;
+        e.preventDefault();
+        const action = btn.dataset.workspaceAction;
+        const map = {
+          "open-findings": "findings", "open-seo": "seo",
+          "open-compare": "compare", "open-settings": "settings",
+          "open-memory": "memory", "open-healing": "healing",
+          "open-reports": "reports",
+        };
+        if (map[action] && typeof switchView === "function") switchView(map[action]);
+      });
+    }
+
+    // ── 9. Live ticker (safety net) ───────────────────────
+    let tickInterval = null;
+    function startLiveTicker() {
+      if (tickInterval) return;
+      tickInterval = setInterval(function() {
+        try {
+          const running = typeof uiState !== "undefined" && (uiState.companionState?.audit?.running === true || uiState.auditRequestInFlight === true);
+          // Sync badges always
+          syncSidebarBadges(typeof getVisibleReport === "function" ? getVisibleReport() : null);
+          syncDockUrl();
+          // Update audit chip
+          const chip = document.getElementById("auditChip");
+          if (chip) {
+            if (running) {
+              const routes = typeof uiState !== "undefined" ? (uiState.liveReport?.summary?.routesChecked ?? uiState.report?.summary?.routesChecked ?? 0) : 0;
+              const issues = typeof uiState !== "undefined" ? (uiState.liveReport?.summary?.totalIssues ?? uiState.report?.summary?.totalIssues ?? 0) : 0;
+              chip.textContent = routes+" routes · "+issues+" issues";
+              const badge = chip.closest(".ws-live-badge");
+              if (badge) { badge.style.borderColor = "rgba(52,211,153,0.4)"; badge.style.color = "#6ee7b7"; }
+            } else {
+              const cur = chip.textContent;
+              if (cur !== "idle" && !cur.includes("routes")) {
+                chip.textContent = "ready";
+                const badge = chip.closest(".ws-live-badge");
+                if (badge) { badge.style.borderColor = ""; badge.style.color = ""; }
+              } else if (!running && cur.includes("routes")) {
+                chip.textContent = "ready";
+                const badge = chip.closest(".ws-live-badge");
+                if (badge) { badge.style.borderColor = ""; badge.style.color = ""; }
+              }
+            }
+          }
+          // During run: re-render workspace every 2s
+          if (running) {
+            const surface = document.getElementById("workspaceSurfaceInner");
+            const host = document.getElementById("workspace-host");
+            if (surface && host && !host.classList.contains("hidden")) {
+              doRenderWorkspace();
+            }
+          }
+        } catch(e) {}
+      }, 1200);
+    }
+
+    // ── 10. CSS for number animation ─────────────────────
+    if (!document.getElementById("ws-live-css")) {
+      const s = document.createElement("style");
+      s.id = "ws-live-css";
+      s.textContent = `
+        @keyframes ws-tick { 0%{opacity:.3;transform:translateY(4px)} 100%{opacity:1;transform:translateY(0)} }
+        [data-ws-val] { transition: color 0.3s ease; }
+        .workspace-big-number { transition: color 0.4s ease; }
+        #ws-pulse-label { transition: opacity 0.3s ease; }
+      `;
+      document.head.appendChild(s);
+    }
+
+    // ── 11. Initial render + start ticker ─────────────────
+    doRenderWorkspace();
+    startLiveTicker();
+
+    if (typeof appendLog === "function") appendLog("[live-engine v3] installed. All workspaces connected to motor.");
+  }); // end waitForRenderer
+})();
+</script>
+  
+    <script>
+    // ── FIX 6: Ensure assistantInput is always the dock input ────────────
+    (function fixAssistantInput() {
+      document.addEventListener("DOMContentLoaded", function() {
+        // After compatGhostRoot runs, if a second #assistantInput exists,
+        // redirect its events to the real dock input
+        setTimeout(function() {
+          var allInputs = document.querySelectorAll("#assistantInput");
+          if (allInputs.length <= 1) return;
+          var canonical = document.querySelector("#commandDock #assistantInput") || allInputs[0];
+          allInputs.forEach(function(inp) {
+            if (inp === canonical) return;
+            // Make ghost invisible and redirect typing to canonical
+            inp.addEventListener("input", function() { canonical.value = inp.value; });
+            inp.addEventListener("keydown", function(e) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                canonical.value = inp.value;
+                var ask = document.getElementById("assistantAsk");
+                if (ask) ask.click();
+              }
+            });
+          });
+
+          // Also ensure stateEl.assistantInput points to canonical after boot
+          function waitAndFix(n) {
+            if (typeof uiState === "undefined") {
+              if (n < 40) setTimeout(() => waitAndFix(n+1), 250); return;
+            }
+            try {
+              if (typeof stateEl !== "undefined" && stateEl.assistantInput !== canonical) {
+                stateEl.assistantInput = canonical;
+                stateEl.assistantAsk = document.querySelector("#commandDock #assistantAsk") || document.getElementById("assistantAsk");
+              }
+            } catch(e) {}
+          }
+          waitAndFix(0);
+        }, 400);
+      });
+    })();
+    </script>
+</body>
 </html>

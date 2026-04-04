@@ -1,0 +1,28 @@
+SITEPULSE ASSISTANT BRIEF
+========================
+Projeto: sitepulse-default-desktop-audit
+Base URL: http://127.0.0.1:3110
+Status: clean
+Total issues: 0
+
+PASSOS IMEDIATOS
+- Sem issues: manter baseline e monitorar regressao.
+- Rodar novamente com: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+- Se houver mudanca grande de layout, atualizar sectionOrderRules.
+
+ROTAS PRIORITARIAS
+- Nenhuma rota com issues.
+
+TOP ISSUES
+- Nenhuma issue.
+
+PROMPT RAPIDO
+-------------
+Atue como engenheiro de software senior.
+Nao ha issues abertas nesta auditoria.
+Objetivo: prevenir regressao.
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+Verifique mudancas recentes e rode a auditoria novamente apos qualquer ajuste estrutural.
+
+REVALIDACAO
+- node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server

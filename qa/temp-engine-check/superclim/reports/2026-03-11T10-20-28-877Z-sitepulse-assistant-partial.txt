@@ -1,0 +1,158 @@
+SITEPULSE ASSISTANT BRIEF
+========================
+Projeto: sitepulse-default-desktop-audit
+Base URL: https://superclim.es
+Status: issues_found
+Total issues: 55
+
+PASSOS IMEDIATOS
+- Corrigir primeiro erros high (runtime/5xx/ordem visual).
+- Depois tratar medium (clicks falhos/rede/secoes ausentes).
+- Finalizar com low e ruido de console.
+- Atacar checklist SEO pendente antes da revalidacao final.
+- Reexecutar auditoria completa e confirmar totalIssues=0.
+
+ROTAS PRIORITARIAS
+- /: total=13 high=6 medium=3 low=4
+- /servicios: total=11 high=5 medium=2 low=4
+- /servicios/limpieza-de-sofas-barcelona: total=7 high=2 medium=2 low=3
+- /servicios/limpieza-de-sofa-sabadell: total=7 high=2 medium=2 low=3
+- /servicios/limpieza-de-sofas-terrassa: total=7 high=2 medium=2 low=3
+- /servicios/limpieza-de-sofa-cerdanyola: total=6 high=2 medium=2 low=2
+- /servicios/limpieza-de-sofas-sant-cugat: total=4 high=0 medium=2 low=2
+
+TOP ISSUES
+- [JS_RUNTIME_ERROR] (high) / -> Más Servicios
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) / -> Saber Más
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) / -> Quienes Somos
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) / -> Limpieza de colchones
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) / -> Restauración de Alfombras
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) / -> Limpieza de Muebles en Cuero
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios -> Más Servicios
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios -> Saber Más
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios -> Quienes Somos
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios -> Limpieza de colchones
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios -> Restauración de Alfombras
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+- [JS_RUNTIME_ERROR] (high) /servicios/limpieza-de-sofas-barcelona -> Quienes Somos
+  detalhe: Cannot read properties of null (reading 'addEventListener')
+  diagnostico: Acesso invalido a null/undefined [runtime_null_undefined_access]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P0
+  checks: Mapear variavel nula no stack trace. | Adicionar guard clauses antes do acesso. | Garantir valor default para estado assicrono. | Mapear stack do erro no console para arquivo/linha. | Corrigir null/undefined e estados nao inicializados. | Adicionar guard clauses e fallback de render.
+  comandos: rg -n "\?\.|null|undefined" src/components src/app src/lib || rg -n "\?\.|\!\.|as any|null|undefined" src/components src/app src/lib || rg -n "window\.|document\.|localStorage" src/components src/app
+
+PROMPT RAPIDO
+-------------
+Atue como engenheiro de software senior com foco em execucao rapida e causa raiz.
+Total de issues: 55.
+Ordem de ataque: high -> medium -> low.
+Nao aceitar fix cosmetico: cada problema precisa de evidencia de resolucao.
+
+Top issues para iniciar:
+1. [JS_RUNTIME_ERROR] (high) / -> Más Servicios | Cannot read properties of null (reading 'addEventListener')
+2. [JS_RUNTIME_ERROR] (high) / -> Saber Más | Cannot read properties of null (reading 'addEventListener')
+3. [JS_RUNTIME_ERROR] (high) / -> Quienes Somos | Cannot read properties of null (reading 'addEventListener')
+4. [JS_RUNTIME_ERROR] (high) / -> Limpieza de colchones | Cannot read properties of null (reading 'addEventListener')
+5. [JS_RUNTIME_ERROR] (high) / -> Restauración de Alfombras | Cannot read properties of null (reading 'addEventListener')
+6. [JS_RUNTIME_ERROR] (high) / -> Limpieza de Muebles en Cuero | Cannot read properties of null (reading 'addEventListener')
+7. [JS_RUNTIME_ERROR] (high) /servicios -> Más Servicios | Cannot read properties of null (reading 'addEventListener')
+8. [JS_RUNTIME_ERROR] (high) /servicios -> Saber Más | Cannot read properties of null (reading 'addEventListener')
+
+SEO (obrigatorio):
+Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.
+Site auditado: https://superclim.es
+Score SEO atual: 82/100.
+Objetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.
+
+Checklist SEO pendente (explicacao para leigos + acao):
+1. Title unico e com tamanho ideal (30-65) | por que importa: E o texto principal que aparece no Google. | o que fazer: Defina um title unico por pagina com foco na intencao do usuario.
+2. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.
+3. Estrutura de headings com 1 H1 | por que importa: Organiza o tema principal da pagina para Google e usuarios. | o que fazer: Mantenha apenas um H1 claro e use H2/H3 para secoes.
+4. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.
+5. Meta social (Open Graph + Twitter Card) | por que importa: Melhora compartilhamento e CTR em redes sociais. | o que fazer: Complete og:title, og:description, og:image, og:type e twitter:card.
+6. Meta robots presente e coerente | por que importa: Define como bots devem indexar/seguir links. | o que fazer: Defina meta robots adequada para cada tipo de pagina.
+
+Issues SEO detectadas:
+1. [SEO_OPEN_GRAPH_INCOMPLETE] (medium) Open Graph incompleto (faltando og:title, og:description, og:image ou og:type). | recomendacao: Complete as metas Open Graph para melhorar compartilhamento e CTR.
+2. [SEO_META_DESCRIPTION_LENGTH] (medium) Meta description com 188 caracteres (ideal: 70-170). | recomendacao: Ajuste o tamanho da meta description para evitar corte no resultado de busca.
+3. [SEO_TITLE_LENGTH] (medium) Title com 100 caracteres (ideal: 30-65). | recomendacao: Ajuste o tamanho do title para melhorar leitura no Google.
+4. [SEO_H1_MULTIPLE] (medium) 3 H1 encontrados (ideal: 1). | recomendacao: Mantenha um unico H1 para reforcar hierarquia semantica.
+5. [SEO_TWITTER_CARD_MISSING] (low) Twitter Card ausente. | recomendacao: Adicione meta twitter:card e metadados sociais complementares.
+6. [SEO_META_ROBOTS_MISSING] (low) Meta robots ausente. | recomendacao: Defina meta robots explicita para controle de indexacao.
+7. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.
+
+Entrega obrigatoria:
+- listar arquivos alterados e motivo de cada alteracao
+- mostrar antes/depois dos metadados principais
+- validar novamente e comprovar melhoria de score
+
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\superclim.json" --fresh --live-log --human-log --scope "full" --no-server
+
+REVALIDACAO
+- node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\superclim.json" --fresh --live-log --human-log --scope "full" --no-server

@@ -1,0 +1,10 @@
+import type { IntelligenceQueueState, SitePulseActionId } from "@/types/sitepulse";
+
+export function IntelligenceQueue({ queue, onAction }: { queue: IntelligenceQueueState; onAction: (actionId: SitePulseActionId) => void; }) {
+  return (
+    <section className="overflow-hidden rounded-[22px] border border-white/10 bg-white/[0.03] shadow-[0_10px_24px_rgba(0,0,0,0.16)]">
+      <div className="flex items-start justify-between gap-4 border-b border-white/10 px-6 py-5"><div><p className="text-[11px] uppercase tracking-[0.14em] text-[#738095]">Intelligence Queue</p><p className="mt-2 max-w-4xl text-[14px] leading-7 text-[#9eabba]">{queue.subtitle}</p></div><div className="flex items-center gap-2 text-[11px] text-[#738095]">{queue.tags.map((tag) => <span key={tag} className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1">{tag}</span>)}</div></div>
+      <div className="divide-y divide-white/10">{queue.items.map((item) => <button key={item.id} type="button" onClick={() => onAction(item.actionId)} className="group w-full bg-transparent px-6 py-5 text-left transition hover:bg-white/[0.02]"><div className="grid grid-cols-[auto,1fr,auto] gap-4"><span className="mt-1 inline-flex h-4 w-4 items-center justify-center text-red-400">▲</span><div className="min-w-0"><div className="flex flex-wrap items-center gap-2.5"><p className="text-[15px] font-medium text-[#eef3f8]">{item.title} <span className="font-mono text-[14px]">{item.path}</span></p>{item.badges.map((badge) => <span key={badge.label} className={badge.className}>{badge.label}</span>)}</div><div className="mt-3 flex flex-wrap items-center gap-2.5 text-[13px] text-[#738095]"><span className="rounded-2xl border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono">{item.route}</span><span>{item.description}</span><span className="rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em]">impact: {item.impactScore}</span></div></div><span className="mt-1 text-[#738095] transition group-hover:text-[#eef3f8]">›</span></div></button>)}</div>
+    </section>
+  );
+}

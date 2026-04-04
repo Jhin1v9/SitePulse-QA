@@ -361,14 +361,33 @@ function getWindowStatePayload() {
   };
 }
 
+/** True when the main window exists and its webContents can receive IPC (avoids "Object has been destroyed"). */
+function isMainWebContentsReady() {
+  try {
+    if (!mainWindow || mainWindow.isDestroyed()) return false;
+    const wc = mainWindow.webContents;
+    if (!wc || (typeof wc.isDestroyed === "function" && wc.isDestroyed())) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function safeMainSend(channel, ...args) {
+  if (!isMainWebContentsReady()) return;
+  try {
+    mainWindow.webContents.send(channel, ...args);
+  } catch {
+    // Window/webContents torn down between check and send (shutdown, crash path, etc.)
+  }
+}
+
 function notifyWindowState() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send("companion:window-state", getWindowStatePayload());
+  safeMainSend("companion:window-state", getWindowStatePayload());
 }
 
 function notifyLiveReport(report) {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send("companion:live-report", report || null);
+  safeMainSend("companion:live-report", report || null);
 }
 
 function writeBootstrapTrace(message) {
@@ -955,15 +974,14 @@ function pushLog(line) {
   try {
     fsSync.appendFileSync(getDesktopLogFile(), `${formatted}\n`, "utf8");
   } catch {}
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send("companion:log", formatted);
-    mainWindow.webContents.send("companion:state", getStatePayload());
+  if (isMainWebContentsReady()) {
+    safeMainSend("companion:log", formatted);
+    safeMainSend("companion:state", getStatePayload());
   }
 }
 
 function notifyState() {
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  mainWindow.webContents.send("companion:state", getStatePayload());
+  safeMainSend("companion:state", getStatePayload());
 }
 
 function buildAuditRunKey(descriptor = {}) {
@@ -2510,7 +2528,22 @@ async function installDownloadedUpdate() {
 
 async function loadDesktopShell() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
-  await mainWindow.loadFile(path.join(__dirname, "renderer.html"));
+  
+  // Carregar SitePulse OS se SITEPULSE_OS estiver setado
+  const useOS = process.env.SITEPULSE_OS === "1" || process.env.SITEPULSE_OS === "true";
+  const useV3 = process.env.SITEPULSE_UI_V3 === "1" || process.env.SITEPULSE_UI_V3 === "true";
+  
+  let targetFile;
+  if (useOS) {
+    targetFile = "app/dist/index.html";
+    console.log("[Main] Carregando SitePulse OS...");
+  } else if (useV3) {
+    targetFile = "renderer-v3/index.html";
+  } else {
+    targetFile = "renderer.html";
+  }
+  
+  await mainWindow.loadFile(path.join(__dirname, targetFile));
   notifyState();
   notifyWindowState();
 }
@@ -3018,6 +3051,44 @@ ipcMain.handle("companion:window-close", async () => {
   return { ok: true };
 });
 
+// Handlers para Interface v3
+ipcMain.handle("companion:start-audit", async (_event, input) => {
+  try {
+    const result = await runSingleAuditViaBridge(input);
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("companion:cancel-audit", async () => {
+  try {
+    const result = await requestBridgeCancel();
+    return { ok: true, result };
+  } catch (error) {
+    return { ok: false, error: String(error) };
+  }
+});
+
+ipcMain.handle("companion:engine-action", async (_event, { engineId, action, payload }) => {
+  pushLog(`[engine] ${engineId}.${action} triggered from UI v3`);
+  // Aqui você pode implementar ações específicas dos motores
+  return { ok: true, engineId, action };
+});
+
+ipcMain.handle("companion:select-directory", async () => {
+  if (!mainWindow) return { ok: false, error: "no_window" };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ["openDirectory"],
+  });
+  if (result.canceled) return { ok: false, canceled: true };
+  return { ok: true, path: result.filePaths[0] };
+});
+
+ipcMain.handle("companion:get-app-version", async () => {
+  return { ok: true, version: app.getVersion() };
+});
+
 app.whenReady().then(async () => {
   writeBootstrapTrace("whenReady entered");
   pushLog(`[desktop] boot iniciado | packaged=${app.isPackaged}`);
@@ -3089,6 +3160,222 @@ app.whenReady().then(async () => {
     await loadDesktopShell();
   }
 });
+
+// ============================================
+// SITEPULSE OS - IPC Handlers
+// ============================================
+
+// Sistema
+ipcMain.handle('app:ping', async () => {
+  return 'pong';
+});
+
+ipcMain.handle('app:get-version', async () => {
+  return app.getVersion();
+});
+
+// Motores (stub - integração real nas próximas tarefas)
+ipcMain.handle('engine:list', async () => {
+  // Retorna lista dos 10 motores
+  return {
+    success: true,
+    data: [
+      { id: 'intent', name: 'Intent Engine', status: 'active', power: 94 },
+      { id: 'context', name: 'Context Engine', status: 'active', power: 88 },
+      { id: 'evidence', name: 'Evidence Engine', status: 'processing', power: 96 },
+      { id: 'memory', name: 'Memory Engine', status: 'active', power: 91 },
+      { id: 'learning', name: 'Learning Engine', status: 'active', power: 89 },
+      { id: 'decision', name: 'Decision Engine', status: 'active', power: 87 },
+      { id: 'action', name: 'Action Engine', status: 'idle', power: 92 },
+      { id: 'predictive', name: 'Predictive Engine', status: 'active', power: 85 },
+      { id: 'autonomous', name: 'Autonomous QA', status: 'active', power: 90 },
+      { id: 'security', name: 'Security Engine', status: 'active', power: 93 },
+    ]
+  };
+});
+
+ipcMain.handle('engine:get', async (_event, id) => {
+  return { success: true, data: { id, name: `${id} Engine`, status: 'active' } };
+});
+
+ipcMain.handle('engine:activate', async (_event, id) => {
+  console.log(`[IPC] Ativando motor: ${id}`);
+  return { success: true };
+});
+
+ipcMain.handle('engine:deactivate', async (_event, id) => {
+  console.log(`[IPC] Desativando motor: ${id}`);
+  return { success: true };
+});
+
+// ============================================
+// WORKSPACE FILE SYSTEM - Operações Reais
+// ============================================
+
+const WORKSPACE_ROOT = path.join(os.homedir(), 'SitePulse');
+
+// Helper para validar paths (security: prevent directory traversal)
+function resolveWorkspacePath(relativePath) {
+  const resolved = path.resolve(WORKSPACE_ROOT, relativePath);
+  if (!resolved.startsWith(WORKSPACE_ROOT)) {
+    throw new Error('Acesso negado: path fora do workspace');
+  }
+  return resolved;
+}
+
+// Garantir que diretório base existe
+async function ensureWorkspaceRoot() {
+  try {
+    await fs.mkdir(WORKSPACE_ROOT, { recursive: true });
+  } catch (error) {
+    console.error('[Workspace] Erro ao criar root:', error);
+  }
+}
+
+// Inicializar workspace no startup
+ensureWorkspaceRoot();
+
+// Listar diretório
+ipcMain.handle('fs:read-dir', async (_event, dirPath) => {
+  try {
+    const fullPath = resolveWorkspacePath(dirPath);
+    const entries = await fs.readdir(fullPath, { withFileTypes: true });
+    return {
+      success: true,
+      data: entries.map(e => ({
+        name: e.name,
+        isDirectory: e.isDirectory(),
+        isFile: e.isFile(),
+      }))
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Criar diretório
+ipcMain.handle('fs:mkdir', async (_event, dirPath) => {
+  try {
+    const fullPath = resolveWorkspacePath(dirPath);
+    await fs.mkdir(fullPath, { recursive: true });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Verificar se existe
+ipcMain.handle('fs:exists', async (_event, filePath) => {
+  try {
+    const fullPath = resolveWorkspacePath(filePath);
+    await fs.access(fullPath);
+    return { success: true, data: true };
+  } catch {
+    return { success: true, data: false };
+  }
+});
+
+// Ler arquivo
+ipcMain.handle('fs:read-file', async (_event, filePath) => {
+  try {
+    const fullPath = resolveWorkspacePath(filePath);
+    const content = await fs.readFile(fullPath, 'utf-8');
+    return { success: true, data: content };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Escrever arquivo (atomic: write to temp then rename)
+ipcMain.handle('fs:write-file', async (_event, filePath, content) => {
+  try {
+    const fullPath = resolveWorkspacePath(filePath);
+    const dir = path.dirname(fullPath);
+    
+    // Garantir diretório existe
+    await fs.mkdir(dir, { recursive: true });
+    
+    // Write atomic: temp -> rename
+    const tempPath = `${fullPath}.tmp`;
+    await fs.writeFile(tempPath, content, 'utf-8');
+    await fs.rename(tempPath, fullPath);
+    
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Deletar arquivo/diretório
+ipcMain.handle('fs:delete', async (_event, filePath, recursive = false) => {
+  try {
+    const fullPath = resolveWorkspacePath(filePath);
+    await fs.rm(fullPath, { recursive, force: true });
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Estatísticas do arquivo
+ipcMain.handle('fs:stat', async (_event, filePath) => {
+  try {
+    const fullPath = resolveWorkspacePath(filePath);
+    const stats = await fs.stat(fullPath);
+    return {
+      success: true,
+      data: {
+        size: stats.size,
+        isFile: stats.isFile(),
+        isDirectory: stats.isDirectory(),
+        modifiedAt: stats.mtime.toISOString(),
+        createdAt: stats.birthtime.toISOString(),
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Obter path do workspace
+ipcMain.handle('workspace:get-root', async () => {
+  return { success: true, data: WORKSPACE_ROOT };
+});
+
+// Scans (stub)
+ipcMain.handle('scan:start', async (_event, config) => {
+  console.log('[IPC] Iniciando scan:', config);
+  return { success: true, data: { scanId: `scan_${Date.now()}` } };
+});
+
+ipcMain.handle('scan:stop', async (_event, scanId) => {
+  console.log('[IPC] Parando scan:', scanId);
+  return { success: true };
+});
+
+// Findings (stub)
+ipcMain.handle('findings:list', async () => {
+  return { success: true, data: [] };
+});
+
+ipcMain.handle('finding:update', async (_event, id, data) => {
+  return { success: true };
+});
+
+// Relatórios (stub)
+ipcMain.handle('report:generate', async (_event, options) => {
+  return { success: true, data: { reportId: `report_${Date.now()}` } };
+});
+
+ipcMain.handle('report:export', async (_event, id, format) => {
+  return { success: true };
+});
+
+console.log('[Main] SitePulse OS IPC handlers registrados');
+
+// ============================================
+// Process Events
+// ============================================
 
 process.on("uncaughtException", (error) => {
   const message = error instanceof Error ? error.stack || error.message : String(error || "uncaught_exception");

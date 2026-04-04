@@ -1,0 +1,36 @@
+{
+  "name": "sitepulse-default-desktop-audit",
+  "baseUrl": "https://www.openai.com",
+  "serverCommand": "npm run dev -- --hostname 127.0.0.1 --port 3110",
+  "serverCwd": "..",
+  "routeLoadTimeoutMs": 20000,
+  "buttonClickTimeoutMs": 2500,
+  "clickWaitMs": 450,
+  "viewportWidth": 1536,
+  "viewportHeight": 864,
+  "scrollEffectMinPx": 8,
+  "sectionOrderWaitMs": 1200,
+  "maxRunMs": 180000,
+  "checkpointEveryClicks": 10,
+  "reportDir": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai\\reports",
+  "checkpointFile": "C:\\Users\\Administrador\\Documents\\SitePulse-QA\\qa\\temp-engine-check\\openai\\reports\\checkpoint.json",
+  "autoDiscoverRoutes": true,
+  "discoverFromSitemap": true,
+  "discoverMenuLinks": true,
+  "maxDiscoveredRoutes": 8,
+  "maxActionsPerRoute": 30,
+  "maxActionRoutes": 8,
+  "requireButtonEffect": true,
+  "allowedNoEffectButtonContains": [
+    "whatsapp",
+    "home",
+    "menu"
+  ],
+  "ignoredRequestFailedErrors": [
+    "ERR_ABORTED"
+  ],
+  "sectionOrderRules": [],
+  "routes": [
+    "/"
+  ]
+}

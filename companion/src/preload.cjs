@@ -1,5 +1,48 @@
-﻿const { contextBridge, ipcRenderer } = require("electron");
+const { contextBridge, ipcRenderer } = require("electron");
 
+// API para interface v3 (compatível com React hooks)
+contextBridge.exposeInMainWorld("electron", {
+  invoke: (channel, ...args) => {
+    const validChannels = [
+      "companion:get-state",
+      "companion:minimize",
+      "companion:maximize",
+      "companion:close",
+      "companion:start-audit",
+      "companion:cancel-audit",
+      "companion:export-report",
+      "companion:pick-report",
+      "companion:select-directory",
+      "companion:get-app-version",
+      "companion:engine-action",
+    ];
+    if (validChannels.includes(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    throw new Error(`Invalid channel: ${channel}`);
+  },
+  on: (channel, callback) => {
+    const validChannels = [
+      "companion:state",
+      "companion:log",
+      "companion:live-report",
+      "companion:window-state",
+      "companion:notification",
+      "companion:engine-status",
+    ];
+    if (validChannels.includes(channel)) {
+      const wrapped = (_event, payload) => callback(payload);
+      ipcRenderer.on(channel, wrapped);
+      return () => ipcRenderer.removeListener(channel, wrapped);
+    }
+    return () => {};
+  },
+  removeListener: (channel, callback) => {
+    ipcRenderer.removeListener(channel, callback);
+  },
+});
+
+// API legada para interface antiga
 contextBridge.exposeInMainWorld("sitePulseCompanion", {
   getState: () => ipcRenderer.invoke("companion:get-state"),
   startBridge: () => ipcRenderer.invoke("companion:start-bridge"),
@@ -53,3 +96,68 @@ contextBridge.exposeInMainWorld("sitePulseCompanion", {
     return () => ipcRenderer.removeListener("companion:window-state", wrapped);
   },
 });
+
+// ============================================
+// SITEPULSE OS API (Desktop OS Interface)
+// ============================================
+contextBridge.exposeInMainWorld("sitepulse", {
+  // Sistema
+  ping: () => ipcRenderer.invoke('app:ping'),
+  getVersion: () => ipcRenderer.invoke('app:get-version'),
+  
+  // Motores (10 Neural Engines)
+  engine: {
+    list: () => ipcRenderer.invoke('engine:list'),
+    get: (id) => ipcRenderer.invoke('engine:get', id),
+    activate: (id) => ipcRenderer.invoke('engine:activate', id),
+    deactivate: (id) => ipcRenderer.invoke('engine:deactivate', id),
+  },
+  
+  // Sistema de Arquivos
+  fs: {
+    readDir: (path) => ipcRenderer.invoke('fs:read-dir', path),
+    mkdir: (path) => ipcRenderer.invoke('fs:mkdir', path),
+    exists: (path) => ipcRenderer.invoke('fs:exists', path),
+    readFile: (path) => ipcRenderer.invoke('fs:read-file', path),
+    writeFile: (path, content) => ipcRenderer.invoke('fs:write-file', path, content),
+    delete: (path, recursive) => ipcRenderer.invoke('fs:delete', path, recursive),
+    stat: (path) => ipcRenderer.invoke('fs:stat', path),
+    getRoot: () => ipcRenderer.invoke('workspace:get-root'),
+  },
+  
+  // Scans
+  scan: {
+    start: (config) => ipcRenderer.invoke('scan:start', config),
+    stop: (scanId) => ipcRenderer.invoke('scan:stop', scanId),
+  },
+  
+  // Findings (Achados de auditoria)
+  findings: {
+    list: () => ipcRenderer.invoke('findings:list'),
+    update: (id, data) => ipcRenderer.invoke('finding:update', id, data),
+  },
+  
+  // Relatórios
+  report: {
+    generate: (options) => ipcRenderer.invoke('report:generate', options),
+    export: (id, format) => ipcRenderer.invoke('report:export', id, format),
+  },
+  
+  // Eventos (on/once/off)
+  on: (channel, callback) => {
+    const validChannels = [
+      'scan:progress',
+      'engine:status-changed',
+      'notification',
+    ];
+    if (validChannels.includes(channel)) {
+      const wrapped = (_event, payload) => callback(payload);
+      ipcRenderer.on(channel, wrapped);
+      return () => ipcRenderer.removeListener(channel, wrapped);
+    }
+    console.warn(`Canal inválido: ${channel}`);
+    return () => {};
+  },
+});
+
+console.log('[Preload] APIs registradas: electron, sitePulseCompanion, sitepulse');

@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SitePulse QA | Sistema de Auditoría Autónoma Enterprise</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cyber': {
+                            black: '#050508',
+                            dark: '#0a0a0f',
+                            panel: '#12121a',
+                            border: '#1e1e2e',
+                            hover: '#252538'
+                        },
+                        'neon': {
+                            blue: '#00f0ff',
+                            purple: '#b829f7',
+                            green: '#00ff88',
+                            amber: '#ffb800',
+                            red: '#ff3366'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            background: #050508;
+            color: #e2e8f0;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        
+        /* Efeito de scanline */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                to bottom,
+                rgba(255,255,255,0),
+                rgba(255,255,255,0) 50%,
+                rgba(0,0,0,0.1) 50%,
+                rgba(0,0,0,0.1)
+            );
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.3;
+        }
+        
+        /* Glow effects */
+        .glow-blue { box-shadow: 0 0 20px rgba(0, 240, 255, 0.3); }
+        .glow-purple { box-shadow: 0 0 20px rgba(184, 41, 247, 0.3); }
+        .glow-green { box-shadow: 0 0 20px rgba(0, 255, 136, 0.3); }
+        
+        .text-glow {
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        /* Grid animado */
+        .cyber-grid {
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        /* Terminal cursor */
+        .cursor-blink::after {
+            content: '▋';
+            animation: blink 1s infinite;
+            color: #00f0ff;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* Status indicators */
+        .status-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+        
+        /* Glitch effect */
+        .glitch {
+            position: relative;
+        }
+        
+        .glitch::before,
+        .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .glitch::before {
+            animation: glitch-1 2s infinite;
+            color: #00f0ff;
+            z-index: -1;
+        }
+        
+        .glitch::after {
+            animation: glitch-2 2s infinite;
+            color: #b829f7;
+            z-index: -2;
+        }
+        
+        @keyframes glitch-1 {
+            0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+            20% { clip-path: inset(20% 0 30% 0); transform: translate(-2px, 2px); }
+            40% { clip-path: inset(50% 0 20% 0); transform: translate(2px, -2px); }
+        }
+        
+        @keyframes glitch-2 {
+            0%, 100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+            20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, 2px); }
+            40% { clip-path: inset(10% 0 60% 0); transform: translate(-2px, -2px); }
+        }
+        
+        /* Live demo terminal */
+        .live-terminal {
+            background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
+            border: 1px solid #1e1e2e;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .live-terminal::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #00f0ff, transparent);
+            animation: scan 3s linear infinite;
+        }
+        
+        @keyframes scan {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(100%); opacity: 0; }
+        }
+        
+        .log-entry {
+            opacity: 0;
+            transform: translateX(-10px);
+            animation: logIn 0.3s forwards;
+        }
+        
+        @keyframes logIn {
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+        
+        /* Pricing cards */
+        .pricing-card {
+            background: linear-gradient(145deg, #12121a 0%, #0a0a0f 100%);
+            border: 1px solid #1e1e2e;
+            transition: all 0.3s ease;
+        }
+        
+        .pricing-card:hover {
+            border-color: #00f0ff;
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px -15px rgba(0, 240, 255, 0.2);
+        }
+        
+        .pricing-featured {
+            border-color: #00f0ff;
+            background: linear-gradient(145deg, #12121a 0%, #0a0a0f 100%);
+            position: relative;
+        }
+        
+        .pricing-featured::before {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            background: linear-gradient(135deg, #00f0ff, #b829f7);
+            border-radius: inherit;
+            z-index: -1;
+            opacity: 0.5;
+        }
+        
+        /* Neural network background */
+        #neural-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.4;
+        }
+        
+        /* ROI Calculator */
+        .roi-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 4px;
+            background: #1e1e2e;
+            outline: none;
+            border-radius: 2px;
+        }
+        
+        .roi-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00f0ff;
+            cursor: pointer;
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+        }
+        
+        /* Pain point cards */
+        .pain-card {
+            background: rgba(255, 51, 102, 0.05);
+            border: 1px solid rgba(255, 51, 102, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .pain-card:hover {
+            background: rgba(255, 51, 102, 0.1);
+            border-color: rgba(255, 51, 102, 0.4);
+            transform: scale(1.02);
+        }
+        
+        /* Solution cards */
+        .solution-card {
+            background: rgba(0, 255, 136, 0.05);
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="scanlines"></div>
+    <canvas id="neural-canvas"></canvas>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 w-full z-50 bg-cyber-black/80 backdrop-blur-xl border-b border-cyber-border">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-neon-blue to-neon-purple rounded flex items-center justify-center">
+                    <i data-lucide="activity" class="w-5 h-5 text-cyber-black"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight">
+                    SitePulse<span class="text-neon-blue">QA</span>
+                </span>
+            </div>
+            
+            <div class="hidden md:flex items-center gap-8">
+                <a href="#demo" class="text-sm text-gray-400 hover:text-white transition-colors">Demo en Vivo</a>
+                <a href="#dores" class="text-sm text-gray-400 hover:text-white transition-colors">Problemas</a>
+                <a href="#solucao" class="text-sm text-gray-400 hover:text-white transition-colors">Solución</a>
+                <a href="#roi" class="text-sm text-gray-400 hover:text-white transition-colors">ROI</a>
+                <a href="#precos" class="text-sm text-gray-400 hover:text-white transition-colors">Precios</a>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <button onclick="startLiveDemo()" class="px-4 py-2 bg-neon-blue/10 border border-neon-blue text-neon-blue rounded text-sm font-medium hover:bg-neon-blue/20 transition-all flex items-center gap-2">
+                    <span class="w-2 h-2 bg-neon-blue rounded-full status-pulse"></span>
+                    Demo Interactiva
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative min-h-screen flex items-center pt-20 overflow-hidden">
+        <div class="absolute inset-0 cyber-grid opacity-20"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center relative z-10">
+            <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neon-blue/10 border border-neon-blue/20 text-neon-blue text-xs font-mono mb-6">
+                    <span class="status-pulse w-1.5 h-1.5 bg-neon-blue rounded-full"></span>
+                    Sistema Autónomo v3.0
+                </div>
+                
+                <h1 class="text-5xl md:text-7xl font-bold leading-tight mb-6 glitch" data-text="Deja de auditar.">
+                    Deja de auditar.<br>
+                    <span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
+                        Empieza a curar.
+                    </span>
+                </h1>
+                
+                <p class="text-xl text-gray-400 mb-8 leading-relaxed max-w-xl">
+                    SitePulse QA es el primer sistema de <strong>auditoría técnica con memoria operacional</strong>. No escanea una vez y olvida. Aprende, cura y valida automáticamente.
+                </p>
+                
+                <div class="flex flex-col sm:flex-row gap-4 mb-12">
+                    <button onclick="scrollToDemo()" class="px-8 py-4 bg-neon-blue text-cyber-black font-bold rounded hover:bg-neon-blue/90 transition-all flex items-center justify-center gap-2 group">
+                        <i data-lucide="play" class="w-5 h-5 group-hover:scale-110 transition-transform"></i>
+                        Ver Demo en Vivo
+                    </button>
+                    <button onclick="scrollToROI()" class="px-8 py-4 border border-white/20 text-white rounded hover:border-neon-blue hover:text-neon-blue transition-all flex items-center justify-center gap-2">
+                        <i data-lucide="calculator" class="w-5 h-5"></i>
+                        Calcular ROI
+                    </button>
+                </div>
+
+                <!-- Stats -->
+                <div class="grid grid-cols-3 gap-6 pt-8 border-t border-cyber-border">
+                    <div>
+                        <div class="text-3xl font-bold text-white font-mono" id="stat-hours">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider">Horas ahorradas/mes</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold text-white font-mono" id="stat-accuracy">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider">% Precisión validada</div>
+                    </div>
+                    <div>
+                        <div class="text-3xl font-bold text-white font-mono" id="stat-issues">0</div>
+                        <div class="text-xs text-gray-500 uppercase tracking-wider">Issues auto-curados</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Terminal -->
+            <div class="live-terminal rounded-lg p-6 shadow-2xl" id="demo-terminal">
+                <div class="flex items-center justify-between mb-4 border-b border-cyber-border pb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-3 h-3 rounded-full bg-red-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-yellow-500/80"></div>
+                        <div class="w-3 h-3 rounded-full bg-green-500/80"></div>
+                    </div>
+                    <span class="text-xs text-gray-500 font-mono">sitepulse-engine — enterprise</span>
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 bg-neon-green rounded-full status-pulse"></span>
+                        <span class="text-xs text-neon-green font-mono">LIVE</span>
+                    </div>
+                </div>
+                
+                <div id="terminal-content" class="font-mono text-sm space-y-1 h-80 overflow-hidden">
+                    <div class="text-gray-500">$ sitepulse init --target https://demo-enterprise.com --mode=autonomous</div>
+                    <div class="text-gray-400 mt-4">[SYSTEM] Inicializando motores de IA...</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pain Points Section -->
+    <section id="dores" class="py-24 relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <span class="text-neon-red text-sm font-mono uppercase tracking-wider mb-4 block">La Realidad del QA Hoy</span>
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">
+                    Tu equipo está <span class="text-neon-red">perdiendo dinero</span><br>
+                    y no lo sabe
+                </h2>
+                <p class="text-gray-400 text-lg max-w-2xl mx-auto">
+                    Las herramientas tradicionales de auditoría fueron diseñadas para 2015. 
+                    El mercado actual exige velocidad que los humanos no pueden dar.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="pain-card rounded-xl p-6">
+                    <div class="w-12 h-12 rounded-lg bg-neon-red/10 flex items-center justify-center mb-4">
+                        <i data-lucide="clock" class="w-6 h-6 text-neon-red"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">40 horas semanales perdidas</h3>
+                    <p class="text-gray-400 text-sm">
+                        Tu equipo senior revisando logs manuales, comparando runs en Excel, buscando patterns que una IA encontraría en segundos.
+                    </p>
+                    <div class="mt-4 text-neon-red font-mono text-sm">Costo: $4,800/mes en horas senior</div>
+                </div>
+
+                <div class="pain-card rounded-xl p-6">
+                    <div class="w-12 h-12 rounded-lg bg-neon-red/10 flex items-center justify-center mb-4">
+                        <i data-lucide="repeat" class="w-6 h-6 text-neon-red"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">El mismo error 47 veces</h3>
+                    <p class="text-gray-400 text-sm">
+                        Sin memoria operacional, cada auditoría es Day 0. Corriges canonicals rotos en marzo, vuelven en abril, y nadie se da cuenta.
+                    </p>
+                    <div class="mt-4 text-neon-red font-mono text-sm">Impacto: -23% tráfico orgánico</div>
+                </div>
+
+                <div class="pain-card rounded-xl p-6">
+                    <div class="w-12 h-12 rounded-lg bg-neon-red/10 flex items-center justify-center mb-4">
+                        <i data-lucide="alert-triangle" class="w-6 h-6 text-neon-red"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">P0 descubiertos por el cliente</h3>
+                    <p class="text-gray-400 text-sm">
+                        Tu CEO recibe un email de un cliente importante: "Su checkout está roto en mobile". Too late. La auditoría semanal no sirvió.
+                    </p>
+                    <div class="mt-4 text-neon-red font-mono text-sm">Pérdida: $50k+ en contratos</div>
+                </div>
+
+                <div class="pain-card rounded-xl p-6">
+                    <div class="w-12 h-12 rounded-lg bg-neon-red/10 flex items-center justify-center mb-4">
+                        <i data-lucide="users" class="w-6 h-6 text-neon-red"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-white mb-2">Rotación de QA técnico</h3>
+                    <p class="text-gray-400 text-sm">
+                        Tus mejores devs se van porque pasan 60% de su tiempo en tareas mecánicas de auditoría en lugar de construir.
+                    </p>
+                    <div class="mt-4 text-neon-red font-mono text-sm">Costo de reemplazo: $15k+ por dev</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section id="solucao" class="py-24 bg-cyber-dark relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-neon-blue/5 to-transparent"></div>
+        
+        <div class="max-w-7xl mx-auto px-6 relative z-10">
+            <div class="grid lg:grid-cols-2 gap-16 items-center mb-20">
+                <div>
+                    <span class="text-neon-green text-sm font-mono uppercase tracking-wider mb-4 block">La Solución</span>
+                    <h2 class="text-4xl md:text-5xl font-bold mb-6">
+                        Memoria operacional +<br>
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-green to-neon-blue">
+                            Self-Healing real
+                        </span>
+                    </h2>
+                    <p class="text-gray-400 text-lg mb-8 leading-relaxed">
+                        SitePulse QA no es un scanner. Es un <strong>sistema autónomo</strong> que opera 24/7, aprende de cada ejecución y corrige issues sin intervención humana.
+                    </p>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-4 p-4 rounded-lg bg-cyber-panel border border-cyber-border">
+                            <div class="w-10 h-10 rounded bg-neon-blue/10 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="brain" class="w-5 h-5 text-neon-blue"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">9 Motores de IA Especializados</h4>
+                                <p class="text-gray-400 text-sm">Cada uno con responsabilidad única: Impact, Predictive, Healing, Autonomous QA. No es un chatbot generic.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-4 p-4 rounded-lg bg-cyber-panel border border-cyber-border">
+                            <div class="w-10 h-10 rounded bg-neon-purple/10 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="database" class="w-5 h-5 text-neon-purple"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">Persistencia de Conocimiento</h4>
+                                <p class="text-gray-400 text-sm">El sistema recuerda qué soluciones funcionaron, cuáles fallaron y por qué. Nunca repites errores.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-4 p-4 rounded-lg bg-cyber-panel border border-cyber-border">
+                            <div class="w-10 h-10 rounded bg-neon-green/10 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="zap" class="w-5 h-5 text-neon-green"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-semibold mb-1">Ciclo Detecta-Cura-Valida</h4>
+                                <p class="text-gray-400 text-sm">Encuentra el problema, genera la solución, aplica el fix y valida automáticamente en el próximo run.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="relative">
+                    <div class="bg-cyber-panel rounded-xl p-6 border border-cyber-border">
+                        <div class="flex items-center justify-between mb-6">
+                            <span class="text-sm font-mono text-gray-400">healing-engine-demo.js</span>
+                            <div class="flex gap-2">
+                                <span class="px-2 py-1 bg-neon-green/10 text-neon-green text-xs rounded font-mono">ACTIVE</span>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-3 font-mono text-sm">
+                            <div class="flex items-center justify-between p-3 bg-cyber-black rounded border-l-2 border-neon-red">
+                                <div>
+                                    <div class="text-white">SEO_CANONICAL_MISSING</div>
+                                    <div class="text-gray-500 text-xs">47 páginas afectadas</div>
+                                </div>
+                                <span class="text-neon-red text-xs">P0 CRITICAL</span>
+                            </div>
+                            
+                            <div class="flex items-center gap-2 text-gray-500 text-xs my-2">
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                <span>Análisis de estrategia...</span>
+                            </div>
+                            
+                            <div class="p-3 bg-cyber-black rounded border border-neon-blue/30">
+                                <div class="text-neon-blue text-xs mb-2">STRATEGY SELECTED:</div>
+                                <div class="text-white text-sm">canonical_dynamic_injection</div>
+                                <div class="text-gray-500 text-xs mt-1">Confianza: 94.3% | Modo: prompt_assisted</div>
+                            </div>
+                            
+                            <div class="flex items-center gap-2 text-gray-500 text-xs my-2">
+                                <i data-lucide="arrow-down" class="w-4 h-4"></i>
+                                <span>Ejecutando curación...</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-cyber-black rounded border-l-2 border-neon-green">
+                                <div>
+                                    <div class="text-white">Estado: RESOLVED</div>
+                                    <div class="text-gray-500 text-xs">Validado en run #2847</div>
+                                </div>
+                                <i data-lucide="check-circle" class="w-5 h-5 text-neon-green"></i>
+                            </div>
+                            
+                            <div class="mt-4 p-3 bg-neon-green/5 rounded border border-neon-green/20">
+                                <div class="text-neon-green text-xs font-semibold mb-1">APRENDIZAJE GUARDADO</div>
+                                <div class="text-gray-400 text-xs">Esta estrategia ahora tiene prioridad para issues similares en el mismo contexto.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ROI Calculator -->
+    <section id="roi" class="py-24 relative">
+        <div class="max-w-4xl mx-auto px-6">
+            <div class="text-center mb-12">
+                <span class="text-neon-blue text-sm font-mono uppercase tracking-wider mb-4 block">Calculadora de ROI</span>
+                <h2 class="text-4xl font-bold mb-4">¿Cuánto estás perdiendo hoy?</h2>
+                <p class="text-gray-400">Ajusta los parámetros y descubre tu retorno de inversión real con SitePulse QA.</p>
+            </div>
+
+            <div class="bg-cyber-panel rounded-2xl p-8 border border-cyber-border">
+                <div class="grid md:grid-cols-2 gap-12">
+                    <div class="space-y-8">
+                        <div>
+                            <label class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-400">Horas semanales en QA manual</span>
+                                <span class="text-neon-blue font-mono" id="hours-val">40h</span>
+                            </label>
+                            <input type="range" min="10" max="160" value="40" class="roi-slider" id="hours-slider">
+                        </div>
+                        
+                        <div>
+                            <label class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-400">Costo hora dev senior ($)</span>
+                                <span class="text-neon-blue font-mono" id="rate-val">$120</span>
+                            </label>
+                            <input type="range" min="50" max="300" value="120" class="roi-slider" id="rate-slider">
+                        </div>
+                        
+                        <div>
+                            <label class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-400">Páginas en el sitio</span>
+                                <span class="text-neon-blue font-mono" id="pages-val">10,000</span>
+                            </label>
+                            <input type="range" min="1000" max="100000" step="1000" value="10000" class="roi-slider" id="pages-slider">
+                        </div>
+                        
+                        <div>
+                            <label class="flex justify-between text-sm mb-2">
+                                <span class="text-gray-400">Issues críticos/mes (estimado)</span>
+                                <span class="text-neon-blue font-mono" id="issues-val">15</span>
+                            </label>
+                            <input type="range" min="5" max="100" value="15" class="roi-slider" id="issues-slider">
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col justify-center space-y-6">
+                        <div class="p-6 bg-cyber-black rounded-xl border border-cyber-border">
+                            <div class="text-gray-400 text-sm mb-2">Costo actual mensual (QA manual)</div>
+                            <div class="text-4xl font-bold text-neon-red font-mono" id="current-cost">$19,200</div>
+                            <div class="text-xs text-gray-500 mt-1">Solo en horas. No incluye costo de oportunidad.</div>
+                        </div>
+                        
+                        <div class="p-6 bg-cyber-black rounded-xl border border-neon-green/30">
+                            <div class="text-gray-400 text-sm mb-2">Inversión SitePulse QA Enterprise</div>
+                            <div class="text-4xl font-bold text-neon-green font-mono">$2,499</div>
+                            <div class="text-xs text-gray-500 mt-1">Incluye todos los motores + Self-Healing</div>
+                        </div>
+                        
+                        <div class="p-6 bg-gradient-to-r from-neon-blue/10 to-neon-purple/10 rounded-xl border border-neon-blue/30">
+                            <div class="text-gray-400 text-sm mb-2">Ahorro mensual real</div>
+                            <div class="text-5xl font-bold text-white font-mono" id="savings">$16,701</div>
+                            <div class="text-sm text-neon-blue mt-2">ROI: <span id="roi-percent">668%</span> en el primer mes</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="precos" class="py-24 bg-cyber-dark relative">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="text-center mb-16">
+                <span class="text-neon-purple text-sm font-mono uppercase tracking-wider mb-4 block">Inversión</span>
+                <h2 class="text-4xl md:text-5xl font-bold mb-6">Precios basados en <span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">valor, no en features</span></h2>
+                <p class="text-gray-400 max-w-2xl mx-auto">
+                    No cobramos por "número de scans". Cobramos por resultados medibles: horas ahorradas, issues prevenidos y tiempo de recuperación de incidentes.
+                </p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <!-- Starter -->
+                <div class="pricing-card rounded-2xl p-8">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-white mb-2">Professional</h3>
+                        <p class="text-gray-400 text-sm">Para equipos que quieren dejar de perder tiempo</p>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-5xl font-bold text-white">$899</span>
+                            <span class="text-gray-500">/mes</span>
+                        </div>
+                        <div class="text-sm text-neon-green mt-2">ROI típico: 340%</div>
+                    </div>
+
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">50,000 páginas/mes</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">5 motores de IA core</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Memoria operacional básica</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Priorización P0-P4</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-gray-600">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <span>Self-Healing Engine</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm text-gray-600">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                            <span>API completa</span>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-3 border border-white/20 text-white rounded-lg hover:border-neon-blue hover:text-neon-blue transition-all font-medium">
+                        Comenzar Trial 14 días
+                    </button>
+                </div>
+
+                <!-- Enterprise - Featured -->
+                <div class="pricing-featured rounded-2xl p-8 relative transform scale-105">
+                    <div class="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                        <span class="px-4 py-1 bg-neon-blue text-cyber-black text-xs font-bold rounded-full">RECOMENDADO</span>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-white mb-2">Enterprise</h3>
+                        <p class="text-gray-400 text-sm">Para organizaciones que necesitan autonomía real</p>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-5xl font-bold text-white">$2,499</span>
+                            <span class="text-gray-500">/mes</span>
+                        </div>
+                        <div class="text-sm text-neon-green mt-2">ROI típico: 780%</div>
+                    </div>
+
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">250,000 páginas/mes</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300"><strong>9 motores de IA completos</strong></span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300"><strong>Self-Healing Engine</strong></span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Memoria operacional avanzada</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">API completa + Webhooks</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Onboarding técnico dedicado</span>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-3 bg-neon-blue text-cyber-black font-bold rounded-lg hover:bg-neon-blue/90 transition-all">
+                        Agendar Demo Técnica
+                    </button>
+                </div>
+
+                <!-- Organization -->
+                <div class="pricing-card rounded-2xl p-8">
+                    <div class="mb-6">
+                        <h3 class="text-xl font-bold text-white mb-2">Organization</h3>
+                        <p class="text-gray-400 text-sm">Para multinacionales con necesidades específicas</p>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <div class="flex items-baseline gap-2">
+                            <span class="text-5xl font-bold text-white">Custom</span>
+                        </div>
+                        <div class="text-sm text-gray-500 mt-2">Desde $8,000/mes</div>
+                    </div>
+
+                    <div class="space-y-4 mb-8">
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Páginas ilimitadas</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Self-hosted opcional</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">SLA 99.9% garantizado</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Ingeniero de éxito dedicado</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Custom integrations</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <i data-lucide="check" class="w-4 h-4 text-neon-green"></i>
+                            <span class="text-gray-300">Training para equipos</span>
+                        </div>
+                    </div>
+
+                    <button class="w-full py-3 border border-white/20 text-white rounded-lg hover:border-neon-purple hover:text-neon-purple transition-all font-medium">
+                        Contactar Ventas
+                    </button>
+                </div>
+            </div>
+
+            <!-- Guarantee -->
+            <div class="mt-16 text-center">
+                <div class="inline-flex items-center gap-3 px-6 py-3 rounded-full bg-cyber-panel border border-cyber-border">
+                    <i data-lucide="shield-check" class="w-5 h-5 text-neon-green"></i>
+                    <span class="text-gray-300 text-sm">Garantía de 90 días: Si no ves ROI positivo, te devolvemos el 100%</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="py-24 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-neon-blue/10 via-neon-purple/10 to-neon-blue/10"></div>
+        <div class="max-w-4xl mx-auto px-6 text-center relative z-10">
+            <h2 class="text-4xl md:text-6xl font-bold mb-6">
+                Tu equipo técnico merece<br>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue to-neon-purple">
+                    herramientas de élite
+                </span>
+            </h2>
+            <p class="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
+                Deja de tratar a tus devs senior como robots de QA. Dale a tu equipo el sistema que hace el trabajo pesado mientras ellos se enfocan en lo que realmente importa: construir.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="startLiveDemo()" class="px-8 py-4 bg-neon-blue text-cyber-black font-bold rounded-lg hover:bg-neon-blue/90 transition-all flex items-center justify-center gap-2 text-lg">
+                    <i data-lucide="play-circle" class="w-6 h-6"></i>
+                    Ver Demo en Vivo Ahora
+                </button>
+                <button class="px-8 py-4 border border-white/20 text-white rounded-lg hover:border-white hover:bg-white/5 transition-all flex items-center justify-center gap-2 text-lg">
+                    <i data-lucide="calendar" class="w-6 h-6"></i>
+                    Agendar Demo 1:1
+                </button>
+            </div>
+            <p class="text-gray-500 text-sm mt-6">Setup completo en menos de 15 minutos. No requiere tarjeta de crédito.</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-cyber-border bg-cyber-black py-12">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="grid md:grid-cols-4 gap-8 mb-8">
+                <div>
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-6 h-6 bg-gradient-to-br from-neon-blue to-neon-purple rounded flex items-center justify-center">
+                            <i data-lucide="activity" class="w-4 h-4 text-cyber-black"></i>
+                        </div>
+                        <span class="font-bold text-white">SitePulseQA</span>
+                    </div>
+                    <p class="text-gray-500 text-sm">
+                        Sistemas autónomos de auditoría técnica para equipos enterprise que toman QA en serio.
+                    </p>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Producto</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Motores de IA</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Self-Healing</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">API Docs</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Changelog</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Recursos</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Blog Técnico</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Case Studies</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">ROI Calculator</a></li>
+                        <li><a href="#" class="hover:text-neon-blue transition-colors">Community</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-semibold mb-4 text-sm uppercase tracking-wider">Contacto</h4>
+                    <ul class="space-y-2 text-sm text-gray-400">
+                        <li>enterprise@sitepulse.dev</li>
+                        <li>+1 (555) QA-ELITE</li>
+                        <li class="flex gap-4 mt-4">
+                            <a href="#" class="hover:text-neon-blue transition-colors"><i data-lucide="github" class="w-5 h-5"></i></a>
+                            <a href="#" class="hover:text-neon-blue transition-colors"><i data-lucide="twitter" class="w-5 h-5"></i></a>
+                            <a href="#" class="hover:text-neon-blue transition-colors"><i data-lucide="linkedin" class="w-5 h-5"></i></a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="border-t border-cyber-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-gray-600 text-sm">© 2024 SitePulse QA. Todos los derechos reservados.</p>
+                <div class="flex gap-6 text-sm text-gray-600">
+                    <a href="#" class="hover:text-gray-400 transition-colors">Privacidad</a>
+                    <a href="#" class="hover:text-gray-400 transition-colors">Términos</a>
+                    <a href="#" class="hover:text-gray-400 transition-colors">Seguridad</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+
+        // Neural Network Background
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        let particles = [];
+        
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.size = Math.random() * 2;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+            
+            draw() {
+                ctx.fillStyle = 'rgba(0, 240, 255, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle());
+            }
+        }
+        
+        function animateParticles() {
+            ctx.clearRect(0, 0, width, height);
+            
+            particles.forEach((p, i) => {
+                p.update();
+                p.draw();
+                
+                particles.slice(i + 1).forEach(p2 => {
+                    const dx = p.x - p2.x;
+                    const dy = p.y - p2.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 150) {
+                        ctx.strokeStyle = `rgba(0, 240, 255, ${0.2 * (1 - dist / 150)})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            
+            requestAnimationFrame(animateParticles);
+        }
+        
+        resize();
+        initParticles();
+        animateParticles();
+        window.addEventListener('resize', () => {
+            resize();
+            initParticles();
+        });
+
+        // Live Demo Terminal
+        const terminalLogs = [
+            { text: "[SYSTEM] Inicializando 9 motores de IA...", color: "text-gray-400", delay: 500 },
+            { text: "[IMPACT] Analizando 12,847 páginas...", color: "text-neon-blue", delay: 800 },
+            { text: "[PREDICTIVE] Detectando patrones históricos...", color: "text-neon-purple", delay: 600 },
+            { text: "[AUDIT] 47 issues encontrados", color: "text-gray-400", delay: 400 },
+            { text: "[PRIORITY] Clasificando severidad...", color: "text-neon-amber", delay: 500 },
+            { text: "[P0] SEO_CANONICAL_MISSING — 23 páginas", color: "text-neon-red", delay: 300 },
+            { text: "[P1] PERF_LCP_SLOW — 156 páginas", color: "text-neon-amber", delay: 300 },
+            { text: "[P2] A11Y_ALT_MISSING — 89 páginas", color: "text-neon-blue", delay: 300 },
+            { text: "[HEALING] Buscando estrategias validadas...", color: "text-neon-green", delay: 700 },
+            { text: "[MEMORY] 3 soluciones previas encontradas", color: "text-gray-400", delay: 400 },
+            { text: "[STRATEGY] Seleccionada: canonical_injection_v2", color: "text-neon-green", delay: 500 },
+            { text: "[CONFIDENCE] 94.7% — Aprobado para auto-healing", color: "text-neon-green", delay: 600 },
+            { text: "[ACTION] Generando prompts de corrección...", color: "text-neon-blue", delay: 800 },
+            { text: "[DONE] 23/23 issues resueltos", color: "text-neon-green font-bold", delay: 1000 },
+            { text: "[VALIDATION] Programado para run #2848", color: "text-gray-400", delay: 500 },
+            { text: "[LEARNING] Actualizando memoria operacional...", color: "text-neon-purple", delay: 600 },
+            { text: "[COMPLETE] Auditoría finalizada en 4.2s", color: "text-white font-bold", delay: 400 }
+        ];
+
+        let logIndex = 0;
+        let demoInterval;
+
+        function startLiveDemo() {
+            const content = document.getElementById('terminal-content');
+            content.innerHTML = '<div class="text-gray-500">$ sitepulse init --target https://demo-enterprise.com --mode=autonomous</div>';
+            logIndex = 0;
+            
+            if (demoInterval) clearInterval(demoInterval);
+            
+            function addLog() {
+                if (logIndex >= terminalLogs.length) {
+                    logIndex = 0;
+                    setTimeout(startLiveDemo, 3000);
+                    return;
+                }
+                
+                const log = terminalLogs[logIndex];
+                const div = document.createElement('div');
+                div.className = `log-entry ${log.color} mt-1`;
+                div.textContent = log.text;
+                content.appendChild(div);
+                
+                content.scrollTop = content.scrollHeight;
+                logIndex++;
+                
+                demoInterval = setTimeout(addLog, log.delay);
+            }
+            
+            addLog();
+        }
+
+        // Auto-start demo
+        setTimeout(startLiveDemo, 1000);
+
+        // Animate stats
+        function animateValue(id, start, end, duration, suffix = '') {
+            const obj = document.getElementById(id);
+            const range = end - start;
+            const minTimer = 50;
+            let stepTime = Math.abs(Math.floor(duration / range));
+            stepTime = Math.max(stepTime, minTimer);
+            
+            let startTime = new Date().getTime();
+            let endTime = startTime + duration;
+            let timer;
+            
+            function run() {
+                let now = new Date().getTime();
+                let remaining = Math.max((endTime - now) / duration, 0);
+                let value = Math.round(end - (remaining * range));
+                obj.innerHTML = value.toLocaleString() + suffix;
+                if (value == end) clearInterval(timer);
+            }
+            
+            timer = setInterval(run, stepTime);
+            run();
+        }
+
+        // Animate stats on load
+        setTimeout(() => {
+            animateValue('stat-hours', 0, 320, 2000);
+            animateValue('stat-accuracy', 0, 98, 2000, '%');
+            animateValue('stat-issues', 0, 1547, 2000);
+        }, 500);
+
+        // ROI Calculator
+        const hoursSlider = document.getElementById('hours-slider');
+        const rateSlider = document.getElementById('rate-slider');
+        const pagesSlider = document.getElementById('pages-slider');
+        const issuesSlider = document.getElementById('issues-slider');
+        
+        function updateROI() {
+            const hours = parseInt(hoursSlider.value);
+            const rate = parseInt(rateSlider.value);
+            const pages = parseInt(pagesSlider.value);
+            const issues = parseInt(issuesSlider.value);
+            
+            document.getElementById('hours-val').textContent = hours + 'h';
+            document.getElementById('rate-val').textContent = '$' + rate;
+            document.getElementById('pages-val').textContent = pages.toLocaleString();
+            document.getElementById('issues-val').textContent = issues;
+            
+            const monthlyCost = hours * rate * 4; // 4 semanas
+            const sitepulseCost = 2499;
+            const savings = monthlyCost - sitepulseCost;
+            const roi = ((savings / sitepulseCost) * 100).toFixed(0);
+            
+            document.getElementById('current-cost').textContent = '$' + monthlyCost.toLocaleString();
+            document.getElementById('savings').textContent = '$' + savings.toLocaleString();
+            document.getElementById('roi-percent').textContent = roi + '%';
+        }
+        
+        [hoursSlider, rateSlider, pagesSlider, issuesSlider].forEach(slider => {
+            slider.addEventListener('input', updateROI);
+        });
+        
+        updateROI();
+
+        // Smooth scroll
+        function scrollToDemo() {
+            document.getElementById('demo-terminal').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function scrollToROI() {
+            document.getElementById('roi').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // GSAP ScrollTrigger animations
+        gsap.registerPlugin(ScrollTrigger);
+        
+        gsap.utils.toArray('.pain-card').forEach((card, i) => {
+            gsap.from(card, {
+                scrollTrigger: {
+                    trigger: card,
+                    start: "top 85%",
+                },
+                y: 50,
+                opacity: 0,
+                duration: 0.6,
+                delay: i * 0.1,
+                ease: "power2.out"
+            });
+        });
+    </script>
+</body>
+</html>

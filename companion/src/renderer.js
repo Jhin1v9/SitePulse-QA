@@ -9,6 +9,7 @@ import { buildInvestigationPlan } from "./ai/investigation/investigationPlanner.
 import { checkAutonomy } from "./ai/autonomy/autonomyGovernance.js";
 import { canExecute } from "./ai/supervisor/executionSupervisor.js";
 import { executeActionStep } from "./ai/action/actionEngine.js";
+import { initWorkspaceSystem } from "./workspace-system/index.js";
 
 const STORAGE_KEYS = {
   lastReport: "sitepulse-studio:last-report-v1",
@@ -23,6 +24,85 @@ const STORAGE_KEYS = {
   assistantSavedPrompts: "sitepulse-studio:assistant-saved-prompts-v1",
   assistantWorkspaceUI: "sitepulse-studio:assistant-workspace-ui-v1",
 };
+
+const WORKSPACE_SYSTEM_FLAG_KEY = "sitepulse:workspace-system:enabled";
+const WORKSPACE_PHASE1_KEY = "sitepulse:workspace-phase1";
+let workspaceSystemManager = null;
+
+/** Mapa completo (operator/seo/compare/…) — flag legacy `workspace-system:enabled` ou ?workspaceSystem=1 */
+function isLegacyWorkspaceFullEnabled() {
+  const fromWindow = window.__SITEPULSE_ENABLE_WORKSPACE_SYSTEM__ === true;
+  const fromWindowOff = window.__SITEPULSE_ENABLE_WORKSPACE_SYSTEM__ === false;
+  const fromQueryOff = new URLSearchParams(window.location.search).get("workspaceSystem") === "0";
+  const fromQuery = new URLSearchParams(window.location.search).get("workspaceSystem") === "1";
+  const fromStorage = window.localStorage?.getItem(WORKSPACE_SYSTEM_FLAG_KEY) === "1";
+  const fromStorageOff = window.localStorage?.getItem(WORKSPACE_SYSTEM_FLAG_KEY) === "0";
+  if (fromWindowOff || fromQueryOff || fromStorageOff) return false;
+  if (fromWindow || fromQuery || fromStorage) return true;
+  return false;
+}
+
+/** Fase 1: apenas Settings + Findings como workspaces independentes (init lazy). */
+function isWorkspacePhase1Enabled() {
+  const fromWindowOff = window.__SITEPULSE_WORKSPACE_PHASE1__ === false;
+  const fromQueryOff = new URLSearchParams(window.location.search).get("workspacePhase1") === "0";
+  const fromStorageOff = window.localStorage?.getItem(WORKSPACE_PHASE1_KEY) === "0";
+  if (fromWindowOff || fromQueryOff || fromStorageOff) return false;
+  const fromWindow = window.__SITEPULSE_WORKSPACE_PHASE1__ === true;
+  const fromQuery = new URLSearchParams(window.location.search).get("workspacePhase1") === "1";
+  const fromStorage = window.localStorage?.getItem(WORKSPACE_PHASE1_KEY) === "1";
+  if (fromWindow || fromQuery || fromStorage) return true;
+  return false;
+}
+
+function isWorkspaceSystemEnabled() {
+  return isLegacyWorkspaceFullEnabled() || isWorkspacePhase1Enabled();
+}
+
+function maybeInitWorkspaceSystem() {
+  if (!isWorkspaceSystemEnabled()) return null;
+  if (workspaceSystemManager) return workspaceSystemManager;
+  try {
+    const phase1Only = isWorkspacePhase1Enabled() && !isLegacyWorkspaceFullEnabled();
+    workspaceSystemManager = initWorkspaceSystem({
+      defaultWorkspace: phase1Only ? null : "operator",
+      skipInitialSwitch: phase1Only,
+    });
+    if (phase1Only) {
+      setWorkspaceHostVisible(false);
+      appendLog("[workspace-system] phase1 (Settings + Findings) — lazy init, Control Center visível até navegar.");
+    } else {
+      appendLog("[workspace-system] full map enabled.");
+    }
+    return workspaceSystemManager;
+  } catch (error) {
+    appendLog(`[workspace-system] init failed: ${error?.message || error}`);
+    return null;
+  }
+}
+
+function mapViewToWorkspace(viewName) {
+  if (!isWorkspaceSystemEnabled()) return "";
+  const view = String(viewName || "").toLowerCase();
+  if (isWorkspacePhase1Enabled() && !isLegacyWorkspaceFullEnabled()) {
+    if (view === "settings") return "settings";
+    if (view === "findings") return "findings";
+    return "";
+  }
+  if (view === "settings") return "settings";
+  if (view === "overview" || view === "operator") return "operator";
+  if (view === "findings") return "findings";
+  if (view === "seo") return "seo";
+  if (view === "compare") return "compare";
+  return "";
+}
+
+function setWorkspaceHostVisible(isVisible) {
+  const host = document.getElementById("workspace-host");
+  if (!host) return;
+  // Tailwind `.hidden` — toggle class so visibility matches intent (inline "" would not override .hidden).
+  host.classList.toggle("hidden", !isVisible);
+}
 
 const ISSUE_GROUP = {
   ROUTE_LOAD_FAIL: "Route load failure",
@@ -505,6 +585,7 @@ const stateEl = {
   assistantQuickSeo: document.getElementById("assistantQuickSeo"),
   assistantQuickPrompt: document.getElementById("assistantQuickPrompt"),
   assistantQuickGuide: document.getElementById("assistantQuickGuide"),
+  assistantQuickStartEngine: document.getElementById("assistantQuickStartEngine"),
   assistantContextSummary: document.getElementById("assistantContextSummary"),
   assistantModePill: document.getElementById("assistantModePill"),
   assistantIntentPill: document.getElementById("assistantIntentPill"),
@@ -1414,6 +1495,9 @@ function renderAssistantLanguageUi() {
   if (stateEl.assistantQuickGuide) {
     stateEl.assistantQuickGuide.textContent = uiText.quickGuide;
   }
+  if (stateEl.assistantQuickStartEngine) {
+    stateEl.assistantQuickStartEngine.textContent = uiText.quickStartEngine || "Start engine";
+  }
   if (stateEl.assistantLanguageSelect) {
     const options = service.getLanguageOptions();
     stateEl.assistantLanguageSelect.innerHTML = options
@@ -2236,12 +2320,18 @@ function ensureKimiReactBundleLoaded() {
   const script = document.createElement("script");
   script.src = "./kimi-react.bundle.js";
   script.async = true;
+  script.addEventListener("load", () => {
+    // React may mount asynchronously; refresh refs a few times to catch DOM creation.
+    refreshStateElRefs();
+    setTimeout(refreshStateElRefs, 60);
+    setTimeout(refreshStateElRefs, 250);
+  });
   document.body.appendChild(script);
 }
 
 function enableAssistantReactWorkspace() {
-  const assistantEl = document.getElementById("assistantWorkspace");
-  if (assistantEl) assistantEl.classList.add("assistant-workspace-react-active");
+  // Não adicionar assistant-workspace-react-active aqui: esconde o shell vanilla e mostra
+  // #assistantWorkspaceReactRoot vazio até o bundle React montar — o chat parecia “morto”.
   ensureKimiReactBundleLoaded();
 }
 
@@ -2270,6 +2360,17 @@ function toggleAssistant(forceOpen = null) {
     setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
     renderAssistantState();
   }
+}
+
+/** Atalho para Settings workspace / shell actions — dock expandido sem Focus AI. */
+function openAssistantDockExpandedFromShell() {
+  enableAssistantReactWorkspace();
+  setAiWorkspaceMode(AI_WORKSPACE_MODE_EXPANDED);
+  if (uiState.aiDockHeightVh < 44) uiState.aiDockHeightVh = 52;
+  if (stateEl.appBody) stateEl.appBody.style.setProperty("--ai-dock-height-vh", String(uiState.aiDockHeightVh));
+  renderAssistantWorkspaceLayout();
+  renderAssistantState();
+  refreshStateElRefs();
 }
 
 function toggleAssistantExpanded(forceExpanded = null) {
@@ -3219,23 +3320,672 @@ async function executeMenuAction(menuName, itemId) {
   await item.action();
 }
 
+function workspaceSurfaceEl() {
+  return document.getElementById("workspaceSurfaceInner") || document.getElementById("workspace-host");
+}
+
+function getReportIssues(report) {
+  if (!report || typeof report !== "object") return [];
+  const candidates = [
+    report.issues,
+    report.issueList,
+    report.findings,
+    report.findingsList,
+    report.summary?.issues,
+    report.audit?.issues,
+    report.result?.issues,
+  ];
+
+  for (const entry of candidates) {
+    if (Array.isArray(entry)) return entry.filter(Boolean);
+  }
+
+  return [];
+}
+
+function getIssueCode(issue) {
+  return String(
+    issue?.code ||
+    issue?.issueCode ||
+    issue?.group ||
+    issue?.type ||
+    issue?.id ||
+    "Unknown issue"
+  );
+}
+
+function getIssueSeverity(issue) {
+  return String(issue?.severity || issue?.priority || issue?.level || "unknown").toLowerCase();
+}
+
+function escapeHtmlSafe(value) {
+  return escapeHtml(String(value == null ? "" : value));
+}
+
+function summarizeWorkspaceData(report) {
+  const issues = getReportIssues(report);
+  const summary = report?.summary || {};
+  const snapshot =
+    typeof buildDesktopIntelligenceSnapshot === "function" && report
+      ? buildDesktopIntelligenceSnapshot(report)
+      : null;
+
+  const dataIntelligence = snapshot?.dataIntelligence || {};
+  const riskState = dataIntelligence.RISK_STATE || {};
+  const trendState = dataIntelligence.TREND_STATE || {};
+  const compare =
+    typeof buildCompareSnapshot === "function"
+      ? buildCompareSnapshot(report, uiState.baseline)
+      : null;
+
+  const severityGroups = issues.reduce((acc, issue) => {
+    const key = getIssueSeverity(issue);
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+
+  const topIssues = issues
+    .slice()
+    .sort((a, b) => {
+      const rank = { critical: 5, high: 4, medium: 3, low: 2, info: 1, unknown: 0 };
+      return (rank[getIssueSeverity(b)] || 0) - (rank[getIssueSeverity(a)] || 0);
+    })
+    .slice(0, 6);
+
+  return {
+    report,
+    issues,
+    topIssues,
+    summary,
+    snapshot,
+    compare,
+    severityGroups,
+    counts: {
+      totalIssues: Number(summary.totalIssues || issues.length || 0),
+      routes: Number(summary.routesChecked || summary.totalRoutes || report?.routes?.length || 0),
+      actions: Number(summary.actionsMapped || summary.totalActions || report?.actions?.length || 0),
+      seo: Number(summary.seoScore || report?.seo?.score || 0),
+      quality: Number(summary.overallScore || report?.quality?.score || report?.score || 0),
+      riskHigh: Number(riskState.highRiskCount || snapshot?.predictive?.highRiskAlerts || 0),
+      recurring: Number(riskState.recurringPatterns || snapshot?.predictive?.recurringPatterns || 0),
+      newIssues: Number(compare?.newIssues?.length || 0),
+      resolvedIssues: Number(compare?.resolvedIssues?.length || 0),
+      regressions: Number(compare?.regressions?.length || 0),
+      persistent: Number(compare?.persistentIssues?.length || 0),
+      memory: Number(snapshot?.learningMemory?.entries?.length || snapshot?.learningMemory?.totalEntries || 0),
+      healing: Number(snapshot?.selfHealing?.summary?.readyCount || snapshot?.selfHealing?.readyCount || 0),
+    },
+    trend: {
+      seo: trendState.seoTrend || snapshot?.continuous?.trends?.seo || "stable",
+      runtime: trendState.runtimeTrend || snapshot?.continuous?.trends?.runtime || "stable",
+      ux: trendState.uxTrend || snapshot?.continuous?.trends?.ux || "stable",
+      trajectory: snapshot?.optimization?.summary?.trajectory || summary.trajectory || "stable",
+    },
+  };
+}
+
+function renderMetricCard(label, value, detail) {
+  return `
+    <div class="workspace-card">
+      <p class="workspace-kicker">${escapeHtmlSafe(label)}</p>
+      <p class="mt-3 workspace-big-number">${escapeHtmlSafe(value)}</p>
+      <p class="mt-2 text-[12px] text-text-tertiary">${escapeHtmlSafe(detail)}</p>
+    </div>
+  `;
+}
+
+function renderListBlock(title, items, emptyText) {
+  const rows = (items || []).length
+    ? items.map((item, index) => `
+        <div class="workspace-list-item">
+          <span class="workspace-list-index">${index + 1}</span>
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-text-primary">${escapeHtmlSafe(item.title || item.label || item.name || item)}</p>
+            ${item.detail ? `<p class="mt-1 text-[12px] leading-6 text-text-tertiary">${escapeHtmlSafe(item.detail)}</p>` : ""}
+          </div>
+        </div>
+      `).join("")
+    : `<div class="workspace-list-item"><div class="min-w-0"><p class="text-[13px] text-text-tertiary">${escapeHtmlSafe(emptyText)}</p></div></div>`;
+
+  return `
+    <section class="workspace-card">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="workspace-kicker">Group</p>
+          <h3 class="mt-1 text-[16px] font-medium text-text-primary">${escapeHtmlSafe(title)}</h3>
+        </div>
+      </div>
+      <div class="workspace-list mt-4">${rows}</div>
+    </section>
+  `;
+}
+
+function buildWorkspaceSurface(viewName, report) {
+  const data = summarizeWorkspaceData(report);
+
+  const severityPills = [
+    { label: `critical ${data.severityGroups.critical || 0}` },
+    { label: `high ${data.severityGroups.high || 0}` },
+    { label: `medium ${data.severityGroups.medium || 0}` },
+    { label: `low ${data.severityGroups.low || 0}` },
+  ];
+
+  const topIssueRows = data.topIssues.map((issue) => ({
+    title: getIssueCode(issue),
+    detail: `${getIssueSeverity(issue)} · ${issue?.route || issue?.page || issue?.url || issue?.selector || issue?.summary || issue?.message || "needs operator review"}`,
+  }));
+
+  const templates = {
+    overview: {
+      eyebrow: "Operator workspace",
+      title: "Living command room",
+      desc: "This is no longer a mirrored shell. It behaves like a breathing operator room: mission state, signal pressure, memory posture and command lanes in one dedicated surface.",
+      tabs: ["Mission", "Signals", "Memory", "Actions"],
+      metrics: [
+        ["Quality", data.counts.quality, `${data.counts.totalIssues} active findings in this snapshot`],
+        ["Routes", data.counts.routes, `${data.counts.actions} mapped actions`],
+        ["Memory", data.counts.memory, `${data.counts.healing} healing candidates ready`],
+        ["Trajectory", data.trend.trajectory, `SEO ${data.trend.seo} · Runtime ${data.trend.runtime}`],
+      ],
+      leftTitle: "What the operator should touch now",
+      leftItems: topIssueRows,
+      rightTitle: "Active lanes",
+      rightItems: [
+        { title: "Mission brief", detail: `Target: ${report?.meta?.targetUrl || report?.targetUrl || uiState.preview?.requestedUrl || "no target loaded"}` },
+        { title: "Run posture", detail: `Mode ${uiState.mode} · scope ${uiState.scope} · depth ${uiState.depth}` },
+        { title: "Current pressure", detail: `${data.counts.riskHigh} high-risk alerts and ${data.counts.recurring} recurring patterns detected.` },
+      ],
+      groups: [
+        {
+          title: "Command lanes",
+          items: [
+            { label: "Open findings", sublabel: "Jump straight into the priority queue", action: "open-findings" },
+            { label: "Open compare", sublabel: "Read delta and regression posture", action: "open-compare" },
+            { label: "Open SEO", sublabel: "Inspect search pressure as its own room", action: "open-seo" },
+          ],
+        },
+        {
+          title: "System pulse",
+          items: [
+            { label: "Engine", sublabel: "Operator ready · live posture synced" },
+            { label: "Memory", sublabel: `${data.counts.memory} entries available for prompts and triage` },
+            { label: "Healing", sublabel: `${data.counts.healing} candidates waiting for replay validation` },
+          ],
+        },
+      ],
+    },
+
+    findings: {
+      eyebrow: "Findings workspace",
+      title: "Issue command board",
+      desc: "No more mirrored overview. Findings becomes its own board with triage groups, visual pressure, route pressure and memory-backed action lanes.",
+      tabs: ["Queue", "Critical", "Visual", "Routes"],
+      metrics: [
+        ["Total issues", data.counts.totalIssues, `Critical ${data.severityGroups.critical || 0} · High ${data.severityGroups.high || 0}`],
+        ["High risk", data.counts.riskHigh, `${data.counts.recurring} recurring patterns`],
+        ["Routes affected", data.counts.routes, `${data.counts.actions} action surfaces involved`],
+        ["Healing ready", data.counts.healing, `${data.counts.memory} memory entries linked`],
+      ],
+      leftTitle: "Priority queue",
+      leftItems: topIssueRows,
+      rightTitle: "Triage groups",
+      rightItems: [
+        { title: "Critical first", detail: `Resolve severity pressure before cosmetic work. ${data.severityGroups.critical || 0} critical items detected.` },
+        { title: "Memory-backed", detail: `${data.counts.memory} learned entries can enrich prompts and resolution paths.` },
+        { title: "Visual system", detail: "Use dedicated visual lane for spacing, overlap, boundary and hierarchy issues." },
+      ],
+      groups: [
+        {
+          title: "Quick triage",
+          items: [
+            { label: "Why is score down?", sublabel: "Injects a command into the operator dock", action: "ask-score-down" },
+            { label: "Show SEO issues", sublabel: "Filters the work toward search-related findings", action: "ask-seo-issues" },
+            { label: "Generate fix plan", sublabel: "Opens the planning path from the issue board", action: "ask-fix-plan" },
+          ],
+        },
+        {
+          title: "Board posture",
+          items: [
+            { label: "Severity pressure", sublabel: `${data.severityGroups.critical || 0} critical · ${data.severityGroups.high || 0} high` },
+            { label: "Recurring patterns", sublabel: `${data.counts.recurring} patterns surfaced across comparable runs` },
+            { label: "Route footprint", sublabel: `${data.counts.routes} routes touched by the current snapshot` },
+          ],
+        },
+      ],
+    },
+
+    seo: {
+      eyebrow: "SEO workspace",
+      title: "Search command center",
+      desc: "A proper SEO room: score, technical pressure, content pressure and opportunity clusters in an independent surface.",
+      tabs: ["Executive", "Technical", "Content", "Clusters"],
+      metrics: [
+        ["SEO score", data.counts.seo, `Trajectory ${data.trend.seo}`],
+        ["Issues", data.counts.totalIssues, `Search and metadata signals combined`],
+        ["Risk alerts", data.counts.riskHigh, `${data.counts.recurring} recurring SEO patterns`],
+        ["Opportunity groups", data.snapshot?.optimization?.opportunityGroups?.length || 0, `Structural fixes over one-off noise`],
+      ],
+      leftTitle: "Top SEO pressure",
+      leftItems: topIssueRows
+        .filter((row) => /seo|meta|canon|schema|lang|index/i.test(row.title + " " + row.detail))
+        .slice(0, 6),
+      rightTitle: "SEO groups",
+      rightItems: [
+        { title: "Technical SEO", detail: "Canonical, language, schema, indexability and crawl integrity." },
+        { title: "Content clarity", detail: "Search intent coverage, duplication, metadata and structure." },
+        { title: "Opportunity clusters", detail: `${data.snapshot?.optimization?.topImprovements?.length || 0} structural improvements surfaced by optimization intelligence.` },
+      ],
+      groups: [
+        {
+          title: "SEO lanes",
+          items: [
+            { label: "Technical lane", sublabel: "Canonical, schema, indexability, language" },
+            { label: "Content lane", sublabel: "Metadata, headings, coverage, duplication" },
+            { label: "Opportunity lane", sublabel: "Prioritize structural gains over scattered noise" },
+          ],
+        },
+        {
+          title: "Operator moves",
+          items: [
+            { label: "Back to findings", sublabel: "Return to the fix queue with SEO context", action: "open-findings" },
+            { label: "Open compare", sublabel: "Measure whether SEO changes improved the run", action: "open-compare" },
+            { label: "Ask for SEO issues", sublabel: "Pushes a direct question to the dock", action: "ask-seo-issues" },
+          ],
+        },
+      ],
+    },
+
+    compare: {
+      eyebrow: "Compare workspace",
+      title: "Delta and regression room",
+      desc: "A real compare room with new, resolved, persistent and regression groups instead of a text swap inside the main shell.",
+      tabs: ["Delta", "Regressions", "Resolved", "Persistent"],
+      metrics: [
+        ["New", data.counts.newIssues, `New findings vs baseline or previous comparable run`],
+        ["Resolved", data.counts.resolvedIssues, `Items that disappeared after change or rerun`],
+        ["Regressions", data.counts.regressions, `Things that got worse`],
+        ["Persistent", data.counts.persistent, `Unresolved repeated pressure`],
+      ],
+      leftTitle: "Comparison signals",
+      leftItems: [
+        { title: "New issues", detail: `${data.counts.newIssues} detected in the current comparable context.` },
+        { title: "Resolved issues", detail: `${data.counts.resolvedIssues} removed from the latest delta.` },
+        { title: "Regressions", detail: `${data.counts.regressions} worsened or reintroduced issues.` },
+      ],
+      rightTitle: "Interpretation",
+      rightItems: [
+        { title: "Use one comparable context", detail: "Compare should stay aligned with the same target, mode, scope and mobile sweep." },
+        { title: "Read regressions first", detail: "Regression pressure should rank above raw issue count changes." },
+        { title: "Turn results into action", detail: "The compare room should feed findings, prompts and memory instead of sitting isolated." },
+      ],
+      groups: [
+        {
+          title: "Compare moves",
+          items: [
+            { label: "Open findings", sublabel: "Send unresolved regressions back to the board", action: "open-findings" },
+            { label: "Open reports", sublabel: "Load evidence and older snapshots", action: "open-reports" },
+            { label: "Ask for fix plan", sublabel: "Turn comparison pressure into execution steps", action: "ask-fix-plan" },
+          ],
+        },
+        {
+          title: "Delta logic",
+          items: [
+            { label: "New", sublabel: `${data.counts.newIssues} issues introduced or newly surfaced` },
+            { label: "Resolved", sublabel: `${data.counts.resolvedIssues} issues cleared from the previous context` },
+            { label: "Persistent", sublabel: `${data.counts.persistent} pressures stayed alive across runs` },
+          ],
+        },
+      ],
+    },
+
+    settings: {
+      eyebrow: "Settings workspace",
+      title: "Runtime and intelligence policy",
+      desc: "Settings becomes a control room for runtime, memory, healing and operator policy — still in the same visual language, but now as its own page group.",
+      tabs: ["Runtime", "Memory", "Healing", "Policy"],
+      metrics: [
+        ["Memory entries", data.counts.memory, `Validated learnings linked to this workstation`],
+        ["Healing ready", data.counts.healing, `Prompt-assisted correction candidates`],
+        ["Baseline state", uiState.baseline ? "Pinned" : "Open", uiState.baseline ? "Comparison baseline is available" : "No baseline pinned yet"],
+        ["Audit mode", uiState.mode, `Scope ${uiState.scope} · depth ${uiState.depth}`],
+      ],
+      leftTitle: "Operational controls",
+      leftItems: [
+        { title: "Runtime", detail: "Bridge, reports path, launch rules and engine lifecycle controls." },
+        { title: "Memory", detail: "Validated, failed and partial learnings with traceability." },
+        { title: "Healing", detail: "Queue eligibility, pending revalidation and prompt-assisted strategies." },
+      ],
+      rightTitle: "Policy notes",
+      rightItems: [
+        { title: "Traceability first", detail: "Manual override and auto-promotion must stay visually distinct." },
+        { title: "No fake success", detail: "Never mark healing as complete until rerun evidence confirms it." },
+        { title: "Operational, not decorative", detail: "Settings should help govern runtime and intelligence, not just hold generic preferences." },
+      ],
+      groups: [
+        {
+          title: "Control links",
+          items: [
+            { label: "Open reports", sublabel: "Jump into evidence and stored snapshots", action: "open-reports" },
+            { label: "Open compare", sublabel: "Check baseline and regression posture", action: "open-compare" },
+            { label: "Open findings", sublabel: "Return to the live queue after policy changes", action: "open-findings" },
+          ],
+        },
+        {
+          title: "Governance posture",
+          items: [
+            { label: "Traceability", sublabel: "Every promoted learning must point back to evidence" },
+            { label: "Validation", sublabel: "Healing stays pending until rerun proves it" },
+            { label: "Operator control", sublabel: "The system assists, but the workstation remains explicit" },
+          ],
+        },
+      ],
+    },
+  };
+
+  const t = templates[viewName] || templates.overview;
+  const metricsHtml = t.metrics.map(([label, value, detail]) => renderMetricCard(label, value, detail)).join("");
+  const pillsHtml = severityPills.map((pill) => `<span class="workspace-pill">${escapeHtmlSafe(pill.label)}</span>`).join("");
+  const tabsHtml = (t.tabs || []).map((tab, index) => `<span class="workspace-seg-tab ${index === 0 ? "is-active" : ""}">${escapeHtmlSafe(tab)}</span>`).join("");
+
+  const groupsHtml = (t.groups || []).map((group) => {
+    const rows = (group.items || []).map((item) => {
+      const actionBtn = item.action
+        ? `<button type="button" class="mt-3 inline-flex items-center gap-2 rounded-full border border-accent-blue/20 bg-accent-blue/10 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.12em] text-blue-200 transition hover:bg-accent-blue/15" data-workspace-action="${escapeHtmlSafe(item.action)}">Open</button>`
+        : "";
+
+      return `
+        <div class="workspace-list-item">
+          <div class="min-w-0">
+            <p class="text-[13px] font-medium text-text-primary">${escapeHtmlSafe(item.label || item.title || "Lane")}</p>
+            <p class="mt-1 text-[12px] leading-6 text-text-tertiary">${escapeHtmlSafe(item.sublabel || item.detail || "")}</p>
+            ${actionBtn}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <section class="workspace-card">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="workspace-kicker">Zone</p>
+            <h3 class="mt-1 text-[16px] font-medium text-text-primary">${escapeHtmlSafe(group.title)}</h3>
+          </div>
+        </div>
+        <div class="workspace-list mt-4">${rows}</div>
+      </section>
+    `;
+  }).join("");
+
+  return `
+    <div class="workspace-page-shell p-6 md:p-8">
+      <div class="workspace-hero-grid">
+        <section class="workspace-card">
+          <p class="workspace-kicker">${escapeHtmlSafe(t.eyebrow)}</p>
+
+          <div class="mt-4 flex items-start justify-between gap-4">
+            <div class="min-w-0">
+              <div class="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-tertiary">
+                <span class="relative inline-flex h-2.5 w-2.5">
+                  <span class="absolute inset-0 rounded-full bg-emerald-400/40 animate-ping"></span>
+                  <span class="relative rounded-full bg-emerald-400 h-2.5 w-2.5"></span>
+                </span>
+                Live workspace
+              </div>
+
+              <h2 class="mt-4 text-[34px] font-semibold tracking-[-0.04em] text-text-primary">${escapeHtmlSafe(t.title)}</h2>
+              <p class="mt-3 max-w-3xl text-[14px] leading-7 text-text-secondary">${escapeHtmlSafe(t.desc)}</p>
+            </div>
+
+            <div class="workspace-pill-row">${pillsHtml}</div>
+          </div>
+
+          <div class="workspace-seg-tabs mt-5">${tabsHtml}</div>
+        </section>
+
+        <section class="workspace-card">
+          <p class="workspace-kicker">Live posture</p>
+
+          <div class="workspace-list mt-4">
+            <div class="workspace-list-item">
+              <div class="min-w-0">
+                <p class="text-[13px] font-medium text-text-primary">Target</p>
+                <p class="mt-1 text-[12px] text-text-tertiary">${escapeHtmlSafe(report?.meta?.targetUrl || report?.targetUrl || uiState.preview?.requestedUrl || "No target loaded")}</p>
+              </div>
+            </div>
+
+            <div class="workspace-list-item">
+              <div class="min-w-0">
+                <p class="text-[13px] font-medium text-text-primary">Execution profile</p>
+                <p class="mt-1 text-[12px] text-text-tertiary">Mode ${escapeHtmlSafe(uiState.mode)} · scope ${escapeHtmlSafe(uiState.scope)} · depth ${escapeHtmlSafe(uiState.depth)}</p>
+              </div>
+            </div>
+
+            <div class="workspace-list-item">
+              <div class="min-w-0">
+                <p class="text-[13px] font-medium text-text-primary">Signals</p>
+                <p class="mt-1 text-[12px] text-text-tertiary">SEO ${escapeHtmlSafe(data.trend.seo)} · Runtime ${escapeHtmlSafe(data.trend.runtime)} · UX ${escapeHtmlSafe(data.trend.ux)}</p>
+              </div>
+            </div>
+
+            <div class="workspace-list-item">
+              <div class="min-w-0">
+                <p class="text-[13px] font-medium text-text-primary">Memory pulse</p>
+                <p class="mt-1 text-[12px] text-text-tertiary">${escapeHtmlSafe(`${data.counts.memory} linked entries · ${data.counts.healing} healing-ready`)}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section class="workspace-section-grid mt-4">
+        ${metricsHtml}
+      </section>
+
+      <section class="workspace-section-grid mt-4">
+        ${renderListBlock(t.leftTitle, t.leftItems, "No rows available yet for this workspace.")}
+        ${renderListBlock(t.rightTitle, t.rightItems, "No grouped notes available yet.")}
+      </section>
+
+      <section class="workspace-section-grid mt-4">
+        ${groupsHtml || ""}
+      </section>
+    </div>
+  `;
+}
+
+function renderWorkspaceSurface(viewName, report) {
+  const mount = workspaceSurfaceEl();
+  if (!mount) return false;
+  mount.innerHTML = buildWorkspaceSurface(viewName, report);
+  return true;
+}
+
+function shouldUseLocalWorkspaceSurface(viewName) {
+  return ["overview", "findings", "seo", "compare", "settings"].includes(
+    String(viewName || "").toLowerCase()
+  );
+}
+
+function handleWorkspaceSurfaceAction(action) {
+  const nextAction = String(action || "").trim();
+  if (!nextAction) return;
+
+  if (nextAction === "open-findings") {
+    switchView("findings");
+    return;
+  }
+
+  if (nextAction === "open-seo") {
+    switchView("seo");
+    return;
+  }
+
+  if (nextAction === "open-compare") {
+    switchView("compare");
+    return;
+  }
+
+  if (nextAction === "open-reports") {
+    switchView("reports");
+    return;
+  }
+
+  if (nextAction === "ask-score-down") {
+    const ask = document.getElementById("dockWhyScoreDown");
+    if (ask instanceof HTMLElement) ask.click();
+    else if (typeof setInputAndAsk === "function") setInputAndAsk("Why is score down?");
+    return;
+  }
+
+  if (nextAction === "ask-seo-issues") {
+    const ask = document.getElementById("dockShowSeoIssues");
+    if (ask instanceof HTMLElement) ask.click();
+    else if (typeof setInputAndAsk === "function") setInputAndAsk("Show SEO issues");
+    return;
+  }
+
+  if (nextAction === "ask-fix-plan") {
+    const ask = document.getElementById("dockGenerateFixPlan");
+    if (ask instanceof HTMLElement) ask.click();
+    else if (typeof setInputAndAsk === "function") setInputAndAsk("Generate fix plan");
+  }
+}
+
+function bindWorkspaceSurfaceActions() {
+  const host = document.getElementById("workspace-host");
+  if (!(host instanceof HTMLElement) || host.dataset.boundWorkspaceActions === "1") return;
+
+  host.dataset.boundWorkspaceActions = "1";
+
+  host.addEventListener("click", (event) => {
+    const target = event.target instanceof Element
+      ? event.target.closest("[data-workspace-action]")
+      : null;
+
+    if (!(target instanceof HTMLElement)) return;
+
+    event.preventDefault();
+    handleWorkspaceSurfaceAction(target.dataset.workspaceAction);
+  });
+}
+
 function switchView(viewName) {
+  const previousView = uiState.activeView;
   const nextView = VIEW_META[viewName] ? viewName : "overview";
+
   uiState.activeView = nextView;
+
+  const mappedWorkspace = mapViewToWorkspace(nextView);
+  const manager = workspaceSystemManager || (mappedWorkspace ? maybeInitWorkspaceSystem() : null);
+  const workspaceHeader = document.getElementById("workspaceHeader");
+
   hideMenuFlyout();
+
   stateEl.navButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.view === nextView);
   });
+
   stateEl.viewPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.viewPanel === nextView);
   });
+
   renderWorkspaceHeader(nextView);
+
   const workspaceBody = document.querySelector(".workspace-body");
   if (workspaceBody instanceof HTMLElement) {
     workspaceBody.scrollTop = 0;
   }
 
   ensurePatternRailController()?.syncActiveFromView(nextView);
+
+  bindWorkspaceSurfaceActions();
+
+  const localSurfaceHandled =
+    shouldUseLocalWorkspaceSurface(nextView) &&
+    renderWorkspaceSurface(nextView, getVisibleReport());
+
+  if (localSurfaceHandled) {
+    setWorkspaceHostVisible(true);
+
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.add("hidden");
+    if (workspaceHeader) workspaceHeader.classList.add("hidden");
+
+    if (
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_FOCUS ||
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_EXPANDED
+    ) {
+      setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
+      renderAssistantWorkspaceLayout();
+    }
+
+    return;
+  }
+
+  const legacyShellViews = ["preview", "operations", "prompts", "reports"];
+
+  if (manager && mappedWorkspace) {
+    setWorkspaceHostVisible(true);
+
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.add("hidden");
+    if (workspaceHeader) workspaceHeader.classList.add("hidden");
+
+    if (
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_FOCUS ||
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_EXPANDED
+    ) {
+      setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
+      renderAssistantWorkspaceLayout();
+    }
+
+    if (nextView === "preview") queuePreviewSync("view_switch");
+
+    void manager.switchTo(mappedWorkspace).catch(() => {});
+    return;
+  }
+
+  if (manager && !mappedWorkspace) {
+    setWorkspaceHostVisible(false);
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.remove("hidden");
+    if (workspaceHeader) workspaceHeader.classList.remove("hidden");
+  }
+
+  if (nextView === "settings") {
+    setWorkspaceHostVisible(false);
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.remove("hidden");
+
+    enableAssistantReactWorkspace();
+    setAiWorkspaceMode(AI_WORKSPACE_MODE_EXPANDED);
+
+    if (uiState.aiDockHeightVh < 44) uiState.aiDockHeightVh = 52;
+    if (stateEl.appBody) {
+      stateEl.appBody.style.setProperty("--ai-dock-height-vh", String(uiState.aiDockHeightVh));
+    }
+
+    renderAssistantWorkspaceLayout();
+    renderAssistantState();
+    refreshStateElRefs();
+    return;
+  }
+
+  if (legacyShellViews.includes(nextView)) {
+    setWorkspaceHostVisible(false);
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.remove("hidden");
+
+    if (
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_FOCUS ||
+      uiState.aiWorkspaceMode === AI_WORKSPACE_MODE_EXPANDED
+    ) {
+      setAiWorkspaceMode(AI_WORKSPACE_MODE_HIDDEN);
+      renderAssistantWorkspaceLayout();
+    }
+  }
+
+  if (!manager) {
+    setWorkspaceHostVisible(false);
+    if (stateEl.mainGrid) stateEl.mainGrid.classList.remove("hidden");
+  }
+
   if (nextView === "preview") {
     queuePreviewSync("view_switch");
   }
@@ -5751,9 +6501,13 @@ function syncOperatorShell(report) {
 
   const p0 = report ? Number(report.summary.priorityP0 || 0) : 0;
   const p1 = report ? Number(report.summary.priorityP1 || 0) : 0;
+  const p2 = report ? Number(report.summary.priorityP2 || 0) : 0;
   const pSum = p0 + p1;
   shellBindTextAll('[data-shell="p0p1"]', String(pSum));
   shellBindTextAll('[data-shell="p0p1Count"]', String(pSum));
+  shellBindTextAll('[data-shell="p0Count"]', String(p0));
+  shellBindTextAll('[data-shell="p1Count"]', String(p1));
+  shellBindTextAll('[data-shell="p2Count"]', String(p2));
   shellBindTextAll('[data-shell="p0p1Chip"]', `P0/P1: ${pSum}`);
   shellBindTextAll('[data-shell="impactSubline"]', `P0 ${p0} · P1 ${p1}`);
 
@@ -5766,6 +6520,115 @@ function syncOperatorShell(report) {
   shellBindTextAll('[data-shell="healingPending"]', `promptReady ${healN}`);
   shellBindTextAll('[data-shell="healingReadyCount"]', String(healN));
   shellBindTextAll('[data-shell="healingCount"]', String(healN));
+
+  const healEligible = snap ? Number(snap.selfHealing?.summary?.eligible ?? 0) : 0;
+  shellBindTextAll('[data-shell="healingEligibleCount"]', String(healEligible));
+
+  /* Root Cause: espelha diagnóstico do "focus issue" (motor -> DOM).
+     Aqui a gente só copia o que já existe no report normalizado. */
+  let derivedFocus = {
+    code: "—",
+    route: "—",
+    action: "—",
+    severity: "—",
+    diagnosisTitle: "—",
+    laymanExplanation: "—",
+    technicalExplanation: "—",
+    technicalChecks: "—",
+    recommendedActions: "—",
+    commandHints: "—",
+    likelyAreas: "—",
+    recommendedResolution: "—",
+    evidenceCount: "0",
+  };
+  try {
+    const riskState = snap?.dataIntelligence?.RISK_STATE || {};
+    const nextActions = Array.isArray(snap?.autonomous?.nextActions) ? snap.autonomous.nextActions : [];
+    const priorityQueue = Array.isArray(riskState.priorityQueue) ? riskState.priorityQueue : [];
+    const lead = nextActions[0] || priorityQueue[0] || null;
+
+    const focusCode = String(lead?.issueCode || report?.issues?.[0]?.code || "").trim();
+    if (!focusCode) {
+      shellBindTextAll('[data-shell="focusIssueCode"]', "—");
+      shellBindTextAll('[data-shell="focusIssueRoute"]', "—");
+      shellBindTextAll('[data-shell="focusIssueAction"]', "—");
+      shellBindTextAll('[data-shell="focusIssueSeverity"]', "—");
+      shellBindTextAll('[data-shell="focusIssueDiagnosisTitle"]', "—");
+      shellBindTextAll('[data-shell="focusIssueLaymanExplanation"]', "—");
+      shellBindTextAll('[data-shell="focusIssueTechnicalExplanation"]', "—");
+      shellBindTextAll('[data-shell="focusIssueProbableCauses"]', "—");
+      shellBindTextAll('[data-shell="focusIssueTechnicalChecks"]', "—");
+      shellBindTextAll('[data-shell="focusIssueRecommendedActions"]', "—");
+      shellBindTextAll('[data-shell="focusIssueCommandHints"]', "—");
+      shellBindTextAll('[data-shell="focusIssueLikelyAreas"]', "—");
+      shellBindTextAll('[data-shell="focusIssueRecommendedResolution"]', "—");
+      shellBindTextAll('[data-shell="focusIssueEvidenceCount"]', "0");
+    } else {
+      const normCode = focusCode.toUpperCase();
+      const leadRoute = lead?.route != null ? String(lead.route).trim() : "";
+      const leadAction = lead?.action != null ? String(lead.action).trim() : "";
+
+      const issues = Array.isArray(report?.issues) ? report.issues : [];
+      const focusIssue =
+        issues.find((it) => String(it?.code || "").trim().toUpperCase() === normCode
+          && (leadRoute ? String(it?.route || "/").trim() === leadRoute : true)
+          && (leadAction ? String(it?.action || "").trim() === leadAction : true),
+        ) || issues.find((it) => String(it?.code || "").trim().toUpperCase() === normCode) || null;
+
+      const diagnosis = focusIssue?.diagnosis && typeof focusIssue.diagnosis === "object" ? focusIssue.diagnosis : {};
+
+      const toJoined = (arr) =>
+        Array.isArray(arr)
+          ? arr.map((x) => String(x)).filter((x) => x.trim().length > 0).join("\n")
+          : "";
+      const likelyAreas = toJoined(diagnosis?.likelyAreas);
+      const probableCauses = toJoined(diagnosis?.probableCauses);
+      const technicalChecks = toJoined(diagnosis?.technicalChecks);
+      const recommendedActions = toJoined(diagnosis?.recommendedActions);
+      const commandHints = toJoined(diagnosis?.commandHints);
+
+      const layman = String(diagnosis?.laymanExplanation || "").trim();
+      const technical = String(diagnosis?.technicalExplanation || "").trim();
+      const title = String(diagnosis?.title || "").trim();
+      const evidenceCount = String(Array.isArray(focusIssue?.evidence) ? focusIssue.evidence.length : 0);
+
+      const hasDiagnosis = !!(layman || technical || probableCauses || technicalChecks || recommendedActions || commandHints || likelyAreas || (Array.isArray(diagnosis?.probableCauses) && diagnosis.probableCauses.length > 0));
+
+      derivedFocus = {
+        code: String(focusIssue?.code || focusCode),
+        route: String(focusIssue?.route || leadRoute || "—"),
+        action: String(focusIssue?.action || leadAction || "—"),
+        severity: String(focusIssue?.severity || "—"),
+        diagnosisTitle: title || "—",
+        laymanExplanation: hasDiagnosis && layman ? layman : "—",
+        technicalExplanation: hasDiagnosis && technical ? technical : "—",
+        technicalChecks: hasDiagnosis && technicalChecks ? technicalChecks : "—",
+        recommendedActions: hasDiagnosis && recommendedActions ? recommendedActions : "—",
+        commandHints: hasDiagnosis && commandHints ? commandHints : "—",
+        likelyAreas: hasDiagnosis && likelyAreas ? likelyAreas : "—",
+        recommendedResolution: hasDiagnosis && focusIssue?.recommendedResolution ? String(focusIssue.recommendedResolution).trim() : "—",
+        evidenceCount,
+      };
+
+      shellBindTextAll('[data-shell="focusIssueCode"]', String(focusIssue?.code || focusCode));
+      shellBindTextAll('[data-shell="focusIssueRoute"]', String(focusIssue?.route || leadRoute || "—"));
+      shellBindTextAll('[data-shell="focusIssueAction"]', String(focusIssue?.action || leadAction || "—"));
+      shellBindTextAll('[data-shell="focusIssueSeverity"]', String(focusIssue?.severity || "—"));
+      shellBindTextAll('[data-shell="focusIssueDiagnosisTitle"]', title || "—");
+      shellBindTextAll('[data-shell="focusIssueLaymanExplanation"]', hasDiagnosis && layman ? layman : "—");
+      shellBindTextAll('[data-shell="focusIssueTechnicalExplanation"]', hasDiagnosis && technical ? technical : "—");
+      shellBindTextAll('[data-shell="focusIssueProbableCauses"]', hasDiagnosis && probableCauses ? probableCauses : "—");
+      shellBindTextAll('[data-shell="focusIssueTechnicalChecks"]', hasDiagnosis && technicalChecks ? technicalChecks : "—");
+      shellBindTextAll('[data-shell="focusIssueRecommendedActions"]', hasDiagnosis && recommendedActions ? recommendedActions : "—");
+      shellBindTextAll('[data-shell="focusIssueCommandHints"]', hasDiagnosis && commandHints ? commandHints : "—");
+      shellBindTextAll('[data-shell="focusIssueLikelyAreas"]', hasDiagnosis && likelyAreas ? likelyAreas : "—");
+      shellBindTextAll('[data-shell="focusIssueRecommendedResolution"]', hasDiagnosis && focusIssue?.recommendedResolution ? String(focusIssue.recommendedResolution).trim() : "—");
+      shellBindTextAll('[data-shell="focusIssueEvidenceCount"]', evidenceCount);
+    }
+  } catch (e) {
+    // Se falhar, não quebra o HUD. Mantém placeholders.
+    // (Sem console.error para não poluir logs do operador.)
+  }
 
   {
     const railPlan = document.getElementById("railPlan");
@@ -5784,6 +6647,11 @@ function syncOperatorShell(report) {
   const predPat = Number(pSumPred.recurringPatterns ?? 0);
   const predDeg = Number(pSumPred.degradingIssues ?? 0);
   const predImp = Number(pSumPred.improvingIssues ?? 0);
+  shellBindTextAll('[data-shell="predictiveHighRiskAlerts"]', String(predRisk));
+  shellBindTextAll('[data-shell="predictiveMediumRiskAlerts"]', String(predMed));
+  shellBindTextAll('[data-shell="predictiveRecurringPatterns"]', String(predPat));
+  shellBindTextAll('[data-shell="predictiveDegradingIssues"]', String(predDeg));
+  shellBindTextAll('[data-shell="predictiveImprovingIssues"]', String(predImp));
   shellBindTextAll(
     '[data-shell="predictiveChip"]',
     `highRiskAlerts ${predRisk} · mediumRiskAlerts ${predMed} · recurringPatterns ${predPat}`,
@@ -5846,6 +6714,116 @@ function syncOperatorShell(report) {
     shellBindTextAll('[data-shell="stickyDeltaRisk"]', "—");
     shellBindTextAll('[data-shell="stickyCompareRoutesActions"]', "—");
   }
+
+  /* OperatorBelowSticky: queue + operator cards + fix plan step (data-shell derived from same motor snapshot). */
+  const sevRaw = String(derivedFocus.severity || "—").toLowerCase();
+  const severityBand = sevRaw.includes("p0") ? "P0" : sevRaw.includes("p1") ? "P1" : sevRaw.includes("p2") ? "P2" : "—";
+
+  const trajText = String(stateEl.executiveQualityTrajectory?.textContent || "").toLowerCase();
+  const trajectoryBand = trajText.includes("degrad") ? "degrading" : trajText.includes("improv") ? "improving" : "stable";
+
+  const pickSubtitle = () => {
+    if (derivedFocus.laymanExplanation && derivedFocus.laymanExplanation !== "—") return derivedFocus.laymanExplanation;
+    if (derivedFocus.technicalExplanation && derivedFocus.technicalExplanation !== "—") return derivedFocus.technicalExplanation;
+    if (derivedFocus.recommendedActions && derivedFocus.recommendedActions !== "—") return derivedFocus.recommendedActions;
+    return "—";
+  };
+
+  const queue0Title = derivedFocus.diagnosisTitle !== "—" ? derivedFocus.diagnosisTitle : derivedFocus.code;
+  const queue0Subtitle = pickSubtitle();
+  const queue0Memory = memoryN > 0 ? `${memoryN} entries` : "—";
+  const queue0Healing = healN > 0 ? `ready ${healN}` : healEligible > 0 ? `eligible ${healEligible}` : "—";
+  const queue0Route = derivedFocus.route;
+  const queue0Impact = `Q ${qSafe}`;
+
+  const bandCounts = [
+    { band: "P0", n: p0 },
+    { band: "P1", n: p1 },
+    { band: "P2", n: p2 },
+  ].sort((a, b) => b.n - a.n);
+  let queue1Band = "—";
+  if (severityBand !== "—") {
+    const alt = bandCounts.find((x) => x.band !== severityBand && x.n > 0);
+    if (alt) queue1Band = alt.band;
+  }
+  if (queue1Band === "—") {
+    queue1Band = (bandCounts.find((x) => x.n > 0) || { band: severityBand }).band;
+  }
+
+  const queue1Title = queue1Band !== "—" ? `${queue1Band} signal` : "—";
+  const queue1Subtitle = derivedFocus.technicalChecks !== "—" ? derivedFocus.technicalChecks : derivedFocus.recommendedActions;
+  const queue1Memory = queue0Memory;
+  const queue1Healing = queue0Healing;
+  const queue1Route = derivedFocus.route;
+  const queue1Impact = queue0Impact;
+
+  /* Bind text shells. */
+  shellBindTextAll('[data-shell="queue0Title"]', queue0Title);
+  shellBindTextAll('[data-shell="queue0Band"]', severityBand);
+  shellBindTextAll('[data-shell="queue0Trajectory"]', trajectoryBand);
+  shellBindTextAll('[data-shell="queue0Memory"]', queue0Memory);
+  shellBindTextAll('[data-shell="queue0Healing"]', queue0Healing);
+  shellBindTextAll('[data-shell="queue0Route"]', queue0Route);
+  shellBindTextAll('[data-shell="queue0Subtitle"]', queue0Subtitle);
+  shellBindTextAll('[data-shell="queue0Impact"]', queue0Impact);
+
+  shellBindTextAll('[data-shell="queue1Title"]', queue1Title);
+  shellBindTextAll('[data-shell="queue1Band"]', queue1Band);
+  shellBindTextAll('[data-shell="queue1Healing"]', queue1Healing);
+  shellBindTextAll('[data-shell="queue1Route"]', queue1Route);
+  shellBindTextAll('[data-shell="queue1Subtitle"]', queue1Subtitle);
+  shellBindTextAll('[data-shell="queue1Impact"]', queue1Impact);
+
+  shellBindTextAll('[data-shell="operatorMemorySubtitle"]', memoryN > 0 ? `${memoryN} entries` : "0 entries");
+  shellBindTextAll('[data-shell="operatorHealSubtitle"]', `Eligible ${healEligible} · Ready ${healN}`);
+  shellBindTextAll(
+    '[data-shell="operatorHealState"]',
+    healN > 0 ? `Ready ${healN}` : healEligible > 0 ? `Eligible ${healEligible}` : "Waiting",
+  );
+  shellBindTextAll(
+    '[data-shell="operatorCompareSubtitle"]',
+    comparison
+      ? `Route delta ${signedDelta(comparison.routeDelta)} · Action delta ${signedDelta(comparison.actionDelta)}`
+      : "—",
+  );
+  shellBindTextAll('[data-shell="operatorCompareDelta"]', comparison ? signedDelta(comparison.issueDelta) : "—");
+
+  const fixPlanStep = healN > 0 ? 4 : healEligible > 0 ? 2 : 1;
+  shellBindTextAll('[data-shell="fixPlanStepLabel"]', `Step ${fixPlanStep}/4`);
+  {
+    const bar = document.querySelector('[data-fixplan-step-bar]');
+    if (bar && bar instanceof HTMLElement) bar.style.width = `${Math.round((fixPlanStep / 4) * 100)}%`;
+  }
+
+  /* Queue styling overrides (colors derived from data-shell band). */
+  const bandStyle = {
+    P0: { bg: "#EF4444", border: "rgba(239,68,68,0.35)", fg: "#FDE2E2" },
+    P1: { bg: "#F59E0B", border: "rgba(245,158,11,0.35)", fg: "#FEF3C7" },
+    P2: { bg: "#3B82F6", border: "rgba(59,130,246,0.35)", fg: "#DBEAFE" },
+    "—": { bg: "#9CA3AF", border: "rgba(156,163,175,0.25)", fg: "#E5E7EB" },
+  };
+  const styleBandEl = (selector, band) => {
+    const s = bandStyle[band] || bandStyle["—"];
+    const el = document.querySelector(selector);
+    if (el && el instanceof HTMLElement) {
+      el.style.backgroundColor = s.bg;
+      el.style.borderColor = s.border;
+      el.style.color = s.fg;
+    }
+  };
+  const styleDotEl = (selector, band) => {
+    const s = bandStyle[band] || bandStyle["—"];
+    const dot = document.querySelector(selector);
+    if (dot && dot instanceof HTMLElement) {
+      dot.style.backgroundColor = s.bg;
+      dot.style.boxShadow = `0 0 6px ${s.border}`;
+    }
+  };
+
+  styleBandEl('[data-shell="queue0Band"]', severityBand);
+  styleBandEl('[data-shell="queue1Band"]', queue1Band);
+  styleDotEl('[data-queue-dot-0]', severityBand);
+  styleDotEl('[data-queue-dot-1]', queue1Band);
 
   ensurePatternRailController()?.syncActiveFromView(uiState.activeView);
 }
@@ -7395,6 +8373,7 @@ function getCommandPaletteItems() {
     { id: "open-memory", label: "Open validated learnings", hint: "", description: "Open the operational memory panel and inspect learned patterns.", action: () => switchView("settings") },
     { id: "open-healing", label: "Open self-healing queue", hint: "", description: "Open the assisted correction queue and review healing strategies.", action: () => switchView("prompts") },
     { id: "start-engine", label: "Start engine", hint: "", description: "Start the local bridge/runtime if it is offline.", action: () => startEngine() },
+    { id: "ligar-motor", label: "Ligar motor", hint: "", description: "Inicia o bridge/engine local (sem abrir Settings).", action: () => startEngine() },
     { id: "stop-engine", label: "Stop engine", hint: "", description: "Stop the local bridge/runtime.", action: () => stopEngine() },
   ];
 }
@@ -7551,7 +8530,7 @@ function renderAssistantState() {
     actionsDefault: "Action suggestions will appear here when the assistant has enough context.",
     noDirectAction: "No direct action was suggested for this answer.",
   };
-  stateEl.assistantContextSummary.textContent = report
+  if (stateEl.assistantContextSummary) stateEl.assistantContextSummary.textContent = report
     ? localizePromptLine(languageKey, {
         pt: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegiveis | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
         es: `${report.meta.baseUrl} | ${report.summary.totalIssues} issue(s) | SEO ${dataIntelligence.QUALITY_STATE.seoScore || report.summary.seoScore} | quality ${dataIntelligence.QUALITY_STATE.overallScore || autonomous.qualityScore.total || 0} | ${dataIntelligence.QUALITY_STATE.trajectory || autonomous.qualityTrajectory.direction} | P0 ${report.summary.priorityP0 || 0} / P1 ${report.summary.priorityP1 || 0} | memoria ${memory?.summary?.entries || 0} pattern(s) | healing ${healing?.summary?.eligible || 0} elegibles | predictive ${dataIntelligence.RISK_STATE.highRiskAlertCount || predictive.summary.highRiskAlerts || 0} high risk | optimization ${optimization?.topImprovements?.length || 0} oportunidades | trend ${intelligence.trendSummary.seo.symbol}/${intelligence.trendSummary.runtime.symbol}/${intelligence.trendSummary.ux.symbol} | view ${uiState.activeView}`,
@@ -7728,9 +8707,25 @@ async function runAssistantQuery(rawQuery) {
     showToast("Assistant service is not available.", "bad");
     return;
   }
+
+  // Ensure assistant UI (mounted lazily by React) is ready before we render conversation/state.
+  enableAssistantReactWorkspace();
+  refreshStateElRefs();
+  const assistantUiReady = await (async () => {
+    const timeoutMs = 950;
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeoutMs) {
+      refreshStateElRefs();
+      if (stateEl.assistantResponse) return true;
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    }
+    refreshStateElRefs();
+    return !!stateEl.assistantResponse;
+  })();
+
   uiState.assistantQuery = String(rawQuery || "").trim();
   if (!uiState.assistantQuery) {
-    renderAssistantState();
+    if (assistantUiReady && stateEl.assistantContextSummary) renderAssistantState();
     return;
   }
   if (stateEl.assistantInput) stateEl.assistantInput.value = "";
@@ -7746,10 +8741,12 @@ async function runAssistantQuery(rawQuery) {
   }
   appendAssistantConversationEntry(createAssistantUserEntry(uiState.assistantQuery));
   appendAssistantConversationEntry(createAssistantThinkingEntry());
-  renderAssistantConversation();
-  startThinkingRotation();
-  const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
-  if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  if (assistantUiReady) {
+    renderAssistantConversation();
+    startThinkingRotation();
+    const scrollContainer = stateEl.assistantChatScroll || stateEl.assistantResponse;
+    if (scrollContainer) scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }
 
   const thinkingMinMs = 520;
   const thinkingStart = Date.now();
@@ -7760,17 +8757,17 @@ async function runAssistantQuery(rawQuery) {
   const resultEntry = createAssistantResultEntry(uiState.assistantResult);
   appendAssistantConversationEntry(resultEntry);
   persistAssistantConversation();
-  renderAssistantState();
+  if (assistantUiReady && stateEl.assistantContextSummary) renderAssistantState();
   const elapsed = Date.now() - thinkingStart;
   if (elapsed < thinkingMinMs + 80) {
     await new Promise((resolve) => setTimeout(resolve, thinkingMinMs + 100 - elapsed));
   }
-  revealAssistantResponseStreaming(resultEntry);
+  if (assistantUiReady) revealAssistantResponseStreaming(resultEntry);
 
   const stepResult = executeAssistantSuggestedStep();
   if (stepResult.executed) {
     showToast("Action applied.", "ok");
-    renderAssistantState();
+    if (assistantUiReady && stateEl.assistantContextSummary) renderAssistantState();
   } else if (stepResult.reason) {
     showToast(stepResult.reason, "warn");
   }
@@ -8422,7 +9419,10 @@ async function handleAuditRun(forceDepth = null) {
   appendLog("[studio] Run audit button triggered.");
   if (!ensureCompanion()) return;
   if (uiState.companionState?.bridge?.running !== true) {
-    showToast("Engine offline. Start the engine in Settings to run audits.", "bad");
+    showToast(
+      "Engine offline. Start the bridge: Tools → Start engine, command palette “Ligar motor”, or the IA panel “Ligar motor” — then try again.",
+      "bad",
+    );
     return;
   }
   if (uiState.auditRequestInFlight === true || uiState.companionState?.audit?.running === true) {
@@ -9127,6 +10127,14 @@ function bindButtons() {
     if (stateEl.assistantInput) stateEl.assistantInput.value = getAssistantQuickQuery("guide");
     await runAssistantQuery(getAssistantQuickQuery("guide"));
   });
+  on(stateEl.assistantQuickStartEngine, "click", async () => {
+    if (stateEl.assistantInput) stateEl.assistantInput.value = getAssistantQuickQuery("startEngine");
+    if (!ensureCompanion()) {
+      showToast("App bridge not ready. Restart SitePulse Studio.", "bad");
+      return;
+    }
+    await startEngine();
+  });
   if (stateEl.assistantLanguageSelect) stateEl.assistantLanguageSelect.addEventListener("change", () => {
     const adaptiveLanguage = ensureAdaptiveLanguageService();
     if (!adaptiveLanguage) return;
@@ -9588,6 +10596,52 @@ function refreshStateElRefs() {
     "nextActionOpenIssue", "nextActionPrepareHealing", "nextActionGeneratePrompt",
     "winMinimize", "winMaximize", "winClose",
     "menuFlyout", "workspaceShell", "workspaceHeader", "targetUrl", "findingsSearch",
+
+    // Assistant UI (mounted lazily by React) + notifications
+    "toastStack",
+    "assistantWorkspace",
+    "assistantExpand",
+    "assistantFocus",
+    "assistantBackToDock",
+    "assistantDockResizeHandle",
+    "assistantEyebrow",
+    "assistantTitle",
+    "assistantContextPills",
+    "assistantInput",
+    "assistantInputLabel",
+    "assistantAsk",
+    "assistantQuickPriorities",
+    "assistantQuickSeo",
+    "assistantQuickPrompt",
+    "assistantQuickGuide",
+    "assistantQuickStartEngine",
+    "assistantContextSummary",
+    "assistantModePill",
+    "assistantIntentPill",
+    "assistantLanguagePill",
+    "assistantOperatorStatus",
+    "assistantOperatorStatusText",
+    "assistantLanguageLabel",
+    "assistantLanguageSelect",
+    "assistantModeSummary",
+    "assistantInsights",
+    "assistantResponse",
+    "assistantChatScroll",
+    "assistantActions",
+    "assistantConsoleContext",
+    "assistantConsoleRisk",
+    "assistantConsolePriority",
+    "assistantConsoleNextActions",
+    "assistantApplyAction",
+    "assistantPillRun",
+    "assistantPillWorkspace",
+    "assistantPillFocus",
+    "assistantPillLang",
+    "assistantMemorySummary",
+    "assistantHealingSummary",
+    "assistantNewChat",
+    "assistantConversationSearch",
+    "assistantConversationList",
   ];
   criticalIds.forEach((id) => {
     const el = document.getElementById(id);
@@ -9595,11 +10649,174 @@ function refreshStateElRefs() {
   });
   const logOutputEl = document.getElementById("logOutput");
   if (logOutputEl) stateEl.logOutput = logOutputEl;
+  stateEl.assistantViewButtons = Array.from(document.querySelectorAll("[data-assistant-view]"));
+  stateEl.assistantViewPanels = Array.from(document.querySelectorAll("[data-assistant-view-panel]"));
+}
+
+/** IDs criados no painel real — remover fantasmas do compatGhostRoot para evitar duplicados. */
+const ASSISTANT_WORKSPACE_SHELL_IDS = new Set([
+  "assistantWorkspaceReactRoot",
+  "assistantNewChat",
+  "assistantConversationSearch",
+  "assistantConversationList",
+  "assistantExpand",
+  "assistantFocus",
+  "assistantBackToDock",
+  "dismissAssistant",
+  "assistantEyebrow",
+  "assistantTitle",
+  "assistantContextPills",
+  "assistantQuickPriorities",
+  "assistantQuickSeo",
+  "assistantQuickPrompt",
+  "assistantQuickGuide",
+  "assistantQuickStartEngine",
+  "assistantContextSummary",
+  "assistantModePill",
+  "assistantIntentPill",
+  "assistantLanguagePill",
+  "assistantPillRun",
+  "assistantPillWorkspace",
+  "assistantPillFocus",
+  "assistantPillLang",
+  "assistantOperatorStatus",
+  "assistantOperatorStatusText",
+  "assistantLanguageLabel",
+  "assistantLanguageSelect",
+  "assistantModeSummary",
+  "assistantInsights",
+  "assistantChatScroll",
+  "assistantResponse",
+  "assistantActions",
+  "assistantConsoleContext",
+  "assistantConsoleRisk",
+  "assistantConsolePriority",
+  "assistantConsoleNextActions",
+  "assistantApplyAction",
+  "assistantMemorySummary",
+  "assistantHealingSummary",
+  "assistantDockResizeHandle",
+]);
+
+function stripCompatGhostAssistantDuplicates() {
+  const ghost = document.getElementById("compatGhostRoot");
+  if (!ghost) return;
+  ghost.querySelectorAll("[id]").forEach((el) => {
+    if (ASSISTANT_WORKSPACE_SHELL_IDS.has(el.id)) el.remove();
+  });
+}
+
+/**
+ * O compatGhostRoot criava #assistantResponse (etc.) escondidos; o painel #assistantWorkspace ficava vazio
+ * e o chat renderizava fora da vista. Montamos o shell real aqui antes de refreshStateElRefs/bindButtons.
+ */
+function ensureAssistantWorkspaceShell() {
+  const host = document.getElementById("assistantWorkspace");
+  if (!host || host.querySelector("#assistantResponse")) return;
+  stripCompatGhostAssistantDuplicates();
+  host.innerHTML = `
+    <div id="assistantWorkspaceReactRoot" aria-hidden="true"></div>
+    <div class="assistant-workspace-layout">
+      <div class="assistant-conversation-history">
+        <div class="assistant-history-head">
+          <div class="assistant-head-actions">
+            <button type="button" id="assistantNewChat" class="ai-workspace-btn">New chat</button>
+          </div>
+          <label class="visually-hidden" for="assistantConversationSearch">Search conversations</label>
+          <input id="assistantConversationSearch" class="toolbar-input assistant-history-search" type="search" placeholder="Search" autocomplete="off" />
+        </div>
+        <div id="assistantConversationList" class="assistant-conversation-list"></div>
+      </div>
+      <div class="ai-workspace-premium" style="min-height:0;display:flex;flex-direction:column;flex:1;overflow:hidden;">
+        <div class="assistant-workspace-shell ai-workspace-premium-inner">
+          <div class="assistant-workspace-head">
+            <div>
+              <p id="assistantEyebrow" class="text-[11px] uppercase tracking-wide text-text-tertiary">Assistant</p>
+              <h3 id="assistantTitle" class="text-[15px] font-semibold text-text-primary m-0">Operational co-pilot</h3>
+            </div>
+            <div class="assistant-head-actions">
+              <button type="button" id="dismissAssistant" class="ai-workspace-btn" title="Collapse">Collapse</button>
+              <button type="button" id="assistantExpand" class="ai-workspace-btn">Expand</button>
+              <button type="button" id="assistantFocus" class="ai-workspace-btn">Focus</button>
+              <button type="button" id="assistantBackToDock" class="ai-workspace-btn hidden">Back</button>
+            </div>
+          </div>
+          <div id="assistantContextPills" class="assistant-context-pills"></div>
+          <div class="assistant-workspace-tabs">
+            <button type="button" class="active" data-assistant-view="conversation">Conversation</button>
+            <button type="button" data-assistant-view="actions">Actions</button>
+            <button type="button" data-assistant-view="insights">Insights</button>
+            <button type="button" data-assistant-view="diagnostics">Diagnostics</button>
+          </div>
+          <section data-assistant-view-panel="conversation" class="assistant-workspace-body active">
+            <div id="assistantOperatorStatus" class="assistant-operator-status hidden">
+              <span class="assistant-operator-status-label">Operator</span>
+              <span id="assistantOperatorStatusText" class="assistant-operator-status-text"></span>
+            </div>
+            <p id="assistantContextSummary" class="text-[12px] text-text-secondary leading-relaxed"></p>
+            <div class="assistant-identity-row flex flex-wrap gap-2 mb-2">
+              <span id="assistantModePill" class="ai-workspace-pill"></span>
+              <span id="assistantIntentPill" class="ai-workspace-pill"></span>
+              <span id="assistantLanguagePill" class="ai-workspace-pill"></span>
+              <span id="assistantPillRun" class="ai-workspace-pill"></span>
+              <span id="assistantPillWorkspace" class="ai-workspace-pill"></span>
+              <span id="assistantPillFocus" class="ai-workspace-pill"></span>
+              <span id="assistantPillLang" class="ai-workspace-pill"></span>
+            </div>
+            <p id="assistantModeSummary" class="text-[12px] text-text-tertiary"></p>
+            <div class="assistant-quick-grid mb-2">
+              <button type="button" id="assistantQuickPriorities" class="ai-workspace-btn">Priorities</button>
+              <button type="button" id="assistantQuickSeo" class="ai-workspace-btn">SEO</button>
+              <button type="button" id="assistantQuickPrompt" class="ai-workspace-btn">Prompt</button>
+              <button type="button" id="assistantQuickGuide" class="ai-workspace-btn">Guide</button>
+              <button type="button" id="assistantQuickStartEngine" class="ai-workspace-btn" style="border-color:rgba(34,197,94,0.35);background:rgba(34,197,94,0.12);color:#bbf7d0;" title="startBridge / engine">Ligar motor</button>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mb-2">
+              <label id="assistantLanguageLabel" for="assistantLanguageSelect" class="text-[12px] text-text-tertiary"></label>
+              <select id="assistantLanguageSelect" class="ai-workspace-lang-select">
+                <option value="auto">Auto</option>
+                <option value="en">English</option>
+                <option value="pt">Português</option>
+                <option value="es">Español</option>
+                <option value="ca">Català</option>
+              </select>
+              <button type="button" id="assistantApplyAction" class="hidden ai-workspace-btn">Apply plan</button>
+            </div>
+            <div class="assistant-chat-primary">
+              <div id="assistantChatScroll" style="overflow:auto;min-height:120px;max-height:48vh;flex:1;">
+                <div id="assistantResponse" class="assistant-chat-thread ai-workspace-messages"></div>
+              </div>
+            </div>
+            <div id="assistantActions" class="assistant-actions-grid mt-2"></div>
+          </section>
+          <section data-assistant-view-panel="actions" class="assistant-workspace-body hidden">
+            <p class="text-[12px] text-text-tertiary">Suggested actions appear in Conversation after each reply.</p>
+          </section>
+          <section data-assistant-view-panel="insights" class="assistant-workspace-body hidden">
+            <div id="assistantInsights" class="assistant-insights-stack"></div>
+          </section>
+          <section data-assistant-view-panel="diagnostics" class="assistant-workspace-body hidden">
+            <div class="ai-operator-console">
+              <div class="console-row text-[12px] text-text-secondary"><span id="assistantConsoleContext"></span></div>
+              <div class="console-row text-[12px] text-text-secondary"><span id="assistantConsoleRisk"></span></div>
+              <div class="console-row text-[12px] text-text-secondary"><span id="assistantConsolePriority"></span></div>
+              <div class="console-row text-[12px]" id="assistantConsoleNextActions"></div>
+            </div>
+            <div class="mt-2 text-[12px] text-text-tertiary">
+              <span id="assistantMemorySummary"></span> · <span id="assistantHealingSummary"></span>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div id="assistantDockResizeHandle" class="assistant-dock-resize" style="height:6px;cursor:ns-resize;flex-shrink:0;"></div>
+  `;
 }
 
 async function bootstrap() {
   document.body.classList.add("studio-ready");
   window.__SITEPULSE_RENDERER_BOOT = true;
+  ensureAssistantWorkspaceShell();
   refreshStateElRefs();
   ensureCompanion();
   bindNavigation();
@@ -9673,5 +10890,133 @@ onDomReady(() => {
     if (typeof console !== "undefined" && console.error) console.error("[studio] bootstrap", error);
   });
 });
+
+window.sitepulseShellActions = {
+  startEngine,
+  stopEngine,
+  copyBridgeUrl,
+  runAudit: () => handleAuditRun(),
+  openReportsVault,
+  openAssistant: () => openAssistantDockExpandedFromShell(),
+  reloadShell: () => {
+    try {
+      window.location.reload();
+    } catch {
+      /* ignore */
+    }
+  },
+  scrollToLog: () => {
+    switchView("operations");
+    const logEl = document.getElementById("logOutput");
+    if (logEl && typeof logEl.scrollIntoView === "function") {
+      logEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  },
+};
+
+window.sitePulseWorkspaceSystem = {
+  enable() {
+    window.localStorage?.setItem(WORKSPACE_SYSTEM_FLAG_KEY, "1");
+    return maybeInitWorkspaceSystem();
+  },
+  enablePhase1() {
+    window.localStorage?.setItem(WORKSPACE_PHASE1_KEY, "1");
+    return maybeInitWorkspaceSystem();
+  },
+  disable() {
+    window.localStorage?.removeItem(WORKSPACE_SYSTEM_FLAG_KEY);
+    return true;
+  },
+  disablePhase1() {
+    window.localStorage?.removeItem(WORKSPACE_PHASE1_KEY);
+    return true;
+  },
+  isEnabled() {
+    return isWorkspaceSystemEnabled();
+  },
+  isPhase1() {
+    return isWorkspacePhase1Enabled();
+  },
+  manager() {
+    return workspaceSystemManager;
+  },
+  /** Para testes / consola: navega sem depender do clique na sidebar (síncrono; troca de workspace é async em background). */
+  navigateToView(viewName) {
+    switchView(viewName);
+  },
+};
+
+/**
+ * SitePulse Renderer Bridge
+ * Expõe funções para a interface React (app/src) interagir com o sistema legado
+ */
+window.sitepulseRenderer = {
+  // Navegação entre views
+  switchView(viewName) {
+    if (typeof switchView === "function") {
+      switchView(viewName);
+    }
+  },
+
+  // Controle do assistente
+  toggleAssistant(forceOpen) {
+    if (typeof toggleAssistant === "function") {
+      toggleAssistant(forceOpen);
+    }
+  },
+
+  toggleAssistantExpanded(forceExpanded) {
+    if (typeof toggleAssistantExpanded === "function") {
+      toggleAssistantExpanded(forceExpanded);
+    }
+  },
+
+  // Conversação
+  createNewConversation() {
+    if (typeof createNewConversation === "function") {
+      createNewConversation();
+    }
+  },
+
+  runAssistantQuery(query) {
+    if (typeof runAssistantQuery === "function") {
+      return runAssistantQuery(query);
+    }
+  },
+
+  // Snapshot do assistente para o React
+  getAssistantSnapshot() {
+    const report = getVisibleReport();
+    if (!report) {
+      return {
+        hasReport: false,
+        meta: null,
+        summary: null,
+        seoScore: 0,
+        qualityScore: 0,
+        issues: [],
+      };
+    }
+    return {
+      hasReport: true,
+      meta: report.meta || null,
+      summary: report.summary || null,
+      seoScore: report.summary?.seoScore || 0,
+      qualityScore: report.summary?.qualityScore || 0,
+      issues: report.issues || [],
+    };
+  },
+
+  getAssistantConversationSnapshot() {
+    return uiState.assistantConversation || [];
+  },
+
+  // Executar auditoria
+  handleAuditRun(forceDepth) {
+    if (typeof handleAuditRun === "function") {
+      return handleAuditRun(forceDepth);
+    }
+  },
+};
 
 

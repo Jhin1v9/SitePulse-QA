@@ -1,0 +1,306 @@
+/**
+ * SITEPULSE STUDIO v3.0 - DESIGN TOKENS
+ * O Oráculo Cibernético - Identidade Visual Suprema
+ * 
+ * Seguindo o plano à risca:
+ * - Paleta de cores dos 10 motores
+ * - Glassmorphism avançado
+ * - Animações fluidas
+ * - Tipografia hierárquica
+ */
+
+:root {
+  /* ============================================
+     CORES PRIMÁRIAS - Identidade da Marca
+     ============================================ */
+  --sp-primary: #6366F1;
+  --sp-primary-light: #818CF8;
+  --sp-primary-dark: #4F46E5;
+  --sp-primary-rgb: 99, 102, 241;
+  
+  /* ============================================
+     CORES DE SEVERIDADE - Padrão de Mercado
+     ============================================ */
+  --sp-critical: #EF4444;
+  --sp-critical-light: #FCA5A5;
+  --sp-critical-dark: #DC2626;
+  --sp-critical-rgb: 239, 68, 68;
+  
+  --sp-high: #F97316;
+  --sp-high-light: #FDBA74;
+  --sp-high-dark: #EA580C;
+  --sp-high-rgb: 249, 115, 22;
+  
+  --sp-medium: #EAB308;
+  --sp-medium-light: #FDE047;
+  --sp-medium-dark: #CA8A04;
+  --sp-medium-rgb: 234, 179, 8;
+  
+  --sp-low: #22C55E;
+  --sp-low-light: #86EFAC;
+  --sp-low-dark: #16A34A;
+  --sp-low-rgb: 34, 197, 94;
+  
+  --sp-info: #3B82F6;
+  --sp-info-light: #93C5FD;
+  --sp-info-dark: #2563EB;
+  --sp-info-rgb: 59, 130, 246;
+  
+  /* ============================================
+     CORES DOS 10 MOTORES - Identidade Visual
+     ============================================ */
+  --sp-intent: #EC4899;        /* Pink - Intent Engine */
+  --sp-intent-light: #F9A8D4;
+  --sp-intent-dark: #DB2777;
+  --sp-intent-rgb: 236, 72, 153;
+  
+  --sp-context: #8B5CF6;       /* Purple - Context Engine */
+  --sp-context-light: #C4B5FD;
+  --sp-context-dark: #7C3AED;
+  --sp-context-rgb: 139, 92, 246;
+  
+  --sp-evidence: #06B6D4;      /* Cyan - Evidence Engine */
+  --sp-evidence-light: #67E8F9;
+  --sp-evidence-dark: #0891B2;
+  --sp-evidence-rgb: 6, 182, 212;
+  
+  --sp-memory: #F59E0B;        /* Amber - Memory Engine */
+  --sp-memory-light: #FCD34D;
+  --sp-memory-dark: #D97706;
+  --sp-memory-rgb: 245, 158, 11;
+  
+  --sp-learning: #10B981;      /* Emerald - Learning Engine */
+  --sp-learning-light: #6EE7B7;
+  --sp-learning-dark: #059669;
+  --sp-learning-rgb: 16, 185, 129;
+  
+  --sp-decision: #6366F1;      /* Indigo - Decision Engine */
+  --sp-decision-light: #A5B4FC;
+  --sp-decision-dark: #4F46E5;
+  --sp-decision-rgb: 99, 102, 241;
+  
+  --sp-action: #EF4444;        /* Red - Action Engine */
+  --sp-action-light: #FCA5A5;
+  --sp-action-dark: #DC2626;
+  --sp-action-rgb: 239, 68, 68;
+  
+  --sp-predictive: #3B82F6;    /* Blue - Predictive Engine */
+  --sp-predictive-light: #93C5FD;
+  --sp-predictive-dark: #2563EB;
+  --sp-predictive-rgb: 59, 130, 246;
+  
+  --sp-autonomous: #14B8A6;    /* Teal - Autonomous QA */
+  --sp-autonomous-light: #5EEAD4;
+  --sp-autonomous-dark: #0D9488;
+  --sp-autonomous-rgb: 20, 184, 166;
+  
+  --sp-security: #DC2626;      /* Red-dark - CyberSenior */
+  --sp-security-light: #FCA5A5;
+  --sp-security-dark: #B91C1C;
+  --sp-security-rgb: 220, 38, 38;
+  
+  /* ============================================
+     BACKGROUNDS - Dark Mode First
+     ============================================ */
+  --sp-bg-primary: #0F172A;           /* Slate 900 - Fundo principal */
+  --sp-bg-secondary: #1E293B;         /* Slate 800 - Cards */
+  --sp-bg-tertiary: #334155;          /* Slate 700 - Hover states */
+  --sp-bg-quaternary: #475569;        /* Slate 600 - Borders */
+  
+  /* Glassmorphism */
+  --sp-bg-glass: rgba(30, 41, 59, 0.7);
+  --sp-bg-glass-light: rgba(30, 41, 59, 0.4);
+  --sp-bg-glass-heavy: rgba(15, 23, 42, 0.85);
+  
+  /* Gradientes de Fundo */
+  --sp-bg-gradient-1: linear-gradient(135deg, #0F172A 0%, #1E1B4B 50%, #0F172A 100%);
+  --sp-bg-gradient-2: linear-gradient(180deg, #0F172A 0%, #1E293B 100%);
+  --sp-bg-gradient-radial: radial-gradient(ellipse at top, #1E1B4B 0%, #0F172A 50%);
+  
+  /* ============================================
+     CORES DE TEXTO
+     ============================================ */
+  --sp-text-primary: #F8FAFC;         /* Slate 50 */
+  --sp-text-secondary: #CBD5E1;       /* Slate 300 */
+  --sp-text-tertiary: #94A3B8;        /* Slate 400 */
+  --sp-text-muted: #64748B;           /* Slate 500 */
+  --sp-text-inverse: #0F172A;         /* Slate 900 */
+  
+  /* ============================================
+     BORDAS E SOMBRAS
+     ============================================ */
+  --sp-border-subtle: rgba(255, 255, 255, 0.05);
+  --sp-border-light: rgba(255, 255, 255, 0.1);
+  --sp-border-medium: rgba(255, 255, 255, 0.2);
+  --sp-border-strong: rgba(255, 255, 255, 0.3);
+  
+  --sp-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --sp-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+  --sp-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --sp-shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+  --sp-shadow-glow-primary: 0 0 20px rgba(99, 102, 241, 0.4);
+  --sp-shadow-glow-critical: 0 0 20px rgba(239, 68, 68, 0.4);
+  --sp-shadow-glow-success: 0 0 20px rgba(34, 197, 94, 0.4);
+  
+  /* ============================================
+     TIPOGRAFIA - Escala Tipográfica
+     ============================================ */
+  --font-family-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  --font-family-display: 'Space Grotesk', 'Inter', sans-serif;
+  
+  --text-xs: 0.75rem;      /* 12px - Tags, badges */
+  --text-sm: 0.875rem;     /* 14px - Secondary text */
+  --text-base: 1rem;       /* 16px - Body */
+  --text-lg: 1.125rem;     /* 18px - Labels importantes */
+  --text-xl: 1.25rem;      /* 20px - Subtítulos */
+  --text-2xl: 1.5rem;      /* 24px - Títulos cards */
+  --text-3xl: 1.875rem;    /* 30px - Títulos seção */
+  --text-4xl: 2.25rem;     /* 36px - Números grandes */
+  --text-5xl: 3rem;        /* 48px - KPIs dashboard */
+  --text-6xl: 3.75rem;     /* 60px - Hero numbers */
+  
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+  
+  /* ============================================
+     ESPAÇAMENTO - Sistema 8px Base
+     ============================================ */
+  --space-0: 0;
+  --space-1: 0.25rem;      /* 4px */
+  --space-2: 0.5rem;       /* 8px */
+  --space-3: 0.75rem;      /* 12px */
+  --space-4: 1rem;         /* 16px */
+  --space-5: 1.25rem;      /* 20px */
+  --space-6: 1.5rem;       /* 24px */
+  --space-8: 2rem;         /* 32px */
+  --space-10: 2.5rem;      /* 40px */
+  --space-12: 3rem;        /* 48px */
+  --space-16: 4rem;        /* 64px */
+  --space-20: 5rem;        /* 80px */
+  --space-24: 6rem;        /* 96px */
+  
+  /* ============================================
+     BORDAS - Radius
+     ============================================ */
+  --radius-none: 0;
+  --radius-sm: 0.25rem;    /* 4px */
+  --radius-md: 0.5rem;     /* 8px */
+  --radius-lg: 0.75rem;    /* 12px */
+  --radius-xl: 1rem;       /* 16px */
+  --radius-2xl: 1.25rem;   /* 20px */
+  --radius-3xl: 1.5rem;    /* 24px */
+  --radius-full: 9999px;
+  
+  /* ============================================
+     ANIMAÇÕES - Timing Functions
+     ============================================ */
+  --ease-linear: linear;
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-smooth: cubic-bezier(0.16, 1, 0.3, 1);
+  
+  --duration-instant: 0ms;
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
+  --duration-slower: 500ms;
+  
+  /* ============================================
+     Z-INDEX - Layers
+     ============================================ */
+  --z-base: 0;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-modal-backdrop: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-toast: 800;
+  --z-max: 9999;
+  
+  /* ============================================
+     BREAKPOINTS - Referência
+     ============================================ */
+  --bp-sm: 640px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+  --bp-2xl: 1536px;
+}
+
+/* ============================================
+   UTILITÁRIOS DE CORES DOS MOTORES
+   ============================================ */
+
+/* Intent Engine - Pink */
+.sp-color-intent { color: var(--sp-intent); }
+.sp-bg-intent { background-color: var(--sp-intent); }
+.sp-border-intent { border-color: var(--sp-intent); }
+
+/* Context Engine - Purple */
+.sp-color-context { color: var(--sp-context); }
+.sp-bg-context { background-color: var(--sp-context); }
+.sp-border-context { border-color: var(--sp-context); }
+
+/* Evidence Engine - Cyan */
+.sp-color-evidence { color: var(--sp-evidence); }
+.sp-bg-evidence { background-color: var(--sp-evidence); }
+.sp-border-evidence { border-color: var(--sp-evidence); }
+
+/* Memory Engine - Amber */
+.sp-color-memory { color: var(--sp-memory); }
+.sp-bg-memory { background-color: var(--sp-memory); }
+.sp-border-memory { border-color: var(--sp-memory); }
+
+/* Learning Engine - Emerald */
+.sp-color-learning { color: var(--sp-learning); }
+.sp-bg-learning { background-color: var(--sp-learning); }
+.sp-border-learning { border-color: var(--sp-learning); }
+
+/* Decision Engine - Indigo */
+.sp-color-decision { color: var(--sp-decision); }
+.sp-bg-decision { background-color: var(--sp-decision); }
+.sp-border-decision { border-color: var(--sp-decision); }
+
+/* Action Engine - Red */
+.sp-color-action { color: var(--sp-action); }
+.sp-bg-action { background-color: var(--sp-action); }
+.sp-border-action { border-color: var(--sp-action); }
+
+/* Predictive Engine - Blue */
+.sp-color-predictive { color: var(--sp-predictive); }
+.sp-bg-predictive { background-color: var(--sp-predictive); }
+.sp-border-predictive { border-color: var(--sp-predictive); }
+
+/* Autonomous QA - Teal */
+.sp-color-autonomous { color: var(--sp-autonomous); }
+.sp-bg-autonomous { background-color: var(--sp-autonomous); }
+.sp-border-autonomous { border-color: var(--sp-autonomous); }
+
+/* CyberSenior - Red Dark */
+.sp-color-security { color: var(--sp-security); }
+.sp-bg-security { background-color: var(--sp-security); }
+.sp-border-security { border-color: var(--sp-security); }
+
+/* Severidade */
+.sp-color-critical { color: var(--sp-critical); }
+.sp-color-high { color: var(--sp-high); }
+.sp-color-medium { color: var(--sp-medium); }
+.sp-color-low { color: var(--sp-low); }
+.sp-color-info { color: var(--sp-info); }
+
+.sp-bg-critical { background-color: var(--sp-critical); }
+.sp-bg-high { background-color: var(--sp-high); }
+.sp-bg-medium { background-color: var(--sp-medium); }
+.sp-bg-low { background-color: var(--sp-low); }
+.sp-bg-info { background-color: var(--sp-info); }

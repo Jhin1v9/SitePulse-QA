@@ -1,0 +1,21 @@
+---
+description: Run smoke, test:ui and lint after changes to SitePulse Studio (companion)
+globs: companion/**
+alwaysApply: false
+---
+
+# Companion — sempre validar com smoke, testes e lint
+
+Quando alterares código no **companion** (SitePulse Studio desktop), **antes de dar a tarefa por concluída**:
+
+1. **Smoke:** `cd companion && npm run smoke`  
+   - Confirma que o app Electron arranca, o bridge sobe e uma auditoria curta corre.
+
+2. **Teste de UI:** `cd companion && npm run test:ui`  
+   - Contrato de UI em Playwright (layout, navegação, fluxo com mock).
+
+3. **Lint:** Se existir lint no projeto (ex.: `npm run lint` no repo raiz para Next.js), correr também. No companion não há ESLint; a validação base é smoke + test:ui.
+
+Podes usar o atalho **`npm run check`** dentro de `companion/`, que corre smoke e test:ui em sequência.
+
+Se smoke ou test:ui falharem, investigar e corrigir (ou documentar a falha conhecida) antes de considerar a tarefa concluída. Ver `companion/docs/TESTING.md` para detalhes.

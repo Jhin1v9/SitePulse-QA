@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Pulse | Elite Digital Experience</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'gold': {
+                            100: '#F9F1D8',
+                            200: '#F0DEAA',
+                            300: '#E6CB7D',
+                            400: '#DDB850',
+                            500: '#D4AF37',
+                            600: '#AA8C2C',
+                            700: '#806921',
+                            800: '#554616',
+                            900: '#2B230B',
+                        },
+                        'obsidian': '#050505',
+                        'charcoal': '#0A0A0A',
+                        'graphite': '#141414',
+                    },
+                    fontFamily: {
+                        'serif': ['Cormorant Garamond', 'serif'],
+                        'sans': ['Inter', 'sans-serif'],
+                    },
+                    backgroundImage: {
+                        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+                        'gold-shine': 'linear-gradient(135deg, #D4AF37 0%, #F0DEAA 50%, #D4AF37 100%)',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #050505;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        
+        .text-gold-gradient {
+            background: linear-gradient(135deg, #D4AF37 0%, #F0DEAA 50%, #D4AF37 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .border-gold-gradient {
+            border-image: linear-gradient(135deg, #D4AF37, #F0DEAA, #D4AF37) 1;
+        }
+        
+        .glass-panel {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(212, 175, 55, 0.1);
+        }
+        
+        .noise-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            opacity: 0.03;
+            z-index: 9999;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+        
+        .cursor-glow {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(212,175,55,0.15) 0%, transparent 70%);
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            transform: translate(-50%, -50%);
+            transition: opacity 0.3s;
+        }
+        
+        .magnetic-btn {
+            transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .reveal-text {
+            clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+        }
+        
+        .char {
+            display: inline-block;
+            transform: translateY(100%);
+            opacity: 0;
+        }
+        
+        .luxury-card {
+            background: linear-gradient(145deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.9) 100%);
+            border: 1px solid rgba(212,175,55,0.15);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        
+        .luxury-card:hover {
+            border-color: rgba(212,175,55,0.4);
+            transform: translateY(-10px);
+            box-shadow: 0 30px 60px -15px rgba(212,175,55,0.2);
+        }
+        
+        .marquee-container {
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        .marquee-content {
+            display: inline-block;
+            animation: marquee 30s linear infinite;
+        }
+        
+        @keyframes marquee {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+        
+        .gold-line {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #D4AF37, transparent);
+        }
+        
+        .floating {
+            animation: floating 6s ease-in-out infinite;
+        }
+        
+        @keyframes floating {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .rotate-slow {
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .btn-gold {
+            background: linear-gradient(135deg, #D4AF37 0%, #AA8C2C 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-gold::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-gold:hover::before {
+            left: 100%;
+        }
+        
+        .input-luxury {
+            background: rgba(20, 20, 20, 0.8);
+            border: 1px solid rgba(212,175,55,0.2);
+            transition: all 0.3s;
+        }
+        
+        .input-luxury:focus {
+            border-color: #D4AF37;
+            box-shadow: 0 0 20px rgba(212,175,55,0.2);
+            outline: none;
+        }
+        
+        .scroll-indicator {
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+        }
+    </style>
+<base target="_blank">
+</head>
+<body class="font-sans antialiased selection:bg-gold-500 selection:text-obsidian">
+
+    <!-- Noise Overlay -->
+    <div class="noise-overlay"></div>
+    
+    <!-- Cursor Glow -->
+    <div class="cursor-glow hidden md:block" id="cursorGlow"></div>
+
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 w-full z-50 transition-all duration-500" id="navbar">
+        <div class="glass-panel border-b border-gold-500/10">
+            <div class="max-w-7xl mx-auto px-6 lg:px-8">
+                <div class="flex items-center justify-between h-20">
+                    <!-- Logo -->
+                    <div class="flex-shrink-0 cursor-pointer group">
+                        <span class="font-serif text-2xl font-semibold tracking-wider text-white group-hover:text-gold-300 transition-colors">
+                            SITE<span class="text-gold-400">PULSE</span>
+                        </span>
+                    </div>
+                    
+                    <!-- Desktop Menu -->
+                    <div class="hidden md:flex items-center space-x-8">
+                        <a href="#inicio" class="text-sm tracking-widest uppercase text-gray-400 hover:text-gold-400 transition-colors duration-300">Inicio</a>
+                        <a href="#servicios" class="text-sm tracking-widest uppercase text-gray-400 hover:text-gold-400 transition-colors duration-300">Servicios</a>
+                        <a href="#experiencia" class="text-sm tracking-widest uppercase text-gray-400 hover:text-gold-400 transition-colors duration-300">Experiencia</a>
+                        <a href="#contacto" class="text-sm tracking-widest uppercase text-gray-400 hover:text-gold-400 transition-colors duration-300">Contacto</a>
+                    </div>
+                    
+                    <!-- CTA Button -->
+                    <div class="hidden md:block">
+                        <button class="magnetic-btn btn-gold px-8 py-3 text-sm font-semibold tracking-widest uppercase text-obsidian rounded-sm hover:scale-105 transition-transform">
+                            Acceso VIP
+                        </button>
+                    </div>
+                    
+                    <!-- Mobile Menu Button -->
+                    <button class="md:hidden text-white" id="mobileMenuBtn">
+                        <i data-lucide="menu" class="w-6 h-6"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Menu -->
+    <div class="fixed inset-0 z-40 bg-obsidian/95 backdrop-blur-xl transform translate-x-full transition-transform duration-500" id="mobileMenu">
+        <div class="flex flex-col items-center justify-center h-full space-y-8">
+            <a href="#inicio" class="text-2xl font-serif text-white hover:text-gold-400 transition-colors">Inicio</a>
+            <a href="#servicios" class="text-2xl font-serif text-white hover:text-gold-400 transition-colors">Servicios</a>
+            <a href="#experiencia" class="text-2xl font-serif text-white hover:text-gold-400 transition-colors">Experiencia</a>
+            <a href="#contacto" class="text-2xl font-serif text-white hover:text-gold-400 transition-colors">Contacto</a>
+        </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section id="inicio" class="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
+        <!-- Background Elements -->
+        <div class="absolute inset-0 z-0">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-gold-500/10 rounded-full blur-[120px] animate-pulse"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-gold-600/10 rounded-full blur-[120px] animate-pulse delay-1000"></div>
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-gold-500/5 rounded-full rotate-slow"></div>
+            <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-gold-500/10 rounded-full rotate-slow" style="animation-direction: reverse;"></div>
+        </div>
+
+        <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-8 text-center">
+            <div class="mb-6 inline-block">
+                <span class="text-gold-400 text-sm tracking-[0.3em] uppercase font-medium opacity-0" id="heroSubtitle">Experiencia Digital Exclusiva</span>
+            </div>
+            
+            <h1 class="font-serif text-5xl md:text-7xl lg:text-9xl font-light leading-none mb-8">
+                <span class="block overflow-hidden">
+                    <span class="hero-title-line block text-white">ELEVA TU</span>
+                </span>
+                <span class="block overflow-hidden">
+                    <span class="hero-title-line block text-gold-gradient italic">Presencia</span>
+                </span>
+                <span class="block overflow-hidden">
+                    <span class="hero-title-line block text-white">DIGITAL</span>
+                </span>
+            </h1>
+            
+            <p class="max-w-2xl mx-auto text-gray-400 text-lg md:text-xl font-light leading-relaxed mb-12 opacity-0" id="heroDesc">
+                Transformamos visiones en experiencias digitales extraordinarias. Diseño de élite para quienes buscan lo excepcional.
+            </p>
+            
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-6 opacity-0" id="heroCTA">
+                <button class="magnetic-btn group relative px-10 py-4 bg-transparent border border-gold-500/50 text-gold-400 hover:bg-gold-500 hover:text-obsidian transition-all duration-500 overflow-hidden rounded-sm">
+                    <span class="relative z-10 text-sm tracking-widest uppercase font-semibold">Descubrir Más</span>
+                </button>
+                <button class="magnetic-btn flex items-center gap-3 text-white hover:text-gold-400 transition-colors group">
+                    <span class="w-12 h-12 rounded-full border border-gold-500/30 flex items-center justify-center group-hover:border-gold-500 transition-colors">
+                        <i data-lucide="play" class="w-4 h-4 fill-current"></i>
+                    </span>
+                    <span class="text-sm tracking-widest uppercase">Ver Showreel</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-10 left-10 hidden lg:flex items-center gap-4 opacity-50">
+            <div class="w-[1px] h-20 bg-gradient-to-b from-gold-500 to-transparent"></div>
+            <span class="scroll-indicator text-xs tracking-widest uppercase text-gold-400">Scroll</span>
+        </div>
+
+        <!-- Stats -->
+        <div class="absolute bottom-10 right-10 hidden lg:block text-right">
+            <div class="text-gold-400 font-serif text-4xl mb-1">12+</div>
+            <div class="text-gray-500 text-xs tracking-widest uppercase">Años de Excelencia</div>
+        </div>
+    </section>
+
+    <!-- Marquee Section -->
+    <div class="py-8 border-y border-gold-500/10 bg-charcoal/50 overflow-hidden">
+        <div class="marquee-container">
+            <div class="marquee-content text-6xl md:text-8xl font-serif text-transparent stroke-text opacity-20">
+                <span class="mx-8 text-gold-500/20">DISEÑO EXCLUSIVO</span>
+                <span class="mx-8 text-white/10">•</span>
+                <span class="mx-8 text-gold-500/20">EXPERIENCIAS PREMIUM</span>
+                <span class="mx-8 text-white/10">•</span>
+                <span class="mx-8 text-gold-500/20">INNOVACIÓN CONSTANTE</span>
+                <span class="mx-8 text-white/10">•</span>
+                <span class="mx-8 text-gold-500/20">DISEÑO EXCLUSIVO</span>
+                <span class="mx-8 text-white/10">•</span>
+                <span class="mx-8 text-gold-500/20">EXPERIENCIAS PREMIUM</span>
+                <span class="mx-8 text-white/10">•</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Services Section -->
+    <section id="servicios" class="py-32 relative">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-16 items-start mb-20">
+                <div>
+                    <span class="text-gold-400 text-sm tracking-[0.3em] uppercase mb-4 block">Nuestros Servicios</span>
+                    <h2 class="font-serif text-4xl md:text-6xl text-white leading-tight">
+                        Excelencia en <br>
+                        <span class="text-gold-gradient italic">cada detalle</span>
+                    </h2>
+                </div>
+                <div class="lg:pt-12">
+                    <p class="text-gray-400 text-lg leading-relaxed">
+                        Ofrecemos soluciones digitales de clase mundial, diseñadas para destacar en un mercado competitivo. Cada proyecto es una obra maestra única.
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Service 1 -->
+                <div class="luxury-card p-8 md:p-10 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-full border border-gold-500/20 flex items-center justify-center mb-6 group-hover:border-gold-500/50 transition-colors">
+                        <i data-lucide="gem" class="w-6 h-6 text-gold-400"></i>
+                    </div>
+                    <h3 class="font-serif text-2xl text-white mb-4 group-hover:text-gold-400 transition-colors">Diseño Estratégico</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                        Creamos identidades visuales que capturan la esencia de tu marca y conectan con audiencias de alto nivel.
+                    </p>
+                    <div class="flex items-center text-gold-400 text-sm tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0">
+                        <span>Explorar</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </div>
+                </div>
+
+                <!-- Service 2 -->
+                <div class="luxury-card p-8 md:p-10 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-full border border-gold-500/20 flex items-center justify-center mb-6 group-hover:border-gold-500/50 transition-colors">
+                        <i data-lucide="code-2" class="w-6 h-6 text-gold-400"></i>
+                    </div>
+                    <h3 class="font-serif text-2xl text-white mb-4 group-hover:text-gold-400 transition-colors">Desarrollo Elite</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                        Tecnología de vanguardia con código limpio y optimizado para rendimiento excepcional y experiencias fluidas.
+                    </p>
+                    <div class="flex items-center text-gold-400 text-sm tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0">
+                        <span>Explorar</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </div>
+                </div>
+
+                <!-- Service 3 -->
+                <div class="luxury-card p-8 md:p-10 group cursor-pointer">
+                    <div class="w-16 h-16 rounded-full border border-gold-500/20 flex items-center justify-center mb-6 group-hover:border-gold-500/50 transition-colors">
+                        <i data-lucide="trending-up" class="w-6 h-6 text-gold-400"></i>
+                    </div>
+                    <h3 class="font-serif text-2xl text-white mb-4 group-hover:text-gold-400 transition-colors">Growth Digital</h3>
+                    <p class="text-gray-400 text-sm leading-relaxed mb-6">
+                        Estrategias de marketing sofisticadas que posicionan tu marca en el mercado premium y generan resultados medibles.
+                    </p>
+                    <div class="flex items-center text-gold-400 text-sm tracking-widest uppercase opacity-0 group-hover:opacity-100 transition-opacity transform translate-x-[-10px] group-hover:translate-x-0">
+                        <span>Explorar</span>
+                        <i data-lucide="arrow-right" class="w-4 h-4 ml-2"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Experience/Stats Section -->
+    <section id="experiencia" class="py-32 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-b from-charcoal to-obsidian"></div>
+        
+        <div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid lg:grid-cols-2 gap-16 items-center">
+                <div class="relative">
+                    <div class="aspect-[4/5] rounded-sm overflow-hidden relative group">
+                        <img src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&q=80&w=800" alt="Luxury Office" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                        <div class="absolute inset-0 bg-gradient-to-t from-obsidian via-transparent to-transparent"></div>
+                    </div>
+                    <div class="absolute -bottom-10 -right-10 w-64 h-64 border border-gold-500/20 rounded-sm -z-10"></div>
+                    <div class="absolute -top-10 -left-10 w-32 h-32 bg-gold-500/10 rounded-full blur-3xl"></div>
+                </div>
+
+                <div>
+                    <span class="text-gold-400 text-sm tracking-[0.3em] uppercase mb-4 block">Nuestra Experiencia</span>
+                    <h2 class="font-serif text-4xl md:text-5xl text-white leading-tight mb-8">
+                        Creando el <span class="text-gold-gradient italic">futuro digital</span> desde 2012
+                    </h2>
+                    
+                    <div class="space-y-8 mb-12">
+                        <div class="flex items-start gap-6">
+                            <div class="w-12 h-12 rounded-full bg-gold-500/10 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="award" class="w-5 h-5 text-gold-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-serif text-xl mb-2">Premios Internacionales</h4>
+                                <p class="text-gray-400 text-sm leading-relaxed">Reconocidos por Awwwards, CSS Design Awards y FWA por excelencia en diseño web.</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-start gap-6">
+                            <div class="w-12 h-12 rounded-full bg-gold-500/10 flex items-center justify-center flex-shrink-0">
+                                <i data-lucide="users" class="w-5 h-5 text-gold-400"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-serif text-xl mb-2">Clientes Selectos</h4>
+                                <p class="text-gray-400 text-sm leading-relaxed">Trabajamos con un número limitado de clientes para garantizar atención personalizada de élite.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-8 pt-8 border-t border-gold-500/10">
+                        <div>
+                            <div class="font-serif text-4xl text-gold-400 mb-1 counter" data-target="150">0</div>
+                            <div class="text-gray-500 text-xs tracking-widest uppercase">Proyectos</div>
+                        </div>
+                        <div>
+                            <div class="font-serif text-4xl text-gold-400 mb-1 counter" data-target="48">0</div>
+                            <div class="text-gray-500 text-xs tracking-widest uppercase">Premios</div>
+                        </div>
+                        <div>
+                            <div class="font-serif text-4xl text-gold-400 mb-1 counter" data-target="98">0</div>
+                            <div class="text-gray-500 text-xs tracking-widest uppercase">% Satisfacción</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Work -->
+    <section class="py-32 relative">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8 mb-16">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                    <span class="text-gold-400 text-sm tracking-[0.3em] uppercase mb-4 block">Portafolio Selecto</span>
+                    <h2 class="font-serif text-4xl md:text-6xl text-white">Obras <span class="text-gold-gradient italic">Maestras</span></h2>
+                </div>
+                <button class="magnetic-btn self-start md:self-auto px-8 py-3 border border-gold-500/30 text-gold-400 hover:bg-gold-500 hover:text-obsidian transition-all duration-300 text-sm tracking-widest uppercase rounded-sm">
+                    Ver Todo
+                </button>
+            </div>
+        </div>
+
+        <div class="grid md:grid-cols-2 gap-1">
+            <div class="group relative aspect-[16/10] overflow-hidden cursor-pointer">
+                <img src="https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=1200" alt="Project 1" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                <div class="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <div class="text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                        <h3 class="font-serif text-3xl text-white mb-2">Villa Moderna</h3>
+                        <p class="text-gold-400 text-sm tracking-widest uppercase">Arquitectura & Diseño</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group relative aspect-[16/10] overflow-hidden cursor-pointer">
+                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=1200" alt="Project 2" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                <div class="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <div class="text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                        <h3 class="font-serif text-3xl text-white mb-2">Essence Brand</h3>
+                        <p class="text-gold-400 text-sm tracking-widest uppercase">Identidad Visual</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group relative aspect-[16/10] overflow-hidden cursor-pointer">
+                <img src="https://images.unsplash.com/photo-1558655146-9f40138edfeb?auto=format&fit=crop&q=80&w=1200" alt="Project 3" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                <div class="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <div class="text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                        <h3 class="font-serif text-3xl text-white mb-2">Aurum Tech</h3>
+                        <p class="text-gold-400 text-sm tracking-widest uppercase">Plataforma Digital</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="group relative aspect-[16/10] overflow-hidden cursor-pointer">
+                <img src="https://images.unsplash.com/photo-1561070791-2526d30994b5?auto=format&fit=crop&q=80&w=1200" alt="Project 4" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                <div class="absolute inset-0 bg-obsidian/60 opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
+                    <div class="text-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                        <h3 class="font-serif text-3xl text-white mb-2">Luxe Magazine</h3>
+                        <p class="text-gold-400 text-sm tracking-widest uppercase">Editorial Digital</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contacto" class="py-32 relative">
+        <div class="max-w-4xl mx-auto px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <span class="text-gold-400 text-sm tracking-[0.3em] uppercase mb-4 block">Contacto Exclusivo</span>
+                <h2 class="font-serif text-4xl md:text-6xl text-white mb-6">Inicia tu <span class="text-gold-gradient italic">transformación</span></h2>
+                <p class="text-gray-400 text-lg max-w-2xl mx-auto">
+                    Disponibles para proyectos selectos. Cuéntanos sobre tu visión y te contactaremos dentro de 24 horas.
+                </p>
+            </div>
+
+            <form class="space-y-8">
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="space-y-2">
+                        <label class="text-gold-400 text-xs tracking-widest uppercase">Nombre</label>
+                        <input type="text" class="input-luxury w-full px-6 py-4 text-white rounded-sm" placeholder="Tu nombre">
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-gold-400 text-xs tracking-widest uppercase">Email</label>
+                        <input type="email" class="input-luxury w-full px-6 py-4 text-white rounded-sm" placeholder="tu@email.com">
+                    </div>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-gold-400 text-xs tracking-widest uppercase">Tipo de Proyecto</label>
+                    <select class="input-luxury w-full px-6 py-4 text-white rounded-sm appearance-none cursor-pointer">
+                        <option value="" class="bg-graphite">Selecciona una opción</option>
+                        <option value="web" class="bg-graphite">Diseño Web Premium</option>
+                        <option value="brand" class="bg-graphite">Identidad de Marca</option>
+                        <option value="app" class="bg-graphite">Aplicación Digital</option>
+                        <option value="other" class="bg-graphite">Otro</option>
+                    </select>
+                </div>
+                
+                <div class="space-y-2">
+                    <label class="text-gold-400 text-xs tracking-widest uppercase">Mensaje</label>
+                    <textarea rows="5" class="input-luxury w-full px-6 py-4 text-white rounded-sm resize-none" placeholder="Cuéntanos sobre tu proyecto..."></textarea>
+                </div>
+                
+                <div class="text-center pt-4">
+                    <button type="submit" class="magnetic-btn btn-gold px-12 py-5 text-sm font-bold tracking-widest uppercase text-obsidian rounded-sm hover:scale-105 transition-transform inline-flex items-center gap-3">
+                        <span>Enviar Propuesta</span>
+                        <i data-lucide="send" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="border-t border-gold-500/10 bg-charcoal py-20">
+        <div class="max-w-7xl mx-auto px-6 lg:px-8">
+            <div class="grid md:grid-cols-4 gap-12 mb-16">
+                <div class="md:col-span-2">
+                    <span class="font-serif text-3xl font-semibold tracking-wider text-white mb-6 block">
+                        SITE<span class="text-gold-400">PULSE</span>
+                    </span>
+                    <p class="text-gray-400 text-sm leading-relaxed max-w-md mb-8">
+                        Creamos experiencias digitales extraordinarias para clientes exigentes. Diseño de élite, tecnología de vanguardia, resultados excepcionales.
+                    </p>
+                    <div class="flex gap-4">
+                        <a href="#" class="w-10 h-10 rounded-full border border-gold-500/20 flex items-center justify-center text-gold-400 hover:bg-gold-500 hover:text-obsidian transition-all">
+                            <i data-lucide="instagram" class="w-4 h-4"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 rounded-full border border-gold-500/20 flex items-center justify-center text-gold-400 hover:bg-gold-500 hover:text-obsidian transition-all">
+                            <i data-lucide="linkedin" class="w-4 h-4"></i>
+                        </a>
+                        <a href="#" class="w-10 h-10 rounded-full border border-gold-500/20 flex items-center justify-center text-gold-400 hover:bg-gold-500 hover:text-obsidian transition-all">
+                            <i data-lucide="twitter" class="w-4 h-4"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-serif text-lg mb-6">Navegación</h4>
+                    <ul class="space-y-3">
+                        <li><a href="#inicio" class="text-gray-400 hover:text-gold-400 transition-colors text-sm">Inicio</a></li>
+                        <li><a href="#servicios" class="text-gray-400 hover:text-gold-400 transition-colors text-sm">Servicios</a></li>
+                        <li><a href="#experiencia" class="text-gray-400 hover:text-gold-400 transition-colors text-sm">Experiencia</a></li>
+                        <li><a href="#contacto" class="text-gray-400 hover:text-gold-400 transition-colors text-sm">Contacto</a></li>
+                    </ul>
+                </div>
+                
+                <div>
+                    <h4 class="text-white font-serif text-lg mb-6">Contacto</h4>
+                    <ul class="space-y-3 text-sm text-gray-400">
+                        <li class="flex items-center gap-3">
+                            <i data-lucide="mail" class="w-4 h-4 text-gold-400"></i>
+                            elite@sitepulse.com
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i data-lucide="phone" class="w-4 h-4 text-gold-400"></i>
+                            +34 912 345 678
+                        </li>
+                        <li class="flex items-center gap-3">
+                            <i data-lucide="map-pin" class="w-4 h-4 text-gold-400"></i>
+                            Madrid, España
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="gold-line mb-8"></div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-500 tracking-widest uppercase">
+                <p>&copy; 2024 Site Pulse. Todos los derechos reservados.</p>
+                <div class="flex gap-6">
+                    <a href="#" class="hover:text-gold-400 transition-colors">Privacidad</a>
+                    <a href="#" class="hover:text-gold-400 transition-colors">Términos</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Initialize Lucide Icons
+        lucide.createIcons();
+
+        // Register GSAP ScrollTrigger
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Custom Cursor Glow
+        const cursorGlow = document.getElementById('cursorGlow');
+        document.addEventListener('mousemove', (e) => {
+            gsap.to(cursorGlow, {
+                x: e.clientX,
+                y: e.clientY,
+                duration: 0.3,
+                ease: "power2.out"
+            });
+        });
+
+        // Magnetic Buttons
+        const magneticBtns = document.querySelectorAll('.magnetic-btn');
+        magneticBtns.forEach(btn => {
+            btn.addEventListener('mousemove', (e) => {
+                const rect = btn.getBoundingClientRect();
+                const x = e.clientX - rect.left - rect.width / 2;
+                const y = e.clientY - rect.top - rect.height / 2;
+                
+                gsap.to(btn, {
+                    x: x * 0.3,
+                    y: y * 0.3,
+                    duration: 0.3,
+                    ease: "power2.out"
+                });
+            });
+            
+            btn.addEventListener('mouseleave', () => {
+                gsap.to(btn, {
+                    x: 0,
+                    y: 0,
+                    duration: 0.3,
+                    ease: "power2.out"
+                });
+            });
+        });
+
+        // Hero Animations
+        const heroTl = gsap.timeline();
+        
+        heroTl.to("#heroSubtitle", {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            ease: "power3.out",
+            delay: 0.5
+        })
+        .to(".hero-title-line", {
+            y: 0,
+            opacity: 1,
+            duration: 1.2,
+            stagger: 0.2,
+            ease: "power4.out"
+        }, "-=0.5")
+        .to("#heroDesc", {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            ease: "power3.out"
+        }, "-=0.8")
+        .to("#heroCTA", {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            ease: "power3.out"
+        }, "-=0.6");
+
+        // Scroll Animations for Sections
+        gsap.utils.toArray('.luxury-card').forEach((card, i) => {
+            gsap.from(card, {
+                scrollTrigger: {
+                    trigger: card,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse"
+                },
+                y: 50,
+                opacity: 0,
+                duration: 0.8,
+                delay: i * 0.1,
+                ease: "power3.out"
+            });
+        });
+
+        // Counter Animation
+        const counters = document.querySelectorAll('.counter');
+        counters.forEach(counter => {
+            const target = parseInt(counter.getAttribute('data-target'));
+            
+            ScrollTrigger.create({
+                trigger: counter,
+                start: "top 85%",
+                onEnter: () => {
+                    gsap.to(counter, {
+                        innerHTML: target,
+                        duration: 2,
+                        snap: { innerHTML: 1 },
+                        ease: "power2.out",
+                        onUpdate: function() {
+                            counter.innerHTML = Math.ceil(this.targets()[0].innerHTML) + (target === 98 ? '%' : '+');
+                        }
+                    });
+                }
+            });
+        });
+
+        // Navbar Scroll Effect
+        const navbar = document.getElementById('navbar');
+        let lastScroll = 0;
+
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            
+            if (currentScroll > 100) {
+                navbar.classList.add('bg-obsidian/90', 'backdrop-blur-xl');
+            } else {
+                navbar.classList.remove('bg-obsidian/90', 'backdrop-blur-xl');
+            }
+            
+            lastScroll = currentScroll;
+        });
+
+        // Mobile Menu Toggle
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        let isMenuOpen = false;
+
+        mobileMenuBtn.addEventListener('click', () => {
+            isMenuOpen = !isMenuOpen;
+            if (isMenuOpen) {
+                mobileMenu.classList.remove('translate-x-full');
+            } else {
+                mobileMenu.classList.add('translate-x-full');
+            }
+        });
+
+        // Smooth Scroll for Anchor Links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                    // Close mobile menu if open
+                    if (isMenuOpen) {
+                        mobileMenu.classList.add('translate-x-full');
+                        isMenuOpen = false;
+                    }
+                }
+            });
+        });
+
+        // Parallax Effect for Images
+        gsap.utils.toArray('.group img').forEach(img => {
+            gsap.to(img, {
+                scrollTrigger: {
+                    trigger: img,
+                    start: "top bottom",
+                    end: "bottom top",
+                    scrub: 1
+                },
+                y: -30,
+                ease: "none"
+            });
+        });
+    </script>
+</body>
+</html>

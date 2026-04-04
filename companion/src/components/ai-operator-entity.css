@@ -1,0 +1,454 @@
+/* SitePulse V3 — AI Operator Entity Visual
+ * 3D animated entity representing AI consciousness state
+ * Compatible with: Chrome 88+, Firefox 78+, Safari 14+, Edge 88+
+ */
+
+:root {
+  --ai-entity-size: 120px;
+  --ai-core-size: 40px;
+  --ai-orbit-size: 80px;
+  --ai-particle-count: 12;
+  
+  /* Default colors for each state */
+  --ai-color-dormant: #6366f1;
+  --ai-color-aware: #818cf8;
+  --ai-color-analyzing: #ec4899;
+  --ai-color-hypothesizing: #a855f7;
+  --ai-color-executing: #10b981;
+  --ai-color-reflecting: #38bdf8;
+  --ai-color-warning: #f43f5e;
+  --ai-color-teaching: #f59e0b;
+}
+
+/* Container */
+.ai-entity-container {
+  position: relative;
+  width: var(--ai-entity-size);
+  height: var(--ai-entity-size);
+  perspective: 1000px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+/* Core Orb */
+.ai-entity-core {
+  position: absolute;
+  width: var(--ai-core-size);
+  height: var(--ai-core-size);
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, 
+    var(--ai-color, #6366f1) 0%,
+    rgba(99, 102, 241, 0.5) 50%,
+    transparent 70%
+  );
+  box-shadow: 
+    0 0 20px var(--ai-color, #6366f1),
+    0 0 40px rgba(99, 102, 241, 0.5),
+    inset 0 0 20px rgba(255, 255, 255, 0.2);
+  -webkit-animation: ai-breathe var(--ai-breathing-duration, 4s) ease-in-out infinite;
+  animation: ai-breathe var(--ai-breathing-duration, 4s) ease-in-out infinite;
+  z-index: 10;
+  will-change: transform, opacity;
+}
+
+.ai-entity-core::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  right: -5px;
+  bottom: -5px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--ai-color, #6366f1) 60deg,
+    transparent 120deg,
+    transparent 180deg,
+    var(--ai-color, #6366f1) 240deg,
+    transparent 300deg
+  );
+  -webkit-animation: ai-rotate 8s linear infinite;
+  animation: ai-rotate 8s linear infinite;
+  opacity: 0.6;
+}
+
+.ai-entity-core::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  right: -10px;
+  bottom: -10px;
+  border-radius: 50%;
+  border: 1px solid var(--ai-color, #6366f1);
+  opacity: 0.3;
+  -webkit-animation: ai-pulse-ring var(--ai-breathing-duration, 4s) ease-out infinite;
+  animation: ai-pulse-ring var(--ai-breathing-duration, 4s) ease-out infinite;
+}
+
+/* Orbital Ring */
+.ai-entity-orbit {
+  position: absolute;
+  width: var(--ai-orbit-size);
+  height: var(--ai-orbit-size);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-color: var(--ai-color-alpha-30, rgba(99, 102, 241, 0.3));
+  border-radius: 50%;
+  -webkit-animation: ai-orbit-rotate 12s linear infinite;
+  animation: ai-orbit-rotate 12s linear infinite;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+}
+
+.ai-entity-orbit::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  border: 1px dashed rgba(99, 102, 241, 0.2);
+  border-color: var(--ai-color-alpha-20, rgba(99, 102, 241, 0.2));
+  border-radius: 50%;
+  -webkit-animation: ai-orbit-rotate 20s linear infinite reverse;
+  animation: ai-orbit-rotate 20s linear infinite reverse;
+}
+
+/* Particles */
+.ai-entity-particles {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-animation: ai-rotate 15s linear infinite;
+  animation: ai-rotate 15s linear infinite;
+}
+
+.ai-particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--ai-color, #6366f1);
+  border-radius: 50%;
+  box-shadow: 0 0 10px var(--ai-color, #6366f1);
+  opacity: var(--ai-particle-opacity, 0.6);
+  will-change: opacity;
+}
+
+/* Generate particle positions */
+.ai-particle:nth-child(1) { -webkit-transform: rotate(0deg) translateX(50px); transform: rotate(0deg) translateX(50px); }
+.ai-particle:nth-child(2) { -webkit-transform: rotate(30deg) translateX(55px); transform: rotate(30deg) translateX(55px); }
+.ai-particle:nth-child(3) { -webkit-transform: rotate(60deg) translateX(45px); transform: rotate(60deg) translateX(45px); }
+.ai-particle:nth-child(4) { -webkit-transform: rotate(90deg) translateX(60px); transform: rotate(90deg) translateX(60px); }
+.ai-particle:nth-child(5) { -webkit-transform: rotate(120deg) translateX(50px); transform: rotate(120deg) translateX(50px); }
+.ai-particle:nth-child(6) { -webkit-transform: rotate(150deg) translateX(55px); transform: rotate(150deg) translateX(55px); }
+.ai-particle:nth-child(7) { -webkit-transform: rotate(180deg) translateX(50px); transform: rotate(180deg) translateX(50px); }
+.ai-particle:nth-child(8) { -webkit-transform: rotate(210deg) translateX(45px); transform: rotate(210deg) translateX(45px); }
+.ai-particle:nth-child(9) { -webkit-transform: rotate(240deg) translateX(60px); transform: rotate(240deg) translateX(60px); }
+.ai-particle:nth-child(10) { -webkit-transform: rotate(270deg) translateX(50px); transform: rotate(270deg) translateX(50px); }
+.ai-particle:nth-child(11) { -webkit-transform: rotate(300deg) translateX(55px); transform: rotate(300deg) translateX(55px); }
+.ai-particle:nth-child(12) { -webkit-transform: rotate(330deg) translateX(45px); transform: rotate(330deg) translateX(45px); }
+
+/* State-specific animations */
+.ai-state--dormant {
+  --ai-color: #6366f1;
+  --ai-color-alpha-30: rgba(99, 102, 241, 0.3);
+  --ai-color-alpha-20: rgba(99, 102, 241, 0.2);
+  --ai-breathing-duration: 4000ms;
+  --ai-particle-opacity: 0.3;
+}
+
+.ai-state--aware {
+  --ai-color: #818cf8;
+  --ai-color-alpha-30: rgba(129, 140, 248, 0.3);
+  --ai-color-alpha-20: rgba(129, 140, 248, 0.2);
+  --ai-breathing-duration: 2500ms;
+  --ai-particle-opacity: 0.5;
+}
+
+.ai-state--analyzing {
+  --ai-color: #ec4899;
+  --ai-color-alpha-30: rgba(236, 72, 153, 0.3);
+  --ai-color-alpha-20: rgba(236, 72, 153, 0.2);
+  --ai-breathing-duration: 1200ms;
+  --ai-particle-opacity: 0.8;
+}
+
+.ai-state--hypothesizing {
+  --ai-color: #a855f7;
+  --ai-color-alpha-30: rgba(168, 85, 247, 0.3);
+  --ai-color-alpha-20: rgba(168, 85, 247, 0.2);
+  --ai-breathing-duration: 1000ms;
+  --ai-particle-opacity: 0.9;
+}
+
+.ai-state--executing {
+  --ai-color: #10b981;
+  --ai-color-alpha-30: rgba(16, 185, 129, 0.3);
+  --ai-color-alpha-20: rgba(16, 185, 129, 0.2);
+  --ai-breathing-duration: 800ms;
+  --ai-particle-opacity: 1;
+}
+
+.ai-state--reflecting {
+  --ai-color: #38bdf8;
+  --ai-color-alpha-30: rgba(56, 189, 248, 0.3);
+  --ai-color-alpha-20: rgba(56, 189, 248, 0.2);
+  --ai-breathing-duration: 2000ms;
+  --ai-particle-opacity: 0.6;
+}
+
+.ai-state--warning {
+  --ai-color: #f43f5e;
+  --ai-color-alpha-30: rgba(244, 63, 94, 0.3);
+  --ai-color-alpha-20: rgba(244, 63, 94, 0.2);
+  --ai-breathing-duration: 600ms;
+  --ai-particle-opacity: 1;
+}
+
+.ai-state--teaching {
+  --ai-color: #f59e0b;
+  --ai-color-alpha-30: rgba(245, 158, 11, 0.3);
+  --ai-color-alpha-20: rgba(245, 158, 11, 0.2);
+  --ai-breathing-duration: 3000ms;
+  --ai-particle-opacity: 0.7;
+}
+
+/* Keyframes with vendor prefixes */
+@-webkit-keyframes ai-breathe {
+  0%, 100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    -webkit-transform: scale(1.15);
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@keyframes ai-breathe {
+  0%, 100% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    -webkit-transform: scale(1.15);
+    transform: scale(1.15);
+    opacity: 1;
+  }
+}
+
+@-webkit-keyframes ai-rotate {
+  from { 
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to { 
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ai-rotate {
+  from { 
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg);
+  }
+  to { 
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg);
+  }
+}
+
+@-webkit-keyframes ai-orbit-rotate {
+  from { 
+    -webkit-transform: rotateX(60deg) rotateZ(0deg);
+    transform: rotateX(60deg) rotateZ(0deg);
+  }
+  to { 
+    -webkit-transform: rotateX(60deg) rotateZ(360deg);
+    transform: rotateX(60deg) rotateZ(360deg);
+  }
+}
+
+@keyframes ai-orbit-rotate {
+  from { 
+    -webkit-transform: rotateX(60deg) rotateZ(0deg);
+    transform: rotateX(60deg) rotateZ(0deg);
+  }
+  to { 
+    -webkit-transform: rotateX(60deg) rotateZ(360deg);
+    transform: rotateX(60deg) rotateZ(360deg);
+  }
+}
+
+@-webkit-keyframes ai-pulse-ring {
+  0% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    -webkit-transform: scale(1.5);
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+@keyframes ai-pulse-ring {
+  0% {
+    -webkit-transform: scale(1);
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  100% {
+    -webkit-transform: scale(1.5);
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+/* 3D Cube variant */
+.ai-entity-cube {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  -webkit-transform-style: preserve-3d;
+  transform-style: preserve-3d;
+  -webkit-animation: ai-cube-rotate 10s linear infinite;
+  animation: ai-cube-rotate 10s linear infinite;
+}
+
+.ai-cube-face {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  background: rgba(99, 102, 241, 0.2);
+  background: var(--ai-color-alpha-20, rgba(99, 102, 241, 0.2));
+  border: 1px solid var(--ai-color, #6366f1);
+  opacity: 0.8;
+}
+
+.ai-cube-face:nth-child(1) { -webkit-transform: rotateY(0deg) translateZ(15px); transform: rotateY(0deg) translateZ(15px); }
+.ai-cube-face:nth-child(2) { -webkit-transform: rotateY(90deg) translateZ(15px); transform: rotateY(90deg) translateZ(15px); }
+.ai-cube-face:nth-child(3) { -webkit-transform: rotateY(180deg) translateZ(15px); transform: rotateY(180deg) translateZ(15px); }
+.ai-cube-face:nth-child(4) { -webkit-transform: rotateY(-90deg) translateZ(15px); transform: rotateY(-90deg) translateZ(15px); }
+.ai-cube-face:nth-child(5) { -webkit-transform: rotateX(90deg) translateZ(15px); transform: rotateX(90deg) translateZ(15px); }
+.ai-cube-face:nth-child(6) { -webkit-transform: rotateX(-90deg) translateZ(15px); transform: rotateX(-90deg) translateZ(15px); }
+
+@-webkit-keyframes ai-cube-rotate {
+  from { 
+    -webkit-transform: rotateX(-20deg) rotateY(0deg);
+    transform: rotateX(-20deg) rotateY(0deg);
+  }
+  to { 
+    -webkit-transform: rotateX(-20deg) rotateY(360deg);
+    transform: rotateX(-20deg) rotateY(360deg);
+  }
+}
+
+@keyframes ai-cube-rotate {
+  from { 
+    -webkit-transform: rotateX(-20deg) rotateY(0deg);
+    transform: rotateX(-20deg) rotateY(0deg);
+  }
+  to { 
+    -webkit-transform: rotateX(-20deg) rotateY(360deg);
+    transform: rotateX(-20deg) rotateY(360deg);
+  }
+}
+
+/* Status Label */
+.ai-entity-status {
+  position: absolute;
+  bottom: -30px;
+  left: 50%;
+  -webkit-transform: translateX(-50%);
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ai-color, #6366f1);
+  white-space: nowrap;
+  text-shadow: 0 0 10px var(--ai-color, #6366f1);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Compact variant */
+.ai-entity-compact {
+  --ai-entity-size: 60px;
+  --ai-core-size: 20px;
+  --ai-orbit-size: 40px;
+}
+
+.ai-entity-compact .ai-particle {
+  width: 2px;
+  height: 2px;
+}
+
+/* Large variant */
+.ai-entity-large {
+  --ai-entity-size: 180px;
+  --ai-core-size: 60px;
+  --ai-orbit-size: 120px;
+}
+
+.ai-entity-large .ai-particle {
+  width: 6px;
+  height: 6px;
+}
+
+/* Glow backdrop */
+.ai-entity-backdrop {
+  position: absolute;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, 
+    rgba(99, 102, 241, 0.1) 0%,
+    transparent 70%
+  );
+  background: radial-gradient(circle, 
+    var(--ai-color-alpha-20, rgba(99, 102, 241, 0.1)) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .ai-entity-core,
+  .ai-entity-core::before,
+  .ai-entity-core::after,
+  .ai-entity-orbit,
+  .ai-entity-orbit::before,
+  .ai-entity-particles,
+  .ai-entity-cube {
+    -webkit-animation: none;
+    animation: none;
+  }
+  
+  .ai-entity-core {
+    opacity: 1;
+    -webkit-transform: none;
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .ai-entity-core {
+    border: 2px solid currentColor;
+  }
+  
+  .ai-entity-orbit {
+    border-width: 2px;
+  }
+}

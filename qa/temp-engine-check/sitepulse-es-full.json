@@ -1,0 +1,43 @@
+{
+    "name":  "sitepulse-default-desktop-audit",
+    "baseUrl":  "https://site-pulse-qa.vercel.app/es",
+    "serverCommand":  "npm run dev -- --hostname 127.0.0.1 --port 3110",
+    "serverCwd":  "..",
+    "routeLoadTimeoutMs":  40000,
+    "buttonClickTimeoutMs":  4000,
+    "clickWaitMs":  900,
+    "viewportWidth":  1536,
+    "viewportHeight":  864,
+    "scrollEffectMinPx":  8,
+    "sectionOrderWaitMs":  1200,
+    "maxRunMs":  900000,
+    "checkpointEveryClicks":  10,
+    "reportDir":  "reports",
+    "checkpointFile":  "reports/default-checkpoint.json",
+    "autoDiscoverRoutes":  false,
+    "discoverFromSitemap":  false,
+    "discoverMenuLinks":  false,
+    "maxDiscoveredRoutes":  60,
+    "maxActionsPerRoute":  200,
+    "maxActionRoutes":  0,
+    "requireButtonEffect":  true,
+    "allowedNoEffectButtonContains":  [
+                                          "whatsapp",
+                                          "home",
+                                          "menu"
+                                      ],
+    "ignoredRequestFailedErrors":  [
+                                       "ERR_ABORTED"
+                                   ],
+    "sectionOrderRules":  [
+
+                          ],
+    "routes":  [
+                   "/",
+                   "/demo",
+                   "/downloads",
+                   "/pricing",
+                   "/faq",
+                   "/contact"
+               ]
+}

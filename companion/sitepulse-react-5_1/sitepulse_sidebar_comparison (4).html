@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SitePulse — Intelligence Operating System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              page: '#0B0D12',
+              shell: '#0F131A',
+              panel: {
+                DEFAULT: '#131821',
+                elevated: '#1A202C',
+              },
+              surface: '#212836',
+              interactive: '#2A3441',
+              text: {
+                primary: '#F0F4F8',
+                secondary: '#8B95A5',
+                tertiary: '#5A6578',
+              },
+              accent: {
+                blue: '#5B8CFF',
+                cyan: '#5CC8FF',
+                purple: '#A855F7',
+                green: '#22C55E',
+                amber: '#F59E0B',
+                red: '#EF4444',
+              },
+              edge: {
+                blue: 'rgba(91, 140, 255, 0.15)',
+                purple: 'rgba(168, 85, 247, 0.12)',
+                green: 'rgba(34, 197, 94, 0.12)',
+                amber: 'rgba(245, 158, 11, 0.12)',
+                red: 'rgba(239, 68, 68, 0.15)',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'SF Pro Display', '-apple-system', 'sans-serif'],
+              mono: ['SF Mono', 'JetBrains Mono', 'monospace'],
+            },
+            boxShadow: {
+              'soft': '0 10px 24px rgba(0,0,0,0.16)',
+              'surface': '0 18px 40px rgba(0,0,0,0.18)',
+              'focus': '0 0 0 1px rgba(91,140,255,0.24), 0 14px 30px rgba(0,0,0,0.22)',
+              'glow-blue': '0 0 20px rgba(91,140,255,0.15)',
+              'glow-green': '0 0 20px rgba(34,197,94,0.15)',
+              'glow-red': '0 0 20px rgba(239,68,68,0.15)',
+              'glow-amber': '0 0 20px rgba(245,158,11,0.15)',
+            },
+            transitionTimingFunction: {
+              'spring': 'cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+      
+      html, body { 
+        height: 100%; 
+        background: #0B0D12;
+        font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      }
+      body { 
+        font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+      
+      ::selection { 
+        background: rgba(91,140,255,0.24); 
+        color: #F0F4F8; 
+      }
+      
+      ::-webkit-scrollbar { 
+        width: 10px; 
+        height: 10px; 
+      }
+      ::-webkit-scrollbar-track { 
+        background: #0F131A; 
+      }
+      ::-webkit-scrollbar-thumb { 
+        background: #1d2735; 
+        border-radius: 999px;
+        border: 2px solid #0F131A;
+      }
+      ::-webkit-scrollbar-thumb:hover { 
+        background: #273346; 
+      }
+
+      /* Animações de Sistema */
+      @keyframes pulse-slow {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.6; transform: scale(0.95); }
+      }
+      
+      @keyframes pulse-radar {
+        0% { transform: scale(0); opacity: 1; }
+        100% { transform: scale(2.5); opacity: 0; }
+      }
+      
+      @keyframes scan-line {
+        0% { transform: translateY(-100%); }
+        100% { transform: translateY(100%); }
+      }
+      
+      @keyframes float {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-5px); }
+      }
+      
+      @keyframes glow-pulse {
+        0%, 100% { box-shadow: 0 0 20px rgba(91,140,255,0.15); }
+        50% { box-shadow: 0 0 30px rgba(91,140,255,0.25), 0 0 60px rgba(91,140,255,0.1); }
+      }
+      
+      @keyframes border-flow {
+        0%, 100% { border-color: rgba(91,140,255,0.2); }
+        50% { border-color: rgba(91,140,255,0.4); }
+      }
+      
+      @keyframes number-tick {
+        0% { transform: translateY(10px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 1; }
+      }
+
+      .animate-pulse-slow {
+        animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      .animate-pulse-radar {
+        animation: pulse-radar 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      }
+      
+      .animate-scan {
+        position: relative;
+        overflow: hidden;
+      }
+      .animate-scan::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(to bottom, transparent, rgba(91,140,255,0.1), transparent);
+        animation: scan-line 2s linear infinite;
+      }
+      
+      .animate-float {
+        animation: float 6s ease-in-out infinite;
+      }
+      
+      .animate-glow {
+        animation: glow-pulse 2s ease-in-out infinite;
+      }
+      
+      .animate-border-flow {
+        animation: border-flow 3s ease-in-out infinite;
+      }
+
+      /* Estados de Engine */
+      .engine-live {
+        position: relative;
+      }
+      .engine-live::before {
+        content: '';
+        position: absolute;
+        left: -4px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 6px;
+        height: 6px;
+        background: #22C55E;
+        border-radius: 50%;
+        box-shadow: 0 0 10px #22C55E;
+      }
+      
+      .engine-watching {
+        position: relative;
+      }
+      .engine-watching::after {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(to bottom, transparent, #F59E0B, transparent);
+        animation: scan-line 2s linear infinite;
+      }
+
+      /* Efeitos de Glassmorphism Avançado */
+      .glass-panel {
+        background: rgba(19, 24, 33, 0.6);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+      }
+      
+      .glass-shell {
+        background: rgba(15, 19, 26, 0.8);
+        backdrop-filter: blur(24px) saturate(200%);
+        -webkit-backdrop-filter: blur(24px) saturate(200%);
+      }
+
+      /* Gradientes de Borda */
+      .border-gradient {
+        position: relative;
+        border: 1px solid transparent;
+        background: linear-gradient(var(--bg-panel), var(--bg-panel)) padding-box,
+                    linear-gradient(135deg, rgba(91,140,255,0.2), transparent, rgba(168,85,247,0.1)) border-box;
+      }
+
+      /* Hover States Premium */
+      .hover-premium {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .hover-premium:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        border-color: rgba(255,255,255,0.12);
+      }
+
+      /* Input Focus States */
+      .input-glow:focus {
+        border-color: rgba(91,140,255,0.4);
+        box-shadow: 0 0 0 3px rgba(91,140,255,0.1), 0 0 20px rgba(91,140,255,0.15);
+      }
+
+      /* Métricas Animadas */
+      .metric-bar {
+        transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .metric-bar:hover {
+        filter: brightness(1.2);
+      }
+
+      /* Issue Row States */
+      .issue-critical {
+        position: relative;
+      }
+      .issue-critical::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        background: linear-gradient(to bottom, #EF4444, #F59E0B);
+        border-radius: 2px;
+      }
+
+      /* Ambient Background */
+      .ambient-glow {
+        position: fixed;
+        pointer-events: none;
+        filter: blur(120px);
+        opacity: 0.4;
+      }
+    </style>
+  <base target="_blank">
+</head>
+  <body class="bg-page text-text-primary antialiased overflow-hidden">
+    
+    <!-- Ambient Background Effects -->
+    <div class="ambient-glow left-[10%] top-[-10%] h-[500px] w-[500px] rounded-full bg-accent-blue/20 animate-float" style="animation-delay: 0s;"></div>
+    <div class="ambient-glow right-[5%] top-[20%] h-[400px] w-[400px] rounded-full bg-accent-purple/15 animate-float" style="animation-delay: 2s;"></div>
+    <div class="ambient-glow left-[30%] bottom-[-10%] h-[600px] w-[600px] rounded-full bg-accent-cyan/10 animate-float" style="animation-delay: 4s;"></div>
+
+    <div class="relative flex h-screen w-full overflow-hidden">
+      
+      <!-- SIDEBAR: Sistema de Navegação Arquitetural -->
+      <aside class="relative z-20 flex h-full w-64 shrink-0 flex-col border-r border-white/[0.06] glass-shell">
+        
+        <!-- Header: Identidade do Sistema -->
+        <div class="border-b border-white/[0.06] px-4 pb-4 pt-4">
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-transparent shadow-soft hover:shadow-glow-blue transition-all duration-500 cursor-pointer group">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" class="h-4 w-4 text-white group-hover:text-accent-blue transition-colors">
+                  <path d="M4 12h6M14 6h6M14 18h6M4 6h4M4 18h2" stroke-linecap="round"/>
+                  <circle cx="11" cy="12" r="2.5"/>
+                  <circle cx="10" cy="6" r="2"/>
+                  <circle cx="8" cy="18" r="2"/>
+                </svg>
+              </div>
+              <div class="pt-0.5">
+                <p class="text-[15px] font-semibold tracking-[-0.02em] text-text-primary">SitePulse</p>
+                <p class="mt-0.5 text-[11px] text-text-tertiary tracking-wide">Intelligence Operating System</p>
+              </div>
+            </div>
+            <button class="inline-flex h-8 w-8 items-center justify-center rounded-xl border border-white/[0.06] bg-white/[0.02] text-text-tertiary transition-all hover:border-white/[0.10] hover:bg-white/[0.04] hover:text-text-primary hover:shadow-soft">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Context Card: Estado do Sistema -->
+          <div class="mt-4 rounded-[20px] border border-white/[0.06] glass-panel p-3.5 shadow-soft hover-premium cursor-pointer group">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="text-[10px] uppercase tracking-[0.14em] text-text-tertiary">Loaded Context</p>
+                <p class="mt-1 font-mono text-[12px] text-text-primary tracking-tight group-hover:text-accent-blue transition-colors">sitepulse.io</p>
+              </div>
+              <div class="relative flex items-center gap-1.5 rounded-full border border-green-400/30 bg-green-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-green-300">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
+                </span>
+                <span class="relative">synced</span>
+              </div>
+            </div>
+            
+            <!-- Métricas em Tempo Real -->
+            <div class="mt-3 grid grid-cols-3 gap-2">
+              <div class="rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 transition-all hover:bg-white/[0.04] group/metric cursor-pointer">
+                <p class="text-[9px] uppercase tracking-[0.12em] text-text-tertiary">Score</p>
+                <div class="flex items-end gap-1 mt-0.5">
+                  <p class="text-[16px] font-semibold text-amber-400 leading-none">72</p>
+                  <svg class="h-3 w-3 text-amber-400/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M19 12l-7 7-7-7"/>
+                  </svg>
+                </div>
+              </div>
+              <div class="rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 transition-all hover:bg-white/[0.04] group/metric cursor-pointer">
+                <p class="text-[9px] uppercase tracking-[0.12em] text-text-tertiary">P0/P1</p>
+                <p class="text-[16px] font-semibold text-text-primary leading-none group-hover/metric:text-red-400 transition-colors">4</p>
+              </div>
+              <div class="rounded-xl border border-white/[0.05] bg-white/[0.02] px-2 py-2.5 transition-all hover:bg-white/[0.04] group/metric cursor-pointer">
+                <p class="text-[9px] uppercase tracking-[0.12em] text-text-tertiary">Run</p>
+                <p class="text-[16px] font-semibold text-text-primary font-mono leading-none">#284</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workspaces: Centros de Comando -->
+        <div class="flex-1 overflow-y-auto px-3 py-4">
+          <p class="mb-2 px-2 text-[11px] uppercase tracking-[0.14em] text-text-tertiary">Workspaces</p>
+          <div class="space-y-1.5">
+            
+            <!-- Operator: Ativo -->
+            <button class="group relative flex w-full items-center gap-3 rounded-[20px] border border-accent-blue/20 bg-gradient-to-r from-accent-blue/10 to-transparent px-3 py-2.5 text-left shadow-[0_0_20px_rgba(91,140,255,0.1)] transition-all hover:shadow-glow-blue overflow-hidden">
+              <div class="absolute inset-0 bg-gradient-to-r from-accent-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <span class="relative flex h-8 w-8 items-center justify-center rounded-2xl border border-accent-blue/20 bg-accent-blue/10 text-accent-blue shadow-[0_0_10px_rgba(91,140,255,0.2)]">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                  <circle cx="12" cy="12" r="3"/>
+                  <circle cx="12" cy="12" r="8" stroke-dasharray="4 4"/>
+                </svg>
+              </span>
+              <div class="relative min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[13px] font-medium text-text-primary">Operator</span>
+                  <span class="relative rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-blue-200">
+                    <span class="relative flex h-1.5 w-1.5 mr-1 inline-block align-middle">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-blue opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-blue"></span>
+                    </span>
+                    active
+                  </span>
+                </div>
+                <p class="mt-0.5 truncate text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">AI workspace and command execution</p>
+              </div>
+            </button>
+
+            <!-- Findings -->
+            <button class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
+              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                  <path d="M4 6h16M4 12h16M4 18h10"/>
+                </svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">Findings</span>
+                  <span class="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">15</span>
+                </div>
+                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Priority queue and issue detail</p>
+              </div>
+            </button>
+
+            <!-- SEO -->
+            <button class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
+              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                  <path d="M7 17L17 7M17 7H7M17 7V17"/>
+                </svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">SEO</span>
+                  <span class="text-[11px] text-text-tertiary group-hover:text-text-secondary transition-colors">7</span>
+                </div>
+                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Visibility, metadata, indexing</p>
+              </div>
+            </button>
+
+            <!-- Compare -->
+            <button class="group flex w-full items-center gap-3 rounded-[20px] border border-transparent px-3 py-2.5 text-left transition-all hover:bg-white/[0.025] hover:border-white/[0.04]">
+              <span class="flex h-8 w-8 items-center justify-center rounded-2xl border border-white/[0.05] bg-white/[0.02] text-text-secondary group-hover:text-text-primary group-hover:border-white/[0.08] transition-all">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="h-4 w-4">
+                  <path d="M12 3v18M3 12h18"/>
+                </svg>
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-[13px] text-text-secondary group-hover:text-text-primary transition-colors">Compare</span>
+                  <span class="text-[11px] text-text-tertiary font-mono group-hover:text-text-secondary transition-colors">Δ</span>
+                </div>
+                <p class="mt-0.5 truncate text-[11px] text-text-tertiary">Regression and baseline diff</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Engines: Sistema Nervoso Visível -->
+          <p class="mb-2 mt-6 px-2 text-[11px] uppercase tracking-[0.14em] text-text-tertiary">Engines</p>
+          <div class="space-y-1 text-[12px]">
+            
+            <!-- Data Intelligence: Live -->
+            <div class="group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-live">
+              <span class="text-text-secondary group-hover:text-text-primary transition-colors pl-2">Data Intelligence</span>
+              <span class="flex items-center gap-1.5 text-green-300 text-[11px]">
+                <span class="relative flex h-2 w-2">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400 shadow-[0_0_6px_rgba(34,197,94,0.8)]"></span>
+                </span>
+                <span class="font-medium">live</span>
+              </span>
+            </div>
+
+            <!-- Predictive: Watching -->
+            <div class="group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer engine-watching">
+              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Predictive</span>
+              <span class="flex items-center gap-1.5 text-amber-200 text-[11px] animate-scan">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <span class="font-medium">watching</span>
+              </span>
+            </div>
+
+            <!-- Healing: Pending -->
+            <div class="group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
+              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Healing</span>
+              <span class="flex items-center gap-1.5 text-text-tertiary text-[11px]">
+                <span class="h-2 w-2 rounded-full bg-accent-purple shadow-[0_0_6px_rgba(168,85,247,0.5)] animate-pulse-slow"></span>
+                <span class="font-medium">3 pending</span>
+              </span>
+            </div>
+
+            <!-- Memory: Strong -->
+            <div class="group flex items-center justify-between rounded-[20px] px-3 py-2.5 transition-all hover:bg-white/[0.02] cursor-pointer">
+              <span class="text-text-secondary group-hover:text-text-primary transition-colors">Memory</span>
+              <span class="flex items-center gap-1.5 text-green-300 text-[11px]">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span class="font-medium">strong</span>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- System Status -->
+        <div class="border-t border-white/[0.06] p-3">
+          <div class="rounded-[20px] border border-white/[0.06] glass-panel p-3 shadow-soft hover-premium cursor-pointer">
+            <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">System Status</p>
+            <p class="mt-1 text-[12px] text-text-primary">Operator online · memory attached</p>
+            <div class="mt-3 flex items-center justify-between border-t border-white/[0.06] pt-3">
+              <button class="inline-flex items-center gap-2 rounded-xl border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-[12px] text-text-secondary transition-all hover:border-white/[0.10] hover:bg-white/[0.03] hover:text-text-primary">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                Settings
+              </button>
+              <div class="h-8 w-8 rounded-full border border-white/[0.08] bg-gradient-to-br from-accent-blue/30 to-accent-purple/30 shadow-[0_0_10px_rgba(91,140,255,0.3)]"></div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN CONTENT: Área de Operações -->
+      <div class="relative z-10 flex min-w-0 flex-1 flex-col bg-page">
+        
+        <!-- CONTEXT BAR: Linha de Comando -->
+        <header class="border-b border-white/[0.06] glass-shell">
+          
+          <!-- Window Controls -->
+          <div class="flex h-9 items-center justify-between border-b border-white/[0.04] px-4">
+            <div class="flex items-center gap-2">
+              <button class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-text-tertiary hover:text-text-secondary transition-colors hover:bg-white/[0.04]">—</button>
+              <button class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-text-tertiary hover:text-text-secondary transition-colors hover:bg-white/[0.04]">□</button>
+              <button class="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-white/[0.06] bg-white/[0.02] text-text-tertiary hover:text-red-400 transition-colors hover:bg-red-400/10 hover:border-red-400/20">×</button>
+            </div>
+            <div class="rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-[11px] uppercase tracking-[0.12em] text-text-secondary">
+              SitePulse AI Focus Session
+            </div>
+            <div class="w-[104px]"></div>
+          </div>
+
+          <!-- Main Context -->
+          <div class="grid h-[72px] grid-cols-[1.1fr,0.9fr] items-center gap-6 px-5">
+            <div class="flex min-w-0 items-center gap-4">
+              
+              <!-- Target Identity -->
+              <div class="flex min-w-0 items-center gap-3 rounded-[20px] border border-white/[0.08] glass-panel px-4 py-3 shadow-soft hover-premium cursor-pointer group">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.02] group-hover:border-green-400/30 transition-colors">
+                  <div class="h-3 w-3 rounded-full border-2 border-green-400 shadow-[0_0_12px_rgba(34,197,94,0.6)] animate-pulse-slow"></div>
+                </div>
+                <div class="min-w-0">
+                  <div class="flex min-w-0 items-center gap-2">
+                    <p class="truncate font-mono text-[13px] text-text-primary tracking-tight group-hover:text-accent-blue transition-colors">sitepulse.io</p>
+                    <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary font-mono">#284</span>
+                  </div>
+                  <p class="truncate text-[11px] text-text-tertiary">baseline-connected · production profile</p>
+                </div>
+              </div>
+
+              <!-- Live Status Chips -->
+              <div class="hidden 2xl:flex items-center gap-2">
+                
+                <!-- Engine Ready -->
+                <span class="inline-flex items-center gap-2 rounded-full border border-green-400/20 bg-green-400/10 px-3 py-2 text-[12px] text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.1)]">
+                  <span class="relative flex h-2 w-2">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-green-400 shadow-[0_0_8px_rgba(34,197,94,0.8)]"></span>
+                  </span>
+                  engine ready
+                </span>
+
+                <!-- Quality Degrading -->
+                <span class="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-[12px] text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+                  <svg class="h-3.5 w-3.5 animate-bounce" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M19 12l-7 7-7-7"/>
+                  </svg>
+                  quality degrading
+                </span>
+
+                <!-- Predictive Risk -->
+                <span class="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-3 py-2 text-[12px] text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.1)] animate-pulse-slow">
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+                    <path d="M12 9v4"/>
+                    <path d="M12 17h.01"/>
+                  </svg>
+                  predictive risk high
+                </span>
+
+                <!-- Healing Pending -->
+                <span class="inline-flex items-center gap-2 rounded-full border border-accent-purple/20 bg-accent-purple/10 px-3 py-2 text-[12px] text-purple-200 shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                  <span class="h-2 w-2 rounded-full bg-accent-purple shadow-[0_0_6px_rgba(168,85,247,0.6)] animate-pulse-slow"></span>
+                  healing 3 pending
+                </span>
+              </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center justify-end gap-2.5">
+              <button class="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary hover:border-white/[0.12]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/>
+                </svg>
+                Open findings
+              </button>
+              <button class="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2.5 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary hover:border-white/[0.12]">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 16v-4M12 8h.01"/>
+                </svg>
+                Compare
+              </button>
+              <button class="inline-flex items-center gap-2 rounded-2xl border border-accent-blue/30 bg-accent-blue/10 px-4 py-2.5 text-[12px] font-medium text-blue-200 animate-glow transition-all hover:bg-accent-blue/15 hover:border-accent-blue/40 hover:scale-105">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="5 3 19 12 5 21 5 3"/>
+                </svg>
+                Run Audit
+              </button>
+              <div class="ml-1 flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.02] shadow-soft bg-gradient-to-br from-accent-purple/30 to-accent-blue/30 hover:shadow-glow-blue transition-all cursor-pointer"></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- MAIN: Área de Inteligência -->
+        <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div class="flex-1 overflow-y-auto pb-80">
+            
+            <!-- INTELLIGENCE HEADER: Centro de Comando Estratégico -->
+            <section class="border-b border-white/[0.06] px-10 py-8 relative">
+              <div class="absolute inset-0 bg-gradient-to-b from-accent-blue/[0.02] to-transparent pointer-events-none"></div>
+              
+              <div class="max-w-[1420px] mx-auto grid grid-cols-[1.4fr,0.6fr] gap-8 relative">
+                
+                <!-- Main Brief -->
+                <div class="rounded-[24px] border border-white/[0.06] bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-8 shadow-surface relative overflow-hidden group hover-premium">
+                  <!-- Dynamic ambient glow -->
+                  <div class="absolute top-0 right-0 w-[500px] h-[500px] bg-accent-blue/10 blur-[120px] pointer-events-none group-hover:bg-accent-blue/15 transition-all duration-1000"></div>
+                  <div class="absolute bottom-0 left-0 w-[300px] h-[300px] bg-accent-purple/5 blur-[100px] pointer-events-none"></div>
+                  
+                  <div class="relative">
+                    <!-- Mode badges -->
+                    <div class="flex flex-wrap gap-2 mb-6">
+                      <span class="inline-flex items-center rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.10em] text-blue-200 shadow-[0_0_10px_rgba(91,140,255,0.1)]">
+                        <span class="relative flex h-1.5 w-1.5 mr-1">
+                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-blue opacity-75"></span>
+                          <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-blue"></span>
+                        </span>
+                        Operator
+                      </span>
+                      <span class="inline-flex items-center rounded-full border border-red-400/20 bg-red-400/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.10em] text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.1)] animate-pulse-slow">
+                        Critical
+                      </span>
+                      <span class="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.10em] text-text-secondary">
+                        strategy_advisor
+                      </span>
+                    </div>
+
+                    <div class="grid grid-cols-[1fr,380px] gap-8">
+                      <div>
+                        <div class="flex items-center justify-between mb-4">
+                          <h1 class="text-[48px] font-semibold tracking-[-0.04em] text-text-primary bg-gradient-to-r from-text-primary to-text-secondary bg-clip-text">sitepulse.io</h1>
+                          <button class="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary">
+                            Collapse to strip
+                          </button>
+                        </div>
+
+                        <p class="text-[16px] leading-8 text-text-secondary max-w-2xl mb-6">
+                          The system detected a high-confidence SEO and performance regression cluster. 
+                          Template metadata gaps, LCP blockers and canonical trust issues are currently 
+                          driving the worst quality trajectory.
+                        </p>
+
+                        <div class="flex flex-wrap gap-2.5">
+                          <span class="inline-flex items-center gap-2 rounded-full border border-red-400/20 bg-red-400/10 px-3 py-1.5 text-[12px] text-red-200 shadow-[0_0_10px_rgba(239,68,68,0.1)] hover:shadow-glow-red transition-all cursor-pointer">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                            </svg>
+                            Top risk: commercial SEO leakage
+                          </span>
+                          <span class="inline-flex items-center gap-2 rounded-full border border-amber-400/20 bg-amber-400/10 px-3 py-1.5 text-[12px] text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.1)] hover:shadow-glow-amber transition-all cursor-pointer">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 5v14M19 12l-7 7-7-7"/>
+                            </svg>
+                            Trajectory: degrading
+                          </span>
+                          <span class="inline-flex items-center gap-2 rounded-full border border-green-400/15 bg-green-400/8 px-3 py-1.5 text-[12px] text-green-200 shadow-[0_0_10px_rgba(34,197,94,0.1)] hover:shadow-glow-green transition-all cursor-pointer">
+                            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            </svg>
+                            Memory confidence: strong
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- 4-quad Metrics Grid -->
+                      <div class="grid grid-cols-2 gap-3">
+                        
+                        <!-- Impact -->
+                        <div class="rounded-2xl border border-red-400/20 bg-gradient-to-br from-red-400/10 to-red-400/5 p-4 relative overflow-hidden group cursor-pointer hover:shadow-glow-red transition-all">
+                          <div class="absolute inset-0 bg-red-400/5 animate-pulse-slow"></div>
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Impact</p>
+                            <p class="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-red-400">P0/P1</p>
+                            <p class="mt-1 text-[11px] text-text-tertiary">4 high-priority issues</p>
+                            <div class="mt-3 flex gap-1">
+                              <div class="h-1.5 flex-1 rounded-full bg-red-400 metric-bar"></div>
+                              <div class="h-1.5 flex-1 rounded-full bg-red-400/60 metric-bar"></div>
+                              <div class="h-1.5 flex-1 rounded-full bg-white/10"></div>
+                              <div class="h-1.5 flex-1 rounded-full bg-white/10"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Predictive -->
+                        <div class="rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-400/10 to-amber-400/5 p-4 relative overflow-hidden group cursor-pointer hover:shadow-glow-amber transition-all">
+                          <div class="absolute inset-0 bg-amber-400/5"></div>
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Predictive</p>
+                            <p class="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-amber-400">High</p>
+                            <p class="mt-1 text-[11px] text-text-tertiary">regression risk</p>
+                            <div class="mt-3 flex items-center gap-1 text-[10px] text-amber-400/60">
+                              <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                                <circle cx="12" cy="12" r="3"/>
+                              </svg>
+                              <span>watching 3 patterns</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Healing -->
+                        <div class="rounded-2xl border border-accent-purple/20 bg-gradient-to-br from-accent-purple/10 to-accent-purple/5 p-4 relative overflow-hidden group cursor-pointer hover:shadow-[0_0_20px_rgba(168,85,247,0.15)] transition-all">
+                          <div class="absolute inset-0 bg-accent-purple/5"></div>
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Healing</p>
+                            <p class="mt-2 text-[28px] font-semibold tracking-[-0.03em] text-purple-300">3</p>
+                            <p class="mt-1 text-[11px] text-text-tertiary">pending attempts</p>
+                            <div class="mt-3 flex gap-1">
+                              <div class="h-1.5 flex-1 rounded-full bg-accent-purple/40"></div>
+                              <div class="h-1.5 flex-1 rounded-full bg-accent-purple/40"></div>
+                              <div class="h-1.5 flex-1 rounded-full bg-accent-purple/40 animate-pulse"></div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <!-- Quality -->
+                        <div class="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.02] p-4 relative overflow-hidden group cursor-pointer hover:bg-white/[0.06] transition-all">
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Quality</p>
+                            <div class="flex items-end gap-2 mt-2">
+                              <p class="text-[28px] font-semibold tracking-[-0.03em] text-text-primary">72</p>
+                              <svg class="h-4 w-4 text-amber-400 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M19 12l-7 7-7-7"/>
+                              </svg>
+                            </div>
+                            <p class="mt-1 text-[11px] text-text-tertiary">score trending down</p>
+                            <div class="mt-3 h-1.5 w-full rounded-full bg-white/10 overflow-hidden">
+                              <div class="h-full w-[72%] rounded-full bg-gradient-to-r from-amber-400 to-red-400"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- System Summary Panel -->
+                <div class="rounded-[24px] border border-white/[0.06] glass-panel p-6 shadow-soft hover-premium relative overflow-hidden">
+                  <div class="absolute top-0 right-0 w-32 h-32 bg-green-400/5 blur-[60px] pointer-events-none"></div>
+                  
+                  <div class="flex items-center justify-between mb-5 relative">
+                    <div>
+                      <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">System Summary</p>
+                      <p class="mt-1 text-[15px] text-text-primary">What matters right now</p>
+                    </div>
+                    <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-1 text-[10px] uppercase tracking-[0.08em] text-green-300 shadow-[0_0_10px_rgba(34,197,94,0.2)]">
+                      <span class="relative flex h-1.5 w-1.5 mr-1 inline-block align-middle">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400"></span>
+                      </span>
+                      aligned
+                    </span>
+                  </div>
+
+                  <div class="space-y-5 border-t border-white/[0.06] pt-5 relative">
+                    <div class="group cursor-pointer">
+                      <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary group-hover:text-accent-blue transition-colors">Top Opportunity</p>
+                      <p class="mt-1 text-[14px] text-text-primary leading-relaxed group-hover:text-text-secondary transition-colors">Fix template-level metadata generation across commercial pages</p>
+                    </div>
+                    <div class="group cursor-pointer">
+                      <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary group-hover:text-accent-purple transition-colors">Pattern</p>
+                      <p class="mt-1 text-[14px] text-text-primary leading-relaxed group-hover:text-text-secondary transition-colors">Repeated SEO trust loss across high-intent templates</p>
+                    </div>
+                    <div class="group cursor-pointer">
+                      <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary group-hover:text-amber-400 transition-colors">Recommended Order</p>
+                      <p class="mt-1 text-[14px] text-text-primary leading-relaxed font-mono text-[13px] group-hover:text-text-secondary transition-colors">Metadata → LCP blockers → canonicals → rerun</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- STICKY CONTEXT BAR: Navegação Persistente -->
+            <section class="sticky top-0 z-20 border-b border-white/[0.06] bg-page/95 px-10 py-3 backdrop-blur-xl">
+              <div class="max-w-[1420px] mx-auto flex items-center justify-between gap-4 rounded-[18px] border border-white/[0.08] glass-panel px-4 py-3 shadow-soft">
+                <div class="flex min-w-0 items-center gap-3">
+                  <p class="truncate text-[14px] font-medium text-text-primary">sitepulse.io</p>
+                  <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">Quality 72</span>
+                  <span class="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-red-200 shadow-[0_0_8px_rgba(239,68,68,0.2)]">P0/P1: 4</span>
+                  <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200 shadow-[0_0_8px_rgba(245,158,11,0.2)]">Predictive: High</span>
+                  <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-tertiary">Healing: 3 pending</span>
+                  <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200 shadow-[0_0_8px_rgba(34,197,94,0.2)]">Mode: strategy_advisor</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="inline-flex items-center gap-2 rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary">
+                    Expand overview
+                  </button>
+                  <button class="inline-flex items-center gap-2 rounded-2xl border border-accent-blue/25 bg-accent-blue/10 px-3 py-2 text-[12px] text-blue-200 shadow-glow-blue transition-all hover:bg-accent-blue/15 hover:scale-105">
+                    <span class="relative flex h-2 w-2 mr-1">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-blue opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-accent-blue"></span>
+                    </span>
+                    Focus AI
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <!-- ADAPTIVE RESPONSE FRAME: Interface Cognitiva -->
+            <section class="px-10 py-6">
+              <div class="max-w-[1420px] mx-auto">
+                <div class="rounded-[24px] border border-white/[0.06] glass-panel shadow-soft overflow-hidden hover-premium">
+                  
+                  <!-- Header -->
+                  <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.02] to-transparent">
+                    <div>
+                      <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">Adaptive Response Frame</p>
+                      <p class="mt-1 text-[14px] text-text-primary">How the assistant delivers results for the current request</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.10em] text-blue-200 shadow-[0_0_10px_rgba(91,140,255,0.1)]">
+                        seo request
+                      </span>
+                      <span class="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.10em] text-text-secondary">
+                        professional mode
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="grid grid-cols-[260px,1fr]">
+                    
+                    <!-- Delivery Patterns -->
+                    <div class="border-r border-white/[0.06] bg-white/[0.015] p-4">
+                      <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary mb-3">Delivery Patterns</p>
+                      <div class="space-y-1">
+                        
+                        <button class="w-full rounded-2xl border border-accent-blue/20 bg-accent-blue/10 px-3 py-3 text-left text-[13px] text-text-primary shadow-[0_0_15px_rgba(91,140,255,0.1)] transition-all hover:shadow-glow-blue group">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-accent-blue/20 text-accent-blue group-hover:scale-110 transition-transform">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                              </svg>
+                            </div>
+                            <div>
+                              <p class="font-medium">SEO Priority Brief</p>
+                              <p class="text-[11px] text-text-tertiary mt-0.5">Active now</p>
+                            </div>
+                          </div>
+                        </button>
+
+                        <button class="w-full rounded-2xl border border-transparent px-3 py-3 text-left text-[13px] text-text-secondary transition-all hover:bg-white/[0.03] hover:text-text-primary group">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-text-tertiary group-hover:text-text-secondary transition-colors">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="16" y1="13" x2="8" y2="13"/>
+                                <line x1="16" y1="17" x2="8" y2="17"/>
+                                <polyline points="10 9 9 9 8 9"/>
+                              </svg>
+                            </div>
+                            <span>Issue Explanation</span>
+                          </div>
+                        </button>
+
+                        <button class="w-full rounded-2xl border border-transparent px-3 py-3 text-left text-[13px] text-text-secondary transition-all hover:bg-white/[0.03] hover:text-text-primary group">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-text-tertiary group-hover:text-text-secondary transition-colors">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                              </svg>
+                            </div>
+                            <span>Screenshot Package</span>
+                          </div>
+                        </button>
+
+                        <button class="w-full rounded-2xl border border-transparent px-3 py-3 text-left text-[13px] text-text-secondary transition-all hover:bg-white/[0.03] hover:text-text-primary group">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-text-tertiary group-hover:text-text-secondary transition-colors">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="8" y1="6" x2="21" y2="6"/>
+                                <line x1="8" y1="12" x2="21" y2="12"/>
+                                <line x1="8" y1="18" x2="21" y2="18"/>
+                                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                                <line x1="3" y1="18" x2="3.01" y2="18"/>
+                              </svg>
+                            </div>
+                            <span>Fix Plan</span>
+                          </div>
+                        </button>
+
+                        <button class="w-full rounded-2xl border border-transparent px-3 py-3 text-left text-[13px] text-text-secondary transition-all hover:bg-white/[0.03] hover:text-text-primary group">
+                          <div class="flex items-center gap-3">
+                            <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-white/[0.05] text-text-tertiary group-hover:text-text-secondary transition-colors">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                              </svg>
+                            </div>
+                            <span>Comparison Report</span>
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Content Area -->
+                    <div class="p-6 bg-gradient-to-br from-white/[0.01] to-transparent">
+                      <div class="flex items-start gap-4 mb-6">
+                        <div class="h-12 w-12 rounded-full border border-accent-blue/30 bg-gradient-to-br from-accent-blue to-accent-cyan flex items-center justify-center shrink-0 shadow-glow-blue animate-glow">
+                          <span class="text-[13px] font-bold text-white">AI</span>
+                        </div>
+                        <div class="flex-1">
+                          <div class="flex items-center gap-2 mb-3">
+                            <span class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">SEO Priority Brief</span>
+                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">strategy advisor</span>
+                          </div>
+                          <p class="text-[16px] leading-8 text-text-primary">
+                            The highest SEO risk is not route-by-route noise. It is a structural 
+                            trust problem affecting commercial templates. Start by fixing metadata 
+                            generation on pricing and related revenue pages, then address canonical 
+                            consistency and only after that move to performance blockers that are 
+                            hurting crawl efficiency and user trust together.
+                          </p>
+                        </div>
+                      </div>
+
+                      <!-- Action Cards -->
+                      <div class="grid grid-cols-3 gap-3">
+                        
+                        <div class="rounded-2xl border border-red-400/20 bg-gradient-to-br from-red-400/10 to-transparent p-4 relative overflow-hidden group cursor-pointer hover:shadow-glow-red transition-all">
+                          <div class="absolute inset-0 bg-red-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Priority</p>
+                            <p class="mt-2 text-[15px] font-medium text-red-300">Template metadata</p>
+                            <p class="mt-2 text-[12px] text-text-tertiary">Highest business impact</p>
+                            <div class="mt-3 flex items-center gap-1 text-red-400/60">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="6"/>
+                                <circle cx="12" cy="12" r="2"/>
+                              </svg>
+                              <span class="text-[10px]">P0 Critical</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-amber-400/20 bg-gradient-to-br from-amber-400/10 to-transparent p-4 relative overflow-hidden group cursor-pointer hover:shadow-glow-amber transition-all">
+                          <div class="absolute inset-0 bg-amber-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Why now</p>
+                            <p class="mt-2 text-[15px] font-medium text-amber-300">Commercial SEO leakage</p>
+                            <p class="mt-2 text-[12px] text-text-tertiary">Affects index trust and CTR</p>
+                            <div class="mt-3 flex items-center gap-1 text-amber-400/60">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                              </svg>
+                              <span class="text-[10px]">Risk analysis</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-white/[0.04] to-white/[0.02] p-4 relative overflow-hidden group cursor-pointer hover:bg-white/[0.06] hover:border-white/[0.12] transition-all">
+                          <div class="relative">
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Next action</p>
+                            <p class="mt-2 text-[15px] font-medium text-text-primary group-hover:text-accent-blue transition-colors">Open findings queue</p>
+                            <p class="mt-2 text-[12px] text-text-tertiary">Inspect P0/P1 issues first</p>
+                            <div class="mt-3 flex items-center gap-1 text-accent-blue">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"/>
+                                <polyline points="12 5 19 12 12 19"/>
+                              </svg>
+                              <span class="text-[10px]">Execute →</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- AI AGENT WORKSPACE: Centro Neural -->
+            <section class="px-10 py-4">
+              <div class="max-w-[1420px] mx-auto">
+                <div class="rounded-[24px] border border-white/[0.06] glass-panel shadow-soft overflow-hidden hover-premium">
+                  
+                  <div class="flex items-center justify-between px-6 py-4 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.02] to-transparent">
+                    <div>
+                      <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">AI Agent Workspace</p>
+                      <p class="mt-1 text-[14px] text-text-primary">Long-form conversation, cards, screenshots, plans and operational actions</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <button class="rounded-2xl border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary">
+                        Detach
+                      </button>
+                      <button class="rounded-2xl border border-accent-blue/25 bg-accent-blue/10 px-3 py-2 text-[12px] text-blue-200 shadow-glow-blue transition-all hover:bg-accent-blue/15 hover:scale-105">
+                        Fullscreen AI
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="max-h-[560px] overflow-y-auto px-6 py-6 space-y-5 bg-gradient-to-b from-white/[0.01] to-transparent">
+                    
+                    <!-- Conversation Thread -->
+                    <div class="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5 relative overflow-hidden group hover:border-white/[0.10] transition-all">
+                      <div class="absolute inset-0 bg-gradient-to-r from-accent-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                      <div class="relative">
+                        <div class="flex items-center gap-2 mb-3 text-[11px] text-text-tertiary uppercase tracking-[0.12em]">
+                          <span>Conversation</span>
+                          <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 normal-case tracking-normal text-[10px]">scrollable focus region</span>
+                        </div>
+                        <p class="text-[15px] leading-8 text-text-primary">
+                          When the user asks for SEO priorities, the workspace should answer with a 
+                          structured intelligence brief, top opportunities, relevant P0/P1 items, 
+                          memory-backed cautions, and a next-step action package. When the user asks 
+                          for screenshots, the workspace should shift into an evidence package format 
+                          with visual references, labels, context notes and recommended follow-up actions.
+                        </p>
+                      </div>
+                    </div>
+
+                    <!-- Evidence Package Grid -->
+                    <div class="grid grid-cols-2 gap-4">
+                      
+                      <div class="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5 relative overflow-hidden group hover:border-accent-blue/20 transition-all cursor-pointer">
+                        <div class="absolute inset-0 bg-gradient-to-br from-accent-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="relative">
+                          <div class="flex items-center gap-2 mb-3">
+                            <div class="h-8 w-8 rounded-xl bg-accent-blue/10 flex items-center justify-center text-accent-blue">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                                <circle cx="8.5" cy="8.5" r="1.5"/>
+                                <polyline points="21 15 16 10 5 21"/>
+                              </svg>
+                            </div>
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Screenshot Package Pattern</p>
+                          </div>
+                          <p class="text-[14px] text-text-primary leading-relaxed">Preview area, annotated evidence, issue impact, route, confidence and next action.</p>
+                          <div class="mt-4 flex gap-2">
+                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06]"></div>
+                            <div class="h-16 flex-1 rounded-lg bg-white/[0.03] border border-white/[0.06]"></div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5 relative overflow-hidden group hover:border-accent-purple/20 transition-all cursor-pointer">
+                        <div class="absolute inset-0 bg-gradient-to-br from-accent-purple/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="relative">
+                          <div class="flex items-center gap-2 mb-3">
+                            <div class="h-8 w-8 rounded-xl bg-accent-purple/10 flex items-center justify-center text-accent-purple">
+                              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="8" y1="6" x2="21" y2="6"/>
+                                <line x1="8" y1="12" x2="21" y2="12"/>
+                                <line x1="8" y1="18" x2="21" y2="18"/>
+                                <line x1="3" y1="6" x2="3.01" y2="6"/>
+                                <line x1="3" y1="12" x2="3.01" y2="12"/>
+                                <line x1="3" y1="18" x2="3.01" y2="18"/>
+                              </svg>
+                            </div>
+                            <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Fix Plan Pattern</p>
+                          </div>
+                          <p class="text-[14px] text-text-primary leading-relaxed">Action sequence, safe prompt, memory-backed warnings, revalidation checklist and healing eligibility.</p>
+                          <div class="mt-4 flex items-center gap-2">
+                            <div class="flex items-center gap-1.5 text-[11px] text-green-400">
+                              <span class="h-1.5 w-1.5 rounded-full bg-green-400"></span>
+                              <span>Step 1/4</span>
+                            </div>
+                            <div class="flex-1 h-1 rounded-full bg-white/10 overflow-hidden">
+                              <div class="h-full w-1/4 rounded-full bg-green-400"></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Operator Cards -->
+                    <div class="rounded-[20px] border border-white/[0.06] bg-white/[0.02] p-5">
+                      <p class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary mb-4">Operator Cards</p>
+                      <div class="grid grid-cols-3 gap-3">
+                        
+                        <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 relative overflow-hidden group cursor-pointer hover:border-accent-blue/20 hover:bg-accent-blue/5 transition-all">
+                          <div class="flex items-center gap-2 mb-2">
+                            <div class="h-6 w-6 rounded-lg bg-accent-blue/10 flex items-center justify-center text-accent-blue">
+                              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <ellipse cx="12" cy="5" rx="9" ry="3"/>
+                                <path d="M3 5V19A9 3 0 0 0 21 19V5"/>
+                                <path d="M3 12A9 3 0 0 0 21 12"/>
+                              </svg>
+                            </div>
+                            <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Open memory</span>
+                          </div>
+                          <p class="text-[13px] text-text-primary leading-relaxed">Show validated resolutions for SEO metadata issues</p>
+                          <div class="mt-3 flex items-center justify-between">
+                            <span class="text-[10px] text-text-tertiary font-mono">⌘M</span>
+                            <svg class="h-4 w-4 text-text-tertiary group-hover:text-accent-blue transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="9 18 15 12 9 6"/>
+                            </svg>
+                          </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 relative overflow-hidden group cursor-pointer hover:border-accent-purple/20 hover:bg-accent-purple/5 transition-all">
+                          <div class="flex items-center gap-2 mb-2">
+                            <div class="h-6 w-6 rounded-lg bg-accent-purple/10 flex items-center justify-center text-accent-purple">
+                              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M8 19l8-8m0 0H8m8 0v8"/>
+                              </svg>
+                            </div>
+                            <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Prepare healing</span>
+                          </div>
+                          <p class="text-[13px] text-text-primary leading-relaxed">Prompt-assisted path for LCP blockers with revalidation step</p>
+                          <div class="mt-3">
+                            <span class="inline-flex items-center gap-1 text-[10px] text-accent-purple">
+                              <span class="relative flex h-1.5 w-1.5">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-purple opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-purple"></span>
+                              </span>
+                              Ready
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 relative overflow-hidden group cursor-pointer hover:border-amber-400/20 hover:bg-amber-400/5 transition-all">
+                          <div class="flex items-center gap-2 mb-2">
+                            <div class="h-6 w-6 rounded-lg bg-amber-400/10 flex items-center justify-center text-amber-400">
+                              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="18" y1="20" x2="18" y2="10"/>
+                                <line x1="12" y1="20" x2="12" y2="4"/>
+                                <line x1="6" y1="20" x2="6" y2="14"/>
+                              </svg>
+                            </div>
+                            <span class="text-[10px] uppercase tracking-[0.12em] text-text-tertiary">Compare run</span>
+                          </div>
+                          <p class="text-[13px] text-text-primary leading-relaxed">Show what worsened versus the previous comparable run</p>
+                          <div class="mt-3">
+                            <span class="inline-flex items-center gap-1 rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] text-amber-300 font-mono">
+                              Δ 12 changes
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <!-- INTELLIGENCE QUEUE: Fila Operacional -->
+            <section class="px-10 py-6">
+              <div class="max-w-[1420px] mx-auto">
+                <div class="rounded-[24px] border border-white/[0.06] glass-panel shadow-soft overflow-hidden">
+                  
+                  <!-- Header -->
+                  <div class="flex items-start justify-between px-6 py-5 border-b border-white/[0.06] bg-gradient-to-r from-white/[0.02] to-transparent">
+                    <div>
+                      <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">Intelligence Queue</p>
+                      <p class="mt-2 max-w-3xl text-[14px] leading-7 text-text-secondary">
+                        Queue ordered by autonomous next action, impact band, predictive risk, 
+                        healing confidence and memory outcome.
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-text-secondary">P0–P4 aware</span>
+                      <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-text-secondary">memory aware</span>
+                      <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-[10px] uppercase tracking-[0.08em] text-text-secondary">healing aware</span>
+                    </div>
+                  </div>
+
+                  <!-- Issues List -->
+                  <div class="divide-y divide-white/[0.06]">
+                    
+                    <!-- Issue Row: Critical -->
+                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] issue-critical relative">
+                      <div class="grid grid-cols-[auto,1fr,auto] gap-4 items-start">
+                        
+                        <!-- Priority Indicator -->
+                        <div class="mt-1">
+                          <div class="h-6 w-6 rounded-full border border-red-400/30 bg-red-400/10 flex items-center justify-center shadow-[0_0_10px_rgba(239,68,68,0.2)]">
+                            <div class="h-2.5 w-2.5 rounded-full bg-red-400 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]"></div>
+                          </div>
+                        </div>
+
+                        <!-- Content -->
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-2.5 mb-2">
+                            <p class="text-[15px] font-medium text-text-primary group-hover:text-red-300 transition-colors truncate">
+                              Missing meta description on /pricing
+                            </p>
+                            <span class="rounded-full border border-red-400/20 bg-red-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-red-200 shadow-[0_0_8px_rgba(239,68,68,0.15)]">P0</span>
+                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200">degrading</span>
+                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200">validated memory</span>
+                            <span class="rounded-full border border-accent-blue/20 bg-accent-blue/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-blue-200">assist-only healing</span>
+                          </div>
+
+                          <div class="flex flex-wrap items-center gap-2.5 text-[13px]">
+                            <code class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-text-tertiary group-hover:border-accent-blue/20 group-hover:text-accent-blue transition-colors">
+                              /pricing
+                            </code>
+                            <span class="text-text-tertiary">CTR and trust loss on indexed commercial page</span>
+                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">impact: 92</span>
+                          </div>
+                        </div>
+
+                        <!-- Expand Action -->
+                        <div class="mt-1 text-text-tertiary group-hover:text-text-primary transition-all group-hover:translate-x-1">
+                          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+
+                    <!-- Additional Issue Rows would follow same pattern -->
+                    <button class="group w-full bg-transparent px-6 py-5 text-left transition-all duration-300 hover:bg-white/[0.02] relative">
+                      <div class="grid grid-cols-[auto,1fr,auto] gap-4 items-start">
+                        <div class="mt-1">
+                          <div class="h-6 w-6 rounded-full border border-amber-400/30 bg-amber-400/10 flex items-center justify-center">
+                            <div class="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]"></div>
+                          </div>
+                        </div>
+                        <div class="min-w-0">
+                          <div class="flex flex-wrap items-center gap-2.5 mb-2">
+                            <p class="text-[15px] font-medium text-text-primary truncate">LCP blocker on /products</p>
+                            <span class="rounded-full border border-amber-400/20 bg-amber-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-amber-200">P1</span>
+                            <span class="rounded-full border border-green-400/20 bg-green-400/10 px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-green-200">healing ready</span>
+                          </div>
+                          <div class="flex flex-wrap items-center gap-2.5 text-[13px]">
+                            <code class="rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 font-mono text-text-tertiary">/products</code>
+                            <span class="text-text-tertiary">Performance degradation affecting conversions</span>
+                            <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-2 py-0.5 text-[10px] uppercase tracking-[0.08em] text-text-secondary">impact: 78</span>
+                          </div>
+                        </div>
+                        <div class="mt-1 text-text-tertiary group-hover:text-text-primary transition-all group-hover:translate-x-1">
+                          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        </div>
+                      </div>
+                    </button>
+
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+        </main>
+
+        <!-- COMMAND DOCK: Interface de Controle -->
+        <div class="fixed bottom-0 left-64 right-0 border-t border-white/[0.06] glass-shell px-10 py-5 backdrop-blur-xl z-30">
+          <div class="max-w-[1420px] mx-auto space-y-4">
+            
+            <!-- Quick Actions -->
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="text-[11px] uppercase tracking-[0.14em] text-text-tertiary">Operator Command Dock</p>
+                <p class="mt-1 text-[13px] text-text-secondary">Adaptive result delivery based on intent: SEO brief, issue explanation, screenshot package, compare report, fix plan.</p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary hover:border-white/[0.12] hover:shadow-soft">
+                  Why is score down?
+                </button>
+                <button class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary hover:border-white/[0.12] hover:shadow-soft">
+                  Show SEO issues
+                </button>
+                <button class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3.5 py-2 text-[12px] text-text-secondary transition-all hover:bg-white/[0.05] hover:text-text-primary hover:border-white/[0.12] hover:shadow-soft">
+                  Generate fix plan
+                </button>
+              </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="rounded-[24px] border border-white/[0.08] glass-panel p-4 shadow-soft">
+              <div class="grid grid-cols-[1fr,88px] gap-4 items-center">
+                <div class="relative">
+                  <div class="absolute left-4 top-1/2 -translate-y-1/2 text-text-tertiary">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/>
+                    </svg>
+                  </div>
+                  <input 
+                    type="text" 
+                    placeholder="Ask about your audit, SEO, performance, memory, healing, compare, or request operator actions..."
+                    class="w-full bg-page/88 border border-white/[0.06] rounded-[20px] pl-12 pr-16 py-4 text-[15px] text-text-primary placeholder:text-text-tertiary outline-none input-glow transition-all"
+                  />
+                  <div class="absolute right-3 top-1/2 -translate-y-1/2 hidden sm:flex items-center gap-1">
+                    <kbd class="h-7 inline-flex items-center gap-1 rounded-lg border border-white/[0.08] bg-white/[0.04] px-2 text-[11px] text-text-tertiary font-mono">
+                      ⌘K
+                    </kbd>
+                  </div>
+                </div>
+
+                <button class="h-[58px] rounded-[20px] border border-accent-blue/30 bg-accent-blue/10 text-accent-blue shadow-glow-blue transition-all hover:bg-accent-blue/15 hover:border-accent-blue/40 hover:scale-105 flex items-center justify-center gap-2 group">
+                  <svg class="h-5 w-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="22" y1="2" x2="11" y2="13"/>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                  </svg>
+                  <span class="text-[13px] font-medium">→</span>
+                </button>
+              </div>
+
+              <!-- Status Bar -->
+              <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex flex-wrap gap-2 text-[11px]">
+                  <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-text-secondary flex items-center gap-1.5">
+                    <span class="relative flex h-1.5 w-1.5">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-blue opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-1.5 w-1.5 bg-accent-blue"></span>
+                    </span>
+                    mode: strategy_advisor
+                  </span>
+                  <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-text-secondary flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-green-400"></span>
+                    memory attached
+                  </span>
+                  <span class="rounded-full border border-white/[0.08] bg-white/[0.03] px-3 py-1.5 text-text-secondary flex items-center gap-1.5">
+                    <span class="h-1.5 w-1.5 rounded-full bg-accent-purple animate-pulse"></span>
+                    healing queue loaded
+                  </span>
+                </div>
+                <p class="text-[11px] text-text-tertiary">Operator ready · adaptive response formatting enabled</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </body>
+</html>

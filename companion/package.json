@@ -10,8 +10,12 @@
     "sync:runtime": "node scripts/sync-runtime.mjs",
     "sync:runtime:fast": "node scripts/sync-runtime.mjs",
     "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
+    "dev:v3": "npm run build:interface-v3 && npm run sync:runtime && node scripts/run-electron-v3.mjs",
+    "dev:os": "cd app && npm run build && cd .. && npm run sync:runtime && node scripts/run-electron-os.mjs",
+    "build:interface-v3": "node scripts/build-interface-v3.mjs",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "test:ui": "node scripts/ui-contract.mjs",
+    "test:phase1-workspace": "node scripts/phase1-workspace-smoke.mjs",
     "test:buttons": "npm run sync:runtime && node scripts/run-electron.mjs . --button-test",
     "check": "npm run smoke && npm run test:ui",
     "pack:dir": "npm run sync:runtime && electron-builder --dir",
@@ -20,16 +24,36 @@
     "build:run": "node scripts/build-and-run.mjs",
     "build:win:staging": "npm run sync:runtime && electron-builder --win nsis-web zip --config.directories.output=dist-staging",
     "build:win": "npm run sync:runtime && electron-builder --win nsis-web zip",
-    "build:update:metadata": "node scripts/build-version-json.mjs --output-dir dist-staging --notes \"SitePulse Studio desktop release.\""
+    "build:update:metadata": "node scripts/build-version-json.mjs --output-dir dist-staging --notes \"SitePulse Studio desktop release.\"",
+    "typecheck": "tsc --noEmit",
+    "compile:ts": "tsc",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@sparticuz/chromium": "138.0.2",
     "electron-updater": "6.6.2",
-    "playwright": "^1.53.2"
+    "playwright": "^1.53.2",
+    "react-router-dom": "^7.14.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.2",
+    "@types/jest": "^30.0.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
     "electron": "40.8.0",
-    "electron-builder": "26.8.1"
+    "electron-builder": "26.8.1",
+    "jest": "^30.3.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.2",
+    "ts-jest": "^29.4.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5",
+    "vite": "^8.0.3"
   },
   "build": {
     "appId": "com.sitepulse.desktop",

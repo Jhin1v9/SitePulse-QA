@@ -1,0 +1,703 @@
+# SitePulse QA Report
+
+- Projeto: sitepulse-default-desktop-audit
+- Inicio: 2026-03-13T02:18:20.879Z
+- Fim: 2026-03-13T02:20:56.438Z
+- Base URL: http://127.0.0.1:3110
+- Viewport: 1536x864
+- Execucao pausada: nao
+- Retomado de checkpoint: nao
+
+## Resumo
+
+- Rotas verificadas: 6
+- Falhas de carga de rota: 0
+- Botoes verificados: 121
+- Acoes mapeadas (detalhadas): 121
+- Acoes com efeito: 104
+- Acoes sem efeito detectado: 0
+- Acoes com erro de clique: 0
+- Acoes em modo analise (sem clique): 0
+- Botoes sem efeito: 0
+- Erros HTTP 4xx: 0
+- Erros HTTP 5xx: 0
+- Erros de rede: 0
+- Erros JS runtime: 0
+- Console errors: 0
+- Ordem visual invalida: 0
+- Secao obrigatoria ausente/invisivel: 0
+- SEO score: 100/100
+- SEO paginas analisadas: 6
+- SEO issues criticas: 0
+- SEO issues totais: 0
+- Total issues: 0
+
+## Guia Rapido Para Assistente
+
+- Status: clean
+- Replay command: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+- Passo: Sem issues: manter baseline e monitorar regressao.
+- Passo: Rodar novamente com: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+- Passo: Se houver mudanca grande de layout, atualizar sectionOrderRules.
+
+## Explicacao Para Leigos
+
+- Nenhum problema detectado nesta rodada.
+
+## Inteligencia De Erros
+
+- Sem classificacoes adicionais nesta rodada.
+
+## Progresso
+
+- Proxima rota indice: 6
+- Proximo botao indice: 0
+- Segmentos executados: 1
+
+## Mapa De Acoes (Botoes/Menu/Links)
+
+- [clicked_effect] / -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es.
+  - Destino/href: /es#top
+- [clicked_effect] / -> Precios (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/pricing.
+  - Destino/href: /es/pricing
+- [clicked_effect] / -> FAQ (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/faq.
+  - Destino/href: /es/faq
+- [clicked_effect] / -> Contacto (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_already_active] / -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] / -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es para /ca.
+- [clicked_effect] / -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es para /en.
+- [clicked_effect] / -> Modo oscuro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] / -> Ver demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] / -> Descargar (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] / -> Analizar mi sitio (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, rolagem mudou, houve requisicao de rede.
+- [skipped_not_visible] / -> Operacion en vivoPanel de operacionesMonitorea progreso de auditoria, etapas, logs y riesgo de release en una sola superficie. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] / -> Evidencia tecnicaReporte de evidenciaAgrupa hallazgos por severidad, causa, impacto y recomendacion para decidir el release. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] / -> Base SEOSEO tecnico integradoValida indexacion, metadatos y senales SEO tecnicas antes de publicar para reducir regresiones. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [clicked_effect] / -> Descargar instalador (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] / -> Hablar con ventas (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es para /es/contact.
+  - Destino/href: /es/contact
+- [clicked_effect] / -> Iniciar auditoria (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, rolagem mudou, houve requisicao de rede.
+- [clicked_effect] / -> Ver instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] / -> Demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] / -> Instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] / -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] / -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] / -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] / -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es para /es/downloads.
+  - Destino/href: /es/downloads#status
+- [clicked_effect] /demo -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /demo -> Precios (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/pricing.
+  - Destino/href: /es/pricing
+- [clicked_effect] /demo -> FAQ (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/faq.
+  - Destino/href: /es/faq
+- [clicked_effect] /demo -> Contacto (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/demo para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_already_active] /demo -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] /demo -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/demo para /ca/demo.
+- [clicked_effect] /demo -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/demo para /en/demo.
+- [clicked_effect] /demo -> Modo claro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] /demo -> Descargar (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /demo -> Descargar instalador (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /demo -> Hablar con ventas (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/demo para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_not_visible] /demo -> Operacion en vivoPanel de operacionesMonitorea progreso de auditoria, etapas, logs y riesgo de release en una sola superficie. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] /demo -> Evidencia tecnicaReporte de evidenciaAgrupa hallazgos por severidad, causa, impacto y recomendacion para decidir el release. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] /demo -> Base SEOSEO tecnico integradoValida indexacion, metadatos y senales SEO tecnicas antes de publicar para reducir regresiones. (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [clicked_effect] /demo -> Inicio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /demo -> Instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /demo -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] /demo -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] /demo -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] /demo -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/demo para /es/downloads.
+  - Destino/href: /es/downloads#status
+- [clicked_effect] /downloads -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /downloads -> Precios (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/pricing.
+  - Destino/href: /es/pricing
+- [clicked_effect] /downloads -> FAQ (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/faq.
+  - Destino/href: /es/faq
+- [clicked_effect] /downloads -> Contacto (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_already_active] /downloads -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] /downloads -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/downloads para /ca/downloads.
+- [clicked_effect] /downloads -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/downloads para /en/downloads.
+- [clicked_effect] /downloads -> Modo oscuro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] /downloads -> Ver demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /downloads -> Solicitar enlace (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=download&package=win-full-setup.
+  - Destino/href: /es/contact?topic=download&package=win-full-setup
+- [clicked_effect] /downloads -> Notas de release (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=release-notes&package=win-full-setup.
+  - Destino/href: /es/contact?topic=release-notes&package=win-full-setup
+- [clicked_effect] /downloads -> Soporte comercial (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact.
+  - Destino/href: /es/contact
+- [clicked_effect] /downloads -> Solicitar enlace (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=download&package=win-bootstrap-setup.
+  - Destino/href: /es/contact?topic=download&package=win-bootstrap-setup
+- [clicked_effect] /downloads -> Notas de release (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=release-notes&package=win-bootstrap-setup.
+  - Destino/href: /es/contact?topic=release-notes&package=win-bootstrap-setup
+- [clicked_effect] /downloads -> Solicitar enlace (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=download&package=win-portable-zip.
+  - Destino/href: /es/contact?topic=download&package=win-portable-zip
+- [clicked_effect] /downloads -> Notas de release (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/downloads para /es/contact?topic=release-notes&package=win-portable-zip.
+  - Destino/href: /es/contact?topic=release-notes&package=win-portable-zip
+- [clicked_effect] /downloads -> Inicio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /downloads -> Demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /downloads -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] /downloads -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] /downloads -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] /downloads -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/downloads para /es/downloads.
+  - Destino/href: /es/downloads#status
+- [clicked_effect] /pricing -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /pricing -> FAQ (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/faq.
+  - Destino/href: /es/faq
+- [clicked_effect] /pricing -> Contacto (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/pricing para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_already_active] /pricing -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] /pricing -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/pricing para /ca/pricing.
+- [clicked_effect] /pricing -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/pricing para /en/pricing.
+- [clicked_effect] /pricing -> Modo claro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] /pricing -> Ver demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /pricing -> Descargar (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /pricing -> Descargar instalador (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /pricing -> Hablar con ventas (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/pricing para /es/contact.
+  - Destino/href: /es/contact
+- [clicked_effect] /pricing -> Inicio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /pricing -> Demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /pricing -> Instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /pricing -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] /pricing -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] /pricing -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] /pricing -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/pricing para /es/downloads.
+  - Destino/href: /es/downloads#status
+- [clicked_effect] /faq -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /faq -> Precios (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/pricing.
+  - Destino/href: /es/pricing
+- [clicked_effect] /faq -> Contacto (link)
+  - Funcao esperada: Levar para canal de contato
+  - Explicacao para leigo: Conduz o visitante para falar com a empresa.
+  - Funcao executada: Navegou de /es/faq para /es/contact.
+  - Destino/href: /es/contact
+- [skipped_already_active] /faq -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] /faq -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/faq para /ca/faq.
+- [clicked_effect] /faq -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/faq para /en/faq.
+- [clicked_effect] /faq -> Modo oscuro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] /faq -> Ver demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /faq -> Descargar (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/downloads.
+  - Destino/href: /es/downloads
+- [skipped_not_visible] /faq -> Es software desktop o cloud?- (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] /faq -> Cuanto tarda una auditoria?+ (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] /faq -> Como se actualizan los instaladores?+ (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [skipped_not_visible] /faq -> Sirve para agencias con varios clientes?+ (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento nao estava visivel para clique.
+  - Detalhe: Motivo: button_not_visible
+- [clicked_effect] /faq -> Inicio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /faq -> Demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /faq -> Instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /faq -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] /faq -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] /faq -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] /faq -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/faq para /es/downloads.
+  - Destino/href: /es/downloads#status
+- [clicked_effect] /contact -> SPSitePulse Studio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /contact -> Precios (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/pricing.
+  - Destino/href: /es/pricing
+- [clicked_effect] /contact -> FAQ (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/faq.
+  - Destino/href: /es/faq
+- [skipped_already_active] /contact -> Idioma: Espanol (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento ja estava no estado ativo.
+  - Detalhe: Motivo: button_already_active
+- [clicked_effect] /contact -> Idioma: Catala (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/contact para /ca/contact.
+- [clicked_effect] /contact -> Idioma: English (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Navegou de /es/contact para /en/contact.
+- [clicked_effect] /contact -> Modo claro (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Acao executada na mesma pagina com efeito: conteudo da pagina mudou, estado visual mudou.
+- [clicked_effect] /contact -> Ver demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /contact -> Descargar (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/downloads.
+  - Destino/href: /es/downloads
+- [skipped_disabled] /contact -> Enviar solicitud (button)
+  - Funcao esperada: Executar acao interativa
+  - Explicacao para leigo: Deve reagir ao clique com resultado visivel para o usuario.
+  - Funcao executada: Elemento estava desabilitado.
+  - Detalhe: Motivo: button_disabled
+- [clicked_effect] /contact -> Inicio (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es.
+  - Destino/href: /es#top
+- [clicked_effect] /contact -> Demo (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/demo.
+  - Destino/href: /es/demo
+- [clicked_effect] /contact -> Instaladores (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/downloads.
+  - Destino/href: /es/downloads
+- [clicked_effect] /contact -> Documentacion (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/faq.
+  - Destino/href: /es/faq#docs
+- [clicked_effect] /contact -> Seguridad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/faq.
+  - Destino/href: /es/faq#security
+- [clicked_effect] /contact -> Privacidad (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/faq.
+  - Destino/href: /es/faq#privacy
+- [clicked_effect] /contact -> Estado (link)
+  - Funcao esperada: Navegar para outra pagina
+  - Explicacao para leigo: Leva o visitante para outra parte do site.
+  - Funcao executada: Navegou de /es/contact para /es/downloads.
+  - Destino/href: /es/downloads#status
+
+## Analise SEO
+
+- SEO score geral: 100/100
+- Paginas analisadas: 6
+- Score por categoria: tecnico=100, conteudo=100, acessibilidade=100
+- Sem issues SEO relevantes nesta rodada.
+- Checklist SEO base:
+  - [ok] Title unico e com tamanho ideal (30-65) | E o texto principal que aparece no Google.
+  - [ok] Meta description clara (70-170) | Ajuda a pessoa entender a pagina antes de clicar.
+  - [ok] Estrutura de headings com 1 H1 | Organiza o tema principal da pagina para Google e usuarios.
+  - [ok] HTML com lang e viewport mobile | Melhora indexacao correta por idioma e experiencia em celular.
+  - [ok] Canonical definido | Evita conteudo duplicado em URLs diferentes.
+  - [ok] Pagina indexavel (sem noindex indevido) | Sem isso o Google pode ignorar paginas importantes.
+  - [ok] Imagens com alt descritivo | Ajuda SEO de imagem e acessibilidade.
+  - [ok] Schema JSON-LD (LocalBusiness/Service/FAQ) | Aumenta chance de rich results no Google.
+  - [ok] Conteudo util e suficiente | Paginas rasas tendem a ranquear pior.
+  - [ok] Links internos entre paginas | Ajuda rastreamento e distribuicao de autoridade.
+  - [ok] Meta social (Open Graph + Twitter Card) | Melhora compartilhamento e CTR em redes sociais.
+  - [ok] Meta robots presente e coerente | Define como bots devem indexar/seguir links.
+- Prompt recomendado para corrigir SEO:
+```
+Atue como especialista SEO tecnico e de conteudo.
+Site auditado: http://127.0.0.1:3110
+Score atual: 100/100.
+Nao ha gaps SEO relevantes nesta rodada.
+Objetivo: manter baseline, evitar regressao e monitorar periodicamente.
+```
+
+## Issues
+
+Sem issues detectadas.
+
+## Prompts De Correcao Por Issue
+
+Sem prompts especificos porque nao houve issue.
+
+## Prompt Master
+
+```text
+Atue como engenheiro de software senior e corrija todas as issues listadas abaixo com foco em causa raiz.
+
+Nao aplique correcoes cosmeticas. Garanta comportamento funcional correto em desktop e mobile.
+
+Exigencias minimas: sem botao sem efeito, sem callback solto, sem erro fetch sem feedback, sem 4xx/5xx inesperado no fluxo principal e sem ordem de secoes quebrada.
+
+Workflow obrigatorio: reproduzir, identificar causa raiz, corrigir com menor impacto, validar novamente via auditor.
+
+Entregue ao final: codigo corrigido, resumo da causa raiz por categoria e evidencias de revalidacao.
+```
+
+## Prompt Rapido Do Assistente
+
+```text
+Atue como engenheiro de software senior.
+Nao ha issues abertas nesta auditoria.
+Objetivo: prevenir regressao.
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+Verifique mudancas recentes e rode a auditoria novamente apos qualquer ajuste estrutural.
+```

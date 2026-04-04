@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "updatedAt": "2026-03-13T06:39:12.504Z",
+  "processedRuns": [],
+  "entries": {
+    "SEO_CANONICAL_MISSING|/pricing|seo:audit": {
+      "key": "SEO_CANONICAL_MISSING|/pricing|seo:audit",
+      "issueCode": "SEO_CANONICAL_MISSING",
+      "title": "SEO canonical missing",
+      "category": "seo",
+      "severity": "high",
+      "route": "/pricing",
+      "action": "seo:audit",
+      "possibleResolution": "Use a centralized canonical helper.",
+      "finalResolution": "Use one canonical URL helper and reuse it in metadata plus structured data.",
+      "recommendedResolution": "Generate canonical from a single helper.",
+      "learningSource": "Manual override recorded in SitePulse Desktop.",
+      "resolutionConfidence": "manual_override",
+      "finalResolutionOrigin": "manual_override",
+      "promotionSource": "",
+      "promotionCount": 0,
+      "lastValidatedAt": "",
+      "manualOverrideCount": 1,
+      "lastManualOverrideAt": "2026-03-13T06:39:12.498Z",
+      "lastManualOverrideBy": "desktop-test",
+      "lastManualOverrideNote": "validated manually during desktop AI memory test",
+      "firstSeenAt": "2026-03-13T06:39:12.498Z",
+      "lastSeenAt": "2026-03-13T06:39:12.498Z",
+      "aggregateCounts": {
+        "seen": 1,
+        "validated": 0,
+        "failed": 0,
+        "partial": 0,
+        "revalidated": 0,
+        "zeroed": 0
+      },
+      "contexts": [
+        {
+          "id": "/pricing|seo:audit",
+          "route": "/pricing",
+          "action": "seo:audit",
+          "baseUrl": "https://site-pulse-qa.vercel.app",
+          "auditScope": "full",
+          "viewportLabel": "desktop",
+          "detail": "Canonical was missing on the localized pricing page.",
+          "lastResult": "manual_override",
+          "lastSeenAt": "2026-03-13T06:39:12.498Z"
+        }
+      ],
+      "cases": [],
+      "manualOverrides": [
+        {
+          "id": "override-1",
+          "type": "manual_override",
+          "finalResolution": "Use one canonical URL helper and reuse it in metadata plus structured data.",
+          "note": "validated manually during desktop AI memory test",
+          "actor": "desktop-test",
+          "source": "Manual override from SitePulse Desktop.",
+          "timestamp": "2026-03-13T06:39:12.498Z"
+        }
+      ]
+    }
+  },
+  "lastRunByContext": {}
+}

@@ -1,0 +1,845 @@
+
+<style>
+  :root {
+    --sp-bg: #0c0e14;
+    --sp-surface: #12151e;
+    --sp-surface2: #181c27;
+    --sp-border: rgba(255,255,255,0.07);
+    --sp-border2: rgba(255,255,255,0.12);
+    --sp-text: #e8edf5;
+    --sp-muted: #7a8799;
+    --sp-dim: #3d4758;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body, html { background: transparent; }
+
+  .sp-shell {
+    background: var(--sp-bg);
+    border-radius: 18px;
+    border: 1px solid var(--sp-border);
+    overflow: hidden;
+    font-family: var(--font-sans, system-ui, sans-serif);
+    color: var(--sp-text);
+    min-height: 620px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* TOPBAR */
+  .sp-topbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 18px;
+    height: 46px;
+    border-bottom: 1px solid var(--sp-border);
+    background: rgba(0,0,0,0.28);
+    flex-shrink: 0;
+  }
+  .sp-topbar-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .sp-topbar-logo { font-size: 13px; font-weight: 500; letter-spacing: 0.04em; color: var(--sp-text); margin-left: 4px; }
+  .sp-topbar-logo span { color: var(--sp-muted); }
+  .sp-topbar-sep { flex: 1; }
+  .sp-engine-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 9px; border-radius: 99px;
+    border: 1px solid var(--sp-border2);
+    background: rgba(255,255,255,0.04);
+    font-size: 11px; color: var(--sp-muted); cursor: default;
+  }
+  .sp-engine-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #34d399; }
+
+  /* BODY */
+  .sp-body { display: flex; flex: 1; min-height: 0; }
+
+  /* SIDEBAR */
+  .sp-sidebar {
+    width: 56px;
+    border-right: 1px solid var(--sp-border);
+    background: rgba(0,0,0,0.18);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px 0;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  .sp-nav-btn {
+    width: 38px; height: 38px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    position: relative;
+    transition: background 120ms;
+  }
+  .sp-nav-btn:hover { background: rgba(255,255,255,0.06); }
+  .sp-nav-btn.active { background: rgba(255,255,255,0.09); }
+  .sp-nav-btn.active::before {
+    content: '';
+    position: absolute;
+    left: -1px; top: 50%; transform: translateY(-50%);
+    width: 3px; height: 22px;
+    border-radius: 0 3px 3px 0;
+  }
+  .sp-nav-btn svg { width: 16px; height: 16px; }
+
+  /* NAV COLORS */
+  .nav-operator svg { stroke: #60a5fa; }
+  .nav-operator.active::before { background: #60a5fa; }
+  .nav-findings svg { stroke: #f87171; }
+  .nav-findings.active::before { background: #f87171; }
+  .nav-seo svg { stroke: #34d399; }
+  .nav-seo.active::before { background: #34d399; }
+  .nav-compare svg { stroke: #a78bfa; }
+  .nav-compare.active::before { background: #a78bfa; }
+  .nav-memory svg { stroke: #38bdf8; }
+  .nav-memory.active::before { background: #38bdf8; }
+  .nav-healing svg { stroke: #86efac; }
+  .nav-healing.active::before { background: #86efac; }
+  .nav-reports svg { stroke: #f9a8d4; }
+  .nav-reports.active::before { background: #f9a8d4; }
+  .nav-settings svg { stroke: #94a3b8; }
+  .nav-settings.active::before { background: #94a3b8; }
+
+  .sp-nav-btn svg { fill: none; stroke: var(--sp-dim); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: stroke 120ms; }
+  .sp-nav-btn:hover svg, .sp-nav-btn.active svg { opacity: 1; }
+
+  .sp-nav-label {
+    font-size: 9px; letter-spacing: 0.04em; color: var(--sp-muted);
+    text-align: center; margin-top: 2px;
+    display: none;
+  }
+  .sp-sidebar-spacer { flex: 1; }
+
+  /* MAIN */
+  .sp-main { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+
+  /* COMMAND DOCK */
+  .sp-dock {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--sp-border);
+    background: rgba(0,0,0,0.22);
+    display: grid;
+    grid-template-columns: 200px 1fr 110px 68px;
+    gap: 8px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .sp-input-wrap { position: relative; }
+  .sp-input-wrap svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; fill: none; stroke: var(--sp-muted); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .sp-input {
+    width: 100%; height: 38px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--sp-border2);
+    border-radius: 12px;
+    padding: 0 10px 0 32px;
+    font-size: 12px; color: var(--sp-text);
+    outline: none; font-family: inherit;
+    transition: border-color 140ms, background 140ms;
+  }
+  .sp-input::placeholder { color: var(--sp-muted); }
+  .sp-input:focus { border-color: rgba(96,165,250,0.4); background: rgba(255,255,255,0.07); }
+  .sp-run-btn {
+    height: 38px; border-radius: 12px;
+    border: 1px solid rgba(52,211,153,0.3);
+    background: rgba(52,211,153,0.1);
+    color: #6ee7b7; font-size: 11px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    cursor: pointer; transition: all 120ms; white-space: nowrap;
+    font-family: inherit;
+  }
+  .sp-run-btn:hover { background: rgba(52,211,153,0.16); border-color: rgba(52,211,153,0.45); transform: translateY(-1px); }
+  .sp-run-btn svg { width: 13px; height: 13px; fill: none; stroke: #6ee7b7; stroke-width: 2; }
+  .sp-ask-btn {
+    height: 38px; border-radius: 12px;
+    border: 1px solid rgba(96,165,250,0.3);
+    background: rgba(96,165,250,0.1);
+    color: #93c5fd; font-size: 11px; font-weight: 500;
+    display: flex; align-items: center; justify-content: center; gap: 5px;
+    cursor: pointer; transition: all 120ms;
+    font-family: inherit;
+  }
+  .sp-ask-btn:hover { background: rgba(96,165,250,0.16); transform: translateY(-1px) scale(1.02); }
+  .sp-ask-btn svg { width: 13px; height: 13px; fill: none; stroke: #93c5fd; stroke-width: 2; }
+
+  /* WORKSPACE AREA */
+  .sp-workspace { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+  .sp-workspace::-webkit-scrollbar { width: 4px; }
+  .sp-workspace::-webkit-scrollbar-thumb { background: var(--sp-dim); border-radius: 2px; }
+
+  /* WORKSPACE SHELL */
+  .sp-ws-shell {
+    border-radius: 20px;
+    border: 1px solid var(--sp-border);
+    overflow: hidden;
+    position: relative;
+  }
+  .sp-ws-glow {
+    position: absolute; inset: 0; pointer-events: none;
+    opacity: 0.8;
+  }
+  .sp-ws-content { position: relative; z-index: 1; padding: 18px; }
+
+  /* HERO GRID */
+  .sp-hero-grid { display: grid; grid-template-columns: 1.3fr 0.7fr; gap: 10px; }
+  .sp-metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 10px; }
+  .sp-groups-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+
+  /* CARD */
+  .sp-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--sp-border);
+    border-radius: 14px;
+    padding: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .sp-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), transparent 30%);
+    pointer-events: none;
+  }
+
+  .sp-kicker { font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--sp-muted); }
+  .sp-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 99px;
+    border: 1px solid var(--sp-border2);
+    background: rgba(255,255,255,0.04);
+    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: #c0cad7;
+    margin-top: 8px;
+  }
+  .sp-badge .pulse {
+    width: 7px; height: 7px; border-radius: 50%; position: relative;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sp-badge .pulse::before {
+    content: ''; position: absolute; inset: -2px;
+    border-radius: 50%; background: inherit; opacity: 0.4;
+    animation: ping 1.6s ease-out infinite;
+  }
+  @keyframes ping { 0% { transform: scale(1); opacity: 0.4; } 100% { transform: scale(2.2); opacity: 0; } }
+
+  .sp-ws-title { font-size: 22px; font-weight: 500; letter-spacing: -0.04em; color: var(--sp-text); margin-top: 10px; line-height: 1.2; }
+  .sp-ws-desc { font-size: 12px; line-height: 1.7; color: var(--sp-muted); margin-top: 6px; max-width: 480px; }
+
+  .sp-seg-tabs { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .sp-seg-tab {
+    padding: 4px 10px; border-radius: 99px;
+    border: 1px solid var(--sp-border2);
+    background: rgba(255,255,255,0.03);
+    font-size: 11px; color: #c0cad7; cursor: pointer;
+    transition: all 100ms;
+  }
+  .sp-seg-tab.active { border-color: rgba(255,255,255,0.22); background: rgba(255,255,255,0.08); color: var(--sp-text); }
+
+  .sp-big-num { font-size: 28px; font-weight: 500; letter-spacing: -0.05em; color: var(--sp-text); line-height: 1; margin-top: 8px; }
+  .sp-num-detail { font-size: 11px; color: var(--sp-muted); margin-top: 4px; }
+
+  .sp-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .sp-list-item {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 9px 11px; border-radius: 10px;
+    border: 1px solid var(--sp-border);
+    background: rgba(255,255,255,0.02);
+    transition: all 120ms; cursor: default;
+  }
+  .sp-list-item:hover { border-color: var(--sp-border2); background: rgba(255,255,255,0.04); transform: translateY(-1px); }
+  .sp-list-idx {
+    width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #dbeafe;
+    background: rgba(59,130,246,0.16); border: 1px solid rgba(59,130,246,0.2);
+  }
+  .sp-list-title { font-size: 12px; font-weight: 500; color: var(--sp-text); }
+  .sp-list-detail { font-size: 11px; color: var(--sp-muted); margin-top: 2px; line-height: 1.5; }
+  .sp-action-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 99px; margin-top: 5px;
+    border: 1px solid rgba(96,165,250,0.25);
+    background: rgba(59,130,246,0.1);
+    font-size: 10px; color: #bfdbfe;
+    cursor: pointer; transition: all 100ms;
+    font-family: inherit;
+  }
+  .sp-action-btn:hover { background: rgba(59,130,246,0.16); border-color: rgba(96,165,250,0.38); }
+
+  .sp-zone-title { font-size: 14px; font-weight: 500; color: var(--sp-text); margin-top: 4px; }
+  .sp-zone-subtitle { font-size: 11px; color: var(--sp-muted); margin-top: 2px; line-height: 1.5; }
+
+  /* AI DOCK */
+  .sp-ai-dock {
+    border-top: 1px solid var(--sp-border);
+    background: rgba(0,0,0,0.22);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .sp-ai-mode {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 4px 10px; border-radius: 99px;
+    border: 1px solid rgba(96,165,250,0.25);
+    background: rgba(59,130,246,0.08);
+    font-size: 10px; color: #93c5fd; white-space: nowrap;
+  }
+  .sp-ai-mode .dot { width: 5px; height: 5px; border-radius: 50%; background: #60a5fa; }
+  .sp-chat-preview { font-size: 12px; color: var(--sp-muted); flex: 1; }
+  .sp-chat-preview strong { color: var(--sp-text); font-weight: 500; }
+
+  /* TOOLTIPS */
+  .sp-nav-btn { position: relative; }
+  .sp-tooltip {
+    position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
+    margin-left: 10px; padding: 4px 8px; border-radius: 6px;
+    background: rgba(20,24,36,0.96); border: 1px solid var(--sp-border2);
+    font-size: 11px; color: var(--sp-text); white-space: nowrap;
+    opacity: 0; pointer-events: none; z-index: 100;
+    transition: opacity 100ms;
+  }
+  .sp-nav-btn:hover .sp-tooltip { opacity: 1; }
+
+  @media (max-width: 640px) {
+    .sp-hero-grid { grid-template-columns: 1fr; }
+    .sp-metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .sp-groups-grid { grid-template-columns: 1fr; }
+    .sp-dock { grid-template-columns: 1fr 80px; }
+    .sp-dock > *:first-child, .sp-dock > *:last-child { display: none; }
+  }
+</style>
+
+<div class="sp-shell">
+
+  <!-- TOPBAR -->
+  <div class="sp-topbar">
+    <div class="sp-topbar-dot" style="background:#ff5f57"></div>
+    <div class="sp-topbar-dot" style="background:#febc2e"></div>
+    <div class="sp-topbar-dot" style="background:#28c840"></div>
+    <div class="sp-topbar-logo" style="margin-left:8px">SitePulse <span>Studio</span></div>
+    <div class="sp-topbar-sep"></div>
+    <div class="sp-engine-pill"><span class="dot"></span> 8 engines live</div>
+    <div class="sp-engine-pill">Memory 24 · Healing 7</div>
+    <div class="sp-engine-pill">Ctrl+K</div>
+  </div>
+
+  <!-- BODY -->
+  <div class="sp-body">
+
+    <!-- SIDEBAR -->
+    <div class="sp-sidebar">
+      <button class="sp-nav-btn nav-operator active" data-view="operator" title="">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <span class="sp-tooltip">Operator</span>
+      </button>
+      <button class="sp-nav-btn nav-findings" data-view="findings" title="">
+        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span class="sp-tooltip">Findings</span>
+      </button>
+      <button class="sp-nav-btn nav-seo" data-view="seo" title="">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span class="sp-tooltip">SEO</span>
+      </button>
+      <button class="sp-nav-btn nav-compare" data-view="compare" title="">
+        <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+        <span class="sp-tooltip">Compare</span>
+      </button>
+      <div class="sp-sidebar-spacer"></div>
+      <button class="sp-nav-btn nav-memory" data-view="memory" title="">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+        <span class="sp-tooltip">Memory</span>
+      </button>
+      <button class="sp-nav-btn nav-healing" data-view="healing" title="">
+        <svg viewBox="0 0 24 24"><path d="M12 21.593c-5.63-5.539-11-10.297-11-14.402 0-3.791 3.068-5.191 5.281-5.191 1.312 0 4.151.501 5.719 4.457 1.59-3.968 4.464-4.447 5.726-4.447 2.54 0 5.274 1.621 5.274 5.181 0 4.069-5.136 8.625-11 14.402z"/></svg>
+        <span class="sp-tooltip">Healing</span>
+      </button>
+      <button class="sp-nav-btn nav-reports" data-view="reports" title="">
+        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="sp-tooltip">Reports</span>
+      </button>
+      <button class="sp-nav-btn nav-settings" data-view="settings" title="">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="sp-tooltip">Settings</span>
+      </button>
+    </div>
+
+    <!-- MAIN -->
+    <div class="sp-main">
+
+      <!-- COMMAND DOCK -->
+      <div class="sp-dock">
+        <div class="sp-input-wrap">
+          <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <input class="sp-input" type="url" placeholder="https://example.com" id="urlInput" />
+        </div>
+        <div class="sp-input-wrap">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+          <input class="sp-input" type="text" placeholder="Ask AI, explain an issue, or: run audit https://..." id="chatInput" />
+        </div>
+        <button class="sp-run-btn" id="runBtn">
+          <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="#6ee7b7" stroke="none"/></svg>
+          Run audit
+        </button>
+        <button class="sp-ask-btn" id="askBtn">
+          <svg viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2" fill="#93c5fd" stroke="none"/></svg>
+          Ask AI
+        </button>
+      </div>
+
+      <!-- WORKSPACE -->
+      <div class="sp-workspace" id="workspaceArea"></div>
+
+      <!-- AI DOCK -->
+      <div class="sp-ai-dock">
+        <div class="sp-ai-mode"><span class="dot"></span> Operational · EN</div>
+        <div class="sp-chat-preview"><strong>Assistant →</strong> Olhei a run de example.com — 14 issues, SEO 78, 3 high-risk alerts. Trajectory degrading. Quer iniciar uma run deep ou ver o priority queue?</div>
+        <button class="sp-ask-btn" style="height:30px;padding:0 12px;font-size:10px" onclick="sendPrompt('Quero ver o priority queue do SitePulse Studio e entender mais sobre a arquitetura do assistant service')">Expand AI ↗</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const WORKSPACES = {
+  operator: {
+    theme: { from: 'rgba(59,130,246,0.18)', via: 'rgba(96,165,250,0.12)', accent: '#60a5fa' },
+    badge: { label: 'Operator command room', color: '#bfdbfe', bg: 'rgba(59,130,246,0.14)' },
+    eyebrow: 'Operator workspace',
+    title: 'Living command system',
+    desc: 'Runtime posture, mission target, active pressure and next action lanes in one serious command environment.',
+    tabs: ['Mission', 'Signals', 'Memory', 'Action'],
+    metrics: [
+      { label: 'Quality', value: '84', detail: '14 active findings' },
+      { label: 'Routes', value: '212', detail: '394 mapped actions' },
+      { label: 'Memory', value: '24', detail: '7 healing-ready' },
+      { label: 'Trajectory', value: 'Stable', detail: 'SEO rising · Runtime stable' },
+    ],
+    left: { title: 'Priority pressure', items: [
+      { t: 'MISSING_ALT_TEXT', d: 'high · /products/hero-section' },
+      { t: 'CANONICAL_MISMATCH', d: 'critical · /blog/* (38 routes)' },
+      { t: 'JS_RUNTIME_ERROR', d: 'high · /checkout/step-3' },
+      { t: 'SLOW_LCP', d: 'medium · / (homepage)' },
+    ]},
+    right: { title: 'Mission frame', items: [
+      { t: 'Target', d: 'https://example.com' },
+      { t: 'Execution profile', d: 'Mode full · scope site · depth default' },
+      { t: 'Signal state', d: '3 high-risk alerts · 2 recurring patterns' },
+    ]},
+    groups: [
+      { title: 'Command lanes', items: [
+        { l: 'Open findings', s: 'Jump into the live pressure board', a: 'findings' },
+        { l: 'Open compare', s: 'Read delta, regressions and baseline posture', a: 'compare' },
+        { l: 'Open reports', s: 'Inspect evidence, older runs and outputs', a: 'reports' },
+      ]},
+      { title: 'Operator intelligence', items: [
+        { l: 'Memory attached', s: '24 entries available to enrich prompts', a: 'memory' },
+        { l: 'Healing queue', s: '7 items can move into remediation flow', a: 'healing' },
+        { l: 'Runtime control', s: 'Audit posture, baseline and engine state', a: 'settings' },
+      ]},
+    ],
+  },
+  findings: {
+    theme: { from: 'rgba(239,68,68,0.18)', via: 'rgba(245,158,11,0.12)', accent: '#f87171' },
+    badge: { label: 'Pressure board', color: '#fecaca', bg: 'rgba(239,68,68,0.14)' },
+    eyebrow: 'Findings workspace',
+    title: 'Issue pressure board',
+    desc: 'A serious board of operational pressure: severity, recurrence, affected routes, remediation priority and fast conversion into action.',
+    tabs: ['Queue', 'Critical', 'Patterns', 'Routes'],
+    metrics: [
+      { label: 'Total issues', value: '14', detail: 'Critical 3 · High 5' },
+      { label: 'High risk', value: '3', detail: '2 recurring patterns' },
+      { label: 'Routes touched', value: '42', detail: '394 related actions' },
+      { label: 'Healing-ready', value: '7', detail: '24 memory-linked' },
+    ],
+    left: { title: 'Priority queue', items: [
+      { t: 'CANONICAL_MISMATCH', d: 'critical · 38 routes affected' },
+      { t: 'JS_RUNTIME_ERROR', d: 'critical · /checkout/step-3' },
+      { t: 'BROKEN_LINK', d: 'high · /sitemap references' },
+      { t: 'MISSING_ALT_TEXT', d: 'high · 12 images across site' },
+    ]},
+    right: { title: 'Board interpretation', items: [
+      { t: 'Severity first', d: 'Critical and high-risk items dominate above cosmetic noise.' },
+      { t: 'Repeated failures', d: '2 patterns suggest structural recurrence not isolated mistakes.' },
+      { t: 'Action path', d: 'Findings feed compare, healing and operator prompts.' },
+    ]},
+    groups: [
+      { title: 'Fast triage', items: [
+        { l: 'Why is score down?', s: 'Push a direct diagnostic question to the AI', a: 'ask' },
+        { l: 'Show SEO issues', s: 'Filter toward visibility and indexing pressure', a: 'ask' },
+        { l: 'Generate fix plan', s: 'Turn findings into a concrete remediation path', a: 'ask' },
+      ]},
+      { title: 'Escalation lanes', items: [
+        { l: 'Send to compare', s: 'Understand if pain is new, persistent or regressive', a: 'compare' },
+        { l: 'Send to healing', s: 'Move remediable issues into correction flow', a: 'healing' },
+        { l: 'Send to reports', s: 'Attach evidence and archive-ready outputs', a: 'reports' },
+      ]},
+    ],
+  },
+  seo: {
+    theme: { from: 'rgba(16,185,129,0.18)', via: 'rgba(34,211,238,0.12)', accent: '#34d399' },
+    badge: { label: 'Visibility lab', color: '#a7f3d0', bg: 'rgba(16,185,129,0.14)' },
+    eyebrow: 'SEO workspace',
+    title: 'Search visibility laboratory',
+    desc: 'Technical integrity, indexing posture, metadata quality, language signals and structural opportunity — one serious visibility surface.',
+    tabs: ['Executive', 'Technical', 'Metadata', 'Opportunity'],
+    metrics: [
+      { label: 'SEO score', value: '78', detail: 'Trend rising' },
+      { label: 'Tech pressure', value: '6', detail: 'Canonical, schema, crawl' },
+      { label: 'Risk alerts', value: '3', detail: '2 recurring visibility patterns' },
+      { label: 'Opportunities', value: '4', detail: 'Structural gains available' },
+    ],
+    left: { title: 'SEO pressure', items: [
+      { t: 'CANONICAL_MISMATCH', d: 'critical · 38 routes · indexing risk' },
+      { t: 'MISSING_HREFLANG', d: 'high · multilingual routes without lang signals' },
+      { t: 'SCHEMA_INVALID', d: 'medium · Product schema on /shop/* pages' },
+      { t: 'META_DESC_MISSING', d: 'medium · 14 pages without descriptions' },
+    ]},
+    right: { title: 'Visibility reading', items: [
+      { t: 'Indexability', d: 'Canonical, robots, crawl and language read as one system.' },
+      { t: 'Metadata integrity', d: 'Titles, descriptions and semantic structure support ranking.' },
+      { t: 'Opportunity posture', d: 'Structural gains over scattered micro-fixes.' },
+    ]},
+    groups: [
+      { title: 'SEO lanes', items: [
+        { l: 'Technical lane', s: 'Canonical, schema, indexability, hreflang signals', a: null },
+        { l: 'Metadata lane', s: 'Titles, descriptions, OG, hierarchy, semantic structure', a: null },
+        { l: 'Opportunity lane', s: 'Prioritize structural upside over scattered micro-fixes', a: null },
+      ]},
+      { title: 'Operational links', items: [
+        { l: 'Back to findings', s: 'Push visibility problems into the live queue', a: 'findings' },
+        { l: 'Open compare', s: 'Measure if changes improved visibility posture', a: 'compare' },
+        { l: 'Open reports', s: 'Build an exportable SEO evidence layer', a: 'reports' },
+      ]},
+    ],
+  },
+  compare: {
+    theme: { from: 'rgba(168,85,247,0.18)', via: 'rgba(99,102,241,0.12)', accent: '#a78bfa' },
+    badge: { label: 'Delta intelligence room', color: '#ddd6fe', bg: 'rgba(168,85,247,0.14)' },
+    eyebrow: 'Compare workspace',
+    title: 'Delta and regression intelligence',
+    desc: 'What is new, what was resolved, what regressed and what keeps surviving across runs — a proper delta room.',
+    tabs: ['Delta', 'Regressions', 'Resolved', 'Persistent'],
+    metrics: [
+      { label: 'New', value: '4', detail: 'Issues introduced in this context' },
+      { label: 'Resolved', value: '7', detail: 'Pressure removed since baseline' },
+      { label: 'Regressions', value: '2', detail: 'Signals worsened or returned' },
+      { label: 'Persistent', value: '5', detail: 'Problems surviving the cycle' },
+    ],
+    left: { title: 'Comparison signals', items: [
+      { t: 'New issues', d: '4 newly introduced or newly surfaced issues' },
+      { t: 'Resolved issues', d: '7 items removed from the latest delta' },
+      { t: 'Regressions', d: '2 signals worsened or came back' },
+      { t: 'Persistent issues', d: '5 problems alive across runs' },
+    ]},
+    right: { title: 'Delta interpretation', items: [
+      { t: 'Same context first', d: 'Comparison only matters if target, mode and baseline are coherent.' },
+      { t: 'Regression beats vanity', d: 'A smaller count is not a win if high-impact regressions appear.' },
+      { t: 'Feed action', d: 'Compare must route back into findings, healing and reports.' },
+    ]},
+    groups: [
+      { title: 'Decision routes', items: [
+        { l: 'Open findings', s: 'Return unresolved regressions to the pressure board', a: 'findings' },
+        { l: 'Open healing', s: 'Move remediable regressions into correction workflow', a: 'healing' },
+        { l: 'Open reports', s: 'Capture before/after evidence and delta context', a: 'reports' },
+      ]},
+      { title: 'Baseline governance', items: [
+        { l: 'Baseline pinned', s: '2026-03-14 · comparison armed and usable', a: null },
+        { l: 'Replay discipline', s: 'Gains only mean something in controlled reruns', a: null },
+        { l: 'Signal continuity', s: 'Persistent issues should inform memory and prevention', a: null },
+      ]},
+    ],
+  },
+  memory: {
+    theme: { from: 'rgba(14,165,233,0.18)', via: 'rgba(16,185,129,0.1)', accent: '#38bdf8' },
+    badge: { label: 'Learning memory chamber', color: '#bae6fd', bg: 'rgba(14,165,233,0.14)' },
+    eyebrow: 'Memory workspace',
+    title: 'Learning memory graph',
+    desc: 'Where repeated failures, successful remediations and learned patterns become reusable operator knowledge.',
+    tabs: ['Entries', 'Validated', 'Patterns', 'Recall'],
+    metrics: [
+      { label: 'Entries', value: '24', detail: '11 validated' },
+      { label: 'Recurring', value: '2', detail: 'Patterns with repeat signal' },
+      { label: 'Linked healing', value: '7', detail: 'Correction candidates from memory' },
+      { label: 'Trajectory', value: 'Stable', detail: 'Memory influences decisions' },
+    ],
+    left: { title: 'Memory recall', items: [
+      { t: 'Validated learnings', d: '11 entries suitable for reuse across runs.' },
+      { t: 'Pattern recurrence', d: '2 repeated pressure signals feed memory priority.' },
+      { t: 'Operational recall', d: 'Memory helps the operator act faster, not become a dead archive.' },
+    ]},
+    right: { title: 'Memory posture', items: [
+      { t: 'Grounded memory', d: 'Entries map back to issues, runs and evidence.' },
+      { t: 'Useful retrieval', d: 'Faster triage, better prompts and fewer repeated mistakes.' },
+      { t: 'Promotion discipline', d: 'Only validated signals graduate into durable memory.' },
+    ]},
+    groups: [
+      { title: 'Memory routes', items: [
+        { l: 'Open findings', s: 'Use memory to strengthen the active board', a: 'findings' },
+        { l: 'Open healing', s: 'Send learned solutions into remediation flow', a: 'healing' },
+        { l: 'Open reports', s: 'Review evidence tied to promoted learnings', a: 'reports' },
+      ]},
+      { title: 'Memory quality', items: [
+        { l: 'Validated entries', s: '11 entries cleared for stronger trust level', a: null },
+        { l: 'Repeat pressure', s: '2 patterns suggest structural reuse potential', a: null },
+        { l: 'Decision assistance', s: 'Memory sharpens prompts, triage and prioritization', a: null },
+      ]},
+    ],
+  },
+  healing: {
+    theme: { from: 'rgba(168,85,247,0.14)', via: 'rgba(52,211,153,0.12)', accent: '#86efac' },
+    badge: { label: 'Remediation engine', color: '#bbf7d0', bg: 'rgba(52,211,153,0.14)' },
+    eyebrow: 'Healing workspace',
+    title: 'Correction and replay engine',
+    desc: 'Candidate fixes, readiness, failed attempts, validation state and replay discipline — a real remediation system.',
+    tabs: ['Ready', 'Pending', 'Failed', 'Replay'],
+    metrics: [
+      { label: 'Ready', value: '7', detail: 'Candidates for correction path' },
+      { label: 'Failed', value: '1', detail: 'Needs explicit review' },
+      { label: 'Memory-linked', value: '24', detail: 'Learnings support remediation' },
+      { label: 'Risk pressure', value: '3', detail: '2 recurring patterns' },
+    ],
+    left: { title: 'Healing queue', items: [
+      { t: 'Ready candidates', d: '7 candidates appear ready for remediation or replay.' },
+      { t: 'Failed attempts', d: '1 correction attempt needs evidence-backed review.' },
+      { t: 'Replay need', d: 'No healing result is trustworthy until rerun evidence confirms it.' },
+    ]},
+    right: { title: 'Correction doctrine', items: [
+      { t: 'Assisted, not magical', d: 'Healing assists correction, does not pretend it fixed reality.' },
+      { t: 'Replay required', d: 'Every candidate must be replayed in a controlled environment.' },
+      { t: 'Evidence before closure', d: 'Only validated outcomes influence memory and reporting.' },
+    ]},
+    groups: [
+      { title: 'Correction routes', items: [
+        { l: 'Back to findings', s: 'Inspect unresolved pressure before another correction', a: 'findings' },
+        { l: 'Open memory', s: 'Use learned patterns to improve remediation quality', a: 'memory' },
+        { l: 'Open reports', s: 'Attach replay evidence and export validated outcomes', a: 'reports' },
+      ]},
+      { title: 'Healing posture', items: [
+        { l: 'Ready state', s: '7 items waiting for guided remediation', a: null },
+        { l: 'Failed state', s: '1 item requires human review and stronger evidence', a: null },
+        { l: 'Validation state', s: 'Rerun discipline decides whether healing becomes truth', a: null },
+      ]},
+    ],
+  },
+  reports: {
+    theme: { from: 'rgba(59,130,246,0.14)', via: 'rgba(244,114,182,0.08)', accent: '#f9a8d4' },
+    badge: { label: 'Evidence and archive room', color: '#fbcfe8', bg: 'rgba(244,114,182,0.14)' },
+    eyebrow: 'Reports workspace',
+    title: 'Evidence, export and archive system',
+    desc: 'Audit outputs, screenshot packages, compare exports, archived snapshots and client-facing proof — an evidence room.',
+    tabs: ['Evidence', 'Archive', 'Export', 'History'],
+    metrics: [
+      { label: 'Snapshots', value: '8', detail: 'Historical outputs available' },
+      { label: 'Current issues', value: '14', detail: 'Visible evidence from live findings' },
+      { label: 'Compare context', value: '11', detail: 'Delta-ready export posture' },
+      { label: 'Memory links', value: '24', detail: 'Reports support traceability' },
+    ],
+    left: { title: 'Report assets', items: [
+      { t: 'Current run export', d: 'Transform visible state into a reportable evidence surface.' },
+      { t: 'Delta package', d: 'Before/after compare output supports regression review.' },
+      { t: 'Archive continuity', d: 'Older snapshots matter when they stay searchable and explainable.' },
+    ]},
+    right: { title: 'Evidence posture', items: [
+      { t: 'Proof over promise', d: 'Reports show issues, context, impact and supporting evidence.' },
+      { t: 'Client-safe output', d: 'Evidence must be legible for operators and external stakeholders.' },
+      { t: 'Traceable archive', d: 'Archives feed memory, compare and long-term decision quality.' },
+    ]},
+    groups: [
+      { title: 'Export routes', items: [
+        { l: 'Open findings', s: 'Return to tighten the evidence narrative', a: 'findings' },
+        { l: 'Open compare', s: 'Generate before/after delta evidence', a: 'compare' },
+        { l: 'Open memory', s: 'Connect archived evidence back into learned patterns', a: 'memory' },
+      ]},
+      { title: 'Report doctrine', items: [
+        { l: 'Readable evidence', s: 'Reports must stay clear, precise and operational', a: null },
+        { l: 'Historical continuity', s: 'Archives preserve decision context, not just files', a: null },
+        { l: 'Export discipline', s: 'Good reporting is a product surface, not an afterthought', a: null },
+      ]},
+    ],
+  },
+  settings: {
+    theme: { from: 'rgba(148,163,184,0.12)', via: 'rgba(59,130,246,0.08)', accent: '#94a3b8' },
+    badge: { label: 'Runtime control room', color: '#cbd5e1', bg: 'rgba(148,163,184,0.14)' },
+    eyebrow: 'Settings workspace',
+    title: 'Runtime and governance control',
+    desc: 'Audit behavior, baseline policy, memory posture, healing rules and operational constraints — a serious runtime policy room.',
+    tabs: ['Runtime', 'Policy', 'Baseline', 'Control'],
+    metrics: [
+      { label: 'Audit mode', value: 'Full', detail: 'Scope site · depth default' },
+      { label: 'Memory entries', value: '24', detail: '11 validated learnings' },
+      { label: 'Healing queue', value: '7', detail: '1 failed correction path' },
+      { label: 'Baseline', value: 'Pinned', detail: 'Comparison is armed' },
+    ],
+    left: { title: 'Control surfaces', items: [
+      { t: 'Runtime posture', d: 'Control target mode, scope, headed behavior and replay discipline.' },
+      { t: 'Baseline policy', d: 'Govern how comparisons are created, pinned and trusted.' },
+      { t: 'Correction rules', d: 'Healing never claims success until evidence confirms the rerun.' },
+    ]},
+    right: { title: 'Governance notes', items: [
+      { t: 'Traceability', d: 'Every memory promotion and healing candidate points back to evidence.' },
+      { t: 'No fake closure', d: 'Do not mark issues fixed until replay and evidence confirm.' },
+      { t: 'Operational clarity', d: 'Settings govern behavior, not just decorative preferences.' },
+    ]},
+    groups: [
+      { title: 'Policy links', items: [
+        { l: 'Open memory', s: 'Inspect learned patterns and traceability posture', a: 'memory' },
+        { l: 'Open healing', s: 'Inspect remediation queue and readiness', a: 'healing' },
+        { l: 'Open reports', s: 'Access exports, archives and evidence outputs', a: 'reports' },
+      ]},
+      { title: 'System discipline', items: [
+        { l: 'Runtime discipline', s: 'Stable controls produce trustworthy comparisons', a: null },
+        { l: 'Validation discipline', s: 'Healing is pending until a rerun validates the path', a: null },
+        { l: 'Evidence discipline', s: 'Governance anchored in real traceable output', a: null },
+      ]},
+    ],
+  },
+};
+
+let activeView = 'operator';
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderWorkspace(key) {
+  const ws = WORKSPACES[key];
+  if (!ws) return '';
+  const { theme, badge, eyebrow, title, desc, tabs, metrics, left, right, groups } = ws;
+
+  const metricsHtml = metrics.map(m => `
+    <div class="sp-card" style="padding:12px">
+      <div class="sp-kicker">${esc(m.label)}</div>
+      <div class="sp-big-num">${esc(m.value)}</div>
+      <div class="sp-num-detail">${esc(m.detail)}</div>
+    </div>
+  `).join('');
+
+  const listHtml = (items) => items.map((item, i) => `
+    <div class="sp-list-item">
+      <div class="sp-list-idx">${i+1}</div>
+      <div>
+        <div class="sp-list-title">${esc(item.t || item.title || '')}</div>
+        <div class="sp-list-detail">${esc(item.d || item.detail || '')}</div>
+      </div>
+    </div>
+  `).join('');
+
+  const groupsHtml = groups.map(g => `
+    <div class="sp-card">
+      <div class="sp-kicker">Zone</div>
+      <div class="sp-zone-title">${esc(g.title)}</div>
+      <div class="sp-zone-subtitle">Dedicated cluster with its own role inside the workspace.</div>
+      <div class="sp-list" style="margin-top:10px">${g.items.map(item => `
+        <div class="sp-list-item">
+          <div>
+            <div class="sp-list-title">${esc(item.l)}</div>
+            <div class="sp-list-detail">${esc(item.s)}</div>
+            ${item.a ? `<button class="sp-action-btn" data-nav="${esc(item.a)}">Open →</button>` : ''}
+          </div>
+        </div>
+      `).join('')}</div>
+    </div>
+  `).join('');
+
+  const tabsHtml = tabs.map((t, i) => `<span class="sp-seg-tab ${i===0?'active':''}">${esc(t)}</span>`).join('');
+
+  return `
+    <div class="sp-ws-shell">
+      <div class="sp-ws-glow" style="background: radial-gradient(circle at top left, ${theme.from}, transparent 32%), radial-gradient(circle at top right, ${theme.via}, transparent 30%)"></div>
+      <div class="sp-ws-content">
+
+        <div class="sp-hero-grid">
+          <div class="sp-card">
+            <div class="sp-kicker">${esc(eyebrow)}</div>
+            <div class="sp-badge" style="background:${badge.bg};border-color:${badge.accent}33;color:${badge.color}">
+              <span class="pulse" style="background:${badge.accent};width:7px;height:7px;border-radius:50%"></span>
+              ${esc(badge.label)}
+            </div>
+            <div class="sp-ws-title">${esc(title)}</div>
+            <div class="sp-ws-desc">${esc(desc)}</div>
+            <div class="sp-seg-tabs">${tabsHtml}</div>
+          </div>
+
+          <div class="sp-card">
+            <div class="sp-kicker">Live posture</div>
+            <div class="sp-list" style="margin-top:10px">
+              <div class="sp-list-item"><div><div class="sp-list-title">Target</div><div class="sp-list-detail" id="liveTarget">https://example.com</div></div></div>
+              <div class="sp-list-item"><div><div class="sp-list-title">Execution profile</div><div class="sp-list-detail">Mode full · scope site · depth default</div></div></div>
+              <div class="sp-list-item"><div><div class="sp-list-title">Signal pulse</div><div class="sp-list-detail">SEO rising · Runtime stable · UX stable</div></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-metrics-grid" style="margin-top:10px">${metricsHtml}</div>
+
+        <div class="sp-groups-grid" style="margin-top:10px">
+          <div class="sp-card">
+            <div class="sp-kicker">Group</div>
+            <div class="sp-zone-title">${esc(left.title)}</div>
+            <div class="sp-list" style="margin-top:10px">${listHtml(left.items)}</div>
+          </div>
+          <div class="sp-card">
+            <div class="sp-kicker">Group</div>
+            <div class="sp-zone-title">${esc(right.title)}</div>
+            <div class="sp-list" style="margin-top:10px">${listHtml(right.items)}</div>
+          </div>
+        </div>
+
+        <div class="sp-groups-grid" style="margin-top:10px">${groupsHtml}</div>
+
+      </div>
+    </div>
+  `;
+}
+
+function switchView(key) {
+  if (!WORKSPACES[key]) return;
+  activeView = key;
+
+  document.querySelectorAll('.sp-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === key);
+  });
+
+  const area = document.getElementById('workspaceArea');
+  area.innerHTML = renderWorkspace(key);
+
+  area.querySelectorAll('[data-nav]').forEach(btn => {
+    btn.addEventListener('click', () => switchView(btn.dataset.nav));
+  });
+
+  const urlInput = document.getElementById('urlInput');
+  const target = area.querySelector('#liveTarget');
+  if (target && urlInput && urlInput.value) target.textContent = urlInput.value;
+}
+
+document.querySelectorAll('.sp-nav-btn[data-view]').forEach(btn => {
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
+});
+
+document.getElementById('runBtn').addEventListener('click', () => {
+  const url = document.getElementById('urlInput').value.trim();
+  if (!url) { document.getElementById('urlInput').focus(); return; }
+  switchView('operator');
+  document.querySelector('.sp-chat-preview').innerHTML = `<strong>Assistant →</strong> Iniciando run audit em <strong>${url}</strong> — modo full, scope site. Analisando rotas, issues e SEO em tempo real...`;
+});
+
+document.getElementById('askBtn').addEventListener('click', () => {
+  const q = document.getElementById('chatInput').value.trim();
+  if (q) sendPrompt('No contexto do SitePulse Studio: ' + q);
+});
+
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('askBtn').click();
+});
+
+document.getElementById('urlInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('runBtn').click();
+});
+
+switchView('operator');
+</script>

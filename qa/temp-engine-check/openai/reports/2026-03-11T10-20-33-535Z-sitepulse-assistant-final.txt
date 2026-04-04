@@ -1,0 +1,109 @@
+SITEPULSE ASSISTANT BRIEF
+========================
+Projeto: sitepulse-default-desktop-audit
+Base URL: https://www.openai.com
+Status: issues_found
+Total issues: 5
+
+PASSOS IMEDIATOS
+- Corrigir primeiro erros high (runtime/5xx/ordem visual).
+- Depois tratar medium (clicks falhos/rede/secoes ausentes).
+- Finalizar com low e ruido de console.
+- Atacar checklist SEO pendente antes da revalidacao final.
+- Reexecutar auditoria completa e confirmar totalIssues=0.
+
+ROTAS PRIORITARIAS
+- /: total=5 high=0 medium=0 low=5
+
+TOP ISSUES
+- [CONSOLE_ERROR] (low) / -> route_load
+  detalhe: Failed to load resource: the server responded with a status of 403 ()
+  diagnostico: Console reportou recurso com HTTP 403 [console_http_403]
+  resolucao: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.
+  prioridade: P2
+  checks: Conferir claims/permissoes do usuario. | Comparar regra de autorizacao com o caso de uso. | Validar controles CSRF e origin. | Classificar erro: warning ruido vs falha funcional real. | Eliminar erros silenciosos repetitivos. | Confirmar que nao existe regressao apos ajuste.
+  comandos: rg -n "role|permission|acl|rbac" src || rg -n "csrf|origin|sameSite" src/app/api src/lib || rg -n "console\.error|console\.warn" src || rg -n "catch\s*\(.*\)\s*\{\s*\}" src
+- [CONSOLE_ERROR] (low) / -> route_load
+  detalhe: Failed to load resource: the server responded with a status of 404 ()
+  diagnostico: Console reportou recurso com HTTP 404 [console_http_404]
+  resolucao: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.
+  prioridade: P2
+  checks: Comparar URL do fetch com rotas realmente expostas. | Validar variaveis de ambiente de API. | Revisar rewrites/proxy. | Classificar erro: warning ruido vs falha funcional real. | Eliminar erros silenciosos repetitivos. | Confirmar que nao existe regressao apos ajuste.
+  comandos: rg -n "baseUrl|API_URL|NEXT_PUBLIC|/api/" src || rg -n "export async function GET|POST|PUT|PATCH|DELETE" src/app/api || rg -n "console\.error|console\.warn" src || rg -n "catch\s*\(.*\)\s*\{\s*\}" src
+- [CONSOLE_ERROR] (low) / -> route_load
+  detalhe: Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.
+  diagnostico: Erro no console do navegador [runtime_unknown]
+  resolucao: Mapear stack trace para arquivo/linha, corrigir causa raiz e adicionar tratamento defensivo.
+  prioridade: P2
+  checks: Usar stack trace para chegar no arquivo/linha. | Adicionar guard clauses no trecho que falha. | Reexecutar fluxo e confirmar ausencia do erro. | Classificar erro: warning ruido vs falha funcional real. | Eliminar erros silenciosos repetitivos. | Confirmar que nao existe regressao apos ajuste.
+  comandos: rg -n "console.error|throw new Error|try\s*\{|catch\s*\(" src/components src/app src/lib || rg -n "console\.error|console\.warn" src || rg -n "catch\s*\(.*\)\s*\{\s*\}" src
+- [HTTP_4XX] (low) / -> route_load
+  detalhe: 403 GET https://openai.com/
+  diagnostico: HTTP 403 Forbidden [forbidden_permission]
+  resolucao: Ajustar regra de permissao ou fluxo de autorizacao. Mostrar mensagem de acesso negado orientando proximo passo.
+  prioridade: P1
+  checks: Conferir claims/permissoes do usuario. | Comparar regra de autorizacao com o caso de uso. | Validar controles CSRF e origin. | Validar payload enviado e schema esperado no endpoint. | Revisar autenticacao/autorizacao e headers. | Checar rota e metodo HTTP corretos.
+  comandos: rg -n "role|permission|acl|rbac" src || rg -n "csrf|origin|sameSite" src/app/api src/lib || rg -n "fetch\(|axios|/api/|POST|PATCH|PUT|DELETE" src || rg -n "zod|schema|safeParse|parse\(" src
+- [HTTP_4XX] (low) / -> route_load
+  detalhe: 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000
+  diagnostico: HTTP 404 Not Found [endpoint_not_found]
+  resolucao: Centralizar construcao de endpoint para evitar typo. Adicionar teste de contrato para rotas criticas.
+  prioridade: P1
+  checks: Comparar URL do fetch com rotas realmente expostas. | Validar variaveis de ambiente de API. | Revisar rewrites/proxy. | Validar payload enviado e schema esperado no endpoint. | Revisar autenticacao/autorizacao e headers. | Checar rota e metodo HTTP corretos.
+  comandos: rg -n "baseUrl|API_URL|NEXT_PUBLIC|/api/" src || rg -n "export async function GET|POST|PUT|PATCH|DELETE" src/app/api || rg -n "fetch\(|axios|/api/|POST|PATCH|PUT|DELETE" src || rg -n "zod|schema|safeParse|parse\(" src
+
+PROMPT RAPIDO
+-------------
+Atue como engenheiro de software senior com foco em execucao rapida e causa raiz.
+Total de issues: 5.
+Ordem de ataque: high -> medium -> low.
+Nao aceitar fix cosmetico: cada problema precisa de evidencia de resolucao.
+
+Top issues para iniciar:
+1. [CONSOLE_ERROR] (low) / -> route_load | Failed to load resource: the server responded with a status of 403 ()
+2. [CONSOLE_ERROR] (low) / -> route_load | Failed to load resource: the server responded with a status of 404 ()
+3. [CONSOLE_ERROR] (low) / -> route_load | Refused to execute script from 'https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000' because its MIME type ('') is not executable, and strict MIME type checking is enabled.
+4. [HTTP_4XX] (low) / -> route_load | 403 GET https://openai.com/
+5. [HTTP_4XX] (low) / -> route_load | 404 GET https://openai.com/cdn-cgi/challenge-platform/h/b/scripts/alpha/invisible.js?ts=1773216000
+
+SEO (obrigatorio):
+Atue como especialista SEO senior com foco em causa raiz e impacto real no ranking.
+Site auditado: https://www.openai.com
+Score SEO atual: 16/100.
+Objetivo: corrigir todos os itens pendentes abaixo sem fix cosmetico.
+
+Checklist SEO pendente (explicacao para leigos + acao):
+1. Title unico e com tamanho ideal (30-65) | por que importa: E o texto principal que aparece no Google. | o que fazer: Defina um title unico por pagina com foco na intencao do usuario.
+2. Meta description clara (70-170) | por que importa: Ajuda a pessoa entender a pagina antes de clicar. | o que fazer: Crie descricao objetiva com beneficio real e chamada para acao.
+3. Estrutura de headings com 1 H1 | por que importa: Organiza o tema principal da pagina para Google e usuarios. | o que fazer: Mantenha apenas um H1 claro e use H2/H3 para secoes.
+4. HTML com lang e viewport mobile | por que importa: Melhora indexacao correta por idioma e experiencia em celular. | o que fazer: Adicione lang em <html> e meta viewport no <head>.
+5. Canonical definido | por que importa: Evita conteudo duplicado em URLs diferentes. | o que fazer: Defina <link rel="canonical"> para cada pagina indexavel.
+6. Schema JSON-LD (LocalBusiness/Service/FAQ) | por que importa: Aumenta chance de rich results no Google. | o que fazer: Adicione dados estruturados validos por pagina.
+7. Conteudo util e suficiente | por que importa: Paginas rasas tendem a ranquear pior. | o que fazer: Adicione conteudo especifico, provas, FAQs e diferenciais.
+8. Links internos entre paginas | por que importa: Ajuda rastreamento e distribuicao de autoridade. | o que fazer: Inclua links para servicos, contato, cidade e paginas correlatas.
+9. Meta social (Open Graph + Twitter Card) | por que importa: Melhora compartilhamento e CTR em redes sociais. | o que fazer: Complete og:title, og:description, og:image, og:type e twitter:card.
+10. Meta robots presente e coerente | por que importa: Define como bots devem indexar/seguir links. | o que fazer: Defina meta robots adequada para cada tipo de pagina.
+
+Issues SEO detectadas:
+1. [SEO_H1_MISSING] (high) Nenhum H1 encontrado na pagina. | recomendacao: Inclua 1 H1 claro descrevendo o tema principal da pagina.
+2. [SEO_META_DESCRIPTION_MISSING] (high) Meta description ausente. | recomendacao: Adicione meta description unica com proposta clara da pagina.
+3. [SEO_VIEWPORT_MISSING] (high) Meta viewport ausente. | recomendacao: Adicione meta viewport para boa experiencia mobile.
+4. [SEO_CONTENT_THIN] (medium) Conteudo textual curto (0 palavras). | recomendacao: Adicione conteudo util e especifico sobre servico/local para SEO local.
+5. [SEO_LANG_MISSING] (medium) Atributo lang ausente em <html>. | recomendacao: Defina lang no HTML para melhorar indexacao e acessibilidade.
+6. [SEO_OPEN_GRAPH_INCOMPLETE] (medium) Open Graph incompleto (faltando og:title, og:description, og:image ou og:type). | recomendacao: Complete as metas Open Graph para melhorar compartilhamento e CTR.
+7. [SEO_TITLE_LENGTH] (medium) Title com 16 caracteres (ideal: 30-65). | recomendacao: Ajuste o tamanho do title para melhorar leitura no Google.
+8. [SEO_CANONICAL_MISSING] (low) Link canonical ausente. | recomendacao: Defina canonical para evitar duplicidade de URL.
+9. [SEO_INTERNAL_LINKS_LOW] (low) Poucos links internos (0). | recomendacao: Aumente links internos para melhorar rastreio e distribuicao de autoridade.
+10. [SEO_META_ROBOTS_MISSING] (low) Meta robots ausente. | recomendacao: Defina meta robots explicita para controle de indexacao.
+11. [SEO_STRUCTURED_DATA_MISSING] (low) Nenhum JSON-LD encontrado. | recomendacao: Considere schema.org (LocalBusiness, Service, FAQ) para melhorar rich results.
+12. [SEO_TWITTER_CARD_MISSING] (low) Twitter Card ausente. | recomendacao: Adicione meta twitter:card e metadados sociais complementares.
+
+Entrega obrigatoria:
+- listar arquivos alterados e motivo de cada alteracao
+- mostrar antes/depois dos metadados principais
+- validar novamente e comprovar melhoria de score
+
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\openai.json" --fresh --live-log --human-log --scope "full" --no-server
+
+REVALIDACAO
+- node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\openai.json" --fresh --live-log --human-log --scope "full" --no-server

@@ -1,11 +1,20 @@
 "use strict";
 
 const { app } = require("electron");
-const { autoUpdater } = require("electron-updater");
 const https = require("node:https");
 
 const RELEASES_BASE_URL = "https://cdn.sitepulse.app/releases/";
 const VERSION_MANIFEST_URL = "https://cdn.sitepulse.app/update/version.json";
+
+// Lazy load getAutoUpdater() para evitar erro quando app não está pronto
+let autoUpdater = null;
+function getAutoUpdater() {
+  if (!getAutoUpdater()) {
+    const { autoUpdater: updater } = require("electron-updater");
+    getAutoUpdater() = updater;
+  }
+  return getAutoUpdater();
+}
 
 function createInitialUpdateState() {
   return {
@@ -120,16 +129,16 @@ class UpdateService {
       return;
     }
 
-    autoUpdater.autoDownload = false;
-    autoUpdater.autoInstallOnAppQuit = false;
-    autoUpdater.autoRunAppAfterInstall = true;
-    autoUpdater.allowDowngrade = false;
-    autoUpdater.setFeedURL({
+    getAutoUpdater().autoDownload = false;
+    getAutoUpdater().autoInstallOnAppQuit = false;
+    getAutoUpdater().autoRunAppAfterInstall = true;
+    getAutoUpdater().allowDowngrade = false;
+    getAutoUpdater().setFeedURL({
       provider: "generic",
       url: RELEASES_BASE_URL,
     });
 
-    autoUpdater.on("checking-for-update", () => {
+    getAutoUpdater().on("checking-for-update", () => {
       this.setState({
         status: "checking",
         detail: "Checking the SitePulse release channel.",
@@ -138,7 +147,7 @@ class UpdateService {
       });
     });
 
-    autoUpdater.on("update-available", (info) => {
+    getAutoUpdater().on("update-available", (info) => {
       const version = String(info?.version || this.latestManifest?.version || "").trim();
       const releaseNotes = typeof info?.releaseNotes === "string"
         ? info.releaseNotes
@@ -154,7 +163,7 @@ class UpdateService {
       });
     });
 
-    autoUpdater.on("update-not-available", () => {
+    getAutoUpdater().on("update-not-available", () => {
       this.setState({
         status: "up-to-date",
         detail: "Application is up to date.",
@@ -166,7 +175,7 @@ class UpdateService {
       });
     });
 
-    autoUpdater.on("download-progress", (progress) => {
+    getAutoUpdater().on("download-progress", (progress) => {
       const percent = Math.max(0, Math.min(100, Number(progress?.percent || 0)));
       this.setState({
         status: "downloading",
@@ -176,7 +185,7 @@ class UpdateService {
       });
     });
 
-    autoUpdater.on("update-downloaded", (info) => {
+    getAutoUpdater().on("update-downloaded", (info) => {
       const version = String(info?.version || this.latestManifest?.version || "").trim();
       this.setState({
         status: "ready-to-install",
@@ -189,7 +198,7 @@ class UpdateService {
       });
     });
 
-    autoUpdater.on("error", (error) => {
+    getAutoUpdater().on("error", (error) => {
       const message = error instanceof Error ? error.message : String(error || "update_failed");
       this.log(`[update] ${message}`);
       this.setState({
@@ -285,7 +294,7 @@ class UpdateService {
       });
 
       if (this.autoUpdaterConfigured) {
-        this.updateCheckPromise = autoUpdater.checkForUpdates();
+        this.updateCheckPromise = getAutoUpdater().checkForUpdates();
         await this.updateCheckPromise;
       }
 
@@ -346,7 +355,7 @@ class UpdateService {
         downloadProgress: 0,
         lastError: "",
       });
-      await autoUpdater.downloadUpdate();
+      await getAutoUpdater().downloadUpdate();
       return {
         ok: true,
         state: this.getState(),
@@ -395,7 +404,7 @@ class UpdateService {
   }
 
   applyUpdateAndRestart() {
-    autoUpdater.quitAndInstall(false, true);
+    getAutoUpdater().quitAndInstall(false, true);
   }
 }
 

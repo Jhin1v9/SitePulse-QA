@@ -1,0 +1,48 @@
+SITEPULSE ASSISTANT BRIEF
+========================
+Projeto: sitepulse-default-desktop-audit
+Base URL: http://127.0.0.1:3110
+Status: issues_found
+Total issues: 1
+
+PASSOS IMEDIATOS
+- Corrigir primeiro erros high (runtime/5xx/ordem visual).
+- Depois tratar medium (clicks falhos/rede/secoes ausentes).
+- Finalizar com low e ruido de console.
+- Atacar checklist SEO pendente antes da revalidacao final.
+- Reexecutar auditoria completa e confirmar totalIssues=0.
+
+ROTAS PRIORITARIAS
+- /faq: total=1 high=0 medium=1 low=0
+
+TOP ISSUES
+- [VISUAL_TIGHT_SPACING] (medium) /faq -> visual_quality:tight_spacing
+  detalhe: Espacamento apertado em 3 transicao(oes) na rota /faq (viewport 1536x864). | 1. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 2. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 3. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). | Leitura humana: os blocos quase se grudam, o olho nao encontra respiracao e a pagina parece comprimida.
+  diagnostico: VISUAL_TIGHT_SPACING [generic]
+  resolucao: Aumentar espacamento vertical entre secoes/cards principais, revisar margins e garantir uma hierarquia visual com respiracao consistente.
+  solucao_possivel: Aumentar espacamento vertical entre secoes/cards principais, revisar margins e garantir uma hierarquia visual com respiracao consistente.
+  prioridade: P1
+  checks: Medir gaps verticais entre blocos consecutivos da composicao principal. | Revisar margins/paddings de cards, seções e wrappers que ficaram visualmente colados. | Garantir respiro suficiente antes de CTA, FAQ, listas e grids longos.
+  comandos: rg -n "gap:|row-gap|margin-top|margin-bottom|padding-top|padding-bottom|-mt-|-mb-|space-y-" src || rg -n "section|card|panel|stack|wrapper|content" src/components src/styles
+
+PROMPT RAPIDO
+-------------
+Atue como engenheiro de software senior com foco em execucao rapida e causa raiz.
+Total de issues: 1.
+Ordem de ataque: high -> medium -> low.
+Nao aceitar fix cosmetico: cada problema precisa de evidencia de resolucao.
+
+Top issues para iniciar:
+1. [VISUAL_TIGHT_SPACING] (medium) /faq -> visual_quality:tight_spacing | Espacamento apertado em 3 transicao(oes) na rota /faq (viewport 1536x864). | 1. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 2. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). ; 3. bloco "min w 0" ficou muito perto de bloco "min w 0" (distancia=16px, largura compartilhada=100%, regiao=topo da pagina). | Leitura humana: os blocos quase se grudam, o olho nao encontra respiracao e a pagina parece comprimida.
+
+SEO (obrigatorio):
+Atue como especialista SEO tecnico e de conteudo.
+Site auditado: http://127.0.0.1:3110
+Score atual: 100/100.
+Nao ha gaps SEO relevantes nesta rodada.
+Objetivo: manter baseline, evitar regressao e monitorar periodicamente.
+
+Comando de revalidacao: node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server
+
+REVALIDACAO
+- node src/index.mjs --config "C:\Users\Administrador\Documents\SitePulse-QA\qa\temp-engine-check\sitepulse-local-es-full.json" --fresh --live-log --human-log --scope "full" --no-server

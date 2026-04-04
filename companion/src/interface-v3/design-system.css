@@ -1,0 +1,1064 @@
+/* =========================================================
+   SITEPULSE STUDIO - DESIGN SYSTEM
+   Extraído da interface antiga (renderer.html)
+   Convertido para CSS Puro - Sem Tailwind
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   1. VARIÁVEIS CSS (Design Tokens)
+   --------------------------------------------------------- */
+:root {
+  /* Cores Principais */
+  --sp-page: #0B0D12;
+  --sp-shell: #0F131A;
+  --sp-panel: #131821;
+  --sp-panel-elevated: #1A202C;
+  --sp-surface: #212836;
+  --sp-interactive: #2A3441;
+  
+  /* Cores de Texto */
+  --sp-text-primary: #F0F4F8;
+  --sp-text-secondary: #8B95A5;
+  --sp-text-tertiary: #5A6578;
+  --sp-text-muted: #4A5568;
+  
+  /* Cores de Destaque (Accent) */
+  --sp-accent-blue: #5B8CFF;
+  --sp-accent-cyan: #5CC8FF;
+  --sp-accent-purple: #A855F7;
+  --sp-accent-green: #22C55E;
+  --sp-accent-amber: #F59E0B;
+  --sp-accent-red: #EF4444;
+  
+  /* Bordas */
+  --sp-border-subtle: rgba(255, 255, 255, 0.05);
+  --sp-border-light: rgba(255, 255, 255, 0.08);
+  --sp-border-medium: rgba(255, 255, 255, 0.12);
+  
+  /* Sombras */
+  --sp-shadow-soft: 0 10px 24px rgba(0,0,0,0.16);
+  --sp-shadow-surface: 0 18px 40px rgba(0,0,0,0.18);
+  --sp-shadow-focus: 0 0 0 1px rgba(91,140,255,0.24), 0 14px 30px rgba(0,0,0,0.22);
+  --sp-shadow-glow-blue: 0 0 20px rgba(91,140,255,0.15);
+  --sp-shadow-glow-green: 0 0 20px rgba(34,197,94,0.15);
+  --sp-shadow-glow-red: 0 0 20px rgba(239,68,68,0.15);
+  --sp-shadow-glow-amber: 0 0 20px rgba(245,158,11,0.15);
+  
+  /* Tipografia */
+  --sp-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --sp-font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+  
+  /* Animações */
+  --sp-transition-fast: 130ms ease;
+  --sp-transition-normal: 200ms ease;
+  --sp-transition-slow: 300ms ease;
+  --sp-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  
+  /* Layout Sidebar */
+  --sp-sidebar-width: clamp(15.5rem, 15rem + 0.8vw, 17.5rem);
+}
+
+/* ---------------------------------------------------------
+   2. RESET E BASE
+   --------------------------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  background: var(--sp-page);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+body {
+  font-family: var(--sp-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: var(--sp-text-primary);
+  overflow: hidden;
+}
+
+::selection {
+  background: rgba(91, 140, 255, 0.24);
+  color: #F0F4F8;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sp-shell);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1d2735;
+  border-radius: 999px;
+  border: 2px solid var(--sp-shell);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #273346;
+}
+
+/* ---------------------------------------------------------
+   3. ANIMAÇÕES (@keyframes)
+   --------------------------------------------------------- */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.95); }
+}
+
+@keyframes pulse-radar {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes scan-line {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
+}
+
+@keyframes engine-flow-beam {
+  0% {
+    top: var(--engine-flow-pad, 0.1rem);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.95;
+  }
+  90% {
+    opacity: 0.95;
+  }
+  100% {
+    top: calc(100% - var(--engine-flow-beam-size, 1rem) - var(--engine-flow-pad, 0.1rem));
+    opacity: 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(91,140,255,0.15); }
+  50% { box-shadow: 0 0 30px rgba(91,140,255,0.25), 0 0 60px rgba(91,140,255,0.1); }
+}
+
+@keyframes border-flow {
+  0%, 100% { border-color: rgba(91,140,255,0.2); }
+  50% { border-color: rgba(91,140,255,0.4); }
+}
+
+@keyframes number-tick {
+  0% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes ws-ping {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---------------------------------------------------------
+   4. UTILITÁRIOS CSS (Conversão Tailwind → CSS Puro)
+   --------------------------------------------------------- */
+
+/* Layout */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.items-center { align-items: center; }
+.items-start { align-items: flex-start; }
+.justify-center { justify-content: center; }
+.justify-between { justify-content: space-between; }
+.justify-end { justify-content: flex-end; }
+.flex-1 { flex: 1 1 0%; }
+.flex-shrink-0 { flex-shrink: 0; }
+
+/* Grid */
+.grid { display: grid; }
+.grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grid-cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* Espaçamento */
+.gap-1 { gap: 0.25rem; }
+.gap-2 { gap: 0.5rem; }
+.gap-3 { gap: 0.75rem; }
+.gap-4 { gap: 1rem; }
+
+.p-2 { padding: 0.5rem; }
+.p-3 { padding: 0.75rem; }
+.p-4 { padding: 1rem; }
+
+.px-2 { padding-left: 0.5rem; padding-right: 0.5rem; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+
+/* Margins */
+.mt-1 { margin-top: 0.25rem; }
+.mt-2 { margin-top: 0.5rem; }
+.mt-3 { margin-top: 0.75rem; }
+.mt-4 { margin-top: 1rem; }
+.mt-5 { margin-top: 1.25rem; }
+
+.mb-1 { margin-bottom: 0.25rem; }
+.mb-2 { margin-bottom: 0.5rem; }
+.mb-4 { margin-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+
+.ml-auto { margin-left: auto; }
+
+/* Tamanhos */
+.h-full { height: 100%; }
+.h-screen { height: 100vh; }
+.w-full { width: 100%; }
+.min-w-0 { min-width: 0; }
+
+/* Cores de Texto */
+.text-white { color: #ffffff; }
+.text-text-primary { color: var(--sp-text-primary); }
+.text-text-secondary { color: var(--sp-text-secondary); }
+.text-text-tertiary { color: var(--sp-text-tertiary); }
+
+/* Cores de Destaque */
+.text-accent-blue { color: var(--sp-accent-blue); }
+.text-green-300 { color: #86efac; }
+.text-green-400 { color: #4ade80; }
+.text-amber-400 { color: #fbbf24; }
+.text-amber-200 { color: #fde68a; }
+.text-red-400 { color: #f87171; }
+.text-red-200 { color: #fecaca; }
+.text-purple-300 { color: #d8b4fe; }
+
+/* Backgrounds */
+.bg-page { background-color: var(--sp-page); }
+.bg-shell { background-color: var(--sp-shell); }
+.bg-panel { background-color: var(--sp-panel); }
+
+/* Bordas */
+.border { border: 1px solid var(--sp-border-light); }
+.border-white-6 { border-color: rgba(255, 255, 255, 0.06); }
+.border-white-8 { border-color: rgba(255, 255, 255, 0.08); }
+.border-r { border-right: 1px solid var(--sp-border-light); }
+.border-b { border-bottom: 1px solid var(--sp-border-light); }
+.border-t { border-top: 1px solid var(--sp-border-light); }
+
+.rounded-full { border-radius: 9999px; }
+.rounded-xl { border-radius: 0.75rem; }
+.rounded-2xl { border-radius: 1rem; }
+.rounded-3xl { border-radius: 1.5rem; }
+
+/* Tipografia */
+.font-mono { font-family: var(--sp-font-mono); }
+.font-semibold { font-weight: 600; }
+.font-medium { font-weight: 500; }
+
+.text-xs { font-size: 0.75rem; }
+.text-sm { font-size: 0.875rem; }
+.text-base { font-size: 1rem; }
+.text-lg { font-size: 1.125rem; }
+.text-xl { font-size: 1.25rem; }
+.text-2xl { font-size: 1.5rem; }
+
+.uppercase { text-transform: uppercase; }
+.tracking-tight { letter-spacing: -0.025em; }
+.tracking-wider { letter-spacing: 0.05em; }
+.tracking-widest { letter-spacing: 0.1em; }
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nowrap { white-space: nowrap; }
+
+/* Posição */
+.relative { position: relative; }
+.absolute { position: absolute; }
+.fixed { position: fixed; }
+.inset-0 { inset: 0; }
+
+/* Z-index */
+.z-10 { z-index: 10; }
+.z-20 { z-index: 20; }
+
+/* Overflow */
+.overflow-hidden { overflow: hidden; }
+.overflow-auto { overflow: auto; }
+.overflow-y-auto { overflow-y: auto; }
+.overflow-x-auto { overflow-x: auto; }
+
+/* Cursor */
+.cursor-pointer { cursor: pointer; }
+
+/* Animações Utilitárias */
+.animate-pulse-slow { animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-pulse { animation: pulse-slow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-glow { animation: glow-pulse 2s ease-in-out infinite; }
+.animate-border-flow { animation: border-flow 3s ease-in-out infinite; }
+
+.animate-ping {
+  animation: ws-ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+/* Transitions */
+.transition-all { transition: all var(--sp-transition-normal); }
+.transition-colors { transition: color var(--sp-transition-fast), background-color var(--sp-transition-fast), border-color var(--sp-transition-fast); }
+
+.hover\:bg-white-4:hover { background-color: rgba(255, 255, 255, 0.04); }
+.hover\:text-text-primary:hover { color: var(--sp-text-primary); }
+
+/* ---------------------------------------------------------
+   5. COMPONENTES ESPECÍFICOS
+   --------------------------------------------------------- */
+
+/* Glassmorphism */
+.glass-panel {
+  background: rgba(19, 24, 33, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+.glass-shell {
+  background: rgba(15, 19, 26, 0.8);
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+}
+
+/* Efeito Ambiente (Glows) */
+.ambient-glow {
+  position: fixed;
+  pointer-events: none;
+  filter: blur(120px);
+  opacity: 0.4;
+}
+
+/* Hover Premium */
+.hover-premium {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-premium:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Input Focus */
+.input-glow:focus {
+  border-color: rgba(91,140,255,0.4);
+  box-shadow: 0 0 0 3px rgba(91,140,255,0.1), 0 0 20px rgba(91,140,255,0.15);
+}
+
+/* Barra de Métricas */
+.metric-bar {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.metric-bar:hover {
+  filter: brightness(1.2);
+}
+
+/* Status Chips */
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 22px;
+  padding: 0 0.5rem;
+  border-radius: 3px;
+  border: 1px solid var(--sp-border-light);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.status-chip.ok {
+  border-color: rgba(63, 185, 80, 0.35);
+  color: #3fb950;
+}
+
+.status-chip.warn {
+  border-color: rgba(210, 153, 34, 0.35);
+  color: #d29922;
+}
+
+.status-chip.bad {
+  border-color: rgba(248, 81, 73, 0.35);
+  color: #f85149;
+}
+
+/* ---------------------------------------------------------
+   6. SIDEBAR - WORKSPACE NAVIGATION
+   --------------------------------------------------------- */
+.app-sidebar {
+  width: var(--sp-sidebar-width);
+  position: relative;
+  z-index: 20;
+  display: flex;
+  height: 100%;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Botão de Workspace */
+.ws-nav-btn {
+  position: relative;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 10px;
+  border-radius: 18px;
+  border: 1px solid transparent;
+  padding: 9px 10px;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  background: transparent;
+  transition: background var(--sp-transition-fast), 
+              border-color var(--sp-transition-fast), 
+              box-shadow var(--sp-transition-fast);
+}
+
+.ws-nav-btn::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, var(--ws-glow, transparent), transparent 60%);
+  opacity: 0;
+  transition: opacity var(--sp-transition-fast);
+  pointer-events: none;
+}
+
+.ws-nav-btn:hover::before {
+  opacity: 1;
+}
+
+.ws-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.025);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.ws-nav-btn.ws-active {
+  border-color: var(--ws-border, rgba(91, 140, 255, 0.22));
+  background: var(--ws-bg, rgba(91, 140, 255, 0.08));
+  box-shadow: var(--ws-shadow, none);
+}
+
+.ws-nav-btn.ws-active::before {
+  opacity: 1;
+}
+
+.ws-nav-btn.ws-active .ws-icon {
+  border-color: var(--ws-icon-border, rgba(91, 140, 255, 0.22));
+  background: var(--ws-icon-bg, rgba(91, 140, 255, 0.12));
+  color: var(--ws-color, #5B8CFF);
+  box-shadow: var(--ws-icon-glow, none);
+}
+
+.ws-nav-btn.ws-active .ws-label {
+  color: #F0F4F8;
+}
+
+/* Ícone do Workspace */
+.ws-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  color: #5A6578;
+  flex-shrink: 0;
+  transition: all var(--sp-transition-fast);
+}
+
+.ws-nav-btn:hover .ws-icon {
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #8B95A5;
+}
+
+.ws-icon svg {
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Texto do Workspace */
+.ws-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.ws-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #8B95A5;
+  transition: color var(--sp-transition-fast);
+  white-space: nowrap;
+}
+
+.ws-nav-btn:hover .ws-label {
+  color: #D0D8E4;
+}
+
+.ws-sublabel {
+  margin-top: 2px;
+  font-size: 11px;
+  color: #4A5568;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color var(--sp-transition-fast);
+}
+
+.ws-nav-btn:hover .ws-sublabel,
+.ws-nav-btn.ws-active .ws-sublabel {
+  color: #5A6578;
+}
+
+/* Badge Live */
+.ws-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  border: 1px solid rgba(91, 140, 255, 0.22);
+  background: rgba(91, 140, 255, 0.1);
+  padding: 1px 7px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #93b8ff;
+  flex-shrink: 0;
+}
+
+.ws-live-dot {
+  position: relative;
+  display: inline-flex;
+  width: 6px;
+  height: 6px;
+}
+
+.ws-live-dot::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: #5B8CFF;
+  opacity: 0;
+  animation: ws-ping 1.6s ease-out infinite;
+}
+
+.ws-live-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #5B8CFF;
+}
+
+/* Contador */
+.ws-count {
+  font-size: 11px;
+  font-family: "SF Mono", "JetBrains Mono", monospace;
+  color: #5A6578;
+  transition: color var(--sp-transition-fast);
+  flex-shrink: 0;
+}
+
+.ws-nav-btn:hover .ws-count {
+  color: #8B95A5;
+}
+
+.ws-nav-btn.ws-active .ws-count {
+  color: var(--ws-color, #5B8CFF);
+}
+
+/* Label de Seção */
+.ws-section-label {
+  padding: 0 8px;
+  margin-bottom: 6px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #3D4758;
+}
+
+.ws-section-sep {
+  margin-top: 20px;
+}
+
+/* ---------------------------------------------------------
+   7. CORES DOS WORKSPACES (Variáveis por ID)
+   --------------------------------------------------------- */
+#sidebarOperator {
+  --ws-color: #5B8CFF;
+  --ws-glow: rgba(91, 140, 255, 0.08);
+  --ws-border: rgba(91, 140, 255, 0.22);
+  --ws-bg: rgba(91, 140, 255, 0.07);
+  --ws-shadow: 0 0 18px rgba(91, 140, 255, 0.08);
+  --ws-icon-border: rgba(91, 140, 255, 0.22);
+  --ws-icon-bg: rgba(91, 140, 255, 0.12);
+  --ws-icon-glow: 0 0 10px rgba(91, 140, 255, 0.22);
+}
+
+#sidebarFindings {
+  --ws-color: #f87171;
+  --ws-glow: rgba(239, 68, 68, 0.07);
+  --ws-border: rgba(239, 68, 68, 0.2);
+  --ws-bg: rgba(239, 68, 68, 0.06);
+  --ws-icon-border: rgba(239, 68, 68, 0.2);
+  --ws-icon-bg: rgba(239, 68, 68, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(239, 68, 68, 0.18);
+}
+
+#sidebarSeo {
+  --ws-color: #34d399;
+  --ws-glow: rgba(16, 185, 129, 0.07);
+  --ws-border: rgba(16, 185, 129, 0.2);
+  --ws-bg: rgba(16, 185, 129, 0.06);
+  --ws-icon-border: rgba(16, 185, 129, 0.2);
+  --ws-icon-bg: rgba(16, 185, 129, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(16, 185, 129, 0.18);
+}
+
+#sidebarCompare {
+  --ws-color: #a78bfa;
+  --ws-glow: rgba(168, 85, 247, 0.07);
+  --ws-border: rgba(168, 85, 247, 0.2);
+  --ws-bg: rgba(168, 85, 247, 0.06);
+  --ws-icon-border: rgba(168, 85, 247, 0.2);
+  --ws-icon-bg: rgba(168, 85, 247, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(168, 85, 247, 0.18);
+}
+
+#sidebarMemory {
+  --ws-color: #38bdf8;
+  --ws-glow: rgba(14, 165, 233, 0.07);
+  --ws-border: rgba(14, 165, 233, 0.2);
+  --ws-bg: rgba(14, 165, 233, 0.06);
+  --ws-icon-border: rgba(14, 165, 233, 0.2);
+  --ws-icon-bg: rgba(14, 165, 233, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(14, 165, 233, 0.18);
+}
+
+#sidebarHealing {
+  --ws-color: #86efac;
+  --ws-glow: rgba(52, 211, 153, 0.07);
+  --ws-border: rgba(52, 211, 153, 0.2);
+  --ws-bg: rgba(52, 211, 153, 0.06);
+  --ws-icon-border: rgba(52, 211, 153, 0.2);
+  --ws-icon-bg: rgba(52, 211, 153, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(52, 211, 153, 0.18);
+}
+
+#sidebarReports {
+  --ws-color: #f9a8d4;
+  --ws-glow: rgba(244, 114, 182, 0.07);
+  --ws-border: rgba(244, 114, 182, 0.2);
+  --ws-bg: rgba(244, 114, 182, 0.06);
+  --ws-icon-border: rgba(244, 114, 182, 0.2);
+  --ws-icon-bg: rgba(244, 114, 182, 0.1);
+  --ws-icon-glow: 0 0 10px rgba(244, 114, 182, 0.18);
+}
+
+#sidebarSettings {
+  --ws-color: #94a3b8;
+  --ws-glow: rgba(148, 163, 184, 0.06);
+  --ws-border: rgba(148, 163, 184, 0.18);
+  --ws-bg: rgba(148, 163, 184, 0.05);
+  --ws-icon-border: rgba(148, 163, 184, 0.18);
+  --ws-icon-bg: rgba(148, 163, 184, 0.08);
+}
+
+/* ---------------------------------------------------------
+   8. ENGINE FLOW LAYOUT (Sidebar)
+   --------------------------------------------------------- */
+.engine-flow-layout {
+  display: flex;
+  align-items: stretch;
+  gap: clamp(0.35rem, 0.28rem + 0.25vw, 0.55rem);
+  min-width: 0;
+}
+
+.engine-flow-track {
+  position: relative;
+  width: clamp(0.16rem, 0.12rem + 0.22vw, 0.24rem);
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: hidden;
+}
+
+.engine-flow-beam {
+  --engine-flow-beam-size: clamp(0.95rem, 0.82rem + 0.45vh, 1.25rem);
+  --engine-flow-pad: clamp(0.1rem, 0.07rem + 0.12vh, 0.2rem);
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  height: var(--engine-flow-beam-size);
+  box-sizing: border-box;
+  border-radius: 999px;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(245, 158, 11, 0),
+    rgba(245, 158, 11, 0.95),
+    rgba(245, 158, 11, 0)
+  );
+  animation: engine-flow-beam 3.6s linear infinite;
+}
+
+/* Engine Row */
+.engine-row {
+  min-height: clamp(2rem, 1.85rem + 0.45vh, 2.35rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: clamp(0.45rem, 0.35rem + 0.25vw, 0.7rem);
+}
+
+.engine-row > :first-child {
+  min-width: 0;
+  white-space: nowrap;
+  line-height: 1.1;
+  padding-left: 0.5rem;
+}
+
+.engine-row .engine-status {
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: end;
+  flex: 0 0 auto;
+}
+
+/* ---------------------------------------------------------
+   9. CARDS E PAINÉIS
+   --------------------------------------------------------- */
+.context-card {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: clamp(0.8rem, 0.7rem + 0.35vw, 1rem);
+  min-height: clamp(8.5rem, 16vh, 11rem);
+  background: rgba(19, 24, 33, 0.6);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--sp-shadow-soft);
+  transition: all var(--sp-transition-normal);
+  cursor: pointer;
+}
+
+.context-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Métricas do Context Card */
+.context-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.context-metrics > div {
+  min-width: 0;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.5rem 0.5rem 0.625rem;
+  transition: all var(--sp-transition-fast);
+  cursor: pointer;
+}
+
+.context-metrics > div:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.context-metrics .metric-label {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  color: var(--sp-text-tertiary);
+}
+
+.context-metrics .metric-value {
+  line-height: 1;
+  font-size: clamp(0.82rem, 0.72rem + 0.4vw, 1.02rem);
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  font-weight: 600;
+  margin-top: 0.125rem;
+}
+
+/* Status Dot */
+.status-dot {
+  position: relative;
+  display: inline-flex;
+  width: 0.5rem;
+  height: 0.5rem;
+}
+
+.status-dot::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: inherit;
+  opacity: 0;
+  animation: ws-ping 1.6s ease-out infinite;
+}
+
+.status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: inherit;
+}
+
+/* ---------------------------------------------------------
+   10. HERO PANEL (Dashboard)
+   --------------------------------------------------------- */
+.live-hero-panel {
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: linear-gradient(to bottom, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+  padding: 2rem;
+  box-shadow: var(--sp-shadow-surface);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--sp-transition-normal);
+}
+
+.live-hero-panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* ---------------------------------------------------------
+   11. BOTÕES
+   --------------------------------------------------------- */
+.sp-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.625rem 1rem;
+  font-size: 12px;
+  color: var(--sp-text-secondary);
+  cursor: pointer;
+  transition: all var(--sp-transition-fast);
+}
+
+.sp-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sp-text-primary);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.sp-btn-primary {
+  border-color: rgba(91, 140, 255, 0.3);
+  background: rgba(91, 140, 255, 0.1);
+  color: #93b8ff;
+}
+
+.sp-btn-primary:hover {
+  background: rgba(91, 140, 255, 0.15);
+  border-color: rgba(91, 140, 255, 0.4);
+  transform: scale(1.05);
+}
+
+.sp-run-btn {
+  height: 58px;
+  border-radius: 18px;
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--sp-transition-fast);
+  white-space: nowrap;
+  font-family: inherit;
+  padding: 0 1.5rem;
+}
+
+.sp-run-btn:hover {
+  background: rgba(52, 211, 153, 0.16);
+  border-color: rgba(52, 211, 153, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px rgba(52, 211, 153, 0.12);
+}
+
+/* ---------------------------------------------------------
+   12. CHIPS E BADGES
+   --------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 0.25rem 0.75rem;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--sp-text-secondary);
+}
+
+.chip-green {
+  border-color: rgba(34, 197, 94, 0.3);
+  background: rgba(34, 197, 94, 0.1);
+  color: #86efac;
+}
+
+.chip-amber {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.1);
+  color: #fde68a;
+}
+
+.chip-red {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.1);
+  color: #fecaca;
+}
+
+.chip-blue {
+  border-color: rgba(91, 140, 255, 0.3);
+  background: rgba(91, 140, 255, 0.1);
+  color: #93b8ff;
+}
+
+/* ---------------------------------------------------------
+   13. LAYOUT RESPONSIVO
+   --------------------------------------------------------- */
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Grid do Dashboard */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(20rem, 0.6fr);
+  gap: 2rem;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+@media (max-width: 1024px) {
+  .hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------------------------------------------------------
+   14. SCROLL E OVERFLOW
+   --------------------------------------------------------- */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #1d2735 #0F131A;
+}
+
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+/* ---------------------------------------------------------
+   15. ESTADOS E UTILITÁRIOS
+   --------------------------------------------------------- */
+.hidden { display: none !important; }
+.invisible { visibility: hidden; }
+.opacity-0 { opacity: 0; }
+.opacity-50 { opacity: 0.5; }
+.opacity-75 { opacity: 0.75; }
+
+/* Focus Visible */
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(91, 140, 255, 0.45);
+  outline-offset: 1px;
+}
+
+/* Disabled */
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.05) 25%,
+    rgba(255,255,255,0.1) 50%,
+    rgba(255,255,255,0.05) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
