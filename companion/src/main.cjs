@@ -2529,18 +2529,20 @@ async function installDownloadedUpdate() {
 async function loadDesktopShell() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   
-  // Carregar SitePulse OS se SITEPULSE_OS estiver setado
-  const useOS = process.env.SITEPULSE_OS === "1" || process.env.SITEPULSE_OS === "true";
+  // Carregar SitePulse OS por padrão (nova interface)
+  const useLegacy = process.env.SITEPULSE_LEGACY === "1" || process.env.SITEPULSE_LEGACY === "true";
   const useV3 = process.env.SITEPULSE_UI_V3 === "1" || process.env.SITEPULSE_UI_V3 === "true";
   
   let targetFile;
-  if (useOS) {
-    targetFile = "app/dist/index.html";
-    console.log("[Main] Carregando SitePulse OS...");
+  if (useLegacy) {
+    targetFile = "renderer.html";
+    console.log("[Main] Carregando interface legada...");
   } else if (useV3) {
     targetFile = "renderer-v3/index.html";
+    console.log("[Main] Carregando interface v3...");
   } else {
-    targetFile = "renderer.html";
+    targetFile = "app/dist/index.html";
+    console.log("[Main] Carregando SitePulse OS...");
   }
   
   await mainWindow.loadFile(path.join(__dirname, targetFile));

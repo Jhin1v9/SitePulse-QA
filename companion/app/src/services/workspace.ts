@@ -138,7 +138,7 @@ export async function listSites(): Promise<SiteMetadata[]> {
     for (const dir of siteDirs) {
       try {
         const metadataResult = await fsAPI.readFile(`${dir.name}/site.json`);
-        if (metadataResult.success) {
+        if (metadataResult.success && metadataResult.data) {
           sites.push(JSON.parse(metadataResult.data));
         }
       } catch {
@@ -222,7 +222,7 @@ export async function updateAuditStatus(
   
   // Ler audit atual
   const result = await fsAPI.readFile(`${auditPath}/audit.json`);
-  if (!result.success) throw new Error('Audit não encontrado');
+  if (!result.success || !result.data) throw new Error('Audit não encontrado');
   
   const audit: AuditMetadata = JSON.parse(result.data);
   audit.status = status;
@@ -254,7 +254,7 @@ export async function listAudits(hostname: string): Promise<AuditMetadata[]> {
     for (const dir of auditDirs) {
       try {
         const auditResult = await fsAPI.readFile(`${auditsPath}/${dir.name}/audit.json`);
-        if (auditResult.success) {
+        if (auditResult.success && auditResult.data) {
           audits.push(JSON.parse(auditResult.data));
         }
       } catch {
@@ -305,7 +305,7 @@ export async function listFindings(
     for (const file of files) {
       try {
         const findingResult = await fsAPI.readFile(`${findingsPath}/${file.name}`);
-        if (findingResult.success) {
+        if (findingResult.success && findingResult.data) {
           findings.push(JSON.parse(findingResult.data));
         }
       } catch {
@@ -351,7 +351,7 @@ export async function loadEngineMemory(
   const memoryPath = `${getAuditPath(hostname, auditTimestamp)}/memory/${engineId}.json`;
   try {
     const result = await fsAPI.readFile(memoryPath);
-    if (result.success) {
+    if (result.success && result.data) {
       return JSON.parse(result.data);
     }
   } catch {

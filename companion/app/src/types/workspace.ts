@@ -145,7 +145,7 @@ export interface ReportData {
   id: string;
   auditId: string;
   type: 'executive' | 'technical' | 'detailed' | 'compliance';
-  format: 'html' | 'pdf' | 'json' | 'csv';
+  format: 'html' | 'pdf' | 'json' | 'csv' | 'markdown';
   filePath: string;
   generatedAt: string;
   fileSize: number;

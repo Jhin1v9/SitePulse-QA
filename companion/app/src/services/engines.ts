@@ -15,10 +15,12 @@ export interface EngineStatus {
   id: string;
   name: string;
   codename: string;
+  description?: string;
+  capabilities?: string[];
   status: 'active' | 'idle' | 'processing' | 'error' | 'disabled';
   power: number;
-  efficiency: number;
-  isActive: boolean;
+  efficiency?: number;
+  isActive?: boolean;
   lastActivity?: string;
   metrics?: {
     operationsPerSecond?: number;
@@ -123,6 +125,8 @@ export async function listEngines(): Promise<EngineStatus[]> {
     if (response.success && response.data) {
       return response.data.map(engine => ({
         ...engine,
+        power: engine.power ?? 50, // valor padrão se não vier do backend
+        status: (engine.status as EngineStatus['status']) ?? 'idle',
         codename: ENGINE_DEFINITIONS[engine.id as EngineId]?.codename || 'UNKNOWN',
         description: ENGINE_DEFINITIONS[engine.id as EngineId]?.description || '',
         capabilities: ENGINE_DEFINITIONS[engine.id as EngineId]?.capabilities || [],
@@ -134,7 +138,7 @@ export async function listEngines(): Promise<EngineStatus[]> {
     // Retorna motores com status offline em caso de erro
     return Object.values(ENGINE_DEFINITIONS).map(def => ({
       ...def,
-      status: 'disabled' as const,
+      status: 'disabled' as EngineStatus['status'],
       power: 0,
       efficiency: 0,
       isActive: false,
@@ -151,6 +155,8 @@ export async function getEngine(id: EngineId): Promise<EngineStatus | null> {
     if (response.success && response.data) {
       return {
         ...response.data,
+        power: response.data.power ?? 50,
+        status: (response.data.status as EngineStatus['status']) ?? 'idle',
         codename: ENGINE_DEFINITIONS[id]?.codename || 'UNKNOWN',
         description: ENGINE_DEFINITIONS[id]?.description || '',
         capabilities: ENGINE_DEFINITIONS[id]?.capabilities || [],

@@ -4,49 +4,19 @@ import type {
   EngineActivateResponse,
   FileReadDirResponse,
   FileWriteFileResponse,
+  FileReadFileResponse,
   ScanStartRequest,
   ScanStartResponse,
   ScanStopResponse,
   FindingsListResponse,
   ReportGenerateResponse,
+  SitePulseAPI,
 } from '../types/ipc';
 
-// Estender a declaração global de types/ipc.ts
+// Usar a declaração global de types/ipc.ts
 declare global {
   interface Window {
-    sitepulse?: {
-      ping: () => Promise<string>;
-      getVersion: () => Promise<string>;
-      engine: {
-        list: () => Promise<EngineListResponse>;
-        get: (id: string) => Promise<EngineGetResponse>;
-        activate: (id: string) => Promise<EngineActivateResponse>;
-        deactivate: (id: string) => Promise<EngineActivateResponse>;
-      };
-      fs: {
-        readDir: (path: string) => Promise<FileReadDirResponse>;
-        mkdir: (path: string) => Promise<FileWriteFileResponse>;
-        exists: (path: string) => Promise<FileWriteFileResponse>;
-        readFile: (path: string) => Promise<FileWriteFileResponse>;
-        writeFile: (path: string, content: string) => Promise<FileWriteFileResponse>;
-        delete: (path: string, recursive?: boolean) => Promise<FileWriteFileResponse>;
-        stat: (path: string) => Promise<FileWriteFileResponse>;
-        getRoot: () => Promise<FileWriteFileResponse>;
-      };
-      scan: {
-        start: (config: ScanStartRequest) => Promise<ScanStartResponse>;
-        stop: (scanId: string) => Promise<ScanStopResponse>;
-      };
-      findings: {
-        list: () => Promise<FindingsListResponse>;
-        update: (id: string, data: unknown) => Promise<EngineActivateResponse>;
-      };
-      report: {
-        generate: (options: unknown) => Promise<ReportGenerateResponse>;
-        export: (id: string, format: string) => Promise<EngineActivateResponse>;
-      };
-      on: (channel: string, callback: (payload: unknown) => void) => (() => void);
-    };
+    sitepulse?: SitePulseAPI;
   }
 }
 
@@ -121,7 +91,7 @@ export const fsAPI = {
     return window.sitepulse.fs.exists(path);
   },
   
-  readFile: (path: string): Promise<FileWriteFileResponse> => {
+  readFile: (path: string): Promise<FileReadFileResponse> => {
     if (!window.sitepulse) throw new Error('API IPC não disponível');
     return window.sitepulse.fs.readFile(path);
   },

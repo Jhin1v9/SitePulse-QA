@@ -4,7 +4,7 @@
  */
 
 import type { Finding } from './findings';
-import { reportAPI } from './ipc';
+import { reportAPI, fsAPI } from './ipc';
 import { workspaceService } from './workspace';
 
 export type ReportFormat = 'html' | 'pdf' | 'json' | 'csv' | 'markdown';
@@ -103,7 +103,7 @@ class ReportService {
 
       // Salvar arquivo
       const fullPath = `${config.hostname}/${config.auditTimestamp}/${filePath}`;
-      await workspaceService.fs.writeFile(fullPath, content);
+      await fsAPI.writeFile(fullPath, content);
 
       // Registrar relatório
       const reportData = {
@@ -445,7 +445,7 @@ ${findingsMD}
     fileSize: number;
   }>> {
     try {
-      const result = await workspaceService.fs.readDir(
+      const result = await fsAPI.readDir(
         `${hostname}/${auditTimestamp}/reports`
       );
       

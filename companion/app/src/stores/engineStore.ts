@@ -194,7 +194,10 @@ export const useEngineStore = create<EngineStore>()(
                 isActive: engine.isActive,
                 power: engine.power,
                 efficiency: engine.efficiency,
-                metrics: engine.metrics || mergedEngines[engine.id as EngineId].metrics,
+                metrics: {
+                  ...mergedEngines[engine.id as EngineId].metrics,
+                  ...engine.metrics,
+                },
               };
             }
           });

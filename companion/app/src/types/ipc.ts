@@ -57,7 +57,8 @@ export interface IpcResponse<T = unknown> {
 
 // Tipos específicos de resposta
 export type EngineListResponse = IpcResponse<Array<{ id: string; name: string; status: string; power: number }>>;
-export type EngineGetResponse = IpcResponse<{ id: string; name: string; status: string }>;
+export type EngineGetResponse = IpcResponse<{ id: string; name: string; status: string; power?: number }>;
+export type FileReadFileResponse = IpcResponse<string>;
 export type EngineActivateResponse = IpcResponse<void>;
 export type FileReadDirResponse = IpcResponse<Array<{ name: string; isDirectory: boolean; isFile: boolean }>>;
 export type FileWriteFileResponse = IpcResponse<void>;
@@ -77,33 +78,47 @@ export interface SitePulseAPI {
   ping: () => Promise<string>;
   getVersion: () => Promise<string>;
   
-  // Motores
-  getEngines: () => Promise<IpcResponse>;
-  getEngine: (id: string) => Promise<IpcResponse>;
-  activateEngine: (id: string) => Promise<IpcResponse>;
-  deactivateEngine: (id: string) => Promise<IpcResponse>;
+  // Motores (nested)
+  engine: {
+    list: () => Promise<EngineListResponse>;
+    get: (id: string) => Promise<EngineGetResponse>;
+    activate: (id: string) => Promise<EngineActivateResponse>;
+    deactivate: (id: string) => Promise<EngineActivateResponse>;
+  };
   
-  // Scans
-  startScan: (config: ScanConfig) => Promise<IpcResponse>;
-  stopScan: (scanId: string) => Promise<IpcResponse>;
+  // Sistema de Arquivos (nested)
+  fs: {
+    readDir: (path: string) => Promise<FileReadDirResponse>;
+    readFile: (path: string) => Promise<FileReadFileResponse>;
+    writeFile: (path: string, content: string) => Promise<FileWriteFileResponse>;
+    delete: (path: string, recursive?: boolean) => Promise<FileWriteFileResponse>;
+    mkdir: (path: string) => Promise<FileWriteFileResponse>;
+    exists: (path: string) => Promise<FileWriteFileResponse>;
+    stat: (path: string) => Promise<FileWriteFileResponse>;
+    getRoot: () => Promise<FileWriteFileResponse>;
+  };
   
-  // Findings
-  getFindings: (filters?: FindingFilters) => Promise<IpcResponse>;
-  updateFinding: (id: string, data: Partial<Finding>) => Promise<IpcResponse>;
+  // Scans (nested)
+  scan: {
+    start: (config: ScanConfig) => Promise<ScanStartResponse>;
+    stop: (scanId: string) => Promise<ScanStopResponse>;
+  };
   
-  // Arquivos
-  readDir: (path: string) => Promise<IpcResponse>;
-  readFile: (path: string) => Promise<IpcResponse>;
-  writeFile: (path: string, content: string) => Promise<IpcResponse>;
-  deleteFile: (path: string) => Promise<IpcResponse>;
+  // Findings (nested)
+  findings: {
+    list: () => Promise<FindingsListResponse>;
+    update: (id: string, data: Partial<Finding>) => Promise<EngineActivateResponse>;
+  };
   
-  // Relatórios
-  generateReport: (options: ReportOptions) => Promise<IpcResponse>;
-  exportReport: (id: string, format: string) => Promise<IpcResponse>;
+  // Relatórios (nested)
+  report: {
+    generate: (options: ReportOptions) => Promise<ReportGenerateResponse>;
+    export: (id: string, format: string) => Promise<EngineActivateResponse>;
+  };
   
   // Eventos (listeners)
-  on: (channel: string, callback: (...args: any[]) => void) => void;
-  off: (channel: string, callback: (...args: any[]) => void) => void;
+  on: (channel: string, callback: (...args: any[]) => void) => () => void;
+  off?: (channel: string, callback: (...args: any[]) => void) => void;
 }
 
 // Configs e filtros

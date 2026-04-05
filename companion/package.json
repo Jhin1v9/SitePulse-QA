@@ -9,9 +9,10 @@
   "scripts": {
     "sync:runtime": "node scripts/sync-runtime.mjs",
     "sync:runtime:fast": "node scripts/sync-runtime.mjs",
-    "dev": "npm run sync:runtime && node scripts/run-electron.mjs .",
+    "dev": "npm run build:os && npm run sync:runtime && set SITEPULSE_OS=1 && node scripts/run-electron.mjs .",
     "dev:v3": "npm run build:interface-v3 && npm run sync:runtime && node scripts/run-electron-v3.mjs",
-    "dev:os": "cd app && npm run build && cd .. && npm run sync:runtime && node scripts/run-electron-os.mjs",
+    "build:os": "cd app && npm run build && cd .. && xcopy /E /I /Y app\\dist src\\app\\dist 2>nul || cp -r app/dist src/app/dist",
+    "dev:os": "npm run build:os && npm run sync:runtime && set SITEPULSE_OS=1 && node scripts/run-electron.mjs .",
     "build:interface-v3": "node scripts/build-interface-v3.mjs",
     "smoke": "npm run sync:runtime && node scripts/run-electron.mjs . --smoke-test",
     "test:ui": "node scripts/ui-contract.mjs",
