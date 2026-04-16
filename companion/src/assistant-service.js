@@ -120,6 +120,26 @@
       ],
       responseStyle: "prioritized",
     },
+    bug_analyst: {
+      key: "bug_analyst",
+      name: "Bug Analyst",
+      description: "Analyzes visual and functional bugs captured by Bug Detector, explains root cause and suggests code fixes using AI.",
+      capabilities: ["analyze-bug", "explain-root-cause", "suggest-code-fix", "trace-element"],
+      allowedActions: [
+        "switch-findings",
+        "switch-prompts",
+        "open-memory",
+        "copy-text",
+        "generate-prompt",
+      ],
+      contextSources: ["report", "bug-detector", "issues", "memory", "data-intelligence"],
+      priorityRules: [
+        "Always explain the root cause before suggesting a fix.",
+        "When a code fix is available, present it in a copyable code block.",
+        "Use Bug Detector context when available; fall back to audit issues if not.",
+      ],
+      responseStyle: "technical",
+    },
   };
 
   const INTENT_DEFINITIONS = [
@@ -158,6 +178,7 @@
     { id: "audit", mode: "operator", terms: ["audite", "run audit", "audit ", "rode auditoria", "roda auditoria", "rodar auditoria", "run a auditoria"], builder: (context, rawQuery) => buildAuditSiteResponse(context, rawQuery) },
     { id: "analyze_seo_fix", mode: "operator", terms: ["analise seo e diga o que corrigir", "analyze seo and say what to fix", "analise o site", "analise este site", "analyze this site", "analise o seo", "analyze seo"], builder: (context, rawQuery) => buildAnalyzeSeoAndFixResponse(context, rawQuery) },
     { id: "logs", mode: "audit_analyst", terms: ["log", "logs"], builder: (context) => buildLogsResponse(context) },
+    { id: "bug_detected", mode: "bug_analyst", terms: ["bug detectado", "bug detector", "reportar bug", "screenshot", "gravacao de tela", "screen recording", "causa raiz", "root cause", "codigo corrigido", "fixed code"], builder: (context, rawQuery) => buildBugAnalystResponse(context, rawQuery) },
   ];
 
   const TONE_REGISTRY = {
@@ -778,6 +799,31 @@
           activeView: appContext.activeView,
           workspaceHelp: appContext.workspaceHelp || {},
           commands: availableCommands.slice(0, 10),
+        },
+      };
+    }
+
+    if (modeKey === "bug_analyst") {
+      const bd = appContext.bugDetector && typeof appContext.bugDetector === "object" ? appContext.bugDetector : null;
+      return {
+        ...baseContext,
+        bugContext: {
+          reportId: bd?.reportId || null,
+          description: bd?.description || "",
+          url: bd?.url || "",
+          elementSelector: bd?.elementSelector || "",
+          severity: bd?.severity || "medium",
+          aiProvider: bd?.aiProvider || "none",
+          aiConfidence: bd?.aiConfidence || 0,
+          rootCause: bd?.rootCause || "",
+          solution: bd?.solution || "",
+          recommendations: Array.isArray(bd?.recommendations) ? bd.recommendations : [],
+          fixCode: bd?.fixCode || "",
+          fixLanguage: bd?.fixLanguage || "",
+          consoleLogCount: bd?.consoleLogCount || 0,
+          networkRequestCount: bd?.networkRequestCount || 0,
+          hasScreenshot: bd?.hasScreenshot || false,
+          hasVideo: bd?.hasVideo || false,
         },
       };
     }
@@ -1892,6 +1938,56 @@
         issue.possibleResolution ? `Possible resolution: ${issue.possibleResolution}` : "No possible resolution is attached yet.",
       ],
       actions: [{ id: "manual-override", label: "Promote solution", payload: { issueCode: issue.code } }],
+    };
+  }
+
+  function buildBugAnalystResponse(context, rawQuery = "") {
+    const bc = context.bugContext || {};
+    const lang = context.language || "en";
+    const hasBugData = !!bc.reportId;
+
+    if (!hasBugData) {
+      return {
+        title: lang === "pt" ? "Análise de Bug" : "Bug Analysis",
+        summary: lang === "pt"
+          ? "Nenhum report do Bug Detector foi carregado ainda. Capture um bug primeiro para que eu possa analisar."
+          : "No Bug Detector report has been loaded yet. Capture a bug first so I can analyze it.",
+        analysis: [],
+        actions: [{ id: "switch-findings", label: lang === "pt" ? "Abrir findings" : "Open findings" }],
+      };
+    }
+
+    const lines = [];
+    if (bc.rootCause) {
+      lines.push(lang === "pt" ? `Causa raiz: ${bc.rootCause}` : `Root cause: ${bc.rootCause}`);
+    }
+    if (bc.solution) {
+      lines.push(lang === "pt" ? `Solução sugerida: ${bc.solution}` : `Suggested solution: ${bc.solution}`);
+    }
+    if (bc.recommendations && bc.recommendations.length) {
+      lines.push(...bc.recommendations.map((r) => `• ${r}`));
+    }
+    if (bc.consoleLogCount) {
+      lines.push(lang === "pt" ? `Console logs capturados: ${bc.consoleLogCount}` : `Captured console logs: ${bc.consoleLogCount}`);
+    }
+    if (bc.networkRequestCount) {
+      lines.push(lang === "pt" ? `Requisições de rede capturadas: ${bc.networkRequestCount}` : `Captured network requests: ${bc.networkRequestCount}`);
+    }
+
+    const actions = [];
+    if (bc.fixCode) {
+      actions.push({ id: "copy-text", label: lang === "pt" ? "Copiar código corrigido" : "Copy fixed code", payload: { text: bc.fixCode } });
+    }
+    actions.push({ id: "generate-prompt", label: lang === "pt" ? "Gerar prompt de correção" : "Generate fix prompt" });
+    actions.push({ id: "switch-prompts", label: lang === "pt" ? "Abrir Prompt Workspace" : "Open Prompt Workspace" });
+
+    return {
+      title: lang === "pt" ? `Análise de Bug — ${bc.description}` : `Bug Analysis — ${bc.description}`,
+      summary: lang === "pt"
+        ? `Bug detectado em ${bc.url} (severidade: ${bc.severity}). Confiança da IA (${bc.aiProvider}): ${Math.round(bc.aiConfidence * 100)}%.`
+        : `Bug detected at ${bc.url} (severity: ${bc.severity}). AI confidence (${bc.aiProvider}): ${Math.round(bc.aiConfidence * 100)}%.`,
+      analysis: lines.length ? lines : [lang === "pt" ? "Nenhuma análise detalhada disponível." : "No detailed analysis available."],
+      actions,
     };
   }
 
